@@ -3,6 +3,7 @@ import HeroSection from "@/components/hero";
 import ServicesSection from "@/components/category";
 import DiscoverParadise from "@/components/packages";
 import VehicleSection from "@/components/vehicle";
+import Footer from "@/components/footer";
 
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
       <ServicesSection />
       <DiscoverParadise />
       <VehicleSection />
+      <Footer />
     </>
   );
 }
