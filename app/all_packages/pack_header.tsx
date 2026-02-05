@@ -27,7 +27,7 @@ export default function PackHeader() {
               Discover Sri Lanka
             </h1>
             <p className="hero-subtitle">
-              Where Dreams Take Flight
+              Your journey: your plan
             </p>
             <p className="hero-description">
               Curated experiences across the pearl of the Indian Ocean
