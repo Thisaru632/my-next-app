@@ -5,12 +5,12 @@ import Image from 'next/image';
 export default function PackHeader() {
   return (
     <>
-      {/* Hero Banner Section - only this remains */}
+      {/* Hero Banner Section */}
       <section className="hero-banner">
         <div className="hero-overlay"></div>
         <Image
-          src="/images/hero/don-kaveen-93IYznJPkOA-unsplash.jpg"
-          alt="Tour Packages"
+          src="/hero/two-individuals-carrying-backpacks-standing-hill-gazing-lake.jpg"
+          alt="Two people with backpacks standing on a hill gazing at a lake in Sri Lanka"
           fill
           className="hero-image"
           priority
@@ -163,7 +163,7 @@ export default function PackHeader() {
           60% { transform: translateY(-6px); }
         }
 
-        /* Make it feel more like a full landing / coming-soon style */
+        /* Mobile adjustments */
         @media (max-width: 768px) {
           .hero-banner {
             height: 100vh;
