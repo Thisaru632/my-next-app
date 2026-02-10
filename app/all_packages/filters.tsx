@@ -1,846 +1,1024 @@
-// components/BookingForm.tsx
-// ──────────────────────────────────────────────────────────────
-// FIXED VERSION - Emotion Hydration mismatch should be gone
-// after adding AppRouterCacheProvider in layout + next.config.js
-// ──────────────────────────────────────────────────────────────
+// app/all_packages/filters.tsx
 
-'use client';
+"use client"
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
-  Container,
   Typography,
-  Button,
-  TextField,
-  Grid,
-  Paper,
-  Stepper,
-  Step,
-  StepLabel,
   Card,
   CardContent,
-  InputAdornment,
-  Stack,
-  alpha,
-  Divider,
-  Chip,
+  TextField,
+  Button,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+  InputAdornment,
   IconButton,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  FormControl,
-  Collapse,
+  Chip,
+  Stack,
+  Divider,
+  Paper,
+  Fade,
+  Tooltip,
 } from '@mui/material';
 import {
-  Car,
-  Truck,
-  Bus,
-  MapPin,
-  Calendar,
-  User,
+  DirectionsCar,
+  DirectionsBus,
+  LocationOn,
+  CalendarToday,
+  Schedule,
+  Person,
   Phone,
-  Mail,
-  ArrowRight,
-  ChevronLeft,
+  Email,
+  Close as CloseIcon,
+  DriveEta,
+  Add as AddIcon,
+  Delete as DeleteIcon,
   CheckCircle,
-  Users,
-  Briefcase,
-  DollarSign,
-  Clock,
-  X,
-} from 'lucide-react';
-import { styled } from '@mui/material/styles';
+  AirportShuttle,
+  LocalTaxi,
+  EventAvailable,
+  AccessTime,
+  Luggage,
+  AcUnit,
+  CreditCard,
+  Groups,
+  TripOrigin,
+  FlagCircle,
+  ArrowForward,
+} from '@mui/icons-material';
 
-/* ================= TYPES ================= */
-
-type FormField =
-  | 'vehicleType'
-  | 'vehicleName'
-  | 'pickupLocation'
-  | 'dropoffLocation'
-  | 'dateTime'
-  | 'name'
-  | 'telephone'
-  | 'email';
-
-interface FormData {
-  vehicleType: string;
-  vehicleName: string;
-  pickupLocation: string;
-  dropoffLocation: string;
-  dateTime: string;
-  name: string;
-  telephone: string;
-  email: string;
-}
-
-interface VehicleModel {
-  id: string;
-  name: string;
-}
-
-interface VehicleType {
-  name: string;
-  icon: JSX.Element;
-  maxPassengers: number;
-  maxBags: number;
-  pricePerDay: number;
-  models: VehicleModel[];
-}
-
-/* ================= STYLED COMPONENTS ================= */
-
-const GradientBox = styled(Box)(({ theme }) => ({
-  minHeight: '100vh',
-  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.light, 0.1)} 0%, ${alpha(theme.palette.primary.light, 0.3)} 50%, ${alpha(theme.palette.secondary.light, 0.2)} 100%)`,
-  paddingTop: theme.spacing(6),
-  paddingBottom: theme.spacing(6),
-}));
-
-const VehicleCard = styled(Card, {
-  shouldForwardProp: (prop) => prop !== 'selected',
-})<{ selected?: boolean }>(({ theme, selected }) => ({
-  cursor: 'pointer',
-  transition: 'all 0.3s ease',
-  border: `2px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
-  backgroundColor: selected ? alpha(theme.palette.primary.main, 0.05) : theme.palette.background.paper,
-  position: 'relative',
-  height: '140px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  '&:hover': {
-    transform: 'scale(1.05)',
-    boxShadow: theme.shadows[4],
-    borderColor: selected ? theme.palette.primary.main : theme.palette.grey[400],
+// Updated vehicle types with gradient backgrounds and better styling
+const vehicleTypes = [
+  { 
+    name: 'Car', 
+    icon: <DriveEta sx={{ fontSize: 40 }} />, 
+    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: '#667eea'
   },
-}));
-
-const StyledPaper = styled(Paper)(({ theme }) => ({
-  borderRadius: theme.spacing(3),
-  padding: theme.spacing(4),
-  boxShadow: theme.shadows[8],
-}));
-
-const InfoCard = styled(Paper)(({ theme }) => ({
-  borderRadius: theme.spacing(2),
-  padding: theme.spacing(3),
-  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
-  border: `2px solid ${theme.palette.primary.main}`,
-  boxShadow: theme.shadows[3],
-  position: 'sticky',
-  top: theme.spacing(2),
-}));
-
-const GradientButton = styled(Button)(({ theme }) => ({
-  background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
-  color: theme.palette.primary.contrastText,
-  padding: theme.spacing(1.5, 4),
-  borderRadius: theme.spacing(1.5),
-  fontWeight: 600,
-  '&:hover': {
-    background: `linear-gradient(45deg, ${theme.palette.primary.dark} 30%, ${theme.palette.primary.main} 90%)`,
-    transform: 'scale(1.05)',
-    boxShadow: theme.shadows[8],
+  { 
+    name: 'Van', 
+    icon: <AirportShuttle sx={{ fontSize: 40 }} />, 
+    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    color: '#f093fb'
   },
-}));
-
-const SuccessButton = styled(Button)(({ theme }) => ({
-  background: `linear-gradient(45deg, ${theme.palette.success.main} 30%, ${theme.palette.success.dark} 90%)`,
-  color: '#fff',
-  padding: theme.spacing(1.5, 4),
-  borderRadius: theme.spacing(1.5),
-  fontWeight: 600,
-  '&:hover': {
-    background: `linear-gradient(45deg, ${theme.palette.success.dark} 30%, ${theme.palette.success.main} 90%)`,
-    transform: 'scale(1.05)',
-    boxShadow: theme.shadows[8],
+  { 
+    name: 'Bus', 
+    icon: <DirectionsBus sx={{ fontSize: 40 }} />, 
+    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    color: '#4facfe'
   },
-}));
+  { 
+    name: 'SUV', 
+    icon: <LocalTaxi sx={{ fontSize: 40 }} />, 
+    gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    color: '#43e97b'
+  },
+];
 
-/* ================= COMPONENT ================= */
+// Vehicle specifications
+const vehicleSpecs = {
+  Car: { passengers: 3, baggage: 'Limited baggage', luggageCount: '2-3 bags' },
+  Van: { passengers: 10, baggage: 'Medium baggage', luggageCount: '6-8 bags' },
+  Bus: { passengers: 29, baggage: 'Large baggage', luggageCount: '15-20 bags' },
+  SUV: { passengers: 4, baggage: 'Large baggage', luggageCount: '4-5 bags' },
+};
+
+// Trip types with icons
+const tripTypes = [
+  { 
+    name: 'Drop', 
+    description: 'Single destination trip',
+    icon: <FlagCircle sx={{ fontSize: 32, color: '#667eea' }} />
+  },
+  { 
+    name: 'Return', 
+    description: 'Return to starting point',
+    icon: <TripOrigin sx={{ fontSize: 32, color: '#f093fb' }} />
+  },
+];
+
+const sampleVehicles = {
+  Car: {
+    models: [
+      { name: 'Alto', description: 'Compact & Efficient' },
+      { name: 'Wagon R', description: 'Spacious Interior' },
+      { name: 'Aqua', description: 'Hybrid Technology' },
+      { name: 'Axio', description: 'Premium Comfort' },
+    ]
+  },
+  Van: {
+    models: [
+      { name: 'KDH High Roof', description: 'Extra headroom' },
+      { name: 'KDH Flat Roof', description: 'Classic style' },
+      { name: 'Dual AC Van', description: 'Dual climate control' },
+      { name: 'Non-AC Van', description: 'Budget friendly' },
+    ]
+  },
+  Bus: {
+    models: [
+      { name: 'AC 29 Seater', description: 'Air conditioned comfort' },
+      { name: 'Non-AC 29 Seater', description: 'Economical choice' }, 
+    ]
+  },
+  SUV: {
+    models: [
+      { name: 'Prado', description: 'Luxury 4x4' },
+      { name: 'Fortuner', description: 'Premium SUV' }, 
+    ]
+  },
+};
 
 export default function BookingForm() {
-  const [activeStep, setActiveStep] = useState<number>(0);
-  const [numberOfDays, setNumberOfDays] = useState<number>(1);
-  const [openDialog, setOpenDialog] = useState<boolean>(false);
-  const steps = ['Trip Details', 'Personal Info'];
-
-  const [formData, setFormData] = useState<FormData>({
-    vehicleType: 'Budget',
+  const [formData, setFormData] = useState({
+    vehicleType: '',
     vehicleName: '',
-    pickupLocation: 'BIA Arrival Terminal, Katunayake',
+    tripType: '',
+    pickupLocation: '',
     dropoffLocation: '',
+    destinations: [] as string[],
     dateTime: '',
+    numberOfDays: 1,
     name: '',
     telephone: '',
     email: '',
   });
 
-  const vehicleTypes: VehicleType[] = [
-    { 
-      name: 'Budget', 
-      icon: <Car size={40} />, 
-      maxPassengers: 3, 
-      maxBags: 2, 
-      pricePerDay: 5000,
-      models: [
-        { id: 'alto', name: 'Suzuki Alto' },
-        { id: 'wagon-r', name: 'Suzuki Wagon R' },
-        { id: 'panda', name: 'Fiat Panda' },
-      ]
-    },
-    { 
-      name: 'City', 
-      icon: <Car size={40} />, 
-      maxPassengers: 4, 
-      maxBags: 3, 
-      pricePerDay: 7000,
-      models: [
-        { id: 'vitz', name: 'Toyota Vitz' },
-        { id: 'aqua', name: 'Toyota Aqua' },
-        { id: 'swift', name: 'Suzuki Swift' },
-      ]
-    },
-    { 
-      name: 'Semi', 
-      icon: <Truck size={40} />, 
-      maxPassengers: 2, 
-      maxBags: 5, 
-      pricePerDay: 8500,
-      models: [
-        { id: 'pickup', name: 'Toyota Hilux' },
-        { id: 'dmax', name: 'Isuzu D-Max' },
-        { id: 'ranger', name: 'Ford Ranger' },
-      ]
-    },
-    { 
-      name: 'Car', 
-      icon: <Car size={40} />, 
-      maxPassengers: 5, 
-      maxBags: 4, 
-      pricePerDay: 10000,
-      models: [
-        { id: 'axio', name: 'Toyota Axio' },
-        { id: 'civic', name: 'Honda Civic' },
-        { id: 'premio', name: 'Toyota Premio' },
-        { id: 'allion', name: 'Toyota Allion' },
-      ]
-    },
-    { 
-      name: '9 Seater', 
-      icon: <Bus size={40} />, 
-      maxPassengers: 9, 
-      maxBags: 6, 
-      pricePerDay: 15000,
-      models: [
-        { id: 'kdh', name: 'Toyota KDH Van' },
-        { id: 'noah', name: 'Toyota Noah' },
-        { id: 'voxy', name: 'Toyota Voxy' },
-      ]
-    },
-    { 
-      name: '14 Seater', 
-      icon: <Bus size={40} />, 
-      maxPassengers: 14, 
-      maxBags: 10, 
-      pricePerDay: 20000,
-      models: [
-        { id: 'hiace', name: 'Toyota Hiace' },
-        { id: 'caravan', name: 'Nissan Caravan' },
-        { id: 'commuter', name: 'Toyota Commuter' },
-      ]
-    },
-  ];
+  const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
+  const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
+  const [openPersonalDialog, setOpenPersonalDialog] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [newDestination, setNewDestination] = useState('');
 
-  const selectedVehicle = vehicleTypes.find(v => v.name === formData.vehicleType) || vehicleTypes[0];
-  const totalPrice = selectedVehicle.pricePerDay * numberOfDays;
-
-  const handleChange = (field: FormField, value: string) => {
+  const handleChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleVehicleTypeChange = (vehicleType: string) => {
-    setFormData((prev) => ({ 
-      ...prev, 
-      vehicleType: vehicleType,
-      vehicleName: '' // Reset vehicle name when category changes
+  const handleAddDestination = () => {
+    if (newDestination.trim()) {
+      setFormData((prev) => ({
+        ...prev,
+        destinations: [...prev.destinations, newDestination.trim()]
+      }));
+      setNewDestination('');
+    }
+  };
+
+  const handleRemoveDestination = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      destinations: prev.destinations.filter((_, i) => i !== index)
     }));
   };
 
-  const handleNext = () => {
-    setOpenDialog(true);
+  const handleVehicleCardClick = (type: string) => {
+    setSelectedCategory(type);
+    setOpenVehicleDialog(true);
   };
 
-  const handleBack = () => {
-    setActiveStep((prev) => prev - 1);
+  const handleVehicleSelect = (modelName: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      vehicleType: selectedCategory,
+      vehicleName: modelName,
+    }));
+    setOpenVehicleDialog(false);
+    setOpenTripTypeDialog(true);
   };
 
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
+  const handleTripTypeSelect = (tripTypeName: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      tripType: tripTypeName,
+    }));
+    setOpenTripTypeDialog(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Booking submitted:', formData);
-    console.log('Total Price:', totalPrice);
-    console.log('Number of Days:', numberOfDays);
-    alert(`Booking submitted successfully! Total: LKR ${totalPrice.toLocaleString()}`);
+  const handleRequestBooking = () => {
+    if (!formData.vehicleName || !formData.tripType || !formData.pickupLocation || !formData.dropoffLocation || !formData.dateTime) {
+      alert('Please fill all required fields');
+      return;
+    }
+    setOpenPersonalDialog(true);
   };
+
+  const handleSendRequest = () => {
+    console.log('Booking request submitted:', formData);
+    alert('Booking request sent successfully!');
+    setOpenPersonalDialog(false);
+  };
+
+  const currentCategoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles] || { models: [] };
+
+  const basePricePerDay =
+    formData.vehicleType === 'Car' ? 15000 :
+    formData.vehicleType === 'Van' ? 18000 :
+    formData.vehicleType === 'Bus' ? 35000 :
+    formData.vehicleType === 'SUV' ? 25000 : 0;
+
+  const totalPrice = basePricePerDay * formData.numberOfDays;
 
   return (
-    <GradientBox>
-      <Container maxWidth="lg">
-        {/* Header */}
-        <Box textAlign="center" mb={6}>
-          <Typography
-            variant="h2"
-            component="h1"
-            gutterBottom
-            sx={{
-              fontWeight: 'bold',
-              background: 'linear-gradient(45deg, #1976d2 30%, #5e35b1 90%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
-            Book Your Journey
-          </Typography>
-          <Typography variant="h6" color="text.secondary">
-            Choose your vehicle and complete your details in two easy steps
-          </Typography>
-        </Box>
-
-        {/* Stepper */}
-        <Box mb={4}>
-          <Stepper activeStep={activeStep} alternativeLabel>
-            {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-        </Box>
-
-        {/* Form */}
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <StyledPaper elevation={3}>
-              <form onSubmit={handleSubmit}>
-                {/* STEP 1: Trip Details */}
-                {activeStep === 0 && (
-                  <Box>
-                    {/* Section Title */}
-                    <Box display="flex" alignItems="center" mb={3}>
-                      <Box
-                        sx={{
-                          width: 4,
-                          height: 28,
-                          bgcolor: 'primary.main',
-                          borderRadius: 1,
-                          mr: 1.5,
-                        }}
-                      />
-                      <Typography variant="h5" fontWeight="bold">
-                        Select Your Vehicle
-                      </Typography>
-                    </Box>
-
-                    {/* Vehicle Grid */}
-                    <Grid container spacing={2} mb={4}>
-                      {vehicleTypes.map((vehicle) => (
-                        <Grid item xs={12} sm={6} md={4} key={vehicle.name}>
-                          <VehicleCard
-                            selected={formData.vehicleType === vehicle.name}
-                            onClick={() => handleVehicleTypeChange(vehicle.name)}
-                          >
-                            <CardContent
-                              sx={{
-                                textAlign: 'center',
-                                p: 2,
-                                '&:last-child': { pb: 2 },
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  color: formData.vehicleType === vehicle.name ? 'primary.main' : 'text.secondary',
-                                  display: 'flex',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                {vehicle.icon}
-                              </Box>
-                              <Typography
-                                variant="subtitle2"
-                                fontWeight="bold"
-                                mt={1}
-                                color={formData.vehicleType === vehicle.name ? 'primary.main' : 'text.primary'}
-                              >
-                                {vehicle.name}
-                              </Typography>
-                              {formData.vehicleType === vehicle.name && (
-                                <Box
-                                  sx={{
-                                    position: 'absolute',
-                                    top: 8,
-                                    right: 8,
-                                    color: 'primary.main',
-                                  }}
-                                >
-                                  <CheckCircle size={24} />
-                                </Box>
-                              )}
-                            </CardContent>
-                          </VehicleCard>
-                        </Grid>
-                      ))}
-                    </Grid>
-
-                    {/* Vehicle Models Selection */}
-                    <Collapse in={formData.vehicleType !== ''}>
-                      <Paper 
-                        elevation={0} 
-                        sx={{ 
-                          p: 3, 
-                          mb: 4, 
-                          bgcolor: alpha('#1976d2', 0.03),
-                          border: '1px solid',
-                          borderColor: alpha('#1976d2', 0.2),
-                          borderRadius: 2,
-                        }}
-                      >
-                        <Typography variant="subtitle1" fontWeight="bold" mb={2} color="primary">
-                          Select Your {selectedVehicle.name} Vehicle
-                        </Typography>
-                        <FormControl component="fieldset" fullWidth>
-                          <RadioGroup
-                            value={formData.vehicleName}
-                            onChange={(e) => handleChange('vehicleName', e.target.value)}
-                          >
-                            <Grid container spacing={1}>
-                              {selectedVehicle.models.map((model) => (
-                                <Grid item xs={12} sm={6} key={model.id}>
-                                  <FormControlLabel
-                                    value={model.name}
-                                    control={<Radio />}
-                                    label={model.name}
-                                    sx={{
-                                      border: '1px solid',
-                                      borderColor: formData.vehicleName === model.name ? 'primary.main' : 'divider',
-                                      borderRadius: 1.5,
-                                      py: 1,
-                                      px: 2,
-                                      m: 0,
-                                      width: '100%',
-                                      bgcolor: formData.vehicleName === model.name ? alpha('#1976d2', 0.05) : 'background.paper',
-                                      '&:hover': {
-                                        bgcolor: alpha('#1976d2', 0.08),
-                                      },
-                                    }}
-                                  />
-                                </Grid>
-                              ))}
-                            </Grid>
-                          </RadioGroup>
-                        </FormControl>
-                      </Paper>
-                    </Collapse>
-
-                    {/* Location & Time Inputs */}
-                    <Stack spacing={3}>
-                      <TextField
-                        fullWidth
-                        label="Pickup Location"
-                        value={formData.pickupLocation}
-                        onChange={(e) => handleChange('pickupLocation', e.target.value)}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <MapPin size={18} color="#1976d2" />
-                            </InputAdornment>
-                          ),
-                        }}
-                        variant="outlined"
-                      />
-
-                      <TextField
-                        fullWidth
-                        label="Drop-off Location"
-                        placeholder="Enter drop-off address"
-                        value={formData.dropoffLocation}
-                        onChange={(e) => handleChange('dropoffLocation', e.target.value)}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <MapPin size={18} color="#1976d2" />
-                            </InputAdornment>
-                          ),
-                        }}
-                        variant="outlined"
-                      />
-
-                      <TextField
-                        fullWidth
-                        label="Pick-up Date & Time"
-                        type="datetime-local"
-                        value={formData.dateTime}
-                        onChange={(e) => handleChange('dateTime', e.target.value)}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Calendar size={18} color="#1976d2" />
-                            </InputAdornment>
-                          ),
-                        }}
-                        InputLabelProps={{
-                          shrink: true,
-                        }}
-                        variant="outlined"
-                      />
-
-                      <TextField
-                        fullWidth
-                        label="Number of Days"
-                        type="number"
-                        value={numberOfDays}
-                        onChange={(e) => setNumberOfDays(Math.max(1, parseInt(e.target.value) || 1))}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Clock size={18} color="#1976d2" />
-                            </InputAdornment>
-                          ),
-                          inputProps: { min: 1 }
-                        }}
-                        variant="outlined"
-                      />
-                    </Stack>
-
-                    {/* Next Button */}
-                    <Box display="flex" justifyContent="flex-end" mt={4}>
-                      <GradientButton
-                        variant="contained"
-                        onClick={handleNext}
-                        endIcon={<ArrowRight size={20} />}
-                      >
-                        Plan Your Trip
-                      </GradientButton>
-                    </Box>
-                  </Box>
-                )}
-
-                {/* STEP 2: Personal Info - now handled in dialog */}
-                {activeStep === 1 && (
-                  <Box>
-                    {/* intentionally left empty - moved to dialog */}
-                  </Box>
-                )}
-              </form>
-            </StyledPaper>
-          </Grid>
-
-          {/* Vehicle Details & Pricing Card */}
-          <Grid item xs={12} md={4}>
-            <InfoCard elevation={2}>
-              <Typography variant="h6" fontWeight="bold" gutterBottom color="primary">
-                Booking Summary
-              </Typography>
-              
-              <Divider sx={{ my: 2 }} />
-
-              {/* Selected Vehicle */}
-              <Box mb={2}>
-                <Typography variant="caption" color="text.secondary" fontWeight="600">
-                  SELECTED VEHICLE
-                </Typography>
-                <Typography variant="h6" fontWeight="bold" mt={0.5}>
-                  {selectedVehicle.name}
-                </Typography>
-                {formData.vehicleName && (
-                  <Typography variant="body2" color="primary.main" fontWeight="600" mt={0.5}>
-                    {formData.vehicleName}
-                  </Typography>
-                )}
-              </Box>
-
-              {/* Vehicle Specs */}
-              <Stack spacing={2} mb={3}>
-                <Box display="flex" alignItems="center" gap={1.5}>
-                  <Box
-                    sx={{
-                      bgcolor: alpha('#1976d2', 0.1),
-                      borderRadius: '50%',
-                      p: 1,
-                      display: 'flex',
-                    }}
-                  >
-                    <Users size={20} color="#1976d2" />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Max Passengers
-                    </Typography>
-                    <Typography variant="body1" fontWeight="bold">
-                      {selectedVehicle.maxPassengers} People
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Box display="flex" alignItems="center" gap={1.5}>
-                  <Box
-                    sx={{
-                      bgcolor: alpha('#1976d2', 0.1),
-                      borderRadius: '50%',
-                      p: 1,
-                      display: 'flex',
-                    }}
-                  >
-                    <Briefcase size={20} color="#1976d2" />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Max Luggage
-                    </Typography>
-                    <Typography variant="body1" fontWeight="bold">
-                      {selectedVehicle.maxBags} Bags
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Box display="flex" alignItems="center" gap={1.5}>
-                  <Box
-                    sx={{
-                      bgcolor: alpha('#1976d2', 0.1),
-                      borderRadius: '50%',
-                      p: 1,
-                      display: 'flex',
-                    }}
-                  >
-                    <Clock size={20} color="#1976d2" />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Duration
-                    </Typography>
-                    <Typography variant="body1" fontWeight="bold">
-                      {numberOfDays} {numberOfDays === 1 ? 'Day' : 'Days'}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Stack>
-
-              <Divider sx={{ my: 2 }} />
-
-              {/* Pricing */}
-              <Box>
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2" color="text.secondary">
-                    Price per day
-                  </Typography>
-                  <Typography variant="body2" fontWeight="600">
-                    LKR {selectedVehicle.pricePerDay.toLocaleString()}
-                  </Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" mb={2}>
-                  <Typography variant="body2" color="text.secondary">
-                    Number of days
-                  </Typography>
-                  <Typography variant="body2" fontWeight="600">
-                    × {numberOfDays}
-                  </Typography>
-                </Box>
-                
-                <Divider sx={{ my: 2 }} />
-                
-                <Box 
-                  display="flex" 
-                  justifyContent="space-between" 
-                  alignItems="center"
-                  sx={{
-                    bgcolor: alpha('#1976d2', 0.1),
-                    p: 2,
-                    borderRadius: 2,
-                  }}
-                >
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <DollarSign size={20} color="#1976d2" />
-                    <Typography variant="h6" fontWeight="bold" color="primary">
-                      Total
-                    </Typography>
-                  </Box>
-                  <Typography variant="h5" fontWeight="bold" color="primary">
-                    LKR {totalPrice.toLocaleString()}
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Box mt={3}>
-                <Chip 
-                  label="Free Cancellation" 
-                  color="success" 
-                  size="small" 
-                  sx={{ mr: 1 }}
-                />
-                <Chip 
-                  label="Instant Confirmation" 
-                  color="info" 
-                  size="small" 
-                />
-              </Box>
-
-              {/* Find Packages Button */}
-              <Box mt={3}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  color="primary"
-                  sx={{
-                    borderRadius: 2,
-                    py: 1.5,
-                    fontWeight: 600,
-                    borderWidth: 2,
-                    '&:hover': {
-                      borderWidth: 2,
-                      transform: 'scale(1.02)',
-                      boxShadow: 2,
-                    },
-                  }}
-                  onClick={() => alert('Browse our exciting travel packages!')}
-                >
-                  Find Packages
-                </Button>
-              </Box>
-            </InfoCard>
-          </Grid>
-        </Grid>
-
-        {/* Footer Note */}
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          textAlign="center"
-          mt={3}
-        >
-          Your booking information is secure and encrypted
-        </Typography>
-
-        {/* Personal Information Dialog */}
-        <Dialog 
-          open={openDialog} 
-          onClose={handleCloseDialog}
-          maxWidth="sm"
-          fullWidth
-          PaperProps={{
-            sx: {
-              borderRadius: 3,
-            }
+    <Box sx={{ maxWidth: 1000, mx: 'auto', p: { xs: 2, md: 4 } }} suppressHydrationWarning>
+      {/* Header Section */}
+      <Box sx={{ textAlign: 'center', mb: 4 }}>
+        <Typography 
+          variant="h4" 
+          sx={{ 
+            fontWeight: 700,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            mb: 1
           }}
         >
-          <DialogTitle sx={{ pb: 1 }}>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box display="flex" alignItems="center">
-                <Box
+          Book Your Journey
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Choose your perfect ride and create unforgettable experiences
+        </Typography>
+      </Box>
+
+      {/* Vehicle Selection Section */}
+      <Paper 
+        elevation={3}
+        sx={{ 
+          borderRadius: 4, 
+          p: 4, 
+          mb: 4,
+          background: 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+          }
+        }}
+      >
+        {/* Header */}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          mb: 4,
+          flexWrap: 'wrap',
+          gap: 2
+        }}>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
+              Select Your Vehicle
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Choose from our premium fleet
+            </Typography>
+          </Box>
+          
+          {totalPrice > 0 && (
+            <Chip 
+              label={`Estimated: LKR ${totalPrice.toLocaleString()}`}
+              icon={<CreditCard />}
+              sx={{ 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                fontWeight: 600,
+                fontSize: '1rem',
+                py: 2.5,
+                px: 1,
+                '& .MuiChip-icon': { color: 'white' }
+              }}
+            />
+          )}
+        </Box>
+
+        {/* Vehicle Cards Grid */}
+        <Box sx={{ 
+          display: 'grid',
+          gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
+          gap: 2,
+          mb: 4
+        }}>
+          {vehicleTypes.map((vehicle) => (
+            <Tooltip key={vehicle.name} title={`Select ${vehicle.name}`} arrow>
+              <Card
+                onClick={() => handleVehicleCardClick(vehicle.name)}
+                sx={{
+                  cursor: 'pointer',
+                  border: formData.vehicleType === vehicle.name ? `3px solid ${vehicle.color}` : '3px solid transparent',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&:hover': { 
+                    transform: 'translateY(-8px)',
+                    boxShadow: `0 12px 24px ${vehicle.color}40`,
+                  },
+                  '&::before': formData.vehicleType === vehicle.name ? {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    background: vehicle.gradient,
+                  } : {},
+                }}
+              >
+                <CardContent sx={{ 
+                  textAlign: 'center', 
+                  p: 3,
+                  '&:last-child': { pb: 3 }
+                }}>
+                  <Box sx={{ 
+                    mb: 2,
+                    color: formData.vehicleType === vehicle.name ? vehicle.color : '#666',
+                    transform: formData.vehicleType === vehicle.name ? 'scale(1.1)' : 'scale(1)',
+                    transition: 'all 0.3s'
+                  }}>
+                    {vehicle.icon}
+                  </Box>
+                  <Typography 
+                    variant="subtitle1" 
+                    sx={{ 
+                      fontWeight: 600,
+                      color: formData.vehicleType === vehicle.name ? vehicle.color : '#424242'
+                    }}
+                  >
+                    {vehicle.name}
+                  </Typography>
+                  {formData.vehicleType === vehicle.name && (
+                    <CheckCircle 
+                      sx={{ 
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        color: vehicle.color,
+                        fontSize: 24
+                      }} 
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </Tooltip>
+          ))}
+        </Box>
+
+        {/* Vehicle Features */}
+        {formData.vehicleType && (
+          <Fade in={true}>
+            <Box sx={{ 
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+              gap: 2,
+              p: 3,
+              background: 'rgba(102, 126, 234, 0.05)',
+              borderRadius: 3,
+              border: '1px solid rgba(102, 126, 234, 0.1)'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <CreditCard sx={{ color: '#667eea', fontSize: 28 }} />
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Payment
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    Flexible
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <AcUnit sx={{ color: '#4facfe', fontSize: 28 }} />
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Climate
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    Air Conditioned
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Groups sx={{ color: '#f093fb', fontSize: 28 }} />
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Capacity
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    {vehicleSpecs[formData.vehicleType as keyof typeof vehicleSpecs]?.passengers || 3} Passengers
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Luggage sx={{ color: '#43e97b', fontSize: 28 }} />
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Luggage
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    {vehicleSpecs[formData.vehicleType as keyof typeof vehicleSpecs]?.luggageCount || '2-3 bags'}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          </Fade>
+        )}
+
+        {/* Selected Items Display */}
+        {(formData.vehicleName || formData.tripType) && (
+          <Fade in={true}>
+            <Box sx={{ 
+              mt: 4, 
+              pt: 4, 
+              borderTop: '2px dashed #e0e0e0',
+              display: 'flex',
+              gap: 2,
+              flexWrap: 'wrap'
+            }}>
+              {formData.vehicleName && (
+                <Chip
+                  icon={formData.vehicleType === 'Van' ? <AirportShuttle /> :
+                        formData.vehicleType === 'Bus' ? <DirectionsBus /> :
+                        formData.vehicleType === 'SUV' ? <LocalTaxi /> :
+                        <DriveEta />}
+                  label={`${formData.vehicleType} - ${formData.vehicleName}`}
+                  onDelete={() => handleVehicleCardClick(formData.vehicleType)}
                   sx={{
-                    width: 4,
-                    height: 28,
-                    bgcolor: 'primary.main',
-                    borderRadius: 1,
-                    mr: 1.5,
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    fontWeight: 500,
+                    py: 2.5,
+                    px: 1,
+                    '& .MuiChip-icon': { color: 'white' },
+                    '& .MuiChip-deleteIcon': { color: 'white', '&:hover': { color: '#f0f0f0' } }
                   }}
                 />
-                <Typography variant="h5" fontWeight="bold">
-                  Your Information
-                </Typography>
-              </Box>
-              <IconButton onClick={handleCloseDialog} size="small">
-                <X size={20} />
-              </IconButton>
+              )}
+
+              {formData.tripType && (
+                <Chip
+                  icon={<CheckCircle />}
+                  label={`${formData.tripType} Trip`}
+                  onDelete={() => setOpenTripTypeDialog(true)}
+                  sx={{
+                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                    color: 'white',
+                    fontWeight: 500,
+                    py: 2.5,
+                    px: 1,
+                    '& .MuiChip-icon': { color: 'white' },
+                    '& .MuiChip-deleteIcon': { color: 'white', '&:hover': { color: '#f0f0f0' } }
+                  }}
+                />
+              )}
             </Box>
-            <Typography variant="body2" color="text.secondary" ml={3} mt={1}>
-              Please provide your contact details to complete your booking
-            </Typography>
-          </DialogTitle>
-          
-          <DialogContent sx={{ pt: 3 }}>
-            <Stack spacing={3}>
-              <TextField
-                fullWidth
-                label="Full Name"
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <User size={18} color="#1976d2" />
-                    </InputAdornment>
-                  ),
-                }}
-                variant="outlined"
-              />
+          </Fade>
+        )}
+      </Paper>
 
-              <TextField
-                fullWidth
-                label="Telephone"
-                placeholder="+94 XX XXX XXXX"
-                value={formData.telephone}
-                onChange={(e) => handleChange('telephone', e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Phone size={18} color="#1976d2" />
-                    </InputAdornment>
-                  ),
-                }}
-                variant="outlined"
-              />
+      {/* Trip Details Section */}
+      <Paper 
+        elevation={3}
+        sx={{ 
+          borderRadius: 4, 
+          p: 4,
+          background: 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
+        }}
+      >
+        <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
+          Trip Details
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+          Plan your journey with multiple stops
+        </Typography>
 
-              <TextField
-                fullWidth
-                label="Email Address"
-                type="email"
-                placeholder="your.email@example.com"
-                value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Mail size={18} color="#1976d2" />
-                    </InputAdornment>
-                  ),
-                }}
-                variant="outlined"
-              />
-            </Stack>
-          </DialogContent>
+        <Stack spacing={3}>
+          {/* Pickup Location */}
+          <TextField
+            label="Pickup Location"
+            placeholder="Enter your starting point"
+            value={formData.pickupLocation}
+            onChange={(e) => handleChange('pickupLocation', e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <TripOrigin sx={{ color: '#667eea' }} />
+                </InputAdornment>
+              ),
+            }}
+            variant="outlined"
+            fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': { borderColor: '#667eea' },
+                '&.Mui-focused fieldset': { borderColor: '#667eea', borderWidth: 2 },
+              }
+            }}
+          />
 
-          <DialogActions sx={{ px: 3, pb: 3, pt: 2 }}>
-            <Button
+          {/* Multiple Destinations */}
+          {formData.destinations.length > 0 && (
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <LocationOn fontSize="small" />
+                Stops Along the Way ({formData.destinations.length})
+              </Typography>
+              <Stack spacing={1.5}>
+                {formData.destinations.map((destination, index) => (
+                  <Paper
+                    key={index}
+                    elevation={1}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      p: 2,
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 2,
+                      transition: 'all 0.2s',
+                      '&:hover': { boxShadow: 3 }
+                    }}
+                  >
+                    <Box sx={{ 
+                      minWidth: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontWeight: 600,
+                      fontSize: '0.875rem'
+                    }}>
+                      {index + 1}
+                    </Box>
+                    <Typography variant="body1" sx={{ flex: 1 }}>
+                      {destination}
+                    </Typography>
+                    <IconButton 
+                      onClick={() => handleRemoveDestination(index)}
+                      size="small"
+                      sx={{
+                        color: '#f5576c',
+                        '&:hover': { background: 'rgba(245, 87, 108, 0.1)' }
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {/* Add Destination */}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField
+              label="Add Stop (Optional)"
+              placeholder="Add intermediate destinations"
+              value={newDestination}
+              onChange={(e) => setNewDestination(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddDestination();
+                }
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LocationOn sx={{ color: '#4facfe' }} />
+                  </InputAdornment>
+                ),
+              }}
               variant="outlined"
-              onClick={handleCloseDialog}
+              fullWidth
               sx={{
-                borderRadius: 2,
-                px: 3,
-                py: 1.5,
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': { borderColor: '#4facfe' },
+                  '&.Mui-focused fieldset': { borderColor: '#4facfe', borderWidth: 2 },
+                }
+              }}
+            />
+            <Button
+              variant="contained"
+              onClick={handleAddDestination}
+              disabled={!newDestination.trim()}
+              startIcon={<AddIcon />}
+              sx={{
+                minWidth: 120,
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #3d9ce8 0%, #00d9e8 100%)',
+                }
               }}
             >
-              Cancel
+              Add
             </Button>
-            <SuccessButton
-              onClick={handleSubmit}
+          </Box>
+
+          {/* Dropoff Location */}
+          <TextField
+            label="Dropoff Location"
+            placeholder="Enter your final destination"
+            value={formData.dropoffLocation}
+            onChange={(e) => handleChange('dropoffLocation', e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <FlagCircle sx={{ color: '#f5576c' }} />
+                </InputAdornment>
+              ),
+            }}
+            variant="outlined"
+            fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': { borderColor: '#f5576c' },
+                '&.Mui-focused fieldset': { borderColor: '#f5576c', borderWidth: 2 },
+              }
+            }}
+          />
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Date/Time and Days */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
+            <TextField
+              label="Date & Time"
+              type="datetime-local"
+              value={formData.dateTime}
+              onChange={(e) => handleChange('dateTime', e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <EventAvailable sx={{ color: '#667eea' }} />
+                  </InputAdornment>
+                ),
+              }}
+              InputLabelProps={{ shrink: true }}
+              variant="outlined"
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': { borderColor: '#667eea' },
+                  '&.Mui-focused fieldset': { borderColor: '#667eea', borderWidth: 2 },
+                }
+              }}
+            />
+
+            <TextField
+              label="Number of Days"
+              type="number"
+              value={formData.numberOfDays}
+              onChange={(e) => handleChange('numberOfDays', Math.max(1, parseInt(e.target.value) || 1))}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <AccessTime sx={{ color: '#f093fb' }} />
+                  </InputAdornment>
+                ),
+                inputProps: { min: 1 }
+              }}
+              variant="outlined"
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': { borderColor: '#f093fb' },
+                  '&.Mui-focused fieldset': { borderColor: '#f093fb', borderWidth: 2 },
+                }
+              }}
+            />
+          </Box>
+
+          {/* Submit Button */}
+          <Button
+            variant="contained"
+            size="large"
+            onClick={handleRequestBooking}
+            disabled={!formData.vehicleName || !formData.tripType || !formData.pickupLocation || !formData.dropoffLocation || !formData.dateTime}
+            endIcon={<ArrowForward />}
+            sx={{
+              mt: 2,
+              py: 1.5,
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5568d3 0%, #653a8b 100%)',
+                boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)',
+                transform: 'translateY(-2px)',
+              },
+              '&:disabled': {
+                background: '#e0e0e0',
+                color: '#9e9e9e'
+              },
+              transition: 'all 0.3s'
+            }}
+          >
+            Request Booking
+          </Button>
+        </Stack>
+      </Paper>
+
+      {/* Vehicle Selection Dialog */}
+      <Dialog 
+        open={openVehicleDialog} 
+        onClose={() => setOpenVehicleDialog(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: vehicleTypes.find(v => v.name === selectedCategory)?.gradient || '#667eea',
+          color: 'white',
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {selectedCategory === 'Van' && <AirportShuttle />}
+            {selectedCategory === 'Bus' && <DirectionsBus />}
+            {selectedCategory === 'Car' && <DriveEta />}
+            {selectedCategory === 'SUV' && <LocalTaxi />}
+            Select {selectedCategory} Vehicle
+          </Box>
+          <IconButton
+            onClick={() => setOpenVehicleDialog(false)}
+            sx={{ color: 'white' }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Choose from our available {selectedCategory} vehicles
+          </Typography>
+          <List disablePadding>
+            {currentCategoryVehicles?.models.map((model, index) => (
+              <Paper
+                key={model.name}
+                elevation={formData.vehicleName === model.name ? 3 : 1}
+                sx={{
+                  mb: 1.5,
+                  overflow: 'hidden',
+                  border: formData.vehicleName === model.name ? '2px solid' : '1px solid',
+                  borderColor: formData.vehicleName === model.name ? 
+                    vehicleTypes.find(v => v.name === selectedCategory)?.color : '#e0e0e0',
+                  borderRadius: 2,
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    boxShadow: 4,
+                    transform: 'translateX(4px)'
+                  }
+                }}
+              >
+                <ListItemButton
+                  onClick={() => handleVehicleSelect(model.name)}
+                  sx={{ py: 2, px: 3 }}
+                >
+                  <ListItemText 
+                    primary={model.name}
+                    secondary={model.description}
+                    primaryTypographyProps={{ fontWeight: 600 }}
+                  />
+                  {formData.vehicleName === model.name && (
+                    <CheckCircle sx={{ 
+                      color: vehicleTypes.find(v => v.name === selectedCategory)?.color,
+                      fontSize: 28
+                    }} />
+                  )}
+                </ListItemButton>
+              </Paper>
+            ))}
+          </List>
+        </DialogContent>
+      </Dialog>
+
+      {/* Trip Type Dialog */}
+      <Dialog 
+        open={openTripTypeDialog} 
+        onClose={() => setOpenTripTypeDialog(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+          color: 'white',
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TripOrigin />
+            Select Trip Type
+          </Box>
+          <IconButton
+            onClick={() => setOpenTripTypeDialog(false)}
+            sx={{ color: 'white' }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Choose the type of trip you are planning
+          </Typography>
+          <List disablePadding>
+            {tripTypes.map((trip) => (
+              <Paper
+                key={trip.name}
+                elevation={formData.tripType === trip.name ? 3 : 1}
+                sx={{
+                  mb: 1.5,
+                  overflow: 'hidden',
+                  border: formData.tripType === trip.name ? '2px solid #f093fb' : '1px solid #e0e0e0',
+                  borderRadius: 2,
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    boxShadow: 4,
+                    transform: 'translateX(4px)'
+                  }
+                }}
+              >
+                <ListItemButton
+                  onClick={() => handleTripTypeSelect(trip.name)}
+                  sx={{ py: 2.5, px: 3 }}
+                >
+                  <Box sx={{ mr: 2 }}>
+                    {trip.icon}
+                  </Box>
+                  <ListItemText 
+                    primary={trip.name}
+                    secondary={trip.description}
+                    primaryTypographyProps={{ fontWeight: 600, fontSize: '1.1rem' }}
+                  />
+                  {formData.tripType === trip.name && (
+                    <CheckCircle sx={{ color: '#f093fb', fontSize: 28 }} />
+                  )}
+                </ListItemButton>
+              </Paper>
+            ))}
+          </List>
+        </DialogContent>
+      </Dialog>
+
+      {/* Personal Information Dialog */}
+      <Dialog 
+        open={openPersonalDialog} 
+        onClose={() => setOpenPersonalDialog(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+          color: 'white',
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Person />
+            Your Information
+          </Box>
+          <IconButton
+            onClick={() => setOpenPersonalDialog(false)}
+            sx={{ color: 'white' }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ mt: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+            Please provide your contact details to complete your booking
+          </Typography>
+
+          <Stack spacing={3}>
+            <TextField
+              label="Full Name"
+              placeholder="Enter your full name"
+              value={formData.name}
+              onChange={(e) => handleChange('name', e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Person sx={{ color: '#43e97b' }} />
+                  </InputAdornment>
+                ),
+              }}
+              variant="outlined"
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': { borderColor: '#43e97b' },
+                  '&.Mui-focused fieldset': { borderColor: '#43e97b', borderWidth: 2 },
+                }
+              }}
+            />
+
+            <TextField
+              label="Telephone"
+              placeholder="Enter your phone number"
+              value={formData.telephone}
+              onChange={(e) => handleChange('telephone', e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Phone sx={{ color: '#4facfe' }} />
+                  </InputAdornment>
+                ),
+              }}
+              variant="outlined"
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': { borderColor: '#4facfe' },
+                  '&.Mui-focused fieldset': { borderColor: '#4facfe', borderWidth: 2 },
+                }
+              }}
+            />
+
+            <TextField
+              label="Email"
+              type="email"
+              placeholder="Enter your email address"
+              value={formData.email}
+              onChange={(e) => handleChange('email', e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email sx={{ color: '#f093fb' }} />
+                  </InputAdornment>
+                ),
+              }}
+              variant="outlined"
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover fieldset': { borderColor: '#f093fb' },
+                  '&.Mui-focused fieldset': { borderColor: '#f093fb', borderWidth: 2 },
+                }
+              }}
+            />
+
+            <Button
               variant="contained"
+              fullWidth
+              size="large"
+              onClick={handleSendRequest}
+              disabled={!formData.name || !formData.telephone || !formData.email}
+              sx={{
+                mt: 2,
+                py: 1.5,
+                fontSize: '1.1rem',
+                fontWeight: 600,
+                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                boxShadow: '0 4px 15px rgba(67, 233, 123, 0.4)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #3bd46d 0%, #2fe0c9 100%)',
+                  boxShadow: '0 6px 20px rgba(67, 233, 123, 0.5)',
+                },
+                transition: 'all 0.3s'
+              }}
             >
-              Complete Booking
-            </SuccessButton>
-          </DialogActions>
-        </Dialog>
-      </Container>
-    </GradientBox>
+              Confirm & Send Request
+            </Button>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+    </Box>
   );
 }

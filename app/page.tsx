@@ -4,6 +4,7 @@ import ServicesSection from "@/components/category";
 import TestimonialsSection from "@/components/testimonials";
 import  DiscoverParadise from "@/components/packages";
 import Footer from "@/components/footer";
+import BookingForm from "./all_packages/filters";
 
 
 export default function Home() {
@@ -11,6 +12,7 @@ export default function Home() {
     <>
       
       <HeroSection />
+      <BookingForm />
       <ServicesSection />
       <DiscoverParadise />
       <TestimonialsSection />
