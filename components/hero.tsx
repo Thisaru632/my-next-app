@@ -40,19 +40,19 @@ const vehicleTypes = [
   },
   { 
     name: 'Van', 
-    icon: '/car.png',
+    icon: '/van.png',
     gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
     color: '#f093fb'
   },
   { 
     name: 'Bus', 
-    icon: '/car.png',
+    icon: '/school-bus (1).png',
     gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     color: '#4facfe'
   },
   { 
     name: 'SUV', 
-    icon: '/car.png',
+    icon: '/suv.png',
     gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
     color: '#43e97b'
   },
@@ -74,30 +74,30 @@ const tripTypes = [
 const sampleVehicles = {
   Car: {
     models: [
-      { name: 'Alto', description: 'Compact & Efficient' },
-      { name: 'Wagon R', description: 'Spacious Interior' },
-      { name: 'Aqua', description: 'Hybrid Technology' },
-      { name: 'Axio', description: 'Premium Comfort' },
+      { name: 'Alto', description: 'Compact & Efficient', maxPersons: 3, maxBags: 2 },
+      { name: 'Wagon R', description: 'Spacious Interior', maxPersons: 4, maxBags: 3 },
+      { name: 'Aqua', description: 'Hybrid Technology', maxPersons: 4, maxBags: 3 },
+      { name: 'Axio', description: 'Premium Comfort', maxPersons: 4, maxBags: 3 },
     ]
   },
   Van: {
     models: [
-      { name: 'KDH High Roof', description: 'Extra headroom' },
-      { name: 'KDH Flat Roof', description: 'Classic style' },
-      { name: 'Dual AC Van', description: 'Dual climate control' },
-      { name: 'Non-AC Van', description: 'Budget friendly' },
+      { name: 'KDH High Roof', description: 'Extra headroom', maxPersons: 12, maxBags: 10 },
+      { name: 'KDH Flat Roof', description: 'Classic style', maxPersons: 10, maxBags: 8 },
+      { name: 'Dual AC Van', description: 'Dual climate control', maxPersons: 10, maxBags: 8 },
+      { name: 'Non-AC Van', description: 'Budget friendly', maxPersons: 10, maxBags: 8 },
     ]
   },
   Bus: {
     models: [
-      { name: 'AC 29 Seater', description: 'Air conditioned comfort' },
-      { name: 'Non-AC 29 Seater', description: 'Economical choice' }, 
+      { name: 'AC 29 Seater', description: 'Air conditioned comfort', maxPersons: 29, maxBags: 25 },
+      { name: 'Non-AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 25 }, 
     ]
   },
   SUV: {
     models: [
-      { name: 'Prado', description: 'Luxury 4x4' },
-      { name: 'Fortuner', description: 'Premium SUV' }, 
+      { name: 'Prado', description: 'Luxury 4x4', maxPersons: 7, maxBags: 6 },
+      { name: 'Fortuner', description: 'Premium SUV', maxPersons: 7, maxBags: 6 }, 
     ]
   }
 };
@@ -123,6 +123,8 @@ export default function HeroSection() {
     name: '',
     telephone: '',
     email: '',
+    maxPersons: 0,
+    maxBags: 0,
   });
 
   const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
@@ -186,10 +188,16 @@ export default function HeroSection() {
   };
 
   const handleVehicleSelect = (modelName: string) => {
+    // Find the selected vehicle model to get maxPersons and maxBags
+    const categoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles];
+    const selectedModel = categoryVehicles.models.find(model => model.name === modelName);
+    
     setFormData((prev) => ({
       ...prev,
       vehicleType: selectedCategory,
       vehicleName: modelName,
+      maxPersons: selectedModel?.maxPersons || 0,
+      maxBags: selectedModel?.maxBags || 0,
     }));
     setOpenVehicleDialog(false);
     setOpenTripTypeDialog(true);
@@ -226,6 +234,8 @@ export default function HeroSection() {
       name: '',
       telephone: '',
       email: '',
+      maxPersons: 0,
+      maxBags: 0,
     });
   };
 
@@ -348,11 +358,11 @@ export default function HeroSection() {
               {/* Header */}
               <div className="text-center mb-4">
                 <h3
-                  className="text-white mb-1"
                   style={{
                     fontFamily: "'Cormorant Garamond', serif",
                     fontWeight: 600,
                     fontSize: "1.45rem",
+                    color: "#000000",
                   }}
                 >
                   Book Your Journey
@@ -363,7 +373,7 @@ export default function HeroSection() {
                     fontWeight: 300,
                     fontSize: "0.78rem",
                     lineHeight: 1.5,
-                    color: "rgba(255,255,255,0.85)",
+                    color: "#000000",
                   }}
                 >
                   Choose vehicle & plan your Sri Lankan trip
@@ -377,7 +387,7 @@ export default function HeroSection() {
                     fontFamily: "'Montserrat', sans-serif",
                     fontSize: "0.78rem",
                     fontWeight: 500,
-                    color: "rgba(255,255,255,0.92)",
+                    color: "#000000",
                     display: "block",
                     marginBottom: "0.6rem",
                     letterSpacing: "0.04em",
@@ -442,7 +452,7 @@ export default function HeroSection() {
                           fontFamily: "'Montserrat', sans-serif",
                           fontSize: "0.68rem",
                           fontWeight: 600,
-                          color: "white",
+                          color: "#000000",
                           letterSpacing: "0.02em",
                         }}
                       >
@@ -466,28 +476,86 @@ export default function HeroSection() {
                 </div>
 
                 {formData.vehicleName && (
-                  <div
-                    style={{
-                      marginTop: "0.6rem",
-                      padding: "0.35rem 0.8rem",
-                      background: "rgba(201,169,97,0.24)",
-                      backdropFilter: "blur(12px)",
-                      border: "1.5px solid rgba(201,169,97,0.55)",
-                      borderRadius: "16px",
-                      display: "inline-block",
-                    }}
-                  >
-                    <span
+                  <div style={{ marginTop: "0.6rem" }}>
+                    <div
                       style={{
-                        fontFamily: "'Montserrat', sans-serif",
-                        fontSize: "0.72rem",
-                        color: "#C9A961",
-                        fontWeight: 500,
+                        padding: "0.5rem 0.8rem",
+                        background: "rgba(201,169,97,0.24)",
+                        backdropFilter: "blur(12px)",
+                        border: "1.5px solid rgba(201,169,97,0.55)",
+                        borderRadius: "16px",
+                        marginBottom: "0.5rem",
                       }}
                     >
-                      {formData.vehicleType} - {formData.vehicleName}
-                      {formData.tripType && ` • ${formData.tripType}`}
-                    </span>
+                      <span
+                        style={{
+                          fontFamily: "'Montserrat', sans-serif",
+                          fontSize: "0.72rem",
+                          color: "#000000",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {formData.vehicleType} - {formData.vehicleName}
+                        {formData.tripType && ` • ${formData.tripType}`}
+                      </span>
+                    </div>
+                    
+                    {/* Max Persons and Max Bags Display */}
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <div
+                        style={{
+                          flex: 1,
+                          padding: "0.4rem 0.7rem",
+                          background: "rgba(255,255,255,0.18)",
+                          backdropFilter: "blur(12px)",
+                          border: "1.5px solid rgba(255,255,255,0.45)",
+                          borderRadius: "10px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "0.4rem",
+                        }}
+                      >
+                        <span style={{ fontSize: "1rem" }}>👥</span>
+                        <span
+                          style={{
+                            fontFamily: "'Montserrat', sans-serif",
+                            fontSize: "0.7rem",
+                            color: "#000000",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Max {formData.maxPersons} {formData.maxPersons === 1 ? 'Person' : 'Persons'}
+                        </span>
+                      </div>
+                      
+                      <div
+                        style={{
+                          flex: 1,
+                          padding: "0.4rem 0.7rem",
+                          background: "rgba(255,255,255,0.18)",
+                          backdropFilter: "blur(12px)",
+                          border: "1.5px solid rgba(255,255,255,0.45)",
+                          borderRadius: "10px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "0.4rem",
+                        }}
+                      >
+                        <span style={{ fontSize: "1rem" }}>🧳</span>
+                        <span
+                          style={{
+                            fontFamily: "'Montserrat', sans-serif",
+                            fontSize: "0.7rem",
+                            color: "#000000",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Max {formData.maxBags} {formData.maxBags === 1 ? 'Bag' : 'Bags'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -500,7 +568,7 @@ export default function HeroSection() {
                       fontFamily: "'Montserrat', sans-serif",
                       fontSize: "0.78rem",
                       fontWeight: 500,
-                      color: "rgba(255,255,255,0.92)",
+                      color: "#000000",
                       display: "block",
                       marginBottom: "0.4rem",
                       letterSpacing: "0.04em",
@@ -520,7 +588,7 @@ export default function HeroSection() {
                       backdropFilter: "blur(12px)",
                       border: "1.5px solid rgba(255,255,255,0.45)",
                       borderRadius: "7px",
-                      color: "white",
+                      color: "#000000",
                       fontFamily: "'Montserrat', sans-serif",
                       fontSize: "0.88rem",
                       outline: "none",
@@ -542,7 +610,7 @@ export default function HeroSection() {
                       fontFamily: "'Montserrat', sans-serif",
                       fontSize: "0.78rem",
                       fontWeight: 500,
-                      color: "rgba(255,255,255,0.92)",
+                      color: "#000000",
                       display: "block",
                       marginBottom: "0.4rem",
                       letterSpacing: "0.04em",
@@ -562,7 +630,7 @@ export default function HeroSection() {
                       backdropFilter: "blur(12px)",
                       border: "1.5px solid rgba(255,255,255,0.45)",
                       borderRadius: "7px",
-                      color: "white",
+                      color: "#000000",
                       fontFamily: "'Montserrat', sans-serif",
                       fontSize: "0.88rem",
                       outline: "none",
@@ -587,7 +655,7 @@ export default function HeroSection() {
                       fontFamily: "'Montserrat', sans-serif",
                       fontSize: "0.78rem",
                       fontWeight: 500,
-                      color: "rgba(255,255,255,0.92)",
+                      color: "#000000",
                       display: "block",
                       marginBottom: "0.4rem",
                       letterSpacing: "0.04em",
@@ -606,11 +674,11 @@ export default function HeroSection() {
                       backdropFilter: "blur(12px)",
                       border: "1.5px solid rgba(255,255,255,0.45)",
                       borderRadius: "7px",
-                      color: "white",
+                      color: "#000000",
                       fontFamily: "'Montserrat', sans-serif",
                       fontSize: "0.88rem",
                       outline: "none",
-                      colorScheme: "dark",
+                      colorScheme: "light",
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.background = "rgba(255,255,255,0.24)";
@@ -629,7 +697,7 @@ export default function HeroSection() {
                       fontFamily: "'Montserrat', sans-serif",
                       fontSize: "0.78rem",
                       fontWeight: 500,
-                      color: "rgba(255,255,255,0.92)",
+                      color: "#000000",
                       display: "block",
                       marginBottom: "0.4rem",
                       letterSpacing: "0.04em",
@@ -649,7 +717,7 @@ export default function HeroSection() {
                       backdropFilter: "blur(12px)",
                       border: "1.5px solid rgba(255,255,255,0.45)",
                       borderRadius: "7px",
-                      color: "white",
+                      color: "#000000",
                       fontFamily: "'Montserrat', sans-serif",
                       fontSize: "0.88rem",
                       outline: "none",
@@ -683,7 +751,7 @@ export default function HeroSection() {
                     style={{
                       fontFamily: "'Montserrat', sans-serif",
                       fontSize: "0.72rem",
-                      color: "rgba(255,255,255,0.85)",
+                      color: "#000000",
                       display: "block",
                       marginBottom: "0.15rem",
                     }}
@@ -695,7 +763,7 @@ export default function HeroSection() {
                       fontFamily: "'Cormorant Garamond', serif",
                       fontSize: "1.25rem",
                       fontWeight: 600,
-                      color: "#C9A961",
+                      color: "#000000",
                     }}
                   >
                     LKR {totalPrice.toLocaleString()}
@@ -825,7 +893,10 @@ export default function HeroSection() {
                 key={model.name}
                 onClick={() => handleVehicleSelect(model.name)}
               >
-                <ListItemText primary={model.name} secondary={model.description} />
+                <ListItemText 
+                  primary={model.name} 
+                  secondary={`${model.description} • Max ${model.maxPersons} persons • Max ${model.maxBags} bags`} 
+                />
               </ListItemButton>
             ))}
           </List>
@@ -916,11 +987,11 @@ export default function HeroSection() {
         }
 
         input::placeholder {
-          color: rgba(255, 255, 255, 0.55);
+          color: rgba(0, 0, 0, 0.45);
         }
 
         input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-          filter: invert(1);
+          filter: invert(0);
           cursor: pointer;
         }
 
