@@ -116,7 +116,7 @@ export default function AboutUsPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundImage: 'url(/about/1.jpeg)',
+          backgroundImage: 'url(/about/2.jpeg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           position: 'relative',
