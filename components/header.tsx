@@ -9,7 +9,7 @@ const navLinks = [
   { label: "Our Vehicles", href: "/our-vehicles" },
   { label: "Gallery", href: "/gallery" },
   { label: "About Us", href: "/about_us" },
-  { label: "Contact Us", href: "/contact-us" },
+  { label: "Contact Us", href: "/contact" },
 ];
 
 export default function Navbar() {
