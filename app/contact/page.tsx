@@ -362,7 +362,7 @@ export default function ContactPage() {
         .dot {
           width: 8px;
           height: 8px;
-          background-color: #c4374a;
+          background-color: #0d9488;
           border-radius: 50%;
         }
 
@@ -418,7 +418,7 @@ export default function ContactPage() {
         .icon-wrapper {
           width: 50px;
           height: 50px;
-          background: #c4374a;
+          background: #0d9488;
           color: white;
           border-radius: 50%;
           display: flex;
@@ -449,7 +449,7 @@ export default function ContactPage() {
         }
 
         .info-card a:hover {
-          color: #c4374a;
+          color: #0d9488;
         }
 
         /* Social Media Cards */
@@ -587,8 +587,8 @@ export default function ContactPage() {
         .form-group select:focus,
         .form-group textarea:focus {
           outline: none;
-          border-color: #c4374a;
-          box-shadow: 0 0 0 3px rgba(196, 55, 74, 0.1);
+          border-color: #0d9488;
+          box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
         .form-group input:disabled,
@@ -604,7 +604,7 @@ export default function ContactPage() {
         }
 
         .submit-button {
-          background: #c4374a;
+          background: #0d9488;
           color: white;
           border: none;
           padding: 15px 40px;
@@ -621,9 +621,9 @@ export default function ContactPage() {
         }
 
         .submit-button:hover:not(:disabled) {
-          background: #a62f3d;
+          background: #0f766e;
           transform: translateY(-2px);
-          box-shadow: 0 5px 20px rgba(196, 55, 74, 0.3);
+          box-shadow: 0 5px 20px rgba(13, 148, 136, 0.3);
         }
 
         .submit-button:disabled {

@@ -54,6 +54,7 @@ export default function AboutUsPage() {
       name: 'Senura Perera',
       role: 'Founder & CEO',
       avatar: 'SP',
+      image: '/about/3.jpeg',
       bio: 'With over 15 years in hospitality, Senura founded Senu Tours to share his passion for Sri Lanka.',
       color: '#0d9488'
     },
@@ -134,7 +135,7 @@ export default function AboutUsPage() {
                 Your Journey, Our Passion
               </Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ mb: 4, fontWeight: 300 }}>
-                Crafting unforgettable Sri Lankan experiences since 2010
+                Crafting unforgettable Sri Lankan experiences since 2018
               </Typography>
               <Box sx={{ width: 100, height: 4, bgcolor: '#14b8a6', mx: 'auto' }} />
             </Box>
@@ -413,19 +414,38 @@ export default function AboutUsPage() {
                 }}
               >
                 <Box sx={{ pt: 4, pb: 2 }}>
-                  <Avatar
-                    sx={{
-                      width: 120,
-                      height: 120,
-                      mx: 'auto',
-                      mb: 2,
-                      bgcolor: member.color,
-                      fontSize: '2.5rem',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    {member.avatar}
-                  </Avatar>
+                  {member.image ? (
+                    <Box
+                      component="img"
+                      src={member.image}
+                      alt={member.name}
+                      sx={{
+                        width: 120,
+                        height: 120,
+                        mx: 'auto',
+                        mb: 2,
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: `4px solid ${member.color}`,
+                        boxShadow: 3
+                      }}
+                    />
+                  ) : (
+                    <Avatar
+                      sx={{
+                        width: 120,
+                        height: 120,
+                        mx: 'auto',
+                        mb: 2,
+                        bgcolor: member.color,
+                        fontSize: '2.5rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      
+                      {member.avatar}
+                    </Avatar>
+                  )}
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
                     {member.name}
                   </Typography>

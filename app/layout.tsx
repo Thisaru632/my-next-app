@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import Navbar from "@/components/header";
+import ConditionalNavbar from "@/components/ConditionalNavbar";
 import EmotionCache from "./all_packages/Emotioncache";
 import ThemeRegistry from "./all_packages/Themeregistry";
 import "./globals.css";
@@ -10,7 +10,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <EmotionCache>
           <ThemeRegistry>
-            <Navbar />
+            <ConditionalNavbar />
             <main>{children}</main>
           </ThemeRegistry>
         </EmotionCache>
