@@ -1,10 +1,50 @@
-import type { ReactNode } from "react";
-import { Box, CssBaseline } from "@mui/material";
+'use client';
+
+import { ReactNode, useEffect, useState } from "react";
+import { Box, CssBaseline, CircularProgress } from "@mui/material";
 import AdminSidebar from "@/components/admin/side_bar";
+import { usePathname, useRouter } from "next/navigation";
 
 const DRAWER_WIDTH = 80;
 
 export default function StaffLayout({ children }: { children: ReactNode }) {
+    const pathname = usePathname();
+    const router = useRouter();
+    const [loading, setLoading] = useState(true);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    const isAuthPage = pathname === '/staff/login' || pathname === '/staff/signup';
+
+    useEffect(() => {
+        const token = localStorage.getItem('staffToken');
+
+        if (!token && !isAuthPage) {
+            router.push('/staff/login');
+        } else if (token && isAuthPage) {
+            router.push('/staff');
+        } else {
+            setIsAuthenticated(!!token);
+            setLoading(false);
+        }
+    }, [pathname, router, isAuthPage]);
+
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: '#f1f5f9' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (isAuthPage) {
+        return (
+            <>
+                <CssBaseline />
+                {children}
+            </>
+        );
+    }
+
     return (
         <>
             <CssBaseline />
@@ -14,11 +54,11 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
                     component="main"
                     sx={{
                         flexGrow: 1,
-                        paddingTop: '24px',      // Top padding
-                        paddingRight: '24px',    // Right padding
-                        paddingBottom: '24px',   // Bottom padding
-                        paddingLeft: 0,          // NO left padding
-                        marginLeft: `${DRAWER_WIDTH}px`,  // Position next to sidebar
+                        paddingTop: '24px',
+                        paddingRight: '24px',
+                        paddingBottom: '24px',
+                        paddingLeft: 0,
+                        marginLeft: `${DRAWER_WIDTH}px`,
                         width: `calc(100% - ${DRAWER_WIDTH}px)`,
                         minHeight: '100vh',
                         boxSizing: 'border-box',

@@ -43,10 +43,9 @@ const AdminSidebar: React.FC = () => {
   };
 
   const handleLogout = () => {
-    // Add your logout logic here
-    console.log('Logging out...');
-    // Example: Clear session, tokens, etc.
-    // router.push('/login');
+    localStorage.removeItem('staffToken');
+    localStorage.removeItem('staffUser');
+    router.push('/staff/login');
   };
 
   return (
