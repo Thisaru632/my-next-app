@@ -17,7 +17,7 @@ export default function Navbar() {
   const [activeLink, setActiveLink] = useState("/");
 
   return (
-    <nav className="w-full bg-white shadow-lg">
+    <nav className="absolute top-0 left-0 w-full bg-transparent z-50">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
 
@@ -40,11 +40,10 @@ export default function Navbar() {
                 <Link
                   href={link.href}
                   onClick={() => setActiveLink(link.href)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    activeLink === link.href
-                      ? "bg-yellow-500 text-white"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                  }`}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${activeLink === link.href
+                    ? "bg-green-600 text-white"
+                    : "text-white/90 hover:text-green-400 hover:bg-green-500/10"
+                    }`}
                 >
                   {link.label}
                 </Link>
@@ -55,7 +54,7 @@ export default function Navbar() {
           {/* Mobile Hamburger */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-gray-900 focus:outline-none"
+            className="md:hidden text-white focus:outline-none"
             aria-label="Toggle menu"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,7 +70,7 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden bg-gray-50 border-t border-gray-200 px-4 py-2">
+        <div className="md:hidden bg-black/80 backdrop-blur-md border-t border-white/10 px-4 py-2">
           {navLinks.map((link) => (
             <Link
               key={link.label}
@@ -80,11 +79,10 @@ export default function Navbar() {
                 setActiveLink(link.href);
                 setIsOpen(false);
               }}
-              className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                activeLink === link.href
-                  ? "bg-yellow-500 text-white"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
+              className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${activeLink === link.href
+                ? "bg-green-600 text-white"
+                : "text-white/80 hover:text-green-400 hover:bg-green-500/10"
+                }`}
             >
               {link.label}
             </Link>
