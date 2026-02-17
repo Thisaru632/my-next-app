@@ -100,9 +100,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor 
       <CardContent sx={{ p: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start">
           <Box flex={1}>
-            <Typography 
-              variant="body2" 
-              sx={{ 
+            <Typography
+              variant="body2"
+              sx={{
                 color: '#64748b',
                 fontWeight: 500,
                 fontSize: '0.875rem',
@@ -112,9 +112,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor 
             >
               {title}
             </Typography>
-            <Typography 
-              variant="h3" 
-              sx={{ 
+            <Typography
+              variant="h3"
+              sx={{
                 fontWeight: 700,
                 color: color,
                 fontSize: '2.25rem',
@@ -199,7 +199,7 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     fetchLeadStats(startDate, endDate);
     fetchPackageStats(startDate, endDate);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchLeadStats = async (start: string, end: string) => {
@@ -325,8 +325,8 @@ const AdminDashboard: React.FC = () => {
   return (
     <Box sx={{ m: 0, p: 0 }}>
       {/* Page Title */}
-      <Box 
-        sx={{ 
+      <Box
+        sx={{
           mb: 4,
           pb: 3,
           borderBottom: '2px solid',
@@ -334,8 +334,8 @@ const AdminDashboard: React.FC = () => {
           borderImageSlice: 1,
         }}
       >
-        <Typography 
-          variant="h4" 
+        <Typography
+          variant="h4"
           sx={{
             fontWeight: 800,
             fontSize: '2rem',
@@ -350,9 +350,9 @@ const AdminDashboard: React.FC = () => {
       </Box>
 
       {/* Date Range Filter */}
-      <Paper 
-        sx={{ 
-          p: 3, 
+      <Paper
+        sx={{
+          p: 3,
           mb: 4,
           background: '#ffffff',
           borderRadius: '20px',
@@ -360,8 +360,8 @@ const AdminDashboard: React.FC = () => {
           boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.08)',
         }}
       >
-        <Typography 
-          variant="h6" 
+        <Typography
+          variant="h6"
           sx={{
             fontWeight: 700,
             mb: 3,
@@ -504,8 +504,8 @@ const AdminDashboard: React.FC = () => {
 
       {/* Lead Statistics Section */}
       <Box sx={{ mb: 5 }}>
-        <Typography 
-          variant="h5" 
+        <Typography
+          variant="h5"
           sx={{
             fontWeight: 700,
             mb: 3,
@@ -526,10 +526,10 @@ const AdminDashboard: React.FC = () => {
           Lead Statistics
         </Typography>
         {loading ? (
-          <Box 
-            display="flex" 
-            justifyContent="center" 
-            alignItems="center" 
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
             minHeight="400px"
             sx={{
               background: 'rgba(255, 255, 255, 0.5)',
@@ -537,8 +537,8 @@ const AdminDashboard: React.FC = () => {
               borderRadius: '20px',
             }}
           >
-            <CircularProgress 
-              size={60} 
+            <CircularProgress
+              size={60}
               sx={{
                 color: '#3b82f6',
               }}
@@ -573,8 +573,8 @@ const AdminDashboard: React.FC = () => {
 
       {/* Package Statistics Section */}
       <Box sx={{ mb: 5 }}>
-        <Typography 
-          variant="h5" 
+        <Typography
+          variant="h5"
           sx={{
             fontWeight: 700,
             mb: 3,
@@ -595,10 +595,10 @@ const AdminDashboard: React.FC = () => {
           Package Statistics
         </Typography>
         {loading ? (
-          <Box 
-            display="flex" 
-            justifyContent="center" 
-            alignItems="center" 
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
             minHeight="300px"
             sx={{
               background: 'rgba(255, 255, 255, 0.5)',
@@ -606,8 +606,8 @@ const AdminDashboard: React.FC = () => {
               borderRadius: '20px',
             }}
           >
-            <CircularProgress 
-              size={60} 
+            <CircularProgress
+              size={60}
               sx={{
                 color: '#0ea5e9',
               }}
@@ -642,8 +642,8 @@ const AdminDashboard: React.FC = () => {
 
       {/* Individual Performance Table Section */}
       <Box sx={{ mb: 4 }}>
-        <Typography 
-          variant="h5" 
+        <Typography
+          variant="h5"
           sx={{
             fontWeight: 700,
             mb: 3,
@@ -663,7 +663,7 @@ const AdminDashboard: React.FC = () => {
         >
           Individual Performance
         </Typography>
-        
+
         <Paper
           sx={{
             background: '#ffffff',
@@ -755,22 +755,22 @@ const AdminDashboard: React.FC = () => {
                           gap: 1,
                           padding: '4px 12px',
                           borderRadius: '8px',
-                          background: employee.rate >= 45 
+                          background: employee.rate >= 45
                             ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)'
                             : employee.rate >= 40
-                            ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
-                            : 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                              ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
+                              : 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
                         }}
                       >
-                        <Typography 
-                          sx={{ 
+                        <Typography
+                          sx={{
                             fontWeight: 700,
                             fontSize: '0.875rem',
-                            color: employee.rate >= 45 
+                            color: employee.rate >= 45
                               ? '#059669'
                               : employee.rate >= 40
-                              ? '#d97706'
-                              : '#dc2626',
+                                ? '#d97706'
+                                : '#dc2626',
                           }}
                         >
                           {employee.rate.toFixed(1)}%
@@ -796,11 +796,11 @@ const AdminDashboard: React.FC = () => {
                               top: 0,
                               height: '100%',
                               width: `${employee.rate}%`,
-                              background: employee.rate >= 45 
+                              background: employee.rate >= 45
                                 ? 'linear-gradient(90deg, #10b981 0%, #059669 100%)'
                                 : employee.rate >= 40
-                                ? 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)'
-                                : 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)',
+                                  ? 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)'
+                                  : 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)',
                               borderRadius: '4px',
                               transition: 'width 0.5s ease',
                             }}
@@ -810,11 +810,11 @@ const AdminDashboard: React.FC = () => {
                           sx={{
                             fontSize: '0.75rem',
                             fontWeight: 700,
-                            color: employee.rate >= 45 
+                            color: employee.rate >= 45
                               ? '#059669'
                               : employee.rate >= 40
-                              ? '#d97706'
-                              : '#dc2626',
+                                ? '#d97706'
+                                : '#dc2626',
                             minWidth: '60px',
                           }}
                         >
@@ -831,8 +831,8 @@ const AdminDashboard: React.FC = () => {
       </Box>
 
       {/* Additional Info */}
-      <Box 
-        mt={4} 
+      <Box
+        mt={4}
         sx={{
           p: 2,
           background: 'rgba(255, 255, 255, 0.8)',
@@ -840,8 +840,8 @@ const AdminDashboard: React.FC = () => {
           border: '1px solid rgba(226, 232, 240, 0.6)',
         }}
       >
-        <Typography 
-          variant="body2" 
+        <Typography
+          variant="body2"
           sx={{
             color: '#64748b',
             fontWeight: 500,

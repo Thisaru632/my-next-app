@@ -9,6 +9,8 @@ import {
   ListItemButton,
   ListItemText,
   IconButton,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   DirectionsBus,
@@ -19,6 +21,7 @@ import {
   LocalTaxi,
 } from '@mui/icons-material';
 import Image from 'next/image';
+import { API_ENDPOINTS } from '@/config/api';
 
 // ---------------------------------------------------------------------------
 // Data
@@ -32,26 +35,26 @@ const SLIDES = [
 const INTERVAL_MS = 6000;
 
 const vehicleTypes = [
-  { 
-    name: 'Car', 
+  {
+    name: 'Car',
     icon: '/car.png',
     gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     color: '#667eea'
   },
-  { 
-    name: 'Van', 
+  {
+    name: 'Van',
     icon: '/van.png',
     gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
     color: '#f093fb'
   },
-  { 
-    name: 'Bus', 
+  {
+    name: 'Bus',
     icon: '/school-bus (1).png',
     gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     color: '#4facfe'
   },
-  { 
-    name: 'SUV', 
+  {
+    name: 'SUV',
     icon: '/suv.png',
     gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
     color: '#43e97b'
@@ -59,13 +62,13 @@ const vehicleTypes = [
 ];
 
 const tripTypes = [
-  { 
-    name: 'Drop', 
+  {
+    name: 'Drop',
     description: 'Single destination trip',
     icon: '🎯'
   },
-  { 
-    name: 'Return', 
+  {
+    name: 'Return',
     description: 'Return to starting point',
     icon: '🔄'
   },
@@ -91,13 +94,13 @@ const sampleVehicles = {
   Bus: {
     models: [
       { name: 'AC 29 Seater', description: 'Air conditioned comfort', maxPersons: 29, maxBags: 25 },
-      { name: 'Non-AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 25 }, 
+      { name: 'Non-AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 25 },
     ]
   },
   SUV: {
     models: [
       { name: 'Prado', description: 'Luxury 4x4', maxPersons: 7, maxBags: 6 },
-      { name: 'Fortuner', description: 'Premium SUV', maxPersons: 7, maxBags: 6 }, 
+      { name: 'Fortuner', description: 'Premium SUV', maxPersons: 7, maxBags: 6 },
     ]
   }
 };
@@ -131,6 +134,15 @@ export default function HeroSection() {
   const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
   const [openPersonalDialog, setOpenPersonalDialog] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
+
+  // Snackbar state
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+  };
 
   // -----------------------------------------------------------------------
   // Preload images
@@ -191,7 +203,7 @@ export default function HeroSection() {
     // Find the selected vehicle model to get maxPersons and maxBags
     const categoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles];
     const selectedModel = categoryVehicles.models.find(model => model.name === modelName);
-    
+
     setFormData((prev) => ({
       ...prev,
       vehicleType: selectedCategory,
@@ -219,33 +231,56 @@ export default function HeroSection() {
     setOpenPersonalDialog(true);
   };
 
-  const handleSendRequest = () => {
-    console.log('Booking request submitted:', formData);
-    alert('Booking request sent successfully!');
-    setOpenPersonalDialog(false);
-    setFormData({
-      vehicleType: '',
-      vehicleName: '',
-      tripType: '',
-      pickupLocation: '',
-      dropoffLocation: '',
-      dateTime: '',
-      numberOfDays: 1,
-      name: '',
-      telephone: '',
-      email: '',
-      maxPersons: 0,
-      maxBags: 0,
-    });
+  const handleSendRequest = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.BOOKINGS, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setSnackbarMessage('Booking request sent successfully!');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        setOpenPersonalDialog(false);
+        setFormData({
+          vehicleType: '',
+          vehicleName: '',
+          tripType: '',
+          pickupLocation: '',
+          dropoffLocation: '',
+          dateTime: '',
+          numberOfDays: 1,
+          name: '',
+          telephone: '',
+          email: '',
+          maxPersons: 0,
+          maxBags: 0,
+        });
+      } else {
+        const errorData = await response.json();
+        setSnackbarMessage(errorData.message || 'Failed to send booking request.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      console.error('Error submitting booking:', error);
+      setSnackbarMessage('An error occurred. Please try again later.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
   };
 
   const currentCategoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles] || { models: [] };
 
   const basePricePerDay =
     formData.vehicleType === 'Car' ? 15000 :
-    formData.vehicleType === 'Van' ? 18000 :
-    formData.vehicleType === 'Bus' ? 35000 :
-    formData.vehicleType === 'SUV' ? 25000 : 0;
+      formData.vehicleType === 'Van' ? 18000 :
+        formData.vehicleType === 'Bus' ? 35000 :
+          formData.vehicleType === 'SUV' ? 25000 : 0;
 
   const totalPrice = basePricePerDay * formData.numberOfDays;
 
@@ -264,9 +299,9 @@ export default function HeroSection() {
         <div
           key={i}
           className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
-          style={{ 
-            zIndex: i === current ? 1 : 0, 
-            opacity: imagesLoaded && i === current ? 1 : 0 
+          style={{
+            zIndex: i === current ? 1 : 0,
+            opacity: imagesLoaded && i === current ? 1 : 0
           }}
           aria-hidden={i !== current}
         >
@@ -401,13 +436,13 @@ export default function HeroSection() {
                       key={vehicle.name}
                       onClick={() => handleVehicleCardClick(vehicle.name)}
                       style={{
-                        background: formData.vehicleType === vehicle.name 
-                          ? "rgba(255,255,255,0.28)" 
+                        background: formData.vehicleType === vehicle.name
+                          ? "rgba(255,255,255,0.28)"
                           : "rgba(255,255,255,0.14)",
                         backdropFilter: "blur(16px)",
                         WebkitBackdropFilter: "blur(16px)",
-                        border: formData.vehicleType === vehicle.name 
-                          ? "2px solid #C9A961" 
+                        border: formData.vehicleType === vehicle.name
+                          ? "2px solid #C9A961"
                           : "1.5px solid rgba(255,255,255,0.42)",
                         borderRadius: "10px",
                         padding: "0.7rem 0.4rem",
@@ -426,15 +461,15 @@ export default function HeroSection() {
                       }}
                       onMouseLeave={(e) => {
                         const el = e.currentTarget;
-                        el.style.background = formData.vehicleType === vehicle.name 
-                          ? "rgba(255,255,255,0.28)" 
+                        el.style.background = formData.vehicleType === vehicle.name
+                          ? "rgba(255,255,255,0.28)"
                           : "rgba(255,255,255,0.14)";
                         el.style.transform = "translateY(0)";
                       }}
                     >
-                      <div style={{ 
-                        width: "40px", 
-                        height: "40px", 
+                      <div style={{
+                        width: "40px",
+                        height: "40px",
                         marginBottom: "0.3rem",
                         position: "relative",
                         filter: "brightness(0) invert(0)", // black icons
@@ -499,7 +534,7 @@ export default function HeroSection() {
                         {formData.tripType && ` • ${formData.tripType}`}
                       </span>
                     </div>
-                    
+
                     {/* Max Persons and Max Bags Display */}
                     <div style={{ display: "flex", gap: "0.5rem" }}>
                       <div
@@ -528,7 +563,7 @@ export default function HeroSection() {
                           Max {formData.maxPersons} {formData.maxPersons === 1 ? 'Person' : 'Persons'}
                         </span>
                       </div>
-                      
+
                       <div
                         style={{
                           flex: 1,
@@ -786,18 +821,18 @@ export default function HeroSection() {
                     borderRadius: "9999px",
                     padding: "0.72rem 1.6rem",
                     marginTop: "0.5rem",
-                    background: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime 
-                      ? "#C9A961" 
+                    background: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
+                      ? "#C9A961"
                       : "rgba(201,169,97,0.35)",
-                    backdropFilter: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime 
-                      ? "none" 
+                    backdropFilter: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
+                      ? "none"
                       : "blur(10px)",
-                    color: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime 
-                      ? "#2D231B" 
+                    color: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
+                      ? "#2D231B"
                       : "rgba(255,255,255,0.7)",
                     transition: "all 0.3s ease",
-                    cursor: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime 
-                      ? "pointer" 
+                    cursor: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
+                      ? "pointer"
                       : "not-allowed",
                   }}
                   onMouseEnter={(e) => {
@@ -893,9 +928,9 @@ export default function HeroSection() {
                 key={model.name}
                 onClick={() => handleVehicleSelect(model.name)}
               >
-                <ListItemText 
-                  primary={model.name} 
-                  secondary={`${model.description} • Max ${model.maxPersons} persons • Max ${model.maxBags} bags`} 
+                <ListItemText
+                  primary={model.name}
+                  secondary={`${model.description} • Max ${model.maxPersons} persons • Max ${model.maxBags} bags`}
                 />
               </ListItemButton>
             ))}
@@ -962,6 +997,17 @@ export default function HeroSection() {
         </DialogContent>
       </Dialog>
 
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+
       {/* KEYFRAMES + GOOGLE FONTS */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap');
@@ -1013,6 +1059,6 @@ export default function HeroSection() {
           pointer-events: none;
         }
       `}</style>
-    </section>
+    </section >
   );
 }

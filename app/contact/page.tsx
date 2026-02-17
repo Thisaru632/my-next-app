@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Mail, Phone, MapPin, Send, Facebook, MessageCircle } from 'lucide-react';
+import { API_ENDPOINTS } from '@/config/api';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -17,6 +18,8 @@ export default function ContactPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
+  const [contactId, setContactId] = useState<string | null>(null);
+  const [isPartialCaptured, setIsPartialCaptured] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -25,38 +28,113 @@ export default function ContactPage() {
         ...prev,
         [name]: value
       };
-      
+
       // Clear travel dates and guests when complaint is selected
-      if (name === 'destination' && value === 'custom') {
+      if (name === 'destination' && value === 'Complaint') {
         newData.travelDates = '';
         newData.guests = '';
       }
-      
+
       return newData;
     });
+  };
+
+  const handleEmailFocus = async () => {
+    // Only capture if name and phone are provided and we haven't already captured for this session
+    if (formData.name && formData.phone && !isPartialCaptured) {
+      try {
+        const response = await fetch(API_ENDPOINTS.CONTACTS, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fullName: formData.name,
+            phoneNumber: formData.phone,
+            // Provide empty defaults for required logic if any
+            email: '',
+            message: '',
+            reason: 'General Inquiry'
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.contact && data.contact._id) {
+            setContactId(data.contact._id);
+            setIsPartialCaptured(true);
+            console.log('Partial lead captured:', data.contact._id);
+          }
+        }
+      } catch (error) {
+        console.error('Error capturing partial lead:', error);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate form submission
-    setTimeout(() => {
-      setSubmitStatus('success');
-      setIsSubmitting(false);
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        destination: '',
-        travelDates: '',
-        guests: '',
-        message: ''
+    setSubmitStatus('');
+
+    try {
+      const url = contactId
+        ? `${API_ENDPOINTS.CONTACTS}/${contactId}`
+        : API_ENDPOINTS.CONTACTS;
+
+      const method = contactId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: formData.name,
+          email: formData.email,
+          phoneNumber: formData.phone,
+          reason: formData.destination || 'General Inquiry',
+          preferredTravelDates: formData.travelDates,
+          numberOfGuests: formData.guests || 1,
+          message: formData.message,
+        }),
       });
-      
-      // Clear success message after 5 seconds
-      setTimeout(() => setSubmitStatus(''), 5000);
-    }, 1500);
+
+      if (response.ok) {
+        setSubmitStatus('success');
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          destination: '',
+          travelDates: '',
+          guests: '',
+          message: ''
+        });
+        setContactId(null);
+        setIsPartialCaptured(false);
+
+        // Clear success message after 5 seconds
+        setTimeout(() => setSubmitStatus(''), 5000);
+      } else {
+        setSubmitStatus('error');
+        let errorMessage = 'Failed to send message. Please try again.';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // Response was not JSON (e.g. 404 HTML page)
+          console.error('Error parsing error response:', e);
+        }
+        alert(errorMessage);
+      }
+    } catch (error) {
+      console.error('Error submitting contact form:', error);
+      setSubmitStatus('error');
+      alert('An error occurred. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -165,7 +243,7 @@ export default function ContactPage() {
           {/* Contact Form */}
           <div className="contact-card">
             <h3 className="form-title">Send us a message</h3>
-            
+
             {submitStatus === 'success' && (
               <div className="success-message">
                 <p>Thank you! Well get back to you within 24 hours.</p>
@@ -188,21 +266,6 @@ export default function ContactPage() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="email">Email Address *</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    placeholder="john@example.com"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
                   <label htmlFor="phone">Phone Number</label>
                   <input
                     type="tel"
@@ -211,6 +274,22 @@ export default function ContactPage() {
                     value={formData.phone}
                     onChange={handleChange}
                     placeholder="+1 (555) 000-0000"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="email">Email Address *</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    onFocus={handleEmailFocus}
+                    required
+                    placeholder="john@example.com"
                   />
                 </div>
 
@@ -223,8 +302,10 @@ export default function ContactPage() {
                     onChange={handleChange}
                   >
                     <option value="">Select a reason</option>
-                    <option value="cultural">Custom Tour</option>
-                    <option value="custom">Complaint</option>
+                    <option value="Booking Question">Custom Tour / Booking</option>
+                    <option value="Complaint">Complaint</option>
+                    <option value="Feedback">Feedback</option>
+                    <option value="General Inquiry">General Inquiry</option>
                   </select>
                 </div>
               </div>
@@ -239,7 +320,7 @@ export default function ContactPage() {
                     value={formData.travelDates}
                     onChange={handleChange}
                     placeholder="e.g., March 2025"
-                    disabled={formData.destination === 'custom'}
+                    disabled={formData.destination === 'Complaint'}
                   />
                 </div>
 
@@ -253,7 +334,7 @@ export default function ContactPage() {
                     onChange={handleChange}
                     min="1"
                     placeholder="2"
-                    disabled={formData.destination === 'custom'}
+                    disabled={formData.destination === 'Complaint'}
                   />
                 </div>
               </div>
@@ -271,8 +352,8 @@ export default function ContactPage() {
                 />
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="submit-button"
                 disabled={isSubmitting}
               >
