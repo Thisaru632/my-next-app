@@ -38,6 +38,8 @@ import {
     PersonAdd as PersonAddIcon,
     Group as GroupIcon,
     Close as CloseIcon,
+    Undo as UndoIcon,
+    History as HistoryIcon,
 } from '@mui/icons-material';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -146,6 +148,18 @@ const initialNewUsers: NewUser[] = [
     },
 ];
 
+const initialRejectedUsers: NewUser[] = [
+    {
+        id: 201,
+        name: 'John Doe',
+        email: 'john.doe@example.com',
+        requestedRole: 'Viewer',
+        requestDate: '2025-02-10',
+        avatar: 'JD',
+        reason: 'Suspicious activity during signup.',
+    },
+];
+
 // ─── Avatar Colors ────────────────────────────────────────────────────────────
 
 const avatarColors: Record<string, string> = {
@@ -194,6 +208,7 @@ const UserManagementPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState(0);
     const [currentUsers, setCurrentUsers] = useState<CurrentUser[]>(initialCurrentUsers);
     const [newUsers, setNewUsers] = useState<NewUser[]>(initialNewUsers);
+    const [rejectedUsers, setRejectedUsers] = useState<NewUser[]>(initialRejectedUsers);
     const [search, setSearch] = useState('');
 
     // Delete dialog
@@ -255,9 +270,19 @@ const UserManagementPage: React.FC = () => {
 
     const handleRejectConfirm = () => {
         if (rejectDialog.user) {
+            setRejectedUsers((prev) => [...prev, rejectDialog.user!]);
             setNewUsers((prev) => prev.filter((u) => u.id !== rejectDialog.user!.id));
         }
         setRejectDialog({ open: false, user: null });
+    };
+
+    const handleUndoReject = (user: NewUser) => {
+        setNewUsers((prev) => [...prev, user]);
+        setRejectedUsers((prev) => prev.filter((u) => u.id !== user.id));
+    };
+
+    const handlePermanentDelete = (id: number) => {
+        setRejectedUsers((prev) => prev.filter((u) => u.id !== id));
     };
 
     // ── Filtered Lists ──
@@ -268,6 +293,12 @@ const UserManagementPage: React.FC = () => {
     );
 
     const filteredNewUsers = newUsers.filter(
+        (u) =>
+            u.name.toLowerCase().includes(search.toLowerCase()) ||
+            u.email.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const filteredRejectedUsers = rejectedUsers.filter(
         (u) =>
             u.name.toLowerCase().includes(search.toLowerCase()) ||
             u.email.toLowerCase().includes(search.toLowerCase())
@@ -318,7 +349,7 @@ const UserManagementPage: React.FC = () => {
                     { label: 'Total Users', value: currentUsers.length, color: '#3b82f6' },
                     { label: 'Active', value: currentUsers.filter((u) => u.status === 'active').length, color: '#10b981' },
                     { label: 'Pending Approval', value: newUsers.length, color: '#f59e0b' },
-                    { label: 'Inactive', value: currentUsers.filter((u) => u.status === 'inactive').length, color: '#ef4444' },
+                    { label: 'Rejected', value: rejectedUsers.length, color: '#f43f5e' },
                 ].map((stat) => (
                     <Box
                         key={stat.label}
@@ -415,6 +446,21 @@ const UserManagementPage: React.FC = () => {
                                             label={newUsers.length}
                                             size="small"
                                             sx={{ backgroundColor: '#451a03', color: '#fb923c', height: 20, fontSize: 11 }}
+                                        />
+                                    )}
+                                </Box>
+                            }
+                        />
+                        <Tab
+                            label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <HistoryIcon fontSize="small" />
+                                    Rejected Users
+                                    {rejectedUsers.length > 0 && (
+                                        <Chip
+                                            label={rejectedUsers.length}
+                                            size="small"
+                                            sx={{ backgroundColor: '#fef2f2', color: '#ef4444', height: 20, fontSize: 11 }}
                                         />
                                     )}
                                 </Box>
@@ -691,6 +737,104 @@ const UserManagementPage: React.FC = () => {
                                                     >
                                                         Reject
                                                     </Button>
+                                                </Box>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </TabPanel>
+
+                {/* ── Tab 2: Rejected Users ── */}
+                <TabPanel value={activeTab} index={2}>
+                    <TableContainer sx={{ px: 1 }}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    {['Rejected User', 'Requested Role', 'Request Date', 'Reason', 'Actions'].map((h) => (
+                                        <TableCell
+                                            key={h}
+                                            sx={{
+                                                color: '#475569',
+                                                fontWeight: 700,
+                                                fontSize: '0.875rem',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.05em',
+                                                borderColor: '#e2e8f0',
+                                                py: 2,
+                                            }}
+                                        >
+                                            {h}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {filteredRejectedUsers.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} align="center" sx={{ color: '#94a3b8', py: 6, borderColor: '#f1f5f9' }}>
+                                            No rejected requests.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    filteredRejectedUsers.map((user) => (
+                                        <TableRow
+                                            key={user.id}
+                                            sx={{
+                                                '&:hover': { backgroundColor: '#f8fafc' },
+                                                '& td': { borderColor: '#f1f5f9' },
+                                                transition: 'background 0.15s',
+                                            }}
+                                        >
+                                            {/* Rejected User */}
+                                            <TableCell>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                                    <Avatar sx={{ bgcolor: '#ef4444', width: 36, height: 36, fontSize: 13, fontWeight: 700 }}>
+                                                        {user.avatar}
+                                                    </Avatar>
+                                                    <Box>
+                                                        <Typography sx={{ color: '#1e293b', fontSize: 14, fontWeight: 500 }}>{user.name}</Typography>
+                                                        <Typography sx={{ color: '#64748b', fontSize: 12 }}>{user.email}</Typography>
+                                                    </Box>
+                                                </Box>
+                                            </TableCell>
+
+                                            {/* Role */}
+                                            <TableCell>
+                                                <Chip label={user.requestedRole} color={roleColors[user.requestedRole]} size="small" variant="outlined" />
+                                            </TableCell>
+
+                                            {/* Date */}
+                                            <TableCell sx={{ color: '#64748b', fontSize: 13 }}>{user.requestDate}</TableCell>
+
+                                            {/* Reason */}
+                                            <TableCell>
+                                                <Typography sx={{ color: '#94a3b8', fontSize: 13, maxWidth: 280 }}>{user.reason}</Typography>
+                                            </TableCell>
+
+                                            {/* Actions */}
+                                            <TableCell>
+                                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                                    <Tooltip title="Restore to New Users">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => handleUndoReject(user)}
+                                                            sx={{ color: '#3b82f6', '&:hover': { backgroundColor: '#eff6ff' } }}
+                                                        >
+                                                            <UndoIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Permanently Delete">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => handlePermanentDelete(user.id)}
+                                                            sx={{ color: '#ef4444', '&:hover': { backgroundColor: '#fef2f2' } }}
+                                                        >
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
                                                 </Box>
                                             </TableCell>
                                         </TableRow>

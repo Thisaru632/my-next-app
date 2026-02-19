@@ -203,7 +203,7 @@ const LeadInfoPage: React.FC = () => {
               leadDate: contact.createdAt,
               fromLocation: 'Contact Form',
               toLocation: contact.reason || 'General Enquiry',
-              status: contact.status === 'new' ? 'Pending' : 'Confirmed',
+              status: contact.status === 'new' ? 'Pending' : (['Confirmed', 'Rejected', 'Cancelled'].includes(contact.status) ? contact.status : 'Confirmed'),
               employeeName: contact.employeeName || '',
               formType: contact.reason || 'General Enquiry',
               source: 'Contact Us',
@@ -239,17 +239,37 @@ const LeadInfoPage: React.FC = () => {
 
   // Handle lead action (Pending, Not Contacted, Rejected, Confirm)
   const handleLeadAction = async (action: string) => {
+    if (!selectedLead) return;
     setActionLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      console.log(`Lead ${selectedLead?.id} action: ${action}`);
-      // Here you would make your API call to update the lead status
-      // Example: await updateLeadStatus(selectedLead?.id, action);
+    try {
+      const endpoint = selectedLead.source === 'Online Booking'
+        ? `${API_ENDPOINTS.BOOKINGS}/${selectedLead.id}/status`
+        : `${API_ENDPOINTS.CONTACTS}/${selectedLead.id}/status`;
+
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: action }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setLeads(prevLeads => prevLeads.map(l =>
+          l.id === selectedLead.id ? { ...l, status: action } : l
+        ));
+        handleCloseDialog();
+      } else {
+        const data = await response.json();
+        alert(data.message || 'Failed to update lead status');
+      }
+    } catch (error) {
+      console.error('Error updating lead status:', error);
+      alert('An error occurred while updating the lead status');
+    } finally {
       setActionLoading(false);
-      handleCloseDialog();
-      // Optionally refresh the leads list
-      // fetchLeads();
-    }, 1000);
+    }
   };
 
   // Handle Pick Lead
