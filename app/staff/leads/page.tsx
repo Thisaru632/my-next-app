@@ -45,6 +45,7 @@ import {
   HourglassEmpty as HourglassEmptyIcon,
   Cancel as CancelIcon,
   PhoneMissed as PhoneMissedIcon,
+  AssignmentInd as AssignmentIcon,
 } from '@mui/icons-material';
 
 // Types
@@ -88,8 +89,6 @@ const getStatusColor = (status: string) => {
     case 'Rejected':
     case 'Cancelled':
       return { color: '#ef4444', bgColor: '#fee2e2', IconComponent: CancelIcon };
-    case 'Completed':
-      return { color: '#3b82f6', bgColor: '#dbeafe', IconComponent: CheckCircleIcon };
     case 'Not Contacted':
       return { color: '#8b5cf6', bgColor: '#ede9fe', IconComponent: PhoneMissedIcon };
     case 'Not Followed Yet':
@@ -111,6 +110,18 @@ const LeadInfoPage: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('staffUser');
+    if (userStr) {
+      try {
+        setCurrentUser(JSON.parse(userStr));
+      } catch (e) {
+        console.error('Error parsing staff user:', e);
+      }
+    }
+  }, []);
 
   // Derive unique form types (Source) from leads for dropdown options
   const formTypeOptions = useMemo(() => {
@@ -167,7 +178,7 @@ const LeadInfoPage: React.FC = () => {
               fromLocation: booking.pickupLocation || 'N/A',
               toLocation: booking.dropoffLocation || 'N/A',
               status: booking.status || 'Pending',
-              employeeName: '',
+              employeeName: booking.employeeName || '',
               formType: booking.tripType || 'Standard',
               source: 'Online Booking',
               customerName: booking.name,
@@ -192,8 +203,8 @@ const LeadInfoPage: React.FC = () => {
               leadDate: contact.createdAt,
               fromLocation: 'Contact Form',
               toLocation: contact.reason || 'General Enquiry',
-              status: contact.status === 'new' ? 'Pending' : (contact.status === 'responded' ? 'Confirmed' : 'Completed'),
-              employeeName: '',
+              status: contact.status === 'new' ? 'Pending' : 'Confirmed',
+              employeeName: contact.employeeName || '',
               formType: contact.reason || 'General Enquiry',
               source: 'Contact Us',
               customerName: contact.fullName,
@@ -239,6 +250,52 @@ const LeadInfoPage: React.FC = () => {
       // Optionally refresh the leads list
       // fetchLeads();
     }, 1000);
+  };
+
+  // Handle Pick Lead
+  const handlePickLead = async (lead: Lead) => {
+    if (!currentUser?.username) {
+      alert('You must be logged in as a staff member to pick leads.');
+      return;
+    }
+
+    if (lead.employeeName) {
+      if (!confirm(`This lead is already assigned to ${lead.employeeName}. Do you want to re-assign it to yourself?`)) {
+        return;
+      }
+    }
+
+    setLoading(true);
+    try {
+      const endpoint = lead.source === 'Online Booking'
+        ? `${API_ENDPOINTS.BOOKINGS}/${lead.id}/pick`
+        : `${API_ENDPOINTS.CONTACTS}/${lead.id}/pick`;
+
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          // Assuming auth token might be needed in future
+          // 'Authorization': `Bearer ${localStorage.getItem('staffToken')}`
+        },
+        body: JSON.stringify({ employeeName: currentUser.fullName || currentUser.username }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setLeads(prevLeads => prevLeads.map(l =>
+          l.id === lead.id ? { ...l, employeeName: currentUser.fullName || currentUser.username } : l
+        ));
+      } else {
+        const data = await response.json();
+        alert(data.message || 'Failed to pick lead');
+      }
+    } catch (error) {
+      console.error('Error picking lead:', error);
+      alert('An error occurred while picking the lead');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle view button click
@@ -398,7 +455,7 @@ const LeadInfoPage: React.FC = () => {
                   },
                 }}
               >
-                {['All', 'Confirmed', 'Pending', 'Rejected', 'Cancelled', 'Completed', 'Not Contacted', 'Not Followed Yet'].map(
+                {['All', 'Confirmed', 'Pending', 'Rejected', 'Cancelled', 'Not Contacted', 'Not Followed Yet'].map(
                   (status) => (
                     <MenuItem
                       key={status}
@@ -523,8 +580,8 @@ const LeadInfoPage: React.FC = () => {
           </Box>
         ) : (
           <>
-            <TableContainer sx={{ maxHeight: 600 }}>
-              <Table stickyHeader>
+            <TableContainer sx={{ overflowX: 'hidden' }}>
+              <Table>
                 <TableHead>
                   <TableRow>
                     {/* Shared header cell sx */}
@@ -679,23 +736,55 @@ const LeadInfoPage: React.FC = () => {
 
                           {/* Action */}
                           <TableCell align="center">
-                            <IconButton
-                              onClick={() => handleViewClick(lead)}
-                              sx={{
-                                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                                color: '#ffffff',
-                                borderRadius: '10px',
-                                padding: '8px',
-                                transition: 'all 0.3s ease',
-                                '&:hover': {
-                                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                                  transform: 'translateY(-2px)',
-                                  boxShadow: '0 6px 20px rgba(59, 130, 246, 0.5)',
-                                },
-                              }}
-                            >
-                              <VisibilityIcon sx={{ fontSize: 20 }} />
-                            </IconButton>
+                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                              <IconButton
+                                onClick={() => handleViewClick(lead)}
+                                title="View Details"
+                                sx={{
+                                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                                  color: '#ffffff',
+                                  borderRadius: '10px',
+                                  padding: '8px',
+                                  transition: 'all 0.3s ease',
+                                  '&:hover': {
+                                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                    transform: 'translateY(-2px)',
+                                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
+                                  },
+                                }}
+                              >
+                                <VisibilityIcon sx={{ fontSize: 20 }} />
+                              </IconButton>
+
+                              <IconButton
+                                onClick={() => handlePickLead(lead)}
+                                title={lead.employeeName ? `Already assigned to ${lead.employeeName}` : 'Pick Lead'}
+                                disabled={!!lead.employeeName}
+                                sx={{
+                                  background: lead.employeeName
+                                    ? '#f1f5f9'
+                                    : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                  color: lead.employeeName ? '#94a3b8' : '#ffffff',
+                                  borderRadius: '10px',
+                                  padding: '8px',
+                                  transition: 'all 0.3s ease',
+                                  cursor: lead.employeeName ? 'not-allowed' : 'pointer',
+                                  '&:hover': {
+                                    background: lead.employeeName
+                                      ? '#f1f5f9'
+                                      : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                                    transform: lead.employeeName ? 'none' : 'translateY(-2px)',
+                                    boxShadow: lead.employeeName ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.4)',
+                                  },
+                                  '&.Mui-disabled': {
+                                    background: '#f1f5f9',
+                                    color: '#94a3b8',
+                                  },
+                                }}
+                              >
+                                <AssignmentIcon sx={{ fontSize: 20 }} />
+                              </IconButton>
+                            </Box>
                           </TableCell>
                         </TableRow>
                       );
@@ -1241,7 +1330,7 @@ const LeadInfoPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Box >
   );
 };
 

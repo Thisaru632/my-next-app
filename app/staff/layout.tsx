@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { Box, CssBaseline, CircularProgress } from "@mui/material";
 import AdminSidebar from "@/components/admin/side_bar";
 import { usePathname, useRouter } from "next/navigation";
+import { API_ENDPOINTS } from "@/config/api";
 
 const DRAWER_WIDTH = 80;
 
@@ -25,6 +26,21 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
         } else {
             setIsAuthenticated(!!token);
             setLoading(false);
+
+            // Mark the current user as online on every page load
+            if (token && !isAuthPage) {
+                try {
+                    const userStr = localStorage.getItem('staffUser');
+                    if (userStr) {
+                        const user = JSON.parse(userStr);
+                        fetch(`${API_ENDPOINTS.AUTH}/mark-online`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: user.email, username: user.username }),
+                        }).catch(() => { }); // Silent fail — non-critical
+                    }
+                } catch (e) { }
+            }
         }
     }, [pathname, router, isAuthPage]);
 

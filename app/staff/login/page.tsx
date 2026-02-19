@@ -56,6 +56,7 @@ export default function LoginPage() {
             localStorage.setItem('staffToken', data.token);
             localStorage.setItem('staffUser', JSON.stringify({
                 username: data.username,
+                fullName: data.fullName,
                 email: data.email
             }));
 

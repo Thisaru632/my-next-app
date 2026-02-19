@@ -23,6 +23,7 @@ import {
   BookOnline as BookOnlineIcon,
   EventAvailable as EventAvailableIcon,
 } from '@mui/icons-material';
+import { API_ENDPOINTS } from '@/config/api';
 
 interface LeadStats {
   totalLeads: number;
@@ -37,6 +38,19 @@ interface PackageStats {
   totalPackages: number;
   packageBookings: number;
   canceledBookings: number;
+}
+
+interface EmployeePerformance {
+  name: string;
+  email: string;
+  isOnline: boolean;
+  lastLogout: string | null;
+  total: number;
+  confirmed: number;
+  pending: number;
+  rejected: number;
+  notContacted: number;
+  rate: number;
 }
 
 interface StatCardProps {
@@ -121,7 +135,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor 
                 lineHeight: 1,
               }}
             >
-              {value.toLocaleString()}
+              {(value ?? 0).toLocaleString()}
             </Typography>
           </Box>
           <Box
@@ -195,53 +209,36 @@ const AdminDashboard: React.FC = () => {
     packageBookings: 0,
     canceledBookings: 0,
   });
+  const [performanceData, setPerformanceData] = useState<EmployeePerformance[]>([]);
 
   useEffect(() => {
-    fetchLeadStats(startDate, endDate);
-    fetchPackageStats(startDate, endDate);
+    fetchPerformanceData(startDate, endDate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchLeadStats = async (start: string, end: string) => {
+
+  const fetchPerformanceData = async (start: string, end: string) => {
     setLoading(true);
     try {
-      // Mock data for demonstration (remove this when integrating with real API)
-      setTimeout(() => {
-        setStats({
-          totalLeads: 1248,
-          confirmedLeads: 456,
-          pendingLeads: 234,
-          rejectedLeads: 128,
-          notContactedLeads: 312,
-          notFollowedYet: 118,
-        });
-        setLoading(false);
-      }, 500);
+      const response = await fetch(`${API_ENDPOINTS.AUTH}/employees?startDate=${start}&endDate=${end}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPerformanceData(data.performance);
+        setStats(data.stats);
+        setPackageStats(data.packageStats);
+      } else {
+        console.error('Failed to fetch performance data:', response.statusText);
+      }
     } catch (error) {
-      console.error('Error fetching lead stats:', error);
+      console.error('Error fetching performance data:', error);
+    } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchPackageStats = async (start: string, end: string) => {
-    try {
-      // Mock data for demonstration (remove this when integrating with real API)
-      setTimeout(() => {
-        setPackageStats({
-          totalPackages: 87,
-          packageBookings: 542,
-          canceledBookings: 43,
-        });
-      }, 500);
-    } catch (error) {
-      console.error('Error fetching package stats:', error);
     }
   };
 
   const handleFilter = () => {
     if (startDate && endDate) {
-      fetchLeadStats(startDate, endDate);
-      fetchPackageStats(startDate, endDate);
+      fetchPerformanceData(startDate, endDate);
     }
   };
 
@@ -249,8 +246,7 @@ const AdminDashboard: React.FC = () => {
     const todayFormatted = formatDate(new Date());
     setStartDate(todayFormatted);
     setEndDate(todayFormatted);
-    fetchLeadStats(todayFormatted, todayFormatted);
-    fetchPackageStats(todayFormatted, todayFormatted);
+    fetchPerformanceData(todayFormatted, todayFormatted);
   };
 
   const leadStatCards = [
@@ -678,26 +674,16 @@ const AdminDashboard: React.FC = () => {
               <thead>
                 <tr>
                   <th>Employee Name</th>
+                  <th>Login Status</th>
                   <th>Total Leads</th>
                   <th>Confirmed</th>
                   <th>Pending</th>
                   <th>Rejected</th>
-                  <th>Not Contacted</th>
                   <th>Conversion Rate</th>
-                  <th>Performance</th>
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { name: 'Sarah Johnson', total: 156, confirmed: 68, pending: 42, rejected: 18, notContacted: 28, rate: 43.6 },
-                  { name: 'Michael Chen', total: 142, confirmed: 59, pending: 38, rejected: 22, notContacted: 23, rate: 41.5 },
-                  { name: 'Emily Davis', total: 138, confirmed: 71, pending: 31, rejected: 15, notContacted: 21, rate: 51.4 },
-                  { name: 'David Martinez', total: 128, confirmed: 52, pending: 35, rejected: 19, notContacted: 22, rate: 40.6 },
-                  { name: 'Jessica Taylor', total: 125, confirmed: 64, pending: 28, rejected: 14, notContacted: 19, rate: 51.2 },
-                  { name: 'Robert Anderson', total: 119, confirmed: 48, pending: 33, rejected: 21, notContacted: 17, rate: 40.3 },
-                  { name: 'Jennifer Wilson', total: 115, confirmed: 55, pending: 29, rejected: 16, notContacted: 15, rate: 47.8 },
-                  { name: 'James Brown', total: 108, confirmed: 42, pending: 31, rejected: 18, notContacted: 17, rate: 38.9 },
-                ].map((employee, index) => (
+                {performanceData.map((employee, index) => (
                   <tr key={index}>
                     <td>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -715,11 +701,81 @@ const AdminDashboard: React.FC = () => {
                             color: CHART_COLORS[index % CHART_COLORS.length],
                           }}
                         >
-                          {employee.name.split(' ').map(n => n[0]).join('')}
+                          {employee.name ? employee.name.split(' ').map((n: string) => n[0]).join('') : '?'}
                         </Box>
                         <Typography sx={{ fontWeight: 600, color: '#1e293b' }}>
                           {employee.name}
                         </Typography>
+                      </Box>
+                    </td>
+                    {/* Login Status */}
+                    <td>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Box
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 0.75,
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: '20px',
+                            width: 'fit-content',
+                            background: employee.isOnline
+                              ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)'
+                              : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                          }}
+                        >
+                          {/* Animated dot */}
+                          <Box
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              backgroundColor: employee.isOnline ? '#10b981' : '#94a3b8',
+                              boxShadow: employee.isOnline
+                                ? '0 0 0 2px #d1fae5, 0 0 8px #10b98180'
+                                : 'none',
+                              animation: employee.isOnline ? 'pulse 2s infinite' : 'none',
+                              '@keyframes pulse': {
+                                '0%': { boxShadow: '0 0 0 0 rgba(16, 185, 129, 0.5)' },
+                                '70%': { boxShadow: '0 0 0 6px rgba(16, 185, 129, 0)' },
+                                '100%': { boxShadow: '0 0 0 0 rgba(16, 185, 129, 0)' },
+                              },
+                            }}
+                          />
+                          <Typography
+                            sx={{
+                              fontSize: '0.8125rem',
+                              fontWeight: 700,
+                              color: employee.isOnline ? '#059669' : '#64748b',
+                            }}
+                          >
+                            {employee.isOnline ? 'Online' : 'Offline'}
+                          </Typography>
+                        </Box>
+                        {!employee.isOnline && employee.lastLogout && (
+                          <Typography
+                            sx={{
+                              fontSize: '0.75rem',
+                              color: '#94a3b8',
+                              fontWeight: 500,
+                              pl: 0.5,
+                            }}
+                          >
+                            Last seen:{' '}
+                            {new Date(employee.lastLogout).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </Typography>
+                        )}
+                        {!employee.isOnline && !employee.lastLogout && (
+                          <Typography sx={{ fontSize: '0.75rem', color: '#cbd5e1', pl: 0.5 }}>
+                            Never logged in
+                          </Typography>
+                        )}
                       </Box>
                     </td>
                     <td>
@@ -740,11 +796,6 @@ const AdminDashboard: React.FC = () => {
                     <td>
                       <Typography sx={{ fontWeight: 600, color: '#ef4444' }}>
                         {employee.rejected}
-                      </Typography>
-                    </td>
-                    <td>
-                      <Typography sx={{ fontWeight: 600, color: '#8b5cf6' }}>
-                        {employee.notContacted}
                       </Typography>
                     </td>
                     <td>
@@ -774,51 +825,6 @@ const AdminDashboard: React.FC = () => {
                           }}
                         >
                           {employee.rate.toFixed(1)}%
-                        </Typography>
-                      </Box>
-                    </td>
-                    <td>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box
-                          sx={{
-                            flex: 1,
-                            height: '8px',
-                            borderRadius: '4px',
-                            background: '#f1f5f9',
-                            overflow: 'hidden',
-                            position: 'relative',
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              left: 0,
-                              top: 0,
-                              height: '100%',
-                              width: `${employee.rate}%`,
-                              background: employee.rate >= 45
-                                ? 'linear-gradient(90deg, #10b981 0%, #059669 100%)'
-                                : employee.rate >= 40
-                                  ? 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)'
-                                  : 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)',
-                              borderRadius: '4px',
-                              transition: 'width 0.5s ease',
-                            }}
-                          />
-                        </Box>
-                        <Typography
-                          sx={{
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            color: employee.rate >= 45
-                              ? '#059669'
-                              : employee.rate >= 40
-                                ? '#d97706'
-                                : '#dc2626',
-                            minWidth: '60px',
-                          }}
-                        >
-                          {employee.rate >= 45 ? 'Excellent' : employee.rate >= 40 ? 'Good' : 'Fair'}
                         </Typography>
                       </Box>
                     </td>

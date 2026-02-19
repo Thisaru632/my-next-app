@@ -22,6 +22,7 @@ import { API_ENDPOINTS } from '@/config/api';
 export default function SignupPage() {
     const router = useRouter();
     const [username, setUsername] = useState('');
+    const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -39,7 +40,7 @@ export default function SignupPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, email, password }),
+                body: JSON.stringify({ username, fullName, email, password }),
             });
 
             const data = await response.json();
@@ -124,6 +125,30 @@ export default function SignupPage() {
                                 margin="normal"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
+                                required
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <User size={20} color="rgba(255, 255, 255, 0.6)" />
+                                        </InputAdornment>
+                                    ),
+                                    sx: { color: 'white' }
+                                }}
+                                InputLabelProps={{ sx: { color: 'rgba(255, 255, 255, 0.6)' } }}
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
+                                        '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
+                                    }
+                                }}
+                            />
+                            <TextField
+                                fullWidth
+                                label="Full Name"
+                                variant="outlined"
+                                margin="normal"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
                                 required
                                 InputProps={{
                                     startAdornment: (
