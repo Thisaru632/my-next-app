@@ -37,7 +37,7 @@ const AdminSidebar: React.FC = () => {
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/staff' },
     { text: 'Lead Info', icon: <PeopleIcon />, path: '/staff/leads' },
     { text: 'CMS', icon: <ArticleIcon />, path: '/staff/cms' },
-    { text: 'User Management', icon: <ManageAccountsIcon />, path: '/staff/user-management' }, // ✅ New tab
+    { text: 'User Manage', icon: <ManageAccountsIcon />, path: '/staff/user_manage' }, // ✅ New tab
   ];
 
   const handleNavigation = (path: string) => {
