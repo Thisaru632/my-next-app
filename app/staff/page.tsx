@@ -669,7 +669,24 @@ const AdminDashboard: React.FC = () => {
             overflow: 'hidden',
           }}
         >
-          <Box sx={{ overflowX: 'auto' }}>
+          <Box sx={{
+            overflowX: 'auto',
+            '&::-webkit-scrollbar': {
+              height: '6px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: '#cbd5e1',
+              borderRadius: '10px',
+            },
+            '&::-webkit-scrollbar-track': {
+              backgroundColor: '#f1f5f9',
+            },
+            '@media (max-width: 600px)': {
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: '#3b82f6',
+              }
+            }
+          }}>
             <StyledTable>
               <thead>
                 <tr>

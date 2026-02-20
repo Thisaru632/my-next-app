@@ -386,7 +386,7 @@ const LeadInfoPage: React.FC = () => {
       <Box
         sx={{
           mb: 4,
-          pb: 3,
+          pb: 2,
           borderBottom: '2px solid',
           borderImage: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
           borderImageSlice: 1,
@@ -396,7 +396,7 @@ const LeadInfoPage: React.FC = () => {
           variant="h4"
           sx={{
             fontWeight: 800,
-            fontSize: '2rem',
+            fontSize: { xs: '1.5rem', sm: '2rem' },
             background: 'linear-gradient(135deg, #1e293b 0%, #475569 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -667,8 +667,25 @@ const LeadInfoPage: React.FC = () => {
           </Box>
         ) : (
           <>
-            <TableContainer sx={{ overflowX: 'hidden' }}>
-              <Table>
+            <TableContainer sx={{
+              overflowX: 'auto',
+              '&::-webkit-scrollbar': {
+                height: '6px',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: '#cbd5e1',
+                borderRadius: '10px',
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: '#f1f5f9',
+              },
+              '@media (max-width: 600px)': {
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: '#3b82f6',
+                }
+              }
+            }}>
+              <Table sx={{ minWidth: 1000 }}>
                 <TableHead>
                   <TableRow>
                     {/* Shared header cell sx */}
@@ -1236,6 +1253,8 @@ const LeadInfoPage: React.FC = () => {
             background: '#f8fafc',
             borderTop: '1px solid #e2e8f0',
             gap: 1.5,
+            flexWrap: 'wrap',
+            justifyContent: 'center'
           }}
         >
           {selectedLead?.status === 'Not Followed Yet' && (

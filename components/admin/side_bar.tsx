@@ -29,7 +29,13 @@ interface MenuItem {
     path: string;
 }
 
-const AdminSidebar: React.FC = () => {
+interface AdminSidebarProps {
+    mobileOpen?: boolean;
+    onClose?: () => void;
+    isMobile?: boolean;
+}
+
+const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobile }) => {
     const router = useRouter();
     const pathname = usePathname();
 
@@ -37,46 +43,16 @@ const AdminSidebar: React.FC = () => {
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/staff' },
         { text: 'Lead Info', icon: <PeopleIcon />, path: '/staff/leads' },
         { text: 'CMS', icon: <ArticleIcon />, path: '/staff/cms' },
-        { text: 'User Manage', icon: <ManageAccountsIcon />, path: '/staff/user_manage' }, // ✅ New tab
+        { text: 'User Manage', icon: <ManageAccountsIcon />, path: '/staff/user_manage' },
     ];
 
     const handleNavigation = (path: string) => {
         router.push(path);
+        if (isMobile && onClose) onClose();
     };
 
-    const handleLogout = async () => {
-        try {
-            const userStr = localStorage.getItem('staffUser');
-            if (userStr) {
-                const user = JSON.parse(userStr);
-                await fetch(`${API_ENDPOINTS.AUTH}/logout`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: user.email, username: user.username }),
-                });
-            }
-        } catch (e) {
-            // Proceed with logout even if API call fails
-        }
-        localStorage.removeItem('staffToken');
-        localStorage.removeItem('staffUser');
-        router.push('/staff/login');
-    };
-
-    return (
-        <Drawer
-            variant="permanent"
-            sx={{
-                width: DRAWER_WIDTH,
-                flexShrink: 0,
-                '& .MuiDrawer-paper': {
-                    width: DRAWER_WIDTH,
-                    boxSizing: 'border-box',
-                    backgroundColor: '#1e293b',
-                    color: '#fff',
-                },
-            }}
-        >
+    const drawerContent = (
+        <>
             {/* Header/Logo Section */}
             <Box sx={{ p: 3, textAlign: 'center' }}>
                 <Typography variant="h6" fontWeight="bold" color="#fff">
@@ -121,7 +97,26 @@ const AdminSidebar: React.FC = () => {
             <List sx={{ px: 2, py: 1 }}>
                 <ListItem disablePadding>
                     <ListItemButton
-                        onClick={handleLogout}
+                        onClick={() => {
+                            // ... existing logout logic or call a function
+                            const handleLogout = async () => {
+                                try {
+                                    const userStr = localStorage.getItem('staffUser');
+                                    if (userStr) {
+                                        const user = JSON.parse(userStr);
+                                        await fetch(`${API_ENDPOINTS.AUTH}/logout`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ email: user.email, username: user.username }),
+                                        });
+                                    }
+                                } catch (e) { }
+                                localStorage.removeItem('staffToken');
+                                localStorage.removeItem('staffUser');
+                                router.push('/staff/login');
+                            };
+                            handleLogout();
+                        }}
                         sx={{
                             borderRadius: 2,
                             '&:hover': { backgroundColor: '#334155' },
@@ -138,7 +133,48 @@ const AdminSidebar: React.FC = () => {
                     </ListItemButton>
                 </ListItem>
             </List>
-        </Drawer>
+        </>
+    );
+
+    return (
+        <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
+            {/* Mobile Drawer */}
+            <Drawer
+                variant="temporary"
+                open={mobileOpen}
+                onClose={onClose}
+                ModalProps={{ keepMounted: true }}
+                sx={{
+                    display: { xs: 'block', md: 'none' },
+                    '& .MuiDrawer-paper': {
+                        width: DRAWER_WIDTH,
+                        boxSizing: 'border-box',
+                        backgroundColor: '#1e293b',
+                        color: '#fff',
+                    },
+                }}
+            >
+                {drawerContent}
+            </Drawer>
+
+            {/* Desktop Drawer */}
+            <Drawer
+                variant="permanent"
+                sx={{
+                    display: { xs: 'none', md: 'block' },
+                    '& .MuiDrawer-paper': {
+                        width: DRAWER_WIDTH,
+                        boxSizing: 'border-box',
+                        backgroundColor: '#1e293b',
+                        color: '#fff',
+                        border: 'none'
+                    },
+                }}
+                open
+            >
+                {drawerContent}
+            </Drawer>
+        </Box>
     );
 };
 

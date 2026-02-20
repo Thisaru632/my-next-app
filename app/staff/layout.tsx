@@ -1,20 +1,29 @@
 'use client';
 
 import { ReactNode, useEffect, useState } from "react";
-import { Box, CssBaseline, CircularProgress } from "@mui/material";
+import { Box, CssBaseline, CircularProgress, IconButton, AppBar, Toolbar, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Menu as MenuIcon } from "@mui/icons-material";
 import AdminSidebar from "@/components/admin/side_bar";
 import { usePathname, useRouter } from "next/navigation";
 import { API_ENDPOINTS } from "@/config/api";
 
-const DRAWER_WIDTH = 80;
+const DRAWER_WIDTH = 260;
 
 export default function StaffLayout({ children }: { children: ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     const isAuthPage = pathname === '/staff/login' || pathname === '/staff/signup';
+
+    const handleDrawerToggle = () => {
+        setMobileOpen(!mobileOpen);
+    };
 
     useEffect(() => {
         const token = localStorage.getItem('staffToken');
@@ -27,7 +36,6 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
             setIsAuthenticated(!!token);
             setLoading(false);
 
-            // Mark the current user as online on every page load
             if (token && !isAuthPage) {
                 try {
                     const userStr = localStorage.getItem('staffUser');
@@ -37,7 +45,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ email: user.email, username: user.username }),
-                        }).catch(() => { }); // Silent fail — non-critical
+                        }).catch(() => { });
                     }
                 } catch (e) { }
             }
@@ -62,27 +70,57 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
     }
 
     return (
-        <>
+        <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
             <CssBaseline />
-            <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-                <AdminSidebar />
-                <Box
-                    component="main"
+
+            {/* Mobile Header */}
+            {isMobile && (
+                <AppBar
+                    position="fixed"
                     sx={{
-                        flexGrow: 1,
-                        paddingTop: '24px',
-                        paddingRight: '24px',
-                        paddingBottom: '24px',
-                        paddingLeft: 0,
-                        marginLeft: `${DRAWER_WIDTH}px`,
-                        width: `calc(100% - ${DRAWER_WIDTH}px)`,
-                        minHeight: '100vh',
-                        boxSizing: 'border-box',
+                        backgroundColor: '#ffffff',
+                        color: '#1e293b',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                        zIndex: theme.zIndex.drawer + 1
                     }}
                 >
-                    {children}
-                </Box>
+                    <Toolbar>
+                        <IconButton
+                            color="inherit"
+                            aria-label="open drawer"
+                            edge="start"
+                            onClick={handleDrawerToggle}
+                            sx={{ mr: 2 }}
+                        >
+                            <MenuIcon />
+                        </IconButton>
+                        <Typography variant="h6" noWrap component="div" fontWeight="600">
+                            Senu Cabs
+                        </Typography>
+                    </Toolbar>
+                </AppBar>
+            )}
+
+            <AdminSidebar
+                mobileOpen={mobileOpen}
+                onClose={handleDrawerToggle}
+                isMobile={isMobile}
+            />
+
+            <Box
+                component="main"
+                sx={{
+                    flexGrow: 1,
+                    p: { xs: 2.5, md: 4 },
+                    width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+                    mt: { xs: 8, md: 0 },
+                    minHeight: '100vh',
+                    boxSizing: 'border-box',
+                    overflowX: 'hidden'
+                }}
+            >
+                {children}
             </Box>
-        </>
+        </Box>
     );
 }

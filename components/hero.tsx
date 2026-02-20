@@ -289,8 +289,13 @@ export default function HeroSection() {
   // -----------------------------------------------------------------------
   return (
     <section
-      style={{ height: "100vh", minHeight: "700px" }}
-      className="relative w-full overflow-hidden"
+      className="relative w-full overflow-hidden transition-all duration-500 ease-in-out"
+      style={{
+        minHeight: "850px",
+        height: "auto",
+        display: "flex",
+        flexDirection: "column"
+      }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -340,33 +345,32 @@ export default function HeroSection() {
 
       {/* HERO CONTENT */}
       <div
-        className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center"
+        className="relative flex-grow flex flex-col items-center justify-center px-4 pt-40 pb-40 text-center"
         style={{ zIndex: 10 }}
       >
         <div className="w-full max-w-4xl">
 
           {/* Headline */}
-          <div className="mb-4" style={{ animation: "fadeInUp 1s ease-out" }}>
+          <div className="mb-2 sm:mb-4 px-2" style={{ animation: "fadeInUp 1s ease-out" }}>
             <h1
-              className="text-white font-semibold tracking-tight"
+              className="text-white font-semibold tracking-tight mb-1 sm:mb-2"
               style={{
                 fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "clamp(3rem, 8vw, 5.5rem)",
-                lineHeight: 1.1,
+                fontSize: "clamp(1.8rem, 6vw, 5rem)",
+                lineHeight: 1,
                 textShadow: "0 4px 20px rgba(0,0,0,0.5)",
-                marginBottom: "1.5rem",
               }}
             >
               SENU TOURS
             </h1>
 
             <p
-              className="text-white uppercase"
+              className="text-white uppercase leading-relaxed"
               style={{
                 fontFamily: "'Montserrat', sans-serif",
                 fontWeight: 300,
                 letterSpacing: "0.05em",
-                fontSize: "clamp(0.75rem, 2vw, 1.125rem)",
+                fontSize: "clamp(0.65rem, 2vw, 1rem)",
                 textShadow: "0 2px 10px rgba(0,0,0,0.5)",
                 opacity: 0.95,
               }}
@@ -377,11 +381,11 @@ export default function HeroSection() {
 
           {/* Booking Form Card */}
           <div
-            className="flex justify-center mt-4 mb-4"
+            className="flex justify-center mt-1 sm:mt-2 mb-2 sm:mb-4"
             style={{ animation: "fadeInUp 1s ease-out 0.3s both" }}
           >
             <div
-              className="booking-form-card w-full max-w-lg rounded-xl px-5 py-10 text-left"
+              className="booking-form-card w-full max-w-lg rounded-xl px-4 sm:px-5 py-4 sm:py-8 text-left"
               style={{
                 background: "rgba(255,255,255,0.25)",
                 backdropFilter: "blur(20px) saturate(180%)",
@@ -391,23 +395,24 @@ export default function HeroSection() {
               }}
             >
               {/* Header */}
-              <div className="text-center mb-4">
+              <div className="text-center mb-3 sm:mb-4">
                 <h3
                   style={{
                     fontFamily: "'Cormorant Garamond', serif",
                     fontWeight: 600,
-                    fontSize: "1.45rem",
+                    fontSize: "1.25rem",
                     color: "#000000",
                   }}
                 >
                   Book Your Journey
                 </h3>
                 <p
+                  className="hidden sm:block"
                   style={{
                     fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
-                    fontSize: "0.78rem",
-                    lineHeight: 1.5,
+                    fontSize: "0.75rem",
+                    lineHeight: 1.4,
                     color: "#000000",
                   }}
                 >
@@ -430,7 +435,7 @@ export default function HeroSection() {
                 >
                   SELECT VEHICLE
                 </label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.6rem" }}>
+                <div className="grid grid-cols-4 gap-2 sm:gap-3">
                   {vehicleTypes.map((vehicle) => (
                     <button
                       key={vehicle.name}
@@ -596,8 +601,8 @@ export default function HeroSection() {
               </div>
 
               {/* Pickup + Dropoff */}
-              <div style={{ display: "flex", gap: "0.8rem", marginBottom: "1.1rem" }}>
-                <div style={{ flex: 1, maxWidth: "48%" }}>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
+                <div className="flex-1">
                   <label
                     style={{
                       fontFamily: "'Montserrat', sans-serif",
@@ -639,7 +644,7 @@ export default function HeroSection() {
                   />
                 </div>
 
-                <div style={{ flex: 1, maxWidth: "48%" }}>
+                <div className="flex-1">
                   <label
                     style={{
                       fontFamily: "'Montserrat', sans-serif",
@@ -683,7 +688,7 @@ export default function HeroSection() {
               </div>
 
               {/* Date and Days */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.8rem", marginBottom: "1.1rem" }}>
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
                 <div>
                   <label
                     style={{
@@ -769,7 +774,6 @@ export default function HeroSection() {
                 </div>
               </div>
 
-              {/* Price Display */}
               {totalPrice > 0 && (
                 <div
                   style={{
@@ -777,8 +781,8 @@ export default function HeroSection() {
                     backdropFilter: "blur(12px)",
                     border: "1.5px solid rgba(201,169,97,0.50)",
                     borderRadius: "7px",
-                    padding: "0.5rem 0.9rem",
-                    marginBottom: "1.1rem",
+                    padding: "0.35rem 0.9rem",
+                    marginBottom: "0.75rem",
                     textAlign: "center",
                   }}
                 >
@@ -865,7 +869,7 @@ export default function HeroSection() {
 
       {/* SLIDE INDICATOR DOTS */}
       <div
-        className="absolute bottom-8 left-0 right-0 flex items-center justify-center gap-3"
+        className="absolute bottom-4 sm:bottom-8 left-0 right-0 flex items-center justify-center gap-3"
         style={{ zIndex: 15 }}
       >
         {SLIDES.map((_, i) => (
@@ -954,7 +958,11 @@ export default function HeroSection() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={openPersonalDialog} onClose={() => setOpenPersonalDialog(false)}>
+      <Dialog
+        open={openPersonalDialog}
+        onClose={() => setOpenPersonalDialog(false)}
+        PaperProps={{ sx: { width: '95%', maxWidth: 400, m: 2, borderRadius: 3 } }}
+      >
         <DialogTitle>Personal Information</DialogTitle>
         <DialogContent>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>

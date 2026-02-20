@@ -576,6 +576,7 @@ const UserManagementPage: React.FC = () => {
                             ),
                         }}
                         sx={{
+                            width: { xs: '100%', sm: 250 },
                             '& .MuiOutlinedInput-root': {
                                 backgroundColor: '#f8fafc',
                                 color: '#1e293b',
@@ -598,8 +599,26 @@ const UserManagementPage: React.FC = () => {
                             <CircularProgress sx={{ color: '#3b82f6' }} />
                         </Box>
                     ) : (
-                        <TableContainer sx={{ px: 1 }}>
-                            <Table>
+                        <TableContainer sx={{
+                            px: 1,
+                            overflowX: 'auto',
+                            '&::-webkit-scrollbar': {
+                                height: '6px',
+                            },
+                            '&::-webkit-scrollbar-thumb': {
+                                backgroundColor: '#cbd5e1',
+                                borderRadius: '10px',
+                            },
+                            '&::-webkit-scrollbar-track': {
+                                backgroundColor: '#f1f5f9',
+                            },
+                            '@media (max-width: 600px)': {
+                                '&::-webkit-scrollbar-thumb': {
+                                    backgroundColor: '#3b82f6',
+                                }
+                            }
+                        }}>
+                            <Table sx={{ minWidth: 650 }}>
                                 <TableHead>
                                     <TableRow>
                                         {['User', 'Role', 'Status', 'Joined', 'Permissions', 'Actions'].map((h) => (
@@ -726,8 +745,26 @@ const UserManagementPage: React.FC = () => {
 
                 {/* ── Tab 1: New Users ── */}
                 <TabPanel value={activeTab} index={1}>
-                    <TableContainer sx={{ px: 1 }}>
-                        <Table>
+                    <TableContainer sx={{
+                        px: 1,
+                        overflowX: 'auto',
+                        '&::-webkit-scrollbar': {
+                            height: '6px',
+                        },
+                        '&::-webkit-scrollbar-thumb': {
+                            backgroundColor: '#cbd5e1',
+                            borderRadius: '10px',
+                        },
+                        '&::-webkit-scrollbar-track': {
+                            backgroundColor: '#f1f5f9',
+                        },
+                        '@media (max-width: 600px)': {
+                            '&::-webkit-scrollbar-thumb': {
+                                backgroundColor: '#3b82f6',
+                            }
+                        }
+                    }}>
+                        <Table sx={{ minWidth: 650 }}>
                             <TableHead>
                                 <TableRow>
                                     {['Applicant', 'Requested Role', 'Request Date', 'Reason', 'Actions'].map((h) => (
@@ -856,8 +893,8 @@ const UserManagementPage: React.FC = () => {
 
                 {/* ── Tab 2: Rejected Users ── */}
                 <TabPanel value={activeTab} index={2}>
-                    <TableContainer sx={{ px: 1 }}>
-                        <Table>
+                    <TableContainer sx={{ px: 1, overflowX: 'auto' }}>
+                        <Table sx={{ minWidth: 650 }}>
                             <TableHead>
                                 <TableRow>
                                     {['Rejected User', 'Requested Role', 'Request Date', 'Reason', 'Actions'].map((h) => (
@@ -959,7 +996,7 @@ const UserManagementPage: React.FC = () => {
             <Dialog
                 open={deleteDialog.open}
                 onClose={() => setDeleteDialog({ open: false, user: null })}
-                PaperProps={{ sx: { backgroundColor: '#ffffff', color: '#1e293b', borderRadius: 3, border: '1px solid #e2e8f0', minWidth: 380 } }}
+                PaperProps={{ sx: { backgroundColor: '#ffffff', color: '#1e293b', borderRadius: 3, border: '1px solid #e2e8f0', width: '90%', maxWidth: 380, m: 2 } }}
             >
                 <DialogTitle sx={{ fontWeight: 700, color: '#1e293b', pb: 1 }}>Delete User</DialogTitle>
                 <DialogContent>
@@ -987,7 +1024,7 @@ const UserManagementPage: React.FC = () => {
             <Dialog
                 open={rejectDialog.open}
                 onClose={() => setRejectDialog({ open: false, user: null })}
-                PaperProps={{ sx: { backgroundColor: '#ffffff', color: '#1e293b', borderRadius: 3, border: '1px solid #e2e8f0', minWidth: 380 } }}
+                PaperProps={{ sx: { backgroundColor: '#ffffff', color: '#1e293b', borderRadius: 3, border: '1px solid #e2e8f0', width: '90%', maxWidth: 380, m: 2 } }}
             >
                 <DialogTitle sx={{ fontWeight: 700, color: '#1e293b', pb: 1 }}>Reject Request</DialogTitle>
                 <DialogContent>
@@ -1015,7 +1052,7 @@ const UserManagementPage: React.FC = () => {
             <Dialog
                 open={permDialog.open}
                 onClose={() => setPermDialog({ open: false, user: null, perms: null })}
-                PaperProps={{ sx: { backgroundColor: '#ffffff', color: '#1e293b', borderRadius: 3, border: '1px solid #e2e8f0', minWidth: 420 } }}
+                PaperProps={{ sx: { backgroundColor: '#ffffff', color: '#1e293b', borderRadius: 4, border: '1px solid #e2e8f0', width: '95%', maxWidth: 450, m: 2 } }}
             >
                 <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 700, color: '#1e293b' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

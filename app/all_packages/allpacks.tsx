@@ -406,7 +406,7 @@ export default function Allpacks() {
       </div>
 
       {/* ── Cards grid ── 4 columns on lg+ */}
-      <div className="w-full max-w-7xl grid grid-cols-1 sm:grid-coView All Toursls-2 lg:grid-cols-4 gap-5 md:gap-6">
+      <div className="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
         {tours.map((tour, i) => (
           <TourCard key={tour.id} tour={tour} index={i} inView={inView} />
         ))}
@@ -428,4 +428,3 @@ export default function Allpacks() {
 }
 
 
- 
