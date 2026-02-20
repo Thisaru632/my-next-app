@@ -28,6 +28,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import { API_ENDPOINTS } from '@/config/api';
 import {
@@ -65,6 +67,7 @@ interface Lead {
   message?: string;
   customerPhone?: string;
   customerEmail?: string;
+  customId?: string;
 }
 
 // Mock data
@@ -111,6 +114,7 @@ const LeadInfoPage: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<number>(0);
 
   useEffect(() => {
     const userStr = localStorage.getItem('staffUser');
@@ -129,7 +133,6 @@ const LeadInfoPage: React.FC = () => {
     return ['All', ...types];
   }, [leads]);
 
-  // Use useMemo to compute filtered leads without causing cascading renders
   const filteredLeads = useMemo(() => {
     let filtered = leads;
 
@@ -155,8 +158,19 @@ const LeadInfoPage: React.FC = () => {
       filtered = filtered.filter((lead) => lead.source === formTypeFilter);
     }
 
+    // Tab filter
+    if (activeTab === 0) {
+      filtered = filtered.filter(lead => lead.source === 'Online Booking');
+    } else if (activeTab === 1) {
+      filtered = filtered.filter(lead => lead.formType === 'Complaint');
+    } else if (activeTab === 2) {
+      filtered = filtered.filter(lead => lead.formType === 'General Inquiry' || lead.formType === 'General Enquiry');
+    } else if (activeTab === 3) {
+      filtered = filtered.filter(lead => lead.formType === 'Feedback');
+    }
+
     return filtered;
-  }, [searchQuery, statusFilter, formTypeFilter, leads]);
+  }, [searchQuery, statusFilter, formTypeFilter, leads, activeTab]);
 
   // Load leads data
   useEffect(() => {
@@ -188,6 +202,7 @@ const LeadInfoPage: React.FC = () => {
               message: booking.message,
               customerPhone: booking.telephone,
               customerEmail: booking.email,
+              customId: booking.customId,
             }));
             allLeads = [...allLeads, ...mappedBookings];
           } catch (e) {
@@ -202,10 +217,10 @@ const LeadInfoPage: React.FC = () => {
               id: contact._id,
               leadDate: contact.createdAt,
               fromLocation: 'Contact Form',
-              toLocation: contact.reason || 'General Enquiry',
+              toLocation: contact.reason || 'General Inquiry',
               status: contact.status === 'new' ? 'Pending' : (['Confirmed', 'Rejected', 'Cancelled'].includes(contact.status) ? contact.status : 'Confirmed'),
               employeeName: contact.employeeName || '',
-              formType: contact.reason || 'General Enquiry',
+              formType: contact.reason || 'General Inquiry',
               source: 'Contact Us',
               customerName: contact.fullName,
               tourDate: contact.preferredTravelDates || contact.createdAt,
@@ -214,6 +229,7 @@ const LeadInfoPage: React.FC = () => {
               message: contact.message,
               customerPhone: contact.phoneNumber,
               customerEmail: contact.email,
+              customId: contact.customId,
             }));
             allLeads = [...allLeads, ...mappedContacts];
           } catch (e) {
@@ -575,6 +591,57 @@ const LeadInfoPage: React.FC = () => {
         </Box>
       </Paper>
 
+      {/* Tabs Section */}
+      <Box
+        sx={{
+          mb: 3,
+          background: '#ffffff',
+          borderRadius: '16px',
+          p: 1,
+          border: '1px solid rgba(226, 232, 240, 0.8)',
+          boxShadow: '0 4px 20px -5px rgba(0, 0, 0, 0.05)',
+        }}
+      >
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => {
+            setActiveTab(newValue);
+            setPage(0);
+          }}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            '& .MuiTabs-indicator': {
+              height: 4,
+              borderRadius: '4px',
+              background: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%)',
+            },
+            '& .MuiTab-root': {
+              fontWeight: 700,
+              textTransform: 'none',
+              fontSize: '0.9375rem',
+              minWidth: 140,
+              minHeight: '60px',
+              transition: 'all 0.2s ease',
+              borderRadius: '8px',
+              margin: '0 4px',
+              '&:hover': {
+                backgroundColor: '#f8fafc',
+                color: '#3b82f6',
+              },
+              '& .MuiSvgIcon-root': {
+                marginBottom: '4px !important',
+              }
+            },
+          }}
+        >
+          <Tab icon={<AssignmentIcon />} label="Booking Leads" />
+          <Tab icon={<CancelIcon sx={{ color: activeTab === 1 ? '#ef4444' : 'inherit' }} />} label="Complaints" />
+          <Tab icon={<MessageIcon sx={{ color: activeTab === 2 ? '#8b5cf6' : 'inherit' }} />} label="General Inquiries" />
+          <Tab icon={<CheckCircleIcon sx={{ color: activeTab === 3 ? '#10b981' : 'inherit' }} />} label="Feedback" />
+        </Tabs>
+      </Box>
+
       {/* Leads Table */}
       <Paper
         sx={{
@@ -661,7 +728,7 @@ const LeadInfoPage: React.FC = () => {
                                 fontSize: '0.9375rem',
                               }}
                             >
-                              {lead.id}
+                              {lead.customId || lead.id}
                             </Typography>
                           </TableCell>
 
@@ -939,7 +1006,7 @@ const LeadInfoPage: React.FC = () => {
                     Lead ID
                   </Typography>
                   <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#3b82f6' }}>
-                    {selectedLead.id}
+                    {selectedLead.customId || selectedLead.id}
                   </Typography>
                 </Box>
 

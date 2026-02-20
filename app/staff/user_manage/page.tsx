@@ -41,6 +41,8 @@ import {
     Undo as UndoIcon,
     History as HistoryIcon,
 } from '@mui/icons-material';
+import { API_ENDPOINTS } from '@/config/api';
+import { CircularProgress } from '@mui/material';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -53,7 +55,7 @@ interface Permission {
 }
 
 interface CurrentUser {
-    id: number;
+    id: string; // Changed from number to string for MongoDB compatibility
     name: string;
     email: string;
     role: string;
@@ -64,7 +66,7 @@ interface CurrentUser {
 }
 
 interface NewUser {
-    id: number;
+    id: string; // Changed from number to string
     name: string;
     email: string;
     requestedRole: string;
@@ -77,7 +79,7 @@ interface NewUser {
 
 const initialCurrentUsers: CurrentUser[] = [
     {
-        id: 1,
+        id: '1',
         name: 'Sarah Mitchell',
         email: 'sarah.m@company.com',
         role: 'Admin',
@@ -87,7 +89,7 @@ const initialCurrentUsers: CurrentUser[] = [
         permissions: { dashboard: true, leads: true, cms: true, userManagement: true, reports: true },
     },
     {
-        id: 2,
+        id: '2',
         name: 'James Carter',
         email: 'j.carter@company.com',
         role: 'Editor',
@@ -97,7 +99,7 @@ const initialCurrentUsers: CurrentUser[] = [
         permissions: { dashboard: true, leads: true, cms: true, userManagement: false, reports: false },
     },
     {
-        id: 3,
+        id: '3',
         name: 'Priya Sharma',
         email: 'p.sharma@company.com',
         role: 'Viewer',
@@ -107,7 +109,7 @@ const initialCurrentUsers: CurrentUser[] = [
         permissions: { dashboard: true, leads: false, cms: false, userManagement: false, reports: false },
     },
     {
-        id: 4,
+        id: '4',
         name: 'Tom Nguyen',
         email: 't.nguyen@company.com',
         role: 'Editor',
@@ -120,7 +122,7 @@ const initialCurrentUsers: CurrentUser[] = [
 
 const initialNewUsers: NewUser[] = [
     {
-        id: 101,
+        id: '101',
         name: 'Lena Fischer',
         email: 'lena.fischer@gmail.com',
         requestedRole: 'Editor',
@@ -129,7 +131,7 @@ const initialNewUsers: NewUser[] = [
         reason: 'Joining the marketing team to manage content.',
     },
     {
-        id: 102,
+        id: '102',
         name: 'Carlos Mendez',
         email: 'c.mendez@outlook.com',
         requestedRole: 'Viewer',
@@ -138,7 +140,7 @@ const initialNewUsers: NewUser[] = [
         reason: 'Need access to review campaign reports.',
     },
     {
-        id: 103,
+        id: '103',
         name: 'Aisha Okonkwo',
         email: 'aisha.ok@corp.io',
         requestedRole: 'Admin',
@@ -150,7 +152,7 @@ const initialNewUsers: NewUser[] = [
 
 const initialRejectedUsers: NewUser[] = [
     {
-        id: 201,
+        id: '201',
         name: 'John Doe',
         email: 'john.doe@example.com',
         requestedRole: 'Viewer',
@@ -173,7 +175,9 @@ const avatarColors: Record<string, string> = {
 };
 
 const roleColors: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
+    SuperAdmin: 'secondary',
     Admin: 'error',
+    Staff: 'primary',
     Editor: 'primary',
     Viewer: 'default',
 };
@@ -206,10 +210,54 @@ const permissionLabels: { key: keyof Permission; label: string }[] = [
 
 const UserManagementPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState(0);
-    const [currentUsers, setCurrentUsers] = useState<CurrentUser[]>(initialCurrentUsers);
+    const [currentUsers, setCurrentUsers] = useState<CurrentUser[]>([]);
+    const [loading, setLoading] = useState(true);
     const [newUsers, setNewUsers] = useState<NewUser[]>(initialNewUsers);
     const [rejectedUsers, setRejectedUsers] = useState<NewUser[]>(initialRejectedUsers);
     const [search, setSearch] = useState('');
+
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`${API_ENDPOINTS.AUTH}/users`);
+            if (response.ok) {
+                const data = await response.json();
+
+                const allMapped: any[] = data.map((user: any) => ({
+                    id: user._id,
+                    name: user.fullName || user.username,
+                    email: user.email,
+                    role: user.role === 'superadmin' ? 'SuperAdmin' : user.role === 'admin' ? 'Admin' : 'Staff',
+                    status: user.isOnline ? 'active' : 'inactive',
+                    dbStatus: user.status || 'active',
+                    joinedDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : 'N/A',
+                    avatar: (user.fullName || user.username).substring(0, 2).toUpperCase(),
+                    permissions: user.permissions || {
+                        dashboard: true,
+                        leads: false,
+                        cms: false,
+                        userManagement: false,
+                        reports: false
+                    },
+                    requestedRole: user.role === 'admin' ? 'Admin' : 'Staff',
+                    requestDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : 'N/A',
+                    reason: 'Registration request',
+                }));
+
+                setCurrentUsers(allMapped.filter(u => u.dbStatus === 'active'));
+                setNewUsers(allMapped.filter(u => u.dbStatus === 'pending'));
+                setRejectedUsers(allMapped.filter(u => u.dbStatus === 'rejected'));
+            }
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchUsers();
+    }, []);
 
     // Delete dialog
     const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; user: CurrentUser | null }>({ open: false, user: null });
@@ -225,9 +273,18 @@ const UserManagementPage: React.FC = () => {
     const [rejectDialog, setRejectDialog] = useState<{ open: boolean; user: NewUser | null }>({ open: false, user: null });
 
     // ── Handlers: Current Users ──
-    const handleDeleteConfirm = () => {
+    const handleDeleteConfirm = async () => {
         if (deleteDialog.user) {
-            setCurrentUsers((prev) => prev.filter((u) => u.id !== deleteDialog.user!.id));
+            try {
+                const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${deleteDialog.user.id}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) {
+                    fetchUsers();
+                }
+            } catch (error) {
+                console.error('Delete failed:', error);
+            }
         }
         setDeleteDialog({ open: false, user: null });
     };
@@ -243,46 +300,84 @@ const UserManagementPage: React.FC = () => {
         }));
     };
 
-    const handlePermSave = () => {
+    const handlePermSave = async () => {
         if (permDialog.user && permDialog.perms) {
-            setCurrentUsers((prev) =>
-                prev.map((u) => (u.id === permDialog.user!.id ? { ...u, permissions: permDialog.perms! } : u))
-            );
+            try {
+                const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${permDialog.user.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ permissions: permDialog.perms })
+                });
+                if (res.ok) {
+                    fetchUsers();
+                }
+            } catch (error) {
+                console.error('Permission update failed:', error);
+            }
         }
         setPermDialog({ open: false, user: null, perms: null });
     };
 
     // ── Handlers: New Users ──
-    const handleApprove = (user: NewUser) => {
-        const approved: CurrentUser = {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.requestedRole,
-            status: 'active',
-            joinedDate: new Date().toISOString().split('T')[0],
-            avatar: user.avatar,
-            permissions: { dashboard: true, leads: false, cms: false, userManagement: false, reports: false },
-        };
-        setCurrentUsers((prev) => [...prev, approved]);
-        setNewUsers((prev) => prev.filter((u) => u.id !== user.id));
+    const handleApprove = async (user: NewUser) => {
+        try {
+            const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${user.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'active' })
+            });
+            if (res.ok) {
+                fetchUsers();
+            }
+        } catch (error) {
+            console.error('Approval failed:', error);
+        }
     };
 
-    const handleRejectConfirm = () => {
+    const handleRejectConfirm = async () => {
         if (rejectDialog.user) {
-            setRejectedUsers((prev) => [...prev, rejectDialog.user!]);
-            setNewUsers((prev) => prev.filter((u) => u.id !== rejectDialog.user!.id));
+            try {
+                const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${rejectDialog.user.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'rejected' })
+                });
+                if (res.ok) {
+                    fetchUsers();
+                }
+            } catch (error) {
+                console.error('Rejection failed:', error);
+            }
         }
         setRejectDialog({ open: false, user: null });
     };
 
-    const handleUndoReject = (user: NewUser) => {
-        setNewUsers((prev) => [...prev, user]);
-        setRejectedUsers((prev) => prev.filter((u) => u.id !== user.id));
+    const handleUndoReject = async (user: NewUser) => {
+        try {
+            const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${user.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'pending' })
+            });
+            if (res.ok) {
+                fetchUsers();
+            }
+        } catch (error) {
+            console.error('Restore failed:', error);
+        }
     };
 
-    const handlePermanentDelete = (id: number) => {
-        setRejectedUsers((prev) => prev.filter((u) => u.id !== id));
+    const handlePermanentDelete = async (id: string) => {
+        try {
+            const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${id}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                fetchUsers();
+            }
+        } catch (error) {
+            console.error('Permanent delete failed:', error);
+        }
     };
 
     // ── Filtered Lists ──
@@ -498,123 +593,135 @@ const UserManagementPage: React.FC = () => {
 
                 {/* ── Tab 0: Current Users ── */}
                 <TabPanel value={activeTab} index={0}>
-                    <TableContainer sx={{ px: 1 }}>
-                        <Table>
-                            <TableHead>
-                                <TableRow>
-                                    {['User', 'Role', 'Status', 'Joined', 'Permissions', 'Actions'].map((h) => (
-                                        <TableCell
-                                            key={h}
-                                            sx={{
-                                                color: '#475569',
-                                                fontWeight: 700,
-                                                fontSize: '0.875rem',
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.05em',
-                                                borderColor: '#e2e8f0',
-                                                py: 2,
-                                            }}
-                                        >
-                                            {h}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {filteredCurrentUsers.length === 0 ? (
+                    {loading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                            <CircularProgress sx={{ color: '#3b82f6' }} />
+                        </Box>
+                    ) : (
+                        <TableContainer sx={{ px: 1 }}>
+                            <Table>
+                                <TableHead>
                                     <TableRow>
-                                        <TableCell colSpan={6} align="center" sx={{ color: '#94a3b8', py: 6, borderColor: '#f1f5f9' }}>
-                                            No users found.
-                                        </TableCell>
+                                        {['User', 'Role', 'Status', 'Joined', 'Permissions', 'Actions'].map((h) => (
+                                            <TableCell
+                                                key={h}
+                                                sx={{
+                                                    color: '#475569',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.875rem',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.05em',
+                                                    borderColor: '#e2e8f0',
+                                                    py: 2,
+                                                }}
+                                            >
+                                                {h}
+                                            </TableCell>
+                                        ))}
                                     </TableRow>
-                                ) : (
-                                    filteredCurrentUsers.map((user) => (
-                                        <TableRow
-                                            key={user.id}
-                                            sx={{
-                                                '&:hover': { backgroundColor: '#f8fafc' },
-                                                '& td': { borderColor: '#f1f5f9' },
-                                                transition: 'background 0.15s',
-                                            }}
-                                        >
-                                            {/* User */}
-                                            <TableCell>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                                    <Avatar sx={{ bgcolor: avatarColors[user.avatar] || '#3b82f6', width: 36, height: 36, fontSize: 13, fontWeight: 700 }}>
-                                                        {user.avatar}
-                                                    </Avatar>
-                                                    <Box>
-                                                        <Typography sx={{ color: '#1e293b', fontSize: 14, fontWeight: 500 }}>{user.name}</Typography>
-                                                        <Typography sx={{ color: '#64748b', fontSize: 12 }}>{user.email}</Typography>
-                                                    </Box>
-                                                </Box>
-                                            </TableCell>
-
-                                            {/* Role */}
-                                            <TableCell>
-                                                <Chip label={user.role} color={roleColors[user.role]} size="small" variant="outlined" />
-                                            </TableCell>
-
-                                            {/* Status */}
-                                            <TableCell>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                                                    <Box
-                                                        sx={{
-                                                            width: 8, height: 8, borderRadius: '50%',
-                                                            backgroundColor: user.status === 'active' ? '#10b981' : '#64748b',
-                                                            boxShadow: user.status === 'active' ? '0 0 6px #10b981' : 'none',
-                                                        }}
-                                                    />
-                                                    <Typography sx={{ color: user.status === 'active' ? '#10b981' : '#64748b', fontSize: 13, textTransform: 'capitalize' }}>
-                                                        {user.status}
-                                                    </Typography>
-                                                </Box>
-                                            </TableCell>
-
-                                            {/* Joined */}
-                                            <TableCell sx={{ color: '#64748b', fontSize: 13 }}>{user.joinedDate}</TableCell>
-
-                                            {/* Permissions summary */}
-                                            <TableCell>
-                                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                                                    {permissionLabels
-                                                        .filter((p) => user.permissions[p.key])
-                                                        .map((p) => (
-                                                            <Chip key={p.key} label={p.label} size="small"
-                                                                sx={{ fontSize: 10, height: 18, backgroundColor: '#eff6ff', color: '#1d4ed8' }} />
-                                                        ))}
-                                                </Box>
-                                            </TableCell>
-
-                                            {/* Actions */}
-                                            <TableCell>
-                                                <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                                    <Tooltip title="Edit Permissions">
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() => openPermDialog(user)}
-                                                            sx={{ color: '#3b82f6', '&:hover': { backgroundColor: '#eff6ff' } }}
-                                                        >
-                                                            <SecurityIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Delete User">
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() => setDeleteDialog({ open: true, user })}
-                                                            sx={{ color: '#ef4444', '&:hover': { backgroundColor: '#fef2f2' } }}
-                                                        >
-                                                            <DeleteIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
+                                </TableHead>
+                                <TableBody>
+                                    {filteredCurrentUsers.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} align="center" sx={{ color: '#94a3b8', py: 6, borderColor: '#f1f5f9' }}>
+                                                No users found.
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                    ) : (
+                                        filteredCurrentUsers.map((user) => (
+                                            <TableRow
+                                                key={user.id}
+                                                sx={{
+                                                    '&:hover': { backgroundColor: '#f8fafc' },
+                                                    '& td': { borderColor: '#f1f5f9' },
+                                                    transition: 'background 0.15s',
+                                                }}
+                                            >
+                                                {/* User */}
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                                        <Avatar sx={{ bgcolor: avatarColors[user.avatar] || '#3b82f6', width: 36, height: 36, fontSize: 13, fontWeight: 700 }}>
+                                                            {user.avatar}
+                                                        </Avatar>
+                                                        <Box>
+                                                            <Typography sx={{ color: '#1e293b', fontSize: 14, fontWeight: 500 }}>{user.name}</Typography>
+                                                            <Typography sx={{ color: '#64748b', fontSize: 12 }}>{user.email}</Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </TableCell>
+
+                                                {/* Role */}
+                                                <TableCell>
+                                                    <Chip label={user.role} color={roleColors[user.role]} size="small" variant="outlined" />
+                                                </TableCell>
+
+                                                {/* Status */}
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                                                        <Box
+                                                            sx={{
+                                                                width: 8, height: 8, borderRadius: '50%',
+                                                                backgroundColor: user.status === 'active' ? '#10b981' : '#64748b',
+                                                                boxShadow: user.status === 'active' ? '0 0 6px #10b981' : 'none',
+                                                            }}
+                                                        />
+                                                        <Typography sx={{ color: user.status === 'active' ? '#10b981' : '#64748b', fontSize: 13, textTransform: 'capitalize' }}>
+                                                            {user.status}
+                                                        </Typography>
+                                                    </Box>
+                                                </TableCell>
+
+                                                {/* Joined */}
+                                                <TableCell sx={{ color: '#64748b', fontSize: 13 }}>{user.joinedDate}</TableCell>
+
+                                                {/* Permissions summary */}
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                                        {permissionLabels
+                                                            .filter((p) => user.permissions[p.key])
+                                                            .map((p) => (
+                                                                <Chip key={p.key} label={p.label} size="small"
+                                                                    sx={{ fontSize: 10, height: 18, backgroundColor: '#eff6ff', color: '#1d4ed8' }} />
+                                                            ))}
+                                                    </Box>
+                                                </TableCell>
+
+                                                {/* Actions */}
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                        <Tooltip title={user.role === 'SuperAdmin' ? "Super Admin permissions cannot be changed" : "Edit Permissions"}>
+                                                            <span>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    disabled={user.role === 'SuperAdmin'}
+                                                                    onClick={() => openPermDialog(user)}
+                                                                    sx={{ color: '#3b82f6', '&:hover': { backgroundColor: '#eff6ff' } }}
+                                                                >
+                                                                    <SecurityIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </span>
+                                                        </Tooltip>
+                                                        <Tooltip title={user.role === 'SuperAdmin' ? "Super Admin cannot be deleted" : "Delete User"}>
+                                                            <span>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    disabled={user.role === 'SuperAdmin'}
+                                                                    onClick={() => setDeleteDialog({ open: true, user })}
+                                                                    sx={{ color: '#ef4444', '&:hover': { backgroundColor: '#fef2f2' } }}
+                                                                >
+                                                                    <DeleteIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </span>
+                                                        </Tooltip>
+                                                    </Box>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
                 </TabPanel>
 
                 {/* ── Tab 1: New Users ── */}
