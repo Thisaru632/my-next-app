@@ -11,6 +11,8 @@ import {
   IconButton,
   Snackbar,
   Alert,
+  Box,
+  Typography,
 } from '@mui/material';
 import {
   DirectionsBus,
@@ -19,6 +21,15 @@ import {
   CheckCircle,
   AirportShuttle,
   LocalTaxi,
+  Person,
+  Work,
+  Phone,
+  Email,
+  AccountCircle,
+  Group,
+  DirectionsCar,
+  TrendingFlat,
+  Loop,
 } from '@mui/icons-material';
 import Image from 'next/image';
 import { API_ENDPOINTS } from '@/config/api';
@@ -65,12 +76,12 @@ const tripTypes = [
   {
     name: 'Drop',
     description: 'Single destination trip',
-    icon: '🎯'
+    icon: <TrendingFlat />
   },
   {
     name: 'Return',
     description: 'Return to starting point',
-    icon: '🔄'
+    icon: <Loop />
   },
 ];
 
@@ -923,18 +934,87 @@ export default function HeroSection() {
       </div>
 
       {/* DIALOGS */}
-      <Dialog open={openVehicleDialog} onClose={() => setOpenVehicleDialog(false)}>
-        <DialogTitle>Select Vehicle Model</DialogTitle>
-        <DialogContent>
-          <List>
+      <Dialog
+        open={openVehicleDialog}
+        onClose={() => setOpenVehicleDialog(false)}
+        PaperProps={{
+          sx: {
+            width: '95%',
+            maxWidth: 450,
+            m: 2,
+            borderRadius: '24px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.15)'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: '1.65rem',
+          fontWeight: 700,
+          color: '#2D231B',
+          pb: 1,
+          borderBottom: '1px solid rgba(0,0,0,0.05)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          Select Model
+          <IconButton
+            onClick={() => setOpenVehicleDialog(false)}
+            sx={{ color: 'rgba(0,0,0,0.4)', '&:hover': { color: '#ef4444' } }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: '0 !important' }}>
+          <List sx={{ pt: 1, pb: 2 }}>
             {currentCategoryVehicles.models.map((model) => (
               <ListItemButton
                 key={model.name}
                 onClick={() => handleVehicleSelect(model.name)}
+                sx={{
+                  mx: 1.5,
+                  my: 0.5,
+                  borderRadius: '16px',
+                  transition: 'all 0.2s ease',
+                  border: '1px solid transparent',
+                  '&:hover': {
+                    bgcolor: 'rgba(201, 169, 97, 0.08)',
+                    borderColor: 'rgba(201, 169, 97, 0.2)',
+                    transform: 'translateY(-2px)',
+                  }
+                }}
               >
+                <Box sx={{ mr: 2, color: '#C9A961' }}>
+                  <DirectionsCar />
+                </Box>
                 <ListItemText
                   primary={model.name}
-                  secondary={`${model.description} • Max ${model.maxPersons} persons • Max ${model.maxBags} bags`}
+                  secondary={
+                    <Box sx={{ mt: 0.5 }}>
+                      <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'rgba(0,0,0,0.6)' }} component="div">
+                        {model.description}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Group sx={{ fontSize: '0.9rem', color: '#C9A961' }} />
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }} component="span">{model.maxPersons}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Work sx={{ fontSize: '0.9rem', color: '#C9A961' }} />
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }} component="span">{model.maxBags}</Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  }
+                  primaryTypographyProps={{
+                    sx: { fontFamily: "'Montserrat', sans-serif", fontWeight: 700, color: '#2D231B', fontSize: '1rem' }
+                  }}
+                  secondaryTypographyProps={{
+                    component: 'div'
+                  }}
                 />
               </ListItemButton>
             ))}
@@ -942,16 +1022,73 @@ export default function HeroSection() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={openTripTypeDialog} onClose={() => setOpenTripTypeDialog(false)}>
-        <DialogTitle>Select Trip Type</DialogTitle>
-        <DialogContent>
-          <List>
+      <Dialog
+        open={openTripTypeDialog}
+        onClose={() => setOpenTripTypeDialog(false)}
+        PaperProps={{
+          sx: {
+            width: '95%',
+            maxWidth: 400,
+            m: 2,
+            borderRadius: '24px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.15)'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: '1.65rem',
+          fontWeight: 700,
+          color: '#2D231B',
+          pb: 1,
+          borderBottom: '1px solid rgba(0,0,0,0.05)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          Trip Type
+          <IconButton
+            onClick={() => setOpenTripTypeDialog(false)}
+            sx={{ color: 'rgba(0,0,0,0.4)', '&:hover': { color: '#ef4444' } }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: '0 !important' }}>
+          <List sx={{ pt: 1, pb: 2 }}>
             {tripTypes.map((type) => (
               <ListItemButton
                 key={type.name}
                 onClick={() => handleTripTypeSelect(type.name)}
+                sx={{
+                  mx: 1.5,
+                  my: 0.5,
+                  borderRadius: '16px',
+                  transition: 'all 0.2s ease',
+                  border: '1px solid transparent',
+                  '&:hover': {
+                    bgcolor: 'rgba(201, 169, 97, 0.08)',
+                    borderColor: 'rgba(201, 169, 97, 0.2)',
+                    transform: 'translateY(-2px)',
+                  }
+                }}
               >
-                <ListItemText primary={`${type.icon} ${type.name}`} secondary={type.description} />
+                <Box sx={{ mr: 2, color: '#C9A961' }}>
+                  {type.icon}
+                </Box>
+                <ListItemText
+                  primary={type.name}
+                  secondary={type.description}
+                  primaryTypographyProps={{
+                    sx: { fontFamily: "'Montserrat', sans-serif", fontWeight: 700, color: '#2D231B', fontSize: '1rem' }
+                  }}
+                  secondaryTypographyProps={{
+                    component: 'div',
+                    sx: { fontFamily: "'Montserrat', sans-serif", fontSize: '0.75rem', color: 'rgba(0,0,0,0.5)' }
+                  }}
+                />
               </ListItemButton>
             ))}
           </List>
@@ -961,45 +1098,181 @@ export default function HeroSection() {
       <Dialog
         open={openPersonalDialog}
         onClose={() => setOpenPersonalDialog(false)}
-        PaperProps={{ sx: { width: '95%', maxWidth: 400, m: 2, borderRadius: 3 } }}
+        PaperProps={{
+          sx: {
+            width: '95%',
+            maxWidth: 400,
+            m: 2,
+            borderRadius: '24px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.15)'
+          }
+        }}
       >
-        <DialogTitle>Personal Information</DialogTitle>
+        <DialogTitle sx={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: '1.65rem',
+          fontWeight: 700,
+          color: '#2D231B',
+          pb: 1,
+          borderBottom: '1px solid rgba(0,0,0,0.05)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          Almost There
+          <IconButton
+            onClick={() => setOpenPersonalDialog(false)}
+            sx={{ color: 'rgba(0,0,0,0.4)', '&:hover': { color: '#ef4444' } }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
         <DialogContent>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={formData.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              style={{ padding: '0.8rem', borderRadius: '6px', border: '1px solid #ccc' }}
-            />
-            <input
-              type="tel"
-              placeholder="Telephone"
-              value={formData.telephone}
-              onChange={(e) => handleChange('telephone', e.target.value)}
-              style={{ padding: '0.8rem', borderRadius: '6px', border: '1px solid #ccc' }}
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ position: 'relative' }}>
+              <AccountCircle style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#C9A961', zIndex: 1 }} />
+              <input
+                type="text"
+                placeholder="Full Name"
+                value={formData.name}
+                onChange={(e) => handleChange('name', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '1rem 1rem 1rem 3rem',
+                  borderRadius: '14px',
+                  border: '1.5px solid rgba(0,0,0,0.08)',
+                  background: 'rgba(0,0,0,0.02)',
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  transition: 'all 0.3s ease'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#C9A961';
+                  e.target.style.background = '#fff';
+                  e.target.style.boxShadow = '0 0 0 4px rgba(201, 169, 97, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(0,0,0,0.08)';
+                  e.target.style.background = 'rgba(0,0,0,0.02)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+            <div style={{ position: 'relative' }}>
+              <Phone style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#C9A961', zIndex: 1, fontSize: '1.2rem' }} />
+              <input
+                type="tel"
+                placeholder="Telephone"
+                value={formData.telephone}
+                onChange={(e) => handleChange('telephone', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '1rem 1rem 1rem 3rem',
+                  borderRadius: '14px',
+                  border: '1.5px solid rgba(0,0,0,0.08)',
+                  background: 'rgba(0,0,0,0.02)',
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  transition: 'all 0.3s ease'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#C9A961';
+                  e.target.style.background = '#fff';
+                  e.target.style.boxShadow = '0 0 0 4px rgba(201, 169, 97, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(0,0,0,0.08)';
+                  e.target.style.background = 'rgba(0,0,0,0.02)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+            <div style={{ position: 'relative' }}>
+              <Email style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#C9A961', zIndex: 1, fontSize: '1.2rem' }} />
+              <input
+                type="email"
+                placeholder="Email Address"
+                value={formData.email}
+                onChange={(e) => handleChange('email', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '1rem 1rem 1rem 3rem',
+                  borderRadius: '14px',
+                  border: '1.5px solid rgba(0,0,0,0.08)',
+                  background: 'rgba(0,0,0,0.02)',
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  transition: 'all 0.3s ease'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#C9A961';
+                  e.target.style.background = '#fff';
+                  e.target.style.boxShadow = '0 0 0 4px rgba(201, 169, 97, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(0,0,0,0.08)';
+                  e.target.style.background = 'rgba(0,0,0,0.02)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+            </div>
             <input
               type="email"
               placeholder="Email"
               value={formData.email}
               onChange={(e) => handleChange('email', e.target.value)}
-              style={{ padding: '0.8rem', borderRadius: '6px', border: '1px solid #ccc' }}
+              style={{
+                padding: '1rem',
+                borderRadius: '12px',
+                border: '1.5px solid rgba(0,0,0,0.08)',
+                background: 'rgba(0,0,0,0.02)',
+                fontFamily: "'Montserrat', sans-serif",
+                fontSize: '0.9rem',
+                outline: 'none',
+                transition: 'all 0.3s ease'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#C9A961';
+                e.target.style.background = '#fff';
+                e.target.style.boxShadow = '0 0 0 4px rgba(201, 169, 97, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = 'rgba(0,0,0,0.08)';
+                e.target.style.background = 'rgba(0,0,0,0.02)';
+                e.target.style.boxShadow = 'none';
+              }}
             />
             <button
               onClick={handleSendRequest}
               style={{
-                padding: '0.9rem',
-                background: '#C9A961',
+                padding: '1.1rem',
+                background: 'linear-gradient(135deg, #C9A961 0%, #B3924D 100%)',
                 color: '#2D231B',
                 border: 'none',
-                borderRadius: '9999px',
+                borderRadius: '14px',
                 fontWeight: 600,
+                fontSize: '1rem',
+                fontFamily: "'Montserrat', sans-serif",
                 cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 10px 20px rgba(201, 169, 97, 0.2)',
+                marginTop: '0.5rem'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 15px 30px rgba(201, 169, 97, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 10px 20px rgba(201, 169, 97, 0.2)';
               }}
             >
-              Send Booking Request
+              Confirm Booking
             </button>
           </div>
         </DialogContent>
