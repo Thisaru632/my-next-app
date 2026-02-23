@@ -10,6 +10,12 @@ import {
     Box,
     Divider,
     Typography,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Button,
 } from '@mui/material';
 import {
     Dashboard as DashboardIcon,
@@ -27,6 +33,7 @@ interface MenuItem {
     text: string;
     icon: React.ReactNode;
     path: string;
+    key?: string;
 }
 
 interface AdminSidebarProps {
@@ -40,11 +47,34 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     const pathname = usePathname();
 
     const menuItems: MenuItem[] = [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/staff' },
-        { text: 'Lead Info', icon: <PeopleIcon />, path: '/staff/leads' },
-        { text: 'CMS', icon: <ArticleIcon />, path: '/staff/cms' },
-        { text: 'User Manage', icon: <ManageAccountsIcon />, path: '/staff/user_manage' },
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/staff', key: 'dashboard' },
+        { text: 'Lead Info', icon: <PeopleIcon />, path: '/staff/leads', key: 'leads' },
+        { text: 'CMS', icon: <ArticleIcon />, path: '/staff/cms', key: 'cms' },
+        { text: 'User Manage', icon: <ManageAccountsIcon />, path: '/staff/user_manage', key: 'userManagement' },
     ];
+
+    const [allowedItems, setAllowedItems] = React.useState<MenuItem[]>([]);
+    const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false);
+
+    React.useEffect(() => {
+        const userStr = localStorage.getItem('staffUser');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                if (user.role === 'superadmin') {
+                    setAllowedItems(menuItems);
+                } else if (user.permissions) {
+                    const filtered = menuItems.filter(item => user.permissions[item.key as keyof typeof user.permissions]);
+                    setAllowedItems(filtered);
+                } else {
+                    // Fallback for older users without permissions object
+                    setAllowedItems(menuItems.filter(i => i.key === 'dashboard'));
+                }
+            } catch (e) {
+                console.error('Error parsing user for sidebar:', e);
+            }
+        }
+    }, []);
 
     const handleNavigation = (path: string) => {
         router.push(path);
@@ -54,17 +84,21 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     const drawerContent = (
         <>
             {/* Header/Logo Section */}
-            <Box sx={{ p: 3, textAlign: 'center' }}>
-                <Typography variant="h6" fontWeight="bold" color="#fff">
+            <Box sx={{
+                p: 3,
+                textAlign: 'center',
+                borderBottom: '2px solid',
+                borderImage: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
+                borderImageSlice: 1,
+            }}>
+                <Typography variant="h6" fontWeight="bold" color="inherit" sx={{ letterSpacing: '0.05em' }}>
                     Admin Portal
                 </Typography>
             </Box>
 
-            <Divider sx={{ borderColor: '#334155' }} />
-
             {/* Main Menu Items */}
             <List sx={{ px: 2, py: 1, flexGrow: 1 }}>
-                {menuItems.map((item) => {
+                {allowedItems.map((item) => {
                     const isActive = pathname === item.path;
                     return (
                         <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
@@ -72,14 +106,14 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                                 onClick={() => handleNavigation(item.path)}
                                 sx={{
                                     borderRadius: 2,
-                                    backgroundColor: isActive ? '#3b82f6' : 'transparent',
+                                    backgroundColor: isActive ? 'primary.main' : 'transparent',
                                     '&:hover': {
-                                        backgroundColor: isActive ? '#2563eb' : '#334155',
+                                        backgroundColor: isActive ? 'primary.dark' : 'action.hover',
                                     },
                                     transition: 'all 0.2s',
                                 }}
                             >
-                                <ListItemIcon sx={{ color: '#fff', minWidth: 40 }}>
+                                <ListItemIcon sx={{ color: 'inherit', minWidth: 40, opacity: isActive ? 1 : 0.7 }}>
                                     {item.icon}
                                 </ListItemIcon>
                                 <ListItemText
@@ -93,37 +127,18 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
             </List>
 
             {/* Logout Section at Bottom */}
-            <Divider sx={{ borderColor: '#334155' }} />
+            <Divider sx={{ borderColor: 'divider' }} />
             <List sx={{ px: 2, py: 1 }}>
                 <ListItem disablePadding>
                     <ListItemButton
-                        onClick={() => {
-                            // ... existing logout logic or call a function
-                            const handleLogout = async () => {
-                                try {
-                                    const userStr = localStorage.getItem('staffUser');
-                                    if (userStr) {
-                                        const user = JSON.parse(userStr);
-                                        await fetch(`${API_ENDPOINTS.AUTH}/logout`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ email: user.email, username: user.username }),
-                                        });
-                                    }
-                                } catch (e) { }
-                                localStorage.removeItem('staffToken');
-                                localStorage.removeItem('staffUser');
-                                router.push('/staff/login');
-                            };
-                            handleLogout();
-                        }}
+                        onClick={() => setLogoutDialogOpen(true)}
                         sx={{
                             borderRadius: 2,
-                            '&:hover': { backgroundColor: '#334155' },
+                            '&:hover': { backgroundColor: 'action.hover' },
                             transition: 'all 0.2s',
                         }}
                     >
-                        <ListItemIcon sx={{ color: '#fff', minWidth: 40 }}>
+                        <ListItemIcon sx={{ color: 'inherit', minWidth: 40, opacity: 0.7 }}>
                             <LogoutIcon />
                         </ListItemIcon>
                         <ListItemText
@@ -133,6 +148,60 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                     </ListItemButton>
                 </ListItem>
             </List>
+
+            {/* Logout Confirmation Dialog */}
+            <Dialog
+                open={logoutDialogOpen}
+                onClose={() => setLogoutDialogOpen(false)}
+                PaperProps={{
+                    sx: {
+                        borderRadius: 3,
+                        padding: 1,
+                        backgroundColor: 'background.paper',
+                    }
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 'bold' }}>Confirm Logout</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to log out of your account?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions sx={{ padding: 2 }}>
+                    <Button onClick={() => setLogoutDialogOpen(false)} color="inherit" sx={{ textTransform: 'none' }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={async () => {
+                            try {
+                                const userStr = localStorage.getItem('staffUser');
+                                if (userStr) {
+                                    const user = JSON.parse(userStr);
+                                    await fetch(`${API_ENDPOINTS.AUTH}/logout`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ email: user.email, username: user.username }),
+                                    });
+                                }
+                            } catch (e) { }
+                            localStorage.removeItem('staffToken');
+                            localStorage.removeItem('staffUser');
+                            router.push('/staff/login');
+                            setLogoutDialogOpen(false);
+                        }}
+                        variant="contained"
+                        color="error"
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            bgcolor: '#ef4444',
+                            '&:hover': { bgcolor: '#dc2626' }
+                        }}
+                    >
+                        Logout
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 
@@ -149,8 +218,8 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                     '& .MuiDrawer-paper': {
                         width: DRAWER_WIDTH,
                         boxSizing: 'border-box',
-                        backgroundColor: '#1e293b',
-                        color: '#fff',
+                        backgroundColor: 'background.paper',
+                        color: 'text.primary',
                     },
                 }}
             >
@@ -165,9 +234,10 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                     '& .MuiDrawer-paper': {
                         width: DRAWER_WIDTH,
                         boxSizing: 'border-box',
-                        backgroundColor: '#1e293b',
-                        color: '#fff',
-                        border: 'none'
+                        backgroundColor: 'background.paper',
+                        color: 'text.primary',
+                        borderRight: '1px solid',
+                        borderColor: 'divider'
                     },
                 }}
                 open

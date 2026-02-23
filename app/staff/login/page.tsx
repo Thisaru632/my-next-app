@@ -57,7 +57,9 @@ export default function LoginPage() {
             localStorage.setItem('staffUser', JSON.stringify({
                 username: data.username,
                 fullName: data.fullName,
-                email: data.email
+                email: data.email,
+                role: data.role,
+                permissions: data.permissions
             }));
 
             // Navigate to staff section

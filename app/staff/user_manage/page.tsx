@@ -1,5 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useThemeContext } from '@/context/ThemeContext';
+import { useTheme } from '@mui/material/styles';
 import {
     Box,
     Typography,
@@ -209,6 +211,8 @@ const permissionLabels: { key: keyof Permission; label: string }[] = [
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const UserManagementPage: React.FC = () => {
+    const theme = useTheme();
+    const { mode } = useThemeContext();
     const [activeTab, setActiveTab] = useState(0);
     const [currentUsers, setCurrentUsers] = useState<CurrentUser[]>([]);
     const [loading, setLoading] = useState(true);
@@ -219,7 +223,10 @@ const UserManagementPage: React.FC = () => {
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${API_ENDPOINTS.AUTH}/users`);
+            const token = localStorage.getItem('staffToken');
+            const response = await fetch(`${API_ENDPOINTS.AUTH}/users`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (response.ok) {
                 const data = await response.json();
 
@@ -247,6 +254,9 @@ const UserManagementPage: React.FC = () => {
                 setCurrentUsers(allMapped.filter(u => u.dbStatus === 'active'));
                 setNewUsers(allMapped.filter(u => u.dbStatus === 'pending'));
                 setRejectedUsers(allMapped.filter(u => u.dbStatus === 'rejected'));
+            } else if (response.status === 403 || response.status === 401) {
+                // If not authorized, redirect to dashboard or show error
+                window.location.href = '/staff/dashboard';
             }
         } catch (error) {
             console.error('Error fetching users:', error);
@@ -263,10 +273,11 @@ const UserManagementPage: React.FC = () => {
     const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; user: CurrentUser | null }>({ open: false, user: null });
 
     // Permission dialog
-    const [permDialog, setPermDialog] = useState<{ open: boolean; user: CurrentUser | null; perms: Permission | null }>({
+    const [permDialog, setPermDialog] = useState<{ open: boolean; user: CurrentUser | null; perms: Permission | null; role: string }>({
         open: false,
         user: null,
         perms: null,
+        role: 'Staff'
     });
 
     // Reject dialog (new users)
@@ -276,8 +287,10 @@ const UserManagementPage: React.FC = () => {
     const handleDeleteConfirm = async () => {
         if (deleteDialog.user) {
             try {
+                const token = localStorage.getItem('staffToken');
                 const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${deleteDialog.user.id}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
                     fetchUsers();
@@ -290,7 +303,7 @@ const UserManagementPage: React.FC = () => {
     };
 
     const openPermDialog = (user: CurrentUser) => {
-        setPermDialog({ open: true, user, perms: { ...user.permissions } });
+        setPermDialog({ open: true, user, perms: { ...user.permissions }, role: user.role });
     };
 
     const handlePermChange = (key: keyof Permission) => {
@@ -303,10 +316,17 @@ const UserManagementPage: React.FC = () => {
     const handlePermSave = async () => {
         if (permDialog.user && permDialog.perms) {
             try {
+                const token = localStorage.getItem('staffToken');
                 const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${permDialog.user.id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ permissions: permDialog.perms })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        permissions: permDialog.perms,
+                        role: permDialog.role.toLowerCase() === 'superadmin' ? 'superadmin' : permDialog.role.toLowerCase() === 'admin' ? 'admin' : 'staff'
+                    })
                 });
                 if (res.ok) {
                     fetchUsers();
@@ -315,15 +335,19 @@ const UserManagementPage: React.FC = () => {
                 console.error('Permission update failed:', error);
             }
         }
-        setPermDialog({ open: false, user: null, perms: null });
+        setPermDialog({ open: false, user: null, perms: null, role: 'Staff' });
     };
 
     // ── Handlers: New Users ──
     const handleApprove = async (user: NewUser) => {
         try {
+            const token = localStorage.getItem('staffToken');
             const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${user.id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ status: 'active' })
             });
             if (res.ok) {
@@ -337,9 +361,13 @@ const UserManagementPage: React.FC = () => {
     const handleRejectConfirm = async () => {
         if (rejectDialog.user) {
             try {
+                const token = localStorage.getItem('staffToken');
                 const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${rejectDialog.user.id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
                     body: JSON.stringify({ status: 'rejected' })
                 });
                 if (res.ok) {
@@ -354,9 +382,13 @@ const UserManagementPage: React.FC = () => {
 
     const handleUndoReject = async (user: NewUser) => {
         try {
+            const token = localStorage.getItem('staffToken');
             const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${user.id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ status: 'pending' })
             });
             if (res.ok) {
@@ -369,8 +401,10 @@ const UserManagementPage: React.FC = () => {
 
     const handlePermanentDelete = async (id: string) => {
         try {
+            const token = localStorage.getItem('staffToken');
             const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
                 fetchUsers();
@@ -405,8 +439,8 @@ const UserManagementPage: React.FC = () => {
         <Box
             sx={{
                 minHeight: '100vh',
-                backgroundColor: '#f8fafc',
-                color: '#334155',
+                backgroundColor: 'background.default',
+                color: 'text.primary',
                 p: { xs: 2, md: 4, lg: 6 },
             }}
         >
@@ -425,7 +459,9 @@ const UserManagementPage: React.FC = () => {
                     sx={{
                         fontWeight: 800,
                         fontSize: '2rem',
-                        background: 'linear-gradient(135deg, #1e293b 0%, #475569 100%)',
+                        background: mode === 'light'
+                            ? 'linear-gradient(135deg, #1e293b 0%, #475569 100%)'
+                            : 'linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%)',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                         letterSpacing: '-0.02em',
@@ -433,7 +469,7 @@ const UserManagementPage: React.FC = () => {
                 >
                     User Management
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#64748b', mt: 1, fontWeight: 500 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1, fontWeight: 500 }}>
                     Manage staff access, permissions, and onboard new members.
                 </Typography>
             </Box>
@@ -450,8 +486,9 @@ const UserManagementPage: React.FC = () => {
                         key={stat.label}
                         sx={{
                             flex: '1 1 140px',
-                            background: '#ffffff',
-                            border: '1px solid #e2e8f0',
+                            background: 'background.paper',
+                            border: '1px solid',
+                            borderColor: 'divider',
                             borderTop: `3px solid ${stat.color}`,
                             borderRadius: 2,
                             p: 2.5,
@@ -461,7 +498,7 @@ const UserManagementPage: React.FC = () => {
                         <Typography
                             variant="body2"
                             sx={{
-                                color: '#64748b',
+                                color: 'text.secondary',
                                 fontWeight: 500,
                                 fontSize: '0.875rem',
                                 letterSpacing: '0.02em',
@@ -489,8 +526,9 @@ const UserManagementPage: React.FC = () => {
             <Paper
                 elevation={0}
                 sx={{
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
+                    background: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
                     borderRadius: 3,
                     overflow: 'hidden',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05)',
@@ -513,9 +551,9 @@ const UserManagementPage: React.FC = () => {
                         value={activeTab}
                         onChange={(_, v) => { setActiveTab(v); setSearch(''); }}
                         sx={{
-                            '& .MuiTab-root': { color: '#64748b', fontWeight: 600, textTransform: 'none', fontSize: 14 },
-                            '& .Mui-selected': { color: '#3b82f6 !important' },
-                            '& .MuiTabs-indicator': { backgroundColor: '#3b82f6', height: 3, borderRadius: 2 },
+                            '& .MuiTab-root': { color: 'text.secondary', fontWeight: 600, textTransform: 'none', fontSize: 14 },
+                            '& .Mui-selected': { color: 'primary.main !important' },
+                            '& .MuiTabs-indicator': { backgroundColor: 'primary.main', height: 3, borderRadius: 2 },
                         }}
                     >
                         <Tab
@@ -578,14 +616,14 @@ const UserManagementPage: React.FC = () => {
                         sx={{
                             width: { xs: '100%', sm: 250 },
                             '& .MuiOutlinedInput-root': {
-                                backgroundColor: '#f8fafc',
-                                color: '#1e293b',
+                                backgroundColor: 'background.default',
+                                color: 'text.primary',
                                 borderRadius: 2,
-                                '& fieldset': { borderColor: '#e2e8f0' },
-                                '&:hover fieldset': { borderColor: '#cbd5e1' },
-                                '&.Mui-focused fieldset': { borderColor: '#3b82f6' },
+                                '& fieldset': { borderColor: 'divider' },
+                                '&:hover fieldset': { borderColor: 'text.secondary' },
+                                '&.Mui-focused fieldset': { borderColor: 'primary.main' },
                             },
-                            '& input::placeholder': { color: '#94a3b8' },
+                            '& input::placeholder': { color: 'text.secondary' },
                         }}
                     />
                 </Box>
@@ -996,11 +1034,11 @@ const UserManagementPage: React.FC = () => {
             <Dialog
                 open={deleteDialog.open}
                 onClose={() => setDeleteDialog({ open: false, user: null })}
-                PaperProps={{ sx: { backgroundColor: '#ffffff', color: '#1e293b', borderRadius: 3, border: '1px solid #e2e8f0', width: '90%', maxWidth: 380, m: 2 } }}
+                PaperProps={{ sx: { backgroundColor: 'background.paper', color: 'text.primary', borderRadius: 3, border: '1px solid', borderColor: 'divider', width: '90%', maxWidth: 380, m: 2 } }}
             >
-                <DialogTitle sx={{ fontWeight: 700, color: '#1e293b', pb: 1 }}>Delete User</DialogTitle>
+                <DialogTitle sx={{ fontWeight: 700, color: 'text.primary', pb: 1 }}>Delete User</DialogTitle>
                 <DialogContent>
-                    <Typography sx={{ color: '#94a3b8' }}>
+                    <Typography sx={{ color: 'text.secondary' }}>
                         Are you sure you want to delete{' '}
                         <Box component="span" sx={{ color: '#f87171', fontWeight: 600 }}>
                             {deleteDialog.user?.name}
@@ -1010,7 +1048,7 @@ const UserManagementPage: React.FC = () => {
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
                     <Button onClick={() => setDeleteDialog({ open: false, user: null })}
-                        sx={{ color: '#64748b', textTransform: 'none', '&:hover': { backgroundColor: '#f1f5f9' } }}>
+                        sx={{ color: 'text.secondary', textTransform: 'none', '&:hover': { backgroundColor: 'action.hover' } }}>
                         Cancel
                     </Button>
                     <Button onClick={handleDeleteConfirm} variant="contained"
@@ -1024,11 +1062,11 @@ const UserManagementPage: React.FC = () => {
             <Dialog
                 open={rejectDialog.open}
                 onClose={() => setRejectDialog({ open: false, user: null })}
-                PaperProps={{ sx: { backgroundColor: '#ffffff', color: '#1e293b', borderRadius: 3, border: '1px solid #e2e8f0', width: '90%', maxWidth: 380, m: 2 } }}
+                PaperProps={{ sx: { backgroundColor: 'background.paper', color: 'text.primary', borderRadius: 3, border: '1px solid', borderColor: 'divider', width: '90%', maxWidth: 380, m: 2 } }}
             >
-                <DialogTitle sx={{ fontWeight: 700, color: '#1e293b', pb: 1 }}>Reject Request</DialogTitle>
+                <DialogTitle sx={{ fontWeight: 700, color: 'text.primary', pb: 1 }}>Reject Request</DialogTitle>
                 <DialogContent>
-                    <Typography sx={{ color: '#94a3b8' }}>
+                    <Typography sx={{ color: 'text.secondary' }}>
                         Reject access request from{' '}
                         <Box component="span" sx={{ color: '#fb923c', fontWeight: 600 }}>
                             {rejectDialog.user?.name}
@@ -1038,7 +1076,7 @@ const UserManagementPage: React.FC = () => {
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
                     <Button onClick={() => setRejectDialog({ open: false, user: null })}
-                        sx={{ color: '#64748b', textTransform: 'none', '&:hover': { backgroundColor: '#f1f5f9' } }}>
+                        sx={{ color: 'text.secondary', textTransform: 'none', '&:hover': { backgroundColor: 'action.hover' } }}>
                         Cancel
                     </Button>
                     <Button onClick={handleRejectConfirm} variant="contained"
@@ -1051,15 +1089,15 @@ const UserManagementPage: React.FC = () => {
             {/* ── Permissions Dialog ── */}
             <Dialog
                 open={permDialog.open}
-                onClose={() => setPermDialog({ open: false, user: null, perms: null })}
-                PaperProps={{ sx: { backgroundColor: '#ffffff', color: '#1e293b', borderRadius: 4, border: '1px solid #e2e8f0', width: '95%', maxWidth: 450, m: 2 } }}
+                onClose={() => setPermDialog({ open: false, user: null, perms: null, role: 'Staff' })}
+                PaperProps={{ sx: { backgroundColor: 'background.paper', color: 'text.primary', borderRadius: 4, border: '1px solid', borderColor: 'divider', width: '95%', maxWidth: 450, m: 2 } }}
             >
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 700, color: '#1e293b' }}>
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 700, color: 'text.primary' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <SecurityIcon sx={{ color: '#3b82f6' }} />
                         Edit Permissions
                     </Box>
-                    <IconButton size="small" onClick={() => setPermDialog({ open: false, user: null, perms: null })}
+                    <IconButton size="small" onClick={() => setPermDialog({ open: false, user: null, perms: null, role: 'Staff' })}
                         sx={{ color: '#94a3b8', '&:hover': { backgroundColor: '#f1f5f9' } }}>
                         <CloseIcon fontSize="small" />
                     </IconButton>
@@ -1074,15 +1112,32 @@ const UserManagementPage: React.FC = () => {
                                 {permDialog.user.avatar}
                             </Avatar>
                             <Box>
-                                <Typography sx={{ color: '#1e293b', fontWeight: 600 }}>{permDialog.user.name}</Typography>
-                                <Typography sx={{ color: '#64748b', fontSize: 12 }}>{permDialog.user.email}</Typography>
+                                <Typography sx={{ color: 'text.primary', fontWeight: 600 }}>{permDialog.user.name}</Typography>
+                                <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>{permDialog.user.email}</Typography>
                             </Box>
                         </Box>
                     )}
 
-                    <Typography sx={{ color: '#64748b', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, mb: 1.5 }}>
+                    <Typography sx={{ color: 'text.secondary', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, mb: 1.5 }}>
                         Module Access
                     </Typography>
+
+                    <Box sx={{ mb: 3 }}>
+                        <TextField
+                            select
+                            fullWidth
+                            label="Role"
+                            value={permDialog.role}
+                            onChange={(e) => setPermDialog(prev => ({ ...prev, role: e.target.value }))}
+                            SelectProps={{ native: true }}
+                            variant="outlined"
+                            size="small"
+                        >
+                            <option value="Staff">Staff</option>
+                            <option value="Admin">Admin</option>
+                            <option value="SuperAdmin">SuperAdmin</option>
+                        </TextField>
+                    </Box>
 
                     <FormGroup>
                         {permissionLabels.map((p) => (
@@ -1093,15 +1148,15 @@ const UserManagementPage: React.FC = () => {
                                         checked={permDialog.perms?.[p.key] ?? false}
                                         onChange={() => handlePermChange(p.key)}
                                         sx={{
-                                            color: '#334155',
-                                            '&.Mui-checked': { color: '#3b82f6' },
+                                            color: 'text.secondary',
+                                            '&.Mui-checked': { color: 'primary.main' },
                                         }}
                                     />
                                 }
-                                label={<Typography sx={{ color: '#cbd5e1', fontSize: 14 }}>{p.label}</Typography>}
+                                label={<Typography sx={{ color: 'text.primary', fontSize: 14 }}>{p.label}</Typography>}
                                 sx={{
                                     px: 1.5, py: 0.5, mb: 0.5, borderRadius: 2,
-                                    '&:hover': { backgroundColor: '#f8fafc' },
+                                    '&:hover': { backgroundColor: 'action.hover' },
                                 }}
                             />
                         ))}
@@ -1110,7 +1165,7 @@ const UserManagementPage: React.FC = () => {
 
                 <Divider sx={{ borderColor: '#f1f5f9' }} />
                 <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
-                    <Button onClick={() => setPermDialog({ open: false, user: null, perms: null })}
+                    <Button onClick={() => setPermDialog({ open: false, user: null, perms: null, role: 'Staff' })}
                         sx={{ color: '#64748b', textTransform: 'none', '&:hover': { backgroundColor: '#f1f5f9' } }}>
                         Cancel
                     </Button>

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useThemeContext } from '@/context/ThemeContext';
+import { useTheme } from '@mui/material/styles';
 import {
   Box,
   Paper,
@@ -17,8 +19,7 @@ import {
   CheckCircle as CheckCircleIcon,
   HourglassEmpty as HourglassEmptyIcon,
   Cancel as CancelIcon,
-  PhoneMissed as PhoneMissedIcon,
-  EventBusy as EventBusyIcon,
+  Send as SendIcon,
   CardGiftcard as CardGiftcardIcon,
   BookOnline as BookOnlineIcon,
   EventAvailable as EventAvailableIcon,
@@ -30,8 +31,7 @@ interface LeadStats {
   confirmedLeads: number;
   pendingLeads: number;
   rejectedLeads: number;
-  notContactedLeads: number;
-  notFollowedYet: number;
+  sentInquiries: number;
 }
 
 interface PackageStats {
@@ -47,9 +47,8 @@ interface EmployeePerformance {
   lastLogout: string | null;
   total: number;
   confirmed: number;
-  pending: number;
+  sentInquiries: number;
   rejected: number;
-  notContacted: number;
   rate: number;
 }
 
@@ -79,14 +78,15 @@ const formatDisplayDate = (dateString: string): string => {
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor }) => {
+  const { mode } = useThemeContext();
   return (
     <Card
       sx={{
         height: '100%',
-        background: '#ffffff',
+        background: 'background.paper',
         borderRadius: '16px',
         border: '1px solid',
-        borderColor: 'rgba(226, 232, 240, 0.8)',
+        borderColor: 'divider',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         position: 'relative',
         overflow: 'hidden',
@@ -117,7 +117,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor 
             <Typography
               variant="body2"
               sx={{
-                color: '#64748b',
+                color: 'text.secondary',
                 fontWeight: 500,
                 fontSize: '0.875rem',
                 letterSpacing: '0.02em',
@@ -140,7 +140,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor 
           </Box>
           <Box
             sx={{
-              background: `linear-gradient(135deg, ${bgColor} 0%, ${bgColor}80 100%)`,
+              background: mode === 'light'
+                ? `linear-gradient(135deg, ${bgColor} 0%, ${bgColor}80 100%)`
+                : `linear-gradient(135deg, ${color}20 0%, ${color}10 100%)`,
               borderRadius: '12px',
               p: 1.5,
               display: 'flex',
@@ -155,54 +157,59 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor 
           </Box>
         </Box>
       </CardContent>
-    </Card>
+    </Card >
   );
 };
 
-const StyledTable = styled('table')({
+const StyledTable = styled('table')(({ theme }) => ({
   width: '100%',
   borderCollapse: 'collapse',
   '& thead': {
-    background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+    background: theme.palette.mode === 'light'
+      ? 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
+      : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
   },
   '& th': {
     padding: '16px 20px',
     textAlign: 'left',
     fontWeight: 700,
     fontSize: '0.875rem',
-    color: '#475569',
+    color: 'text.secondary',
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
-    borderBottom: '2px solid #e2e8f0',
+    borderBottom: '2px solid',
+    borderColor: 'divider',
   },
   '& tbody tr': {
     transition: 'all 0.2s ease',
     '&:hover': {
-      backgroundColor: '#f8fafc',
+      backgroundColor: 'action.hover',
     },
     '&:not(:last-child)': {
-      borderBottom: '1px solid #f1f5f9',
+      borderBottom: '1px solid',
+      borderColor: 'divider',
     },
   },
   '& td': {
     padding: '16px 20px',
     fontSize: '0.9375rem',
-    color: '#334155',
+    color: 'text.primary',
   },
-});
+}));
 
 const AdminDashboard: React.FC = () => {
-  const today = new Date();
-  const [startDate, setStartDate] = useState<string>(formatDate(today));
-  const [endDate, setEndDate] = useState<string>(formatDate(today));
+  const theme = useTheme();
+  const { mode } = useThemeContext();
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<LeadStats>({
     totalLeads: 0,
     confirmedLeads: 0,
     pendingLeads: 0,
     rejectedLeads: 0,
-    notContactedLeads: 0,
-    notFollowedYet: 0,
+    sentInquiries: 0,
   });
   const [packageStats, setPackageStats] = useState<PackageStats>({
     totalPackages: 0,
@@ -212,24 +219,33 @@ const AdminDashboard: React.FC = () => {
   const [performanceData, setPerformanceData] = useState<EmployeePerformance[]>([]);
 
   useEffect(() => {
-    fetchPerformanceData(startDate, endDate);
+    // Fetch ALL data on first load (no date restriction)
+    fetchPerformanceData('', '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
   const fetchPerformanceData = async (start: string, end: string) => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`${API_ENDPOINTS.AUTH}/employees?startDate=${start}&endDate=${end}`);
+      let url = `${API_ENDPOINTS.AUTH}/employees`;
+      const params = [];
+      if (start) params.push(`startDate=${start}`);
+      if (end) params.push(`endDate=${end}`);
+      if (params.length > 0) url += `?${params.join('&')}`;
+
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
-        setPerformanceData(data.performance);
-        setStats(data.stats);
-        setPackageStats(data.packageStats);
+        setPerformanceData(data.performance || []);
+        setStats(data.stats || { totalLeads: 0, confirmedLeads: 0, pendingLeads: 0, rejectedLeads: 0, sentInquiries: 0 });
+        setPackageStats(data.packageStats || { totalPackages: 0, packageBookings: 0, canceledBookings: 0 });
       } else {
+        setError(`Failed to load data: ${response.statusText}`);
         console.error('Failed to fetch performance data:', response.statusText);
       }
     } catch (error) {
+      setError('Could not connect to server. Please check that the backend is running.');
       console.error('Error fetching performance data:', error);
     } finally {
       setLoading(false);
@@ -237,16 +253,13 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleFilter = () => {
-    if (startDate && endDate) {
-      fetchPerformanceData(startDate, endDate);
-    }
+    fetchPerformanceData(startDate, endDate);
   };
 
   const handleReset = () => {
-    const todayFormatted = formatDate(new Date());
-    setStartDate(todayFormatted);
-    setEndDate(todayFormatted);
-    fetchPerformanceData(todayFormatted, todayFormatted);
+    setStartDate('');
+    setEndDate('');
+    fetchPerformanceData('', '');
   };
 
   const leadStatCards = [
@@ -279,18 +292,11 @@ const AdminDashboard: React.FC = () => {
       bgColor: '#fee2e2',
     },
     {
-      title: 'Not Contacted',
-      value: stats.notContactedLeads,
-      icon: <PhoneMissedIcon />,
+      title: 'Sent Inquiries',
+      value: stats.sentInquiries,
+      icon: <SendIcon />,
       color: '#8b5cf6',
       bgColor: '#ede9fe',
-    },
-    {
-      title: 'Not Followed Yet',
-      value: stats.notFollowedYet,
-      icon: <EventBusyIcon />,
-      color: '#ec4899',
-      bgColor: '#fce7f3',
     },
   ];
 
@@ -335,7 +341,9 @@ const AdminDashboard: React.FC = () => {
           sx={{
             fontWeight: 800,
             fontSize: '2rem',
-            background: 'linear-gradient(135deg, #1e293b 0%, #475569 100%)',
+            background: mode === 'light'
+              ? 'linear-gradient(135deg, #1e293b 0%, #475569 100%)'
+              : 'linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             letterSpacing: '-0.02em',
@@ -350,9 +358,10 @@ const AdminDashboard: React.FC = () => {
         sx={{
           p: 3,
           mb: 4,
-          background: '#ffffff',
+          background: 'background.paper',
           borderRadius: '20px',
-          border: '1px solid rgba(226, 232, 240, 0.8)',
+          border: '1px solid',
+          borderColor: 'divider',
           boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.08)',
         }}
       >
@@ -360,8 +369,8 @@ const AdminDashboard: React.FC = () => {
           variant="h6"
           sx={{
             fontWeight: 700,
-            mb: 3,
-            color: '#334155',
+            mb: 2,
+            color: 'text.primary',
             fontSize: '1.125rem',
             display: 'flex',
             alignItems: 'center',
@@ -377,6 +386,58 @@ const AdminDashboard: React.FC = () => {
         >
           Filter by Date Range
         </Typography>
+
+        {/* Quick filters */}
+        <Box sx={{ display: 'flex', gap: 1, mb: 2.5, flexWrap: 'wrap' }}>
+          {[
+            { label: 'All Time', start: '', end: '' },
+            { label: 'Today', start: formatDate(new Date()), end: formatDate(new Date()) },
+            {
+              label: 'This Week',
+              start: formatDate(new Date(new Date().setDate(new Date().getDate() - 6))),
+              end: formatDate(new Date()),
+            },
+            {
+              label: 'This Month',
+              start: formatDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+              end: formatDate(new Date()),
+            },
+          ].map((q) => (
+            <Button
+              key={q.label}
+              size="small"
+              variant={
+                startDate === q.start && endDate === q.end ? 'contained' : 'outlined'
+              }
+              onClick={() => {
+                setStartDate(q.start);
+                setEndDate(q.end);
+                fetchPerformanceData(q.start, q.end);
+              }}
+              disabled={loading}
+              sx={{
+                borderRadius: '20px',
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '0.8125rem',
+                px: 2,
+                ...(startDate === q.start && endDate === q.end
+                  ? {
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
+                    border: 'none',
+                  }
+                  : {
+                    borderColor: 'divider',
+                    color: 'text.secondary',
+                    '&:hover': { borderColor: 'text.primary', backgroundColor: 'action.hover' },
+                  }),
+              }}
+            >
+              {q.label}
+            </Button>
+          ))}
+        </Box>
 
         <Box
           sx={{
@@ -404,10 +465,11 @@ const AdminDashboard: React.FC = () => {
             onChange={(e) => setStartDate(e.target.value)}
             InputLabelProps={{ shrink: true }}
             size="small"
+            placeholder="Leave blank for all time"
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '12px',
-                backgroundColor: '#ffffff',
+                backgroundColor: 'background.paper',
                 transition: 'all 0.3s ease',
                 '&:hover': {
                   boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
@@ -426,10 +488,11 @@ const AdminDashboard: React.FC = () => {
             onChange={(e) => setEndDate(e.target.value)}
             InputLabelProps={{ shrink: true }}
             size="small"
+            placeholder="Leave blank for all time"
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: '12px',
-                backgroundColor: '#ffffff',
+                backgroundColor: 'background.paper',
                 transition: 'all 0.3s ease',
                 '&:hover': {
                   boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
@@ -472,9 +535,9 @@ const AdminDashboard: React.FC = () => {
             onClick={handleReset}
             disabled={loading}
             sx={{
-              borderColor: '#cbd5e1',
+              borderColor: 'divider',
               borderWidth: '2px',
-              color: '#475569',
+              color: 'text.secondary',
               borderRadius: '12px',
               height: '40px',
               fontWeight: 600,
@@ -482,9 +545,9 @@ const AdminDashboard: React.FC = () => {
               fontSize: '0.9375rem',
               transition: 'all 0.3s ease',
               '&:hover': {
-                borderColor: '#94a3b8',
+                borderColor: 'text.primary',
                 borderWidth: '2px',
-                backgroundColor: '#f1f5f9',
+                backgroundColor: 'action.hover',
                 transform: 'translateY(-2px)',
                 boxShadow: '0 4px 12px rgba(100, 116, 139, 0.15)',
               },
@@ -493,34 +556,62 @@ const AdminDashboard: React.FC = () => {
               },
             }}
           >
-            Reset to Today
+            All Time
           </Button>
         </Box>
+
+        {/* Error message */}
+        {error && (
+          <Box
+            sx={{
+              mt: 2,
+              p: 2,
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+              border: '1px solid #fca5a5',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
+            <Typography sx={{ color: '#dc2626', fontWeight: 600, fontSize: '0.875rem' }}>
+              ⚠️ {error}
+            </Typography>
+          </Box>
+        )}
       </Paper>
 
-      {/* Lead Statistics Section */}
+      {/* Booking Lead Statistics Section */}
       <Box sx={{ mb: 5 }}>
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 700,
-            mb: 3,
-            color: '#1e293b',
-            fontSize: '1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            '&::before': {
-              content: '""',
-              width: '6px',
-              height: '28px',
-              background: 'linear-gradient(180deg, #3b82f6 0%, #8b5cf6 100%)',
-              borderRadius: '3px',
-            },
-          }}
-        >
-          Lead Statistics
-        </Typography>
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 700,
+              color: 'text.primary',
+              fontSize: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              mb: 0.5,
+              '&::before': {
+                content: '""',
+                width: '6px',
+                height: '28px',
+                background: 'linear-gradient(180deg, #3b82f6 0%, #8b5cf6 100%)',
+                borderRadius: '3px',
+              },
+            }}
+          >
+            Booking Lead Statistics
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.875rem', pl: '14px' }}
+          >
+            Online booking leads only — contact form inquiries are excluded
+          </Typography>
+        </Box>
         {loading ? (
           <Box
             display="flex"
@@ -528,7 +619,7 @@ const AdminDashboard: React.FC = () => {
             alignItems="center"
             minHeight="400px"
             sx={{
-              background: 'rgba(255, 255, 255, 0.5)',
+              background: 'action.disabledBackground',
               backdropFilter: 'blur(10px)',
               borderRadius: '20px',
             }}
@@ -574,7 +665,7 @@ const AdminDashboard: React.FC = () => {
           sx={{
             fontWeight: 700,
             mb: 3,
-            color: '#1e293b',
+            color: 'text.primary',
             fontSize: '1.5rem',
             display: 'flex',
             alignItems: 'center',
@@ -597,7 +688,7 @@ const AdminDashboard: React.FC = () => {
             alignItems="center"
             minHeight="300px"
             sx={{
-              background: 'rgba(255, 255, 255, 0.5)',
+              background: 'action.disabledBackground',
               backdropFilter: 'blur(10px)',
               borderRadius: '20px',
             }}
@@ -638,33 +729,42 @@ const AdminDashboard: React.FC = () => {
 
       {/* Individual Performance Table Section */}
       <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 700,
-            mb: 3,
-            color: '#1e293b',
-            fontSize: '1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            '&::before': {
-              content: '""',
-              width: '6px',
-              height: '28px',
-              background: 'linear-gradient(180deg, #6366f1 0%, #a855f7 100%)',
-              borderRadius: '3px',
-            },
-          }}
-        >
-          Individual Performance
-        </Typography>
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 700,
+              color: 'text.primary',
+              fontSize: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              mb: 0.5,
+              '&::before': {
+                content: '""',
+                width: '6px',
+                height: '28px',
+                background: 'linear-gradient(180deg, #6366f1 0%, #a855f7 100%)',
+                borderRadius: '3px',
+              },
+            }}
+          >
+            Individual Performance
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ color: 'text.secondary', fontWeight: 500, fontSize: '0.875rem', pl: '14px' }}
+          >
+            Staff performance based on booking leads only
+          </Typography>
+        </Box>
 
         <Paper
           sx={{
-            background: '#ffffff',
+            background: 'background.paper',
             borderRadius: '20px',
-            border: '1px solid rgba(226, 232, 240, 0.8)',
+            border: '1px solid',
+            borderColor: 'divider',
             boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.08)',
             overflow: 'hidden',
           }}
@@ -675,11 +775,11 @@ const AdminDashboard: React.FC = () => {
               height: '6px',
             },
             '&::-webkit-scrollbar-thumb': {
-              backgroundColor: '#cbd5e1',
+              backgroundColor: 'divider',
               borderRadius: '10px',
             },
             '&::-webkit-scrollbar-track': {
-              backgroundColor: '#f1f5f9',
+              backgroundColor: 'background.default',
             },
             '@media (max-width: 600px)': {
               '&::-webkit-scrollbar-thumb': {
@@ -694,12 +794,21 @@ const AdminDashboard: React.FC = () => {
                   <th>Login Status</th>
                   <th>Total Leads</th>
                   <th>Confirmed</th>
-                  <th>Pending</th>
+                  <th>Sent Inquiries</th>
                   <th>Rejected</th>
                   <th>Conversion Rate</th>
                 </tr>
               </thead>
               <tbody>
+                {performanceData.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '48px 20px', color: 'text.disabled' }}>
+                      <div style={{ fontSize: '2rem', marginBottom: '8px' }}>👥</div>
+                      <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>No staff data found</div>
+                      <div style={{ fontSize: '0.875rem' }}>No employees or leads match the selected date range.</div>
+                    </td>
+                  </tr>
+                )}
                 {performanceData.map((employee, index) => (
                   <tr key={index}>
                     <td>
@@ -720,7 +829,7 @@ const AdminDashboard: React.FC = () => {
                         >
                           {employee.name ? employee.name.split(' ').map((n: string) => n[0]).join('') : '?'}
                         </Box>
-                        <Typography sx={{ fontWeight: 600, color: '#1e293b' }}>
+                        <Typography sx={{ fontWeight: 600, color: 'text.primary' }}>
                           {employee.name}
                         </Typography>
                       </Box>
@@ -738,8 +847,8 @@ const AdminDashboard: React.FC = () => {
                             borderRadius: '20px',
                             width: 'fit-content',
                             background: employee.isOnline
-                              ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)'
-                              : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                              ? (theme.palette.mode === 'light' ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)' : 'rgba(16, 185, 129, 0.15)')
+                              : (theme.palette.mode === 'light' ? 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)' : 'rgba(148, 163, 184, 0.15)'),
                           }}
                         >
                           {/* Animated dot */}
@@ -764,7 +873,9 @@ const AdminDashboard: React.FC = () => {
                             sx={{
                               fontSize: '0.8125rem',
                               fontWeight: 700,
-                              color: employee.isOnline ? '#059669' : '#64748b',
+                              color: employee.isOnline
+                                ? (theme.palette.mode === 'light' ? '#059669' : '#34d399')
+                                : 'text.secondary',
                             }}
                           >
                             {employee.isOnline ? 'Online' : 'Offline'}
@@ -774,7 +885,7 @@ const AdminDashboard: React.FC = () => {
                           <Typography
                             sx={{
                               fontSize: '0.75rem',
-                              color: '#94a3b8',
+                              color: 'text.disabled',
                               fontWeight: 500,
                               pl: 0.5,
                             }}
@@ -806,8 +917,8 @@ const AdminDashboard: React.FC = () => {
                       </Typography>
                     </td>
                     <td>
-                      <Typography sx={{ fontWeight: 600, color: '#f59e0b' }}>
-                        {employee.pending}
+                      <Typography sx={{ fontWeight: 600, color: '#8b5cf6' }}>
+                        {employee.sentInquiries}
                       </Typography>
                     </td>
                     <td>
@@ -872,7 +983,9 @@ const AdminDashboard: React.FC = () => {
             textAlign: 'center',
           }}
         >
-          Showing data from {formatDisplayDate(startDate)} to {formatDisplayDate(endDate)}
+          {startDate && endDate
+            ? `Showing data from ${formatDisplayDate(startDate)} to ${formatDisplayDate(endDate)}`
+            : 'Showing all-time data'}
         </Typography>
       </Box>
     </Box>

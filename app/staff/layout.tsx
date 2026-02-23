@@ -4,8 +4,12 @@ import { ReactNode, useEffect, useState } from "react";
 import { Box, CssBaseline, CircularProgress, IconButton, AppBar, Toolbar, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { Menu as MenuIcon } from "@mui/icons-material";
 import AdminSidebar from "@/components/admin/side_bar";
+import TopHeader from "@/components/admin/TopHeader";
+import BookingNotification from "@/components/admin/BookingNotification";
 import { usePathname, useRouter } from "next/navigation";
 import { API_ENDPOINTS } from "@/config/api";
+import { ThemeContextProvider } from "@/context/ThemeContext";
+import { useThemeContext } from "@/context/ThemeContext";
 
 const DRAWER_WIDTH = 260;
 
@@ -52,75 +56,58 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
         }
     }, [pathname, router, isAuthPage]);
 
-    if (loading) {
-        return (
-            <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: '#f1f5f9' }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
-
-    if (isAuthPage) {
-        return (
-            <>
-                <CssBaseline />
-                {children}
-            </>
-        );
-    }
 
     return (
-        <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-            <CssBaseline />
+        <ThemeContextProvider>
+            {loading ? (
+                <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}>
+                    <CircularProgress />
+                </Box>
+            ) : isAuthPage ? (
+                <>
+                    <CssBaseline />
+                    {children}
+                </>
+            ) : (
+                <Box sx={{ display: 'flex', minHeight: '100vh', backgroundColor: 'background.default' }}>
+                    <CssBaseline />
 
-            {/* Mobile Header */}
-            {isMobile && (
-                <AppBar
-                    position="fixed"
-                    sx={{
-                        backgroundColor: '#ffffff',
-                        color: '#1e293b',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                        zIndex: theme.zIndex.drawer + 1
-                    }}
-                >
-                    <Toolbar>
-                        <IconButton
-                            color="inherit"
-                            aria-label="open drawer"
-                            edge="start"
-                            onClick={handleDrawerToggle}
-                            sx={{ mr: 2 }}
+                    <AdminSidebar
+                        mobileOpen={mobileOpen}
+                        onClose={handleDrawerToggle}
+                        isMobile={isMobile}
+                    />
+
+                    <Box
+                        sx={{
+                            flexGrow: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minHeight: '100vh',
+                            width: { md: `calc(100% - ${DRAWER_WIDTH}px)` }
+                        }}
+                    >
+                        <TopHeader
+                            showMenuIcon={isMobile}
+                            onMenuClick={handleDrawerToggle}
+                        />
+
+                        <Box
+                            component="main"
+                            sx={{
+                                p: { xs: 2.5, md: 4 },
+                                flexGrow: 1,
+                                boxSizing: 'border-box',
+                                overflowX: 'hidden',
+                                backgroundColor: 'background.default'
+                            }}
                         >
-                            <MenuIcon />
-                        </IconButton>
-                        <Typography variant="h6" noWrap component="div" fontWeight="600">
-                            Senu Cabs
-                        </Typography>
-                    </Toolbar>
-                </AppBar>
+                            <BookingNotification />
+                            {children}
+                        </Box>
+                    </Box>
+                </Box>
             )}
-
-            <AdminSidebar
-                mobileOpen={mobileOpen}
-                onClose={handleDrawerToggle}
-                isMobile={isMobile}
-            />
-
-            <Box
-                component="main"
-                sx={{
-                    flexGrow: 1,
-                    p: { xs: 2.5, md: 4 },
-                    width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-                    mt: { xs: 8, md: 0 },
-                    minHeight: '100vh',
-                    boxSizing: 'border-box',
-                    overflowX: 'hidden'
-                }}
-            >
-                {children}
-            </Box>
-        </Box>
+        </ThemeContextProvider>
     );
 }

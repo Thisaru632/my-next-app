@@ -141,6 +141,21 @@ export default function HeroSection() {
     maxBags: 0,
   });
 
+  // Intermediate destinations state
+  const [destinations, setDestinations] = useState<string[]>([]);
+
+  const addDestination = () => {
+    setDestinations((prev) => [...prev, '']);
+  };
+
+  const removeDestination = (index: number) => {
+    setDestinations((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateDestination = (index: number, value: string) => {
+    setDestinations((prev) => prev.map((d, i) => (i === index ? value : d)));
+  };
+
   const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
   const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
   const [openPersonalDialog, setOpenPersonalDialog] = useState(false);
@@ -249,7 +264,10 @@ export default function HeroSection() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          destinations: destinations.filter((d) => d.trim() !== ''),
+        }),
       });
 
       if (response.ok) {
@@ -271,6 +289,7 @@ export default function HeroSection() {
           maxPersons: 0,
           maxBags: 0,
         });
+        setDestinations([]);
       } else {
         const errorData = await response.json();
         setSnackbarMessage(errorData.message || 'Failed to send booking request.');
@@ -398,11 +417,11 @@ export default function HeroSection() {
             <div
               className="booking-form-card w-full max-w-lg rounded-xl px-4 sm:px-5 py-4 sm:py-8 text-left"
               style={{
-                background: "rgba(255,255,255,0.25)",
-                backdropFilter: "blur(20px) saturate(180%)",
-                WebkitBackdropFilter: "blur(20px) saturate(180%)",
-                border: "1px solid rgba(255,255,255,0.35)",
-                boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
+                background: "rgba(255,255,255,0.55)",
+                backdropFilter: "blur(24px) saturate(180%)",
+                WebkitBackdropFilter: "blur(24px) saturate(180%)",
+                border: "1px solid rgba(255,255,255,0.45)",
+                boxShadow: "0 8px 40px 0 rgba(31, 38, 135, 0.14)",
               }}
             >
               {/* Header */}
@@ -611,90 +630,239 @@ export default function HeroSection() {
                 )}
               </div>
 
-              {/* Pickup + Dropoff */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
-                <div className="flex-1">
-                  <label
-                    style={{
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: "0.78rem",
-                      fontWeight: 500,
-                      color: "#000000",
-                      display: "block",
-                      marginBottom: "0.4rem",
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    PICKUP
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.pickupLocation}
-                    onChange={(e) => handleChange('pickupLocation', e.target.value)}
-                    placeholder="Starting point"
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem 0.9rem",
-                      background: "rgba(255,255,255,0.16)",
-                      backdropFilter: "blur(12px)",
-                      border: "1.5px solid rgba(255,255,255,0.45)",
-                      borderRadius: "7px",
-                      color: "#000000",
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: "0.88rem",
-                      outline: "none",
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.24)";
-                      e.currentTarget.style.borderColor = "#C9A961";
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.16)";
-                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)";
-                    }}
-                  />
-                </div>
+              {/* Pickup + Destinations + Dropoff Timeline */}
+              <div className="mb-4">
+                <label
+                  style={{
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontSize: "0.78rem",
+                    fontWeight: 500,
+                    color: "#000000",
+                    display: "block",
+                    marginBottom: "0.6rem",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  ROUTE
+                </label>
 
-                <div className="flex-1">
-                  <label
-                    style={{
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: "0.78rem",
-                      fontWeight: 500,
-                      color: "#000000",
-                      display: "block",
-                      marginBottom: "0.4rem",
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    DROPOFF
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.dropoffLocation}
-                    onChange={(e) => handleChange('dropoffLocation', e.target.value)}
-                    placeholder="Destination"
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem 0.9rem",
-                      background: "rgba(255,255,255,0.16)",
-                      backdropFilter: "blur(12px)",
-                      border: "1.5px solid rgba(255,255,255,0.45)",
-                      borderRadius: "7px",
-                      color: "#000000",
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: "0.88rem",
-                      outline: "none",
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.24)";
-                      e.currentTarget.style.borderColor = "#C9A961";
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.16)";
-                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)";
-                    }}
-                  />
+                {/* Timeline container */}
+                <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 0 }}>
+
+                  {/* Vertical line */}
+                  <div style={{
+                    position: "absolute",
+                    left: "11px",
+                    top: "18px",
+                    bottom: "18px",
+                    width: "2px",
+                    background: "linear-gradient(to bottom, #22c55e, #C9A961, #ef4444)",
+                    borderRadius: "2px",
+                    zIndex: 0,
+                  }} />
+
+                  {/* PICKUP */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", position: "relative", zIndex: 1 }}>
+                    <div style={{
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      background: "#22c55e",
+                      border: "2.5px solid rgba(255,255,255,0.8)",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}>
+                      <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "white" }} />
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.pickupLocation}
+                      onChange={(e) => handleChange('pickupLocation', e.target.value)}
+                      placeholder="Pickup location"
+                      style={{
+                        flex: 1,
+                        padding: "0.6rem 0.85rem",
+                        background: "rgba(34,197,94,0.1)",
+                        backdropFilter: "blur(12px)",
+                        border: "1.5px solid rgba(34,197,94,0.4)",
+                        borderRadius: "8px",
+                        color: "#000000",
+                        fontFamily: "'Montserrat', sans-serif",
+                        fontSize: "0.82rem",
+                        outline: "none",
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.background = "rgba(34,197,94,0.18)";
+                        e.currentTarget.style.borderColor = "#22c55e";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.background = "rgba(34,197,94,0.1)";
+                        e.currentTarget.style.borderColor = "rgba(34,197,94,0.4)";
+                      }}
+                    />
+                  </div>
+
+                  {/* INTERMEDIATE DESTINATIONS */}
+                  {destinations.map((dest, index) => (
+                    <div key={index} style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", position: "relative", zIndex: 1 }}>
+                      <div style={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "50%",
+                        background: "#C9A961",
+                        border: "2.5px solid rgba(255,255,255,0.8)",
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "0.6rem",
+                        color: "white",
+                        fontWeight: 700,
+                        fontFamily: "'Montserrat', sans-serif",
+                      }}>
+                        {index + 1}
+                      </div>
+                      <input
+                        type="text"
+                        value={dest}
+                        onChange={(e) => updateDestination(index, e.target.value)}
+                        placeholder={`Stop ${index + 1}`}
+                        style={{
+                          flex: 1,
+                          padding: "0.6rem 0.85rem",
+                          background: "rgba(201,169,97,0.1)",
+                          backdropFilter: "blur(12px)",
+                          border: "1.5px solid rgba(201,169,97,0.4)",
+                          borderRadius: "8px",
+                          color: "#000000",
+                          fontFamily: "'Montserrat', sans-serif",
+                          fontSize: "0.82rem",
+                          outline: "none",
+                        }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.background = "rgba(201,169,97,0.18)";
+                          e.currentTarget.style.borderColor = "#C9A961";
+                        }}
+                        onBlur={(e) => {
+                          e.currentTarget.style.background = "rgba(201,169,97,0.1)";
+                          e.currentTarget.style.borderColor = "rgba(201,169,97,0.4)";
+                        }}
+                      />
+                      <button
+                        onClick={() => removeDestination(index)}
+                        style={{
+                          flexShrink: 0,
+                          width: "26px",
+                          height: "26px",
+                          borderRadius: "50%",
+                          border: "1.5px solid rgba(239,68,68,0.4)",
+                          background: "rgba(239,68,68,0.1)",
+                          color: "#ef4444",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.9rem",
+                          fontWeight: 700,
+                          transition: "all 0.2s ease",
+                          padding: 0,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "rgba(239,68,68,0.25)";
+                          e.currentTarget.style.borderColor = "#ef4444";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "rgba(239,68,68,0.1)";
+                          e.currentTarget.style.borderColor = "rgba(239,68,68,0.4)";
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* ADD DESTINATION button */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", position: "relative", zIndex: 1 }}>
+                    <div style={{ width: "24px", flexShrink: 0 }} />
+                    <button
+                      onClick={addDestination}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        padding: "0.45rem 0.85rem",
+                        background: "rgba(201,169,97,0.14)",
+                        border: "1.5px dashed rgba(150,115,50,0.85)",
+                        borderRadius: "8px",
+                        color: "#5a4520",
+                        fontFamily: "'Montserrat', sans-serif",
+                        fontSize: "0.73rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        letterSpacing: "0.03em",
+                        transition: "all 0.2s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(201,169,97,0.25)";
+                        e.currentTarget.style.borderColor = "rgba(150,115,50,1)";
+                        e.currentTarget.style.color = "#3a2c0e";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(201,169,97,0.14)";
+                        e.currentTarget.style.borderColor = "rgba(150,115,50,0.85)";
+                        e.currentTarget.style.color = "#5a4520";
+                      }}
+                    >
+                      <span style={{ fontSize: "1rem", lineHeight: 1 }}>+</span>
+                      ADD DESTINATION
+                    </button>
+                  </div>
+
+                  {/* DROPOFF */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", position: "relative", zIndex: 1 }}>
+                    <div style={{
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      background: "#ef4444",
+                      border: "2.5px solid rgba(255,255,255,0.8)",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}>
+                      <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "white" }} />
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.dropoffLocation}
+                      onChange={(e) => handleChange('dropoffLocation', e.target.value)}
+                      placeholder="Drop-off location"
+                      style={{
+                        flex: 1,
+                        padding: "0.6rem 0.85rem",
+                        background: "rgba(239,68,68,0.08)",
+                        backdropFilter: "blur(12px)",
+                        border: "1.5px solid rgba(239,68,68,0.35)",
+                        borderRadius: "8px",
+                        color: "#000000",
+                        fontFamily: "'Montserrat', sans-serif",
+                        fontSize: "0.82rem",
+                        outline: "none",
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.background = "rgba(239,68,68,0.15)";
+                        e.currentTarget.style.borderColor = "#ef4444";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.background = "rgba(239,68,68,0.08)";
+                        e.currentTarget.style.borderColor = "rgba(239,68,68,0.35)";
+                      }}
+                    />
+                  </div>
+
                 </div>
               </div>
 
@@ -933,165 +1101,321 @@ export default function HeroSection() {
         </div>
       </div>
 
-      {/* DIALOGS */}
+      {/* ─── VEHICLE MODEL DIALOG ─── */}
       <Dialog
         open={openVehicleDialog}
         onClose={() => setOpenVehicleDialog(false)}
         PaperProps={{
           sx: {
             width: '95%',
-            maxWidth: 450,
+            maxWidth: 480,
             m: 2,
             borderRadius: '24px',
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)'
+            background: '#ffffff',
+            border: '1px solid rgba(201,169,110,0.2)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.14), 0 4px 16px rgba(201,169,110,0.1)',
+            overflow: 'hidden',
           }
         }}
+        BackdropProps={{ sx: { backdropFilter: 'blur(6px)', background: 'rgba(0,0,0,0.35)' } }}
       >
-        <DialogTitle sx={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontSize: '1.65rem',
-          fontWeight: 700,
-          color: '#2D231B',
-          pb: 1,
-          borderBottom: '1px solid rgba(0,0,0,0.05)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
+        {/* Header */}
+        <Box sx={{
+          px: 3, pt: 3, pb: 2,
+          background: 'linear-gradient(135deg, #fffdf7 0%, #fef9ec 100%)',
+          borderBottom: '1px solid rgba(201,169,110,0.18)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
-          Select Model
+          <Box>
+            <Typography sx={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: '1.75rem', fontWeight: 700,
+              color: '#2D231B',
+              letterSpacing: '-0.01em',
+            }}>
+              Select Model
+            </Typography>
+            <Typography sx={{
+              fontSize: '0.72rem',
+              color: '#c9a96e',
+              fontFamily: "'Montserrat', sans-serif",
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              mt: 0.25,
+              fontWeight: 600,
+            }}>
+              {formData.vehicleType} Collection
+            </Typography>
+          </Box>
           <IconButton
             onClick={() => setOpenVehicleDialog(false)}
-            sx={{ color: 'rgba(0,0,0,0.4)', '&:hover': { color: '#ef4444' } }}
+            sx={{
+              color: '#9ca3af',
+              background: '#f8f9fa',
+              border: '1px solid #e9ecef',
+              width: 36, height: 36,
+              '&:hover': { color: '#ef4444', background: '#fff0f0', borderColor: '#fecaca' },
+            }}
           >
-            <CloseIcon />
+            <CloseIcon sx={{ fontSize: 18 }} />
           </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ p: '0 !important' }}>
-          <List sx={{ pt: 1, pb: 2 }}>
-            {currentCategoryVehicles.models.map((model) => (
-              <ListItemButton
-                key={model.name}
-                onClick={() => handleVehicleSelect(model.name)}
-                sx={{
-                  mx: 1.5,
-                  my: 0.5,
-                  borderRadius: '16px',
-                  transition: 'all 0.2s ease',
-                  border: '1px solid transparent',
-                  '&:hover': {
-                    bgcolor: 'rgba(201, 169, 97, 0.08)',
-                    borderColor: 'rgba(201, 169, 97, 0.2)',
-                    transform: 'translateY(-2px)',
-                  }
-                }}
-              >
-                <Box sx={{ mr: 2, color: '#C9A961' }}>
-                  <DirectionsCar />
-                </Box>
-                <ListItemText
-                  primary={model.name}
-                  secondary={
-                    <Box sx={{ mt: 0.5 }}>
-                      <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'rgba(0,0,0,0.6)' }} component="div">
-                        {model.description}
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <Group sx={{ fontSize: '0.9rem', color: '#C9A961' }} />
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }} component="span">{model.maxPersons}</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <Work sx={{ fontSize: '0.9rem', color: '#C9A961' }} />
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }} component="span">{model.maxBags}</Typography>
-                        </Box>
-                      </Box>
+        </Box>
+
+        {/* Model Cards Grid */}
+        <DialogContent sx={{ p: 2.5, background: '#f8f9fa' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+            {currentCategoryVehicles.models.map((model) => {
+              const isSelected = formData.vehicleName === model.name;
+              return (
+                <Box
+                  key={model.name}
+                  onClick={() => handleVehicleSelect(model.name)}
+                  sx={{
+                    position: 'relative',
+                    p: 2,
+                    borderRadius: '16px',
+                    border: '1.5px solid',
+                    borderColor: isSelected ? '#c9a96e' : '#e9ecef',
+                    background: isSelected
+                      ? 'linear-gradient(135deg, #fffbf0 0%, #fff8e6 100%)'
+                      : '#ffffff',
+                    cursor: 'pointer',
+                    transition: 'all 0.22s ease',
+                    boxShadow: isSelected
+                      ? '0 4px 16px rgba(201,169,110,0.2)'
+                      : '0 1px 4px rgba(0,0,0,0.05)',
+                    '&:hover': {
+                      borderColor: '#c9a96e',
+                      background: 'linear-gradient(135deg, #fffbf0 0%, #fff8e6 100%)',
+                      transform: 'translateY(-3px)',
+                      boxShadow: '0 8px 24px rgba(201,169,110,0.18)',
+                    },
+                  }}
+                >
+                  {/* Selected checkmark */}
+                  {isSelected && (
+                    <Box sx={{
+                      position: 'absolute', top: 10, right: 10,
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #c9a96e, #d4b176)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <CheckCircle sx={{ fontSize: 14, color: '#fff' }} />
                     </Box>
-                  }
-                  primaryTypographyProps={{
-                    sx: { fontFamily: "'Montserrat', sans-serif", fontWeight: 700, color: '#2D231B', fontSize: '1rem' }
-                  }}
-                  secondaryTypographyProps={{
-                    component: 'div'
-                  }}
-                />
-              </ListItemButton>
-            ))}
-          </List>
+                  )}
+
+                  {/* Vehicle icon */}
+                  <Box sx={{ mb: 1.5, color: isSelected ? '#c9a96e' : '#b8935a' }}>
+                    <DirectionsCar sx={{ fontSize: 28 }} />
+                  </Box>
+
+                  {/* Model name */}
+                  <Typography sx={{
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    color: isSelected ? '#b8935a' : '#1e293b',
+                    mb: 0.4,
+                  }}>
+                    {model.name}
+                  </Typography>
+
+                  {/* Description */}
+                  <Typography sx={{
+                    fontSize: '0.68rem',
+                    color: '#64748b',
+                    fontFamily: "'Montserrat', sans-serif",
+                    mb: 1.5,
+                  }}>
+                    {model.description}
+                  </Typography>
+
+                  {/* Stats badges */}
+                  <Box sx={{ display: 'flex', gap: 0.75 }}>
+                    <Box sx={{
+                      display: 'flex', alignItems: 'center', gap: 0.4,
+                      px: 0.75, py: 0.25,
+                      borderRadius: '8px',
+                      background: 'rgba(201,169,110,0.1)',
+                      border: '1px solid rgba(201,169,110,0.25)',
+                    }}>
+                      <Group sx={{ fontSize: 11, color: '#c9a96e' }} />
+                      <Typography sx={{ fontSize: '0.65rem', color: '#b8935a', fontWeight: 600 }}>{model.maxPersons}</Typography>
+                    </Box>
+                    <Box sx={{
+                      display: 'flex', alignItems: 'center', gap: 0.4,
+                      px: 0.75, py: 0.25,
+                      borderRadius: '8px',
+                      background: 'rgba(201,169,110,0.1)',
+                      border: '1px solid rgba(201,169,110,0.25)',
+                    }}>
+                      <Work sx={{ fontSize: 11, color: '#c9a96e' }} />
+                      <Typography sx={{ fontSize: '0.65rem', color: '#b8935a', fontWeight: 600 }}>{model.maxBags}</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
         </DialogContent>
       </Dialog>
 
+      {/* ─── TRIP TYPE DIALOG ─── */}
       <Dialog
         open={openTripTypeDialog}
         onClose={() => setOpenTripTypeDialog(false)}
         PaperProps={{
           sx: {
             width: '95%',
-            maxWidth: 400,
+            maxWidth: 380,
             m: 2,
             borderRadius: '24px',
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)'
+            background: '#ffffff',
+            border: '1px solid rgba(201,169,110,0.2)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.14), 0 4px 16px rgba(201,169,110,0.1)',
+            overflow: 'hidden',
           }
         }}
+        BackdropProps={{ sx: { backdropFilter: 'blur(6px)', background: 'rgba(0,0,0,0.35)' } }}
       >
-        <DialogTitle sx={{
-          fontFamily: "'Cormorant Garamond', serif",
-          fontSize: '1.65rem',
-          fontWeight: 700,
-          color: '#2D231B',
-          pb: 1,
-          borderBottom: '1px solid rgba(0,0,0,0.05)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
+        {/* Header */}
+        <Box sx={{
+          px: 3, pt: 3, pb: 2,
+          background: 'linear-gradient(135deg, #fffdf7 0%, #fef9ec 100%)',
+          borderBottom: '1px solid rgba(201,169,110,0.18)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
-          Trip Type
+          <Box>
+            <Typography sx={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: '1.75rem', fontWeight: 700,
+              color: '#2D231B',
+              letterSpacing: '-0.01em',
+            }}>
+              Trip Type
+            </Typography>
+            <Typography sx={{
+              fontSize: '0.72rem',
+              color: '#c9a96e',
+              fontFamily: "'Montserrat', sans-serif",
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              mt: 0.25,
+              fontWeight: 600,
+            }}>
+              Choose your journey style
+            </Typography>
+          </Box>
           <IconButton
             onClick={() => setOpenTripTypeDialog(false)}
-            sx={{ color: 'rgba(0,0,0,0.4)', '&:hover': { color: '#ef4444' } }}
+            sx={{
+              color: '#9ca3af',
+              background: '#f8f9fa',
+              border: '1px solid #e9ecef',
+              width: 36, height: 36,
+              '&:hover': { color: '#ef4444', background: '#fff0f0', borderColor: '#fecaca' },
+            }}
           >
-            <CloseIcon />
+            <CloseIcon sx={{ fontSize: 18 }} />
           </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ p: '0 !important' }}>
-          <List sx={{ pt: 1, pb: 2 }}>
-            {tripTypes.map((type) => (
-              <ListItemButton
-                key={type.name}
-                onClick={() => handleTripTypeSelect(type.name)}
-                sx={{
-                  mx: 1.5,
-                  my: 0.5,
-                  borderRadius: '16px',
-                  transition: 'all 0.2s ease',
-                  border: '1px solid transparent',
-                  '&:hover': {
-                    bgcolor: 'rgba(201, 169, 97, 0.08)',
-                    borderColor: 'rgba(201, 169, 97, 0.2)',
-                    transform: 'translateY(-2px)',
-                  }
-                }}
-              >
-                <Box sx={{ mr: 2, color: '#C9A961' }}>
-                  {type.icon}
+        </Box>
+
+        {/* Trip Type Cards */}
+        <DialogContent sx={{ p: 2.5, background: '#f8f9fa' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {tripTypes.map((type) => {
+              const isSelected = formData.tripType === type.name;
+              return (
+                <Box
+                  key={type.name}
+                  onClick={() => handleTripTypeSelect(type.name)}
+                  sx={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    p: 2.5,
+                    borderRadius: '16px',
+                    border: '1.5px solid',
+                    borderColor: isSelected ? '#c9a96e' : '#e9ecef',
+                    background: isSelected
+                      ? 'linear-gradient(135deg, #fffbf0 0%, #fff8e6 100%)'
+                      : '#ffffff',
+                    cursor: 'pointer',
+                    transition: 'all 0.22s ease',
+                    overflow: 'hidden',
+                    boxShadow: isSelected
+                      ? '0 4px 16px rgba(201,169,110,0.2)'
+                      : '0 1px 4px rgba(0,0,0,0.05)',
+                    '&:hover': {
+                      borderColor: '#c9a96e',
+                      background: 'linear-gradient(135deg, #fffbf0 0%, #fff8e6 100%)',
+                      transform: 'translateX(4px)',
+                      boxShadow: '0 6px 20px rgba(201,169,110,0.18)',
+                    },
+                  }}
+                >
+                  {/* Left accent bar */}
+                  {isSelected && (
+                    <Box sx={{
+                      position: 'absolute', left: 0, top: 0, bottom: 0,
+                      width: '3px',
+                      background: 'linear-gradient(to bottom, #b8935a, #c9a96e, #d4b176)',
+                      borderRadius: '0 2px 2px 0',
+                    }} />
+                  )}
+
+                  {/* Icon */}
+                  <Box sx={{
+                    width: 52, height: 52, borderRadius: '14px', flexShrink: 0,
+                    background: isSelected
+                      ? 'linear-gradient(135deg, rgba(201,169,110,0.22) 0%, rgba(201,169,110,0.08) 100%)'
+                      : 'rgba(201,169,110,0.07)',
+                    border: '1px solid',
+                    borderColor: isSelected ? 'rgba(201,169,110,0.45)' : '#e9ecef',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: isSelected ? '#c9a96e' : '#b8935a',
+                    fontSize: 26,
+                    transition: 'all 0.22s ease',
+                  }}>
+                    {type.icon}
+                  </Box>
+
+                  {/* Text */}
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontWeight: 700,
+                      fontSize: '0.98rem',
+                      color: isSelected ? '#b8935a' : '#1e293b',
+                      mb: 0.3,
+                      transition: 'color 0.22s ease',
+                    }}>
+                      {type.name}
+                    </Typography>
+                    <Typography sx={{
+                      fontSize: '0.72rem',
+                      color: '#64748b',
+                      fontFamily: "'Montserrat', sans-serif",
+                    }}>
+                      {type.description}
+                    </Typography>
+                  </Box>
+
+                  {/* Selected indicator */}
+                  {isSelected && (
+                    <Box sx={{
+                      width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
+                      background: 'linear-gradient(135deg, #c9a96e, #d4b176)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <CheckCircle sx={{ fontSize: 16, color: '#fff' }} />
+                    </Box>
+                  )}
                 </Box>
-                <ListItemText
-                  primary={type.name}
-                  secondary={type.description}
-                  primaryTypographyProps={{
-                    sx: { fontFamily: "'Montserrat', sans-serif", fontWeight: 700, color: '#2D231B', fontSize: '1rem' }
-                  }}
-                  secondaryTypographyProps={{
-                    component: 'div',
-                    sx: { fontFamily: "'Montserrat', sans-serif", fontSize: '0.75rem', color: 'rgba(0,0,0,0.5)' }
-                  }}
-                />
-              </ListItemButton>
-            ))}
-          </List>
+              );
+            })}
+          </Box>
         </DialogContent>
       </Dialog>
 

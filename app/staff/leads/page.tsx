@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useThemeContext } from '@/context/ThemeContext';
+import { useTheme } from '@mui/material/styles';
 import {
   Box,
   Paper,
@@ -30,6 +32,7 @@ import {
   InputLabel,
   Tabs,
   Tab,
+  Tooltip,
 } from '@mui/material';
 import { API_ENDPOINTS } from '@/config/api';
 import {
@@ -47,6 +50,7 @@ import {
   HourglassEmpty as HourglassEmptyIcon,
   Cancel as CancelIcon,
   PhoneMissed as PhoneMissedIcon,
+  Send as SendIcon,
   AssignmentInd as AssignmentIcon,
 } from '@mui/icons-material';
 
@@ -56,7 +60,9 @@ interface Lead {
   leadDate: string;
   fromLocation: string;
   toLocation: string;
-  status: string;
+  destinations?: string[];
+  status: string;       // display status
+  rawStatus: string;    // raw backend status (for contacts: new / read / responded)
   employeeName: string;
   formType: string;
   source: string;
@@ -68,6 +74,7 @@ interface Lead {
   customerPhone?: string;
   customerEmail?: string;
   customId?: string;
+  isViewed?: boolean;
 }
 
 // Mock data
@@ -86,27 +93,40 @@ const formatDate = (dateString: string): string => {
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'Confirmed':
-      return { color: '#10b981', bgColor: '#d1fae5', IconComponent: CheckCircleIcon };
+    case 'responded':
+      return { color: '#10b981', bgColor: '#d1fae5', label: status === 'responded' ? 'Responded' : 'Confirmed', IconComponent: CheckCircleIcon };
     case 'Pending':
-      return { color: '#f59e0b', bgColor: '#fef3c7', IconComponent: HourglassEmptyIcon };
+      return { color: '#f59e0b', bgColor: '#fef3c7', label: 'Pending', IconComponent: HourglassEmptyIcon };
+    case 'Sent Inquiry':
+      return { color: '#8b5cf6', bgColor: '#ede9fe', label: 'Sent Inquiry', IconComponent: SendIcon };
+    case 'new':
+      return { color: '#3b82f6', bgColor: '#dbeafe', label: 'New', IconComponent: HourglassEmptyIcon };
+    case 'read':
+      return { color: '#0ea5e9', bgColor: '#e0f2fe', label: 'Read', IconComponent: CheckCircleIcon };
     case 'Rejected':
     case 'Cancelled':
-      return { color: '#ef4444', bgColor: '#fee2e2', IconComponent: CancelIcon };
+    case 'archived':
+      return { color: '#ef4444', bgColor: '#fee2e2', label: status === 'archived' ? 'Archived' : status, IconComponent: CancelIcon };
     case 'Not Contacted':
-      return { color: '#8b5cf6', bgColor: '#ede9fe', IconComponent: PhoneMissedIcon };
-    case 'Not Followed Yet':
-      return { color: '#ec4899', bgColor: '#fce7f3', IconComponent: HourglassEmptyIcon };
+      return { color: '#6366f1', bgColor: '#e0e7ff', label: 'Not Contacted', IconComponent: PhoneMissedIcon };
     default:
-      return { color: '#64748b', bgColor: '#f1f5f9', IconComponent: HourglassEmptyIcon };
+      return { color: '#64748b', bgColor: '#f1f5f9', label: status, IconComponent: HourglassEmptyIcon };
   }
 };
 
+// Helper: is this a contact-based lead (Complaint / General Inquiry / Feedback)
+const isContactLead = (lead: Lead | null) =>
+  lead?.source === 'Contact Us';
+
 const LeadInfoPage: React.FC = () => {
+  const theme = useTheme();
+  const { mode } = useThemeContext();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [formTypeFilter, setFormTypeFilter] = useState<string>('All');
+  const [employeeFilter, setEmployeeFilter] = useState<string>('All');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [openDialog, setOpenDialog] = useState<boolean>(false);
   const [showMessage, setShowMessage] = useState<boolean>(false);
@@ -131,6 +151,12 @@ const LeadInfoPage: React.FC = () => {
   const formTypeOptions = useMemo(() => {
     const types = Array.from(new Set(leads.map((lead) => lead.source).filter(Boolean)));
     return ['All', ...types];
+  }, [leads]);
+
+  // Derive unique employee names for filtering
+  const employeeOptions = useMemo(() => {
+    const names = Array.from(new Set(leads.map((lead) => lead.employeeName).filter(Boolean)));
+    return ['All', 'Not Assigned', ...names];
   }, [leads]);
 
   const filteredLeads = useMemo(() => {
@@ -158,6 +184,15 @@ const LeadInfoPage: React.FC = () => {
       filtered = filtered.filter((lead) => lead.source === formTypeFilter);
     }
 
+    // Employee filter
+    if (employeeFilter !== 'All') {
+      if (employeeFilter === 'Not Assigned') {
+        filtered = filtered.filter((lead) => !lead.employeeName);
+      } else {
+        filtered = filtered.filter((lead) => lead.employeeName === employeeFilter);
+      }
+    }
+
     // Tab filter
     if (activeTab === 0) {
       filtered = filtered.filter(lead => lead.source === 'Online Booking');
@@ -170,16 +205,27 @@ const LeadInfoPage: React.FC = () => {
     }
 
     return filtered;
-  }, [searchQuery, statusFilter, formTypeFilter, leads, activeTab]);
+  }, [searchQuery, statusFilter, formTypeFilter, employeeFilter, leads, activeTab]);
 
   // Load leads data
   useEffect(() => {
+    // Mark all as read when visiting this page
+    const markAllRead = async () => {
+      try {
+        await fetch(`${API_ENDPOINTS.AUTH}/notifications/mark-all-read`, { method: 'POST' });
+      } catch (e) {
+        console.error('Error marking all notifications as read:', e);
+      }
+    };
+
     const fetchLeads = async () => {
       try {
         const [bookingsRes, contactsRes] = await Promise.all([
           fetch(API_ENDPOINTS.BOOKINGS),
           fetch(API_ENDPOINTS.CONTACTS)
         ]);
+
+        markAllRead(); // Call this immediately on page load
 
         let allLeads: Lead[] = [];
 
@@ -192,6 +238,7 @@ const LeadInfoPage: React.FC = () => {
               fromLocation: booking.pickupLocation || 'N/A',
               toLocation: booking.dropoffLocation || 'N/A',
               status: booking.status || 'Pending',
+              rawStatus: booking.status || 'Pending',
               employeeName: booking.employeeName || '',
               formType: booking.tripType || 'Standard',
               source: 'Online Booking',
@@ -203,6 +250,8 @@ const LeadInfoPage: React.FC = () => {
               customerPhone: booking.telephone,
               customerEmail: booking.email,
               customId: booking.customId,
+              isViewed: booking.isViewed || false,
+              destinations: booking.destinations || [],
             }));
             allLeads = [...allLeads, ...mappedBookings];
           } catch (e) {
@@ -218,7 +267,9 @@ const LeadInfoPage: React.FC = () => {
               leadDate: contact.createdAt,
               fromLocation: 'Contact Form',
               toLocation: contact.reason || 'General Inquiry',
-              status: contact.status === 'new' ? 'Pending' : (['Confirmed', 'Rejected', 'Cancelled'].includes(contact.status) ? contact.status : 'Confirmed'),
+              // Preserve raw backend status for contacts so we can show correct actions
+              rawStatus: contact.status || 'new',
+              status: contact.status || 'new',
               employeeName: contact.employeeName || '',
               formType: contact.reason || 'General Inquiry',
               source: 'Contact Us',
@@ -230,6 +281,7 @@ const LeadInfoPage: React.FC = () => {
               customerPhone: contact.phoneNumber,
               customerEmail: contact.email,
               customId: contact.customId,
+              isViewed: contact.status !== 'new',
             }));
             allLeads = [...allLeads, ...mappedContacts];
           } catch (e) {
@@ -253,7 +305,9 @@ const LeadInfoPage: React.FC = () => {
     fetchLeads();
   }, []);
 
-  // Handle lead action (Pending, Not Contacted, Rejected, Confirm)
+  // Handle lead action
+  // For booking leads: action = 'Confirmed' | 'Rejected' | 'Pending' | 'Not Contacted'
+  // For contact leads: action = 'new' | 'read' | 'responded' | 'archived'
   const handleLeadAction = async (action: string) => {
     if (!selectedLead) return;
     setActionLoading(true);
@@ -264,21 +318,21 @@ const LeadInfoPage: React.FC = () => {
 
       const response = await fetch(endpoint, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: action }),
       });
 
       if (response.ok) {
-        // Update local state
+        // Update local state — for contacts rawStatus & status both track the backend value
         setLeads(prevLeads => prevLeads.map(l =>
-          l.id === selectedLead.id ? { ...l, status: action } : l
+          l.id === selectedLead.id
+            ? { ...l, status: action, rawStatus: action }
+            : l
         ));
         handleCloseDialog();
       } else {
         const data = await response.json();
-        alert(data.message || 'Failed to update lead status');
+        alert(data.message || 'Failed to update status');
       }
     } catch (error) {
       console.error('Error updating lead status:', error);
@@ -335,9 +389,30 @@ const LeadInfoPage: React.FC = () => {
   };
 
   // Handle view button click
-  const handleViewClick = (lead: Lead) => {
+  const handleViewClick = async (lead: Lead) => {
     setSelectedLead(lead);
     setOpenDialog(true);
+
+    // Mark as viewed in backend
+    try {
+      const endpoint = lead.source === 'Online Booking'
+        ? `${API_ENDPOINTS.BOOKINGS}/${lead.id}/viewed`
+        : `${API_ENDPOINTS.CONTACTS}/${lead.id}`; // GET marks contact as read
+
+      const res = await fetch(endpoint, {
+        method: lead.source === 'Online Booking' ? 'PATCH' : 'GET'
+      });
+
+      if (res.ok) {
+        // Update local state to remove the "new" indicator
+        setLeads(prevLeads => prevLeads.map(l =>
+          l.id === lead.id ? { ...l, isViewed: true, status: (lead.source === 'Contact Us' && lead.status === 'new') ? 'read' : l.status } : l
+        ));
+      }
+    } catch (e) {
+      console.error('Error marking lead as viewed:', e);
+    }
+
     // Show message popup if message exists
     if (lead.message) {
       setTimeout(() => {
@@ -367,14 +442,14 @@ const LeadInfoPage: React.FC = () => {
   const dropdownSx = {
     '& .MuiOutlinedInput-root': {
       borderRadius: '12px',
-      backgroundColor: '#f8fafc',
+      backgroundColor: 'background.default',
       transition: 'all 0.3s ease',
       '&:hover': {
-        backgroundColor: '#ffffff',
+        backgroundColor: 'background.paper',
         boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
       },
       '&.Mui-focused': {
-        backgroundColor: '#ffffff',
+        backgroundColor: 'background.paper',
         boxShadow: '0 4px 16px rgba(59, 130, 246, 0.25)',
       },
     },
@@ -397,7 +472,9 @@ const LeadInfoPage: React.FC = () => {
           sx={{
             fontWeight: 800,
             fontSize: { xs: '1.5rem', sm: '2rem' },
-            background: 'linear-gradient(135deg, #1e293b 0%, #475569 100%)',
+            background: mode === 'light'
+              ? 'linear-gradient(135deg, #1e293b 0%, #475569 100%)'
+              : 'linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             letterSpacing: '-0.02em',
@@ -412,9 +489,10 @@ const LeadInfoPage: React.FC = () => {
         sx={{
           p: 3,
           mb: 4,
-          background: '#ffffff',
+          background: 'background.paper',
           borderRadius: '20px',
-          border: '1px solid rgba(226, 232, 240, 0.8)',
+          border: '1px solid',
+          borderColor: 'divider',
           boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.08)',
         }}
       >
@@ -468,11 +546,11 @@ const LeadInfoPage: React.FC = () => {
                 }}
                 sx={{
                   borderRadius: '12px',
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: 'background.default',
                   fontWeight: 600,
-                  color: '#334155',
+                  color: 'text.primary',
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#e2e8f0',
+                    borderColor: 'divider',
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
                     borderColor: '#94a3b8',
@@ -491,7 +569,10 @@ const LeadInfoPage: React.FC = () => {
                   },
                 }}
               >
-                {['All', 'Confirmed', 'Pending', 'Rejected', 'Cancelled', 'Not Contacted', 'Not Followed Yet'].map(
+                {(activeTab === 0
+                  ? ['All', 'Confirmed', 'Pending', 'Sent Inquiry', 'Rejected', 'Cancelled']
+                  : ['All', 'new', 'read', 'responded', 'archived']
+                ).map(
                   (status) => (
                     <MenuItem
                       key={status}
@@ -507,11 +588,15 @@ const LeadInfoPage: React.FC = () => {
                           color: '#2563eb',
                         },
                         '&:hover': {
-                          background: '#f1f5f9',
+                          background: 'action.hover',
                         },
                       }}
                     >
-                      {status}
+                      {status === 'new' ? 'New' :
+                        status === 'read' ? 'Read' :
+                          status === 'responded' ? 'Responded' :
+                            status === 'archived' ? 'Archived' :
+                              status}
                     </MenuItem>
                   )
                 )}
@@ -540,11 +625,11 @@ const LeadInfoPage: React.FC = () => {
                 }}
                 sx={{
                   borderRadius: '12px',
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: 'background.default',
                   fontWeight: 600,
-                  color: '#334155',
+                  color: 'text.primary',
                   '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#e2e8f0',
+                    borderColor: 'divider',
                   },
                   '&:hover .MuiOutlinedInput-notchedOutline': {
                     borderColor: '#94a3b8',
@@ -588,6 +673,76 @@ const LeadInfoPage: React.FC = () => {
               </Select>
             </FormControl>
           </Box>
+
+          {/* Employee Filter Dropdown */}
+          <Box sx={{ flex: 1, width: '100%' }}>
+            <FormControl fullWidth sx={dropdownSx}>
+              <InputLabel
+                sx={{
+                  color: '#94a3b8',
+                  fontWeight: 600,
+                  '&.Mui-focused': { color: '#3b82f6' },
+                }}
+              >
+                Followed By
+              </InputLabel>
+              <Select
+                value={employeeFilter}
+                label="Followed By"
+                onChange={(e) => {
+                  setEmployeeFilter(e.target.value);
+                  setPage(0);
+                }}
+                sx={{
+                  borderRadius: '12px',
+                  backgroundColor: 'background.default',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'divider',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#94a3b8',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#3b82f6',
+                  },
+                }}
+                MenuProps={{
+                  PaperProps: {
+                    sx: {
+                      borderRadius: '12px',
+                      boxShadow: '0 10px 40px -10px rgba(0,0,0,0.15)',
+                      mt: 0.5,
+                    },
+                  },
+                }}
+              >
+                {employeeOptions.map((name) => (
+                  <MenuItem
+                    key={name}
+                    value={name}
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      borderRadius: '8px',
+                      mx: 0.5,
+                      my: 0.25,
+                      '&.Mui-selected': {
+                        background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                        color: '#2563eb',
+                      },
+                      '&:hover': {
+                        background: '#f1f5f9',
+                      },
+                    }}
+                  >
+                    {name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
         </Box>
       </Paper>
 
@@ -595,10 +750,11 @@ const LeadInfoPage: React.FC = () => {
       <Box
         sx={{
           mb: 3,
-          background: '#ffffff',
+          background: 'background.paper',
           borderRadius: '16px',
           p: 1,
-          border: '1px solid rgba(226, 232, 240, 0.8)',
+          border: '1px solid',
+          borderColor: 'divider',
           boxShadow: '0 4px 20px -5px rgba(0, 0, 0, 0.05)',
         }}
       >
@@ -607,6 +763,8 @@ const LeadInfoPage: React.FC = () => {
           onChange={(e, newValue) => {
             setActiveTab(newValue);
             setPage(0);
+            setStatusFilter('All');
+            setEmployeeFilter('All');
           }}
           variant="scrollable"
           scrollButtons="auto"
@@ -626,8 +784,8 @@ const LeadInfoPage: React.FC = () => {
               borderRadius: '8px',
               margin: '0 4px',
               '&:hover': {
-                backgroundColor: '#f8fafc',
-                color: '#3b82f6',
+                backgroundColor: 'action.hover',
+                color: 'primary.main',
               },
               '& .MuiSvgIcon-root': {
                 marginBottom: '4px !important',
@@ -645,9 +803,10 @@ const LeadInfoPage: React.FC = () => {
       {/* Leads Table */}
       <Paper
         sx={{
-          background: '#ffffff',
+          background: 'background.paper',
           borderRadius: '20px',
-          border: '1px solid rgba(226, 232, 240, 0.8)',
+          border: '1px solid',
+          borderColor: 'divider',
           boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
         }}
@@ -692,24 +851,27 @@ const LeadInfoPage: React.FC = () => {
                     {[
                       'Lead ID',
                       'Lead Date',
-                      'From → To',
+                      ...(activeTab === 0 ? ['From → To'] : []),
                       'Status',
                       'Employee',
-                      'Trip Type',   // renamed from "Form Type"
-                      'Form Type',   // new column
+                      'Type',
+                      'Form Type',
                       'Action',
                     ].map((header, idx) => (
                       <TableCell
                         key={header}
                         align={header === 'Action' ? 'center' : 'left'}
                         sx={{
-                          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                          background: mode === 'light'
+                            ? 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
+                            : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
                           fontWeight: 700,
                           fontSize: '0.875rem',
-                          color: '#475569',
+                          color: 'text.secondary',
                           textTransform: 'uppercase',
                           letterSpacing: '0.05em',
-                          borderBottom: '2px solid #e2e8f0',
+                          borderBottom: '2px solid',
+                          borderColor: 'divider',
                         }}
                       >
                         {header}
@@ -728,58 +890,77 @@ const LeadInfoPage: React.FC = () => {
                           sx={{
                             transition: 'all 0.2s ease',
                             '&:hover': {
-                              backgroundColor: '#f8fafc',
+                              backgroundColor: mode === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.02)',
                               transform: 'scale(1.001)',
                             },
                             '&:not(:last-child)': {
-                              borderBottom: '1px solid #f1f5f9',
+                              borderBottom: '1px solid',
+                              borderColor: 'divider',
                             },
                           }}
                         >
                           {/* Lead ID */}
                           <TableCell>
-                            <Typography
-                              sx={{
-                                fontWeight: 700,
-                                color: '#3b82f6',
-                                fontSize: '0.9375rem',
-                              }}
-                            >
-                              {lead.customId || lead.id}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {!lead.isViewed && (
+                                <Tooltip title="New Lead">
+                                  <Box
+                                    sx={{
+                                      width: 8,
+                                      height: 8,
+                                      borderRadius: '50%',
+                                      backgroundColor: '#ef4444',
+                                      boxShadow: '0 0 8px #ef4444',
+                                      flexShrink: 0
+                                    }}
+                                  />
+                                </Tooltip>
+                              )}
+                              <Typography
+                                sx={{
+                                  fontWeight: 700,
+                                  color: '#3b82f6',
+                                  fontSize: '0.9375rem',
+                                }}
+                              >
+                                {lead.customId || lead.id}
+                              </Typography>
+                            </Box>
                           </TableCell>
 
                           {/* Lead Date */}
                           <TableCell>
-                            <Typography sx={{ fontSize: '0.9375rem', color: '#334155' }}>
+                            <Typography sx={{ fontSize: '0.9375rem', color: 'text.primary' }}>
                               {formatDate(lead.leadDate)}
                             </Typography>
                           </TableCell>
 
                           {/* From → To */}
-                          <TableCell>
-                            {lead.source !== 'Contact Us' && (
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Typography
-                                  sx={{ fontSize: '0.9375rem', color: '#334155', fontWeight: 600 }}
-                                >
-                                  {lead.fromLocation}
-                                </Typography>
-                                <Typography sx={{ color: '#94a3b8', fontSize: '0.875rem' }}>→</Typography>
-                                <Typography
-                                  sx={{ fontSize: '0.9375rem', color: '#334155', fontWeight: 600 }}
-                                >
-                                  {lead.toLocation}
-                                </Typography>
-                              </Box>
-                            )}
-                          </TableCell>
+                          {activeTab === 0 && (
+                            <TableCell>
+                              {lead.source !== 'Contact Us' && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Typography
+                                    sx={{ fontSize: '0.9375rem', color: 'text.primary', fontWeight: 600 }}
+                                  >
+                                    {lead.fromLocation}
+                                  </Typography>
+                                  <Typography sx={{ color: 'text.disabled', fontSize: '0.875rem' }}>→</Typography>
+                                  <Typography
+                                    sx={{ fontSize: '0.9375rem', color: 'text.primary', fontWeight: 600 }}
+                                  >
+                                    {lead.toLocation}
+                                  </Typography>
+                                </Box>
+                              )}
+                            </TableCell>
+                          )}
 
                           {/* Status */}
                           <TableCell>
                             <Chip
                               icon={<statusStyle.IconComponent sx={{ fontSize: 16 }} />}
-                              label={lead.status}
+                              label={statusStyle.label || lead.status}
                               sx={{
                                 background: `linear-gradient(135deg, ${statusStyle.bgColor} 0%, ${statusStyle.bgColor}cc 100%)`,
                                 color: statusStyle.color,
@@ -798,7 +979,7 @@ const LeadInfoPage: React.FC = () => {
                           <TableCell>
                             <Typography sx={{
                               fontSize: '0.9375rem',
-                              color: lead.employeeName ? '#334155' : '#94a3b8',
+                              color: lead.employeeName ? 'text.primary' : 'text.disabled',
                               fontWeight: lead.employeeName ? 500 : 400,
                               fontStyle: lead.employeeName ? 'normal' : 'italic',
                             }}>
@@ -812,8 +993,8 @@ const LeadInfoPage: React.FC = () => {
                               label={lead.formType}
                               size="small"
                               sx={{
-                                background: '#f1f5f9',
-                                color: '#64748b',
+                                background: mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
+                                color: mode === 'light' ? '#64748b' : '#94a3b8',
                                 fontWeight: 600,
                                 fontSize: '0.8125rem',
                                 borderRadius: '6px',
@@ -828,9 +1009,9 @@ const LeadInfoPage: React.FC = () => {
                               size="small"
                               sx={{
                                 background: lead.source === 'Online Booking'
-                                  ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)'
-                                  : 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)',
-                                color: lead.source === 'Online Booking' ? '#2563eb' : '#7c3aed',
+                                  ? (mode === 'light' ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' : 'rgba(59, 130, 246, 0.1)')
+                                  : (mode === 'light' ? 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)' : 'rgba(124, 58, 237, 0.1)'),
+                                color: lead.source === 'Online Booking' ? (mode === 'light' ? '#2563eb' : '#60a5fa') : (mode === 'light' ? '#7c3aed' : '#a78bfa'),
                                 fontWeight: 600,
                                 fontSize: '0.8125rem',
                                 borderRadius: '6px',
@@ -866,23 +1047,23 @@ const LeadInfoPage: React.FC = () => {
                                 disabled={!!lead.employeeName}
                                 sx={{
                                   background: lead.employeeName
-                                    ? '#f1f5f9'
+                                    ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
                                     : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                  color: lead.employeeName ? '#94a3b8' : '#ffffff',
+                                  color: lead.employeeName ? 'text.disabled' : '#ffffff',
                                   borderRadius: '10px',
                                   padding: '8px',
                                   transition: 'all 0.3s ease',
                                   cursor: lead.employeeName ? 'not-allowed' : 'pointer',
                                   '&:hover': {
                                     background: lead.employeeName
-                                      ? '#f1f5f9'
+                                      ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
                                       : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                                     transform: lead.employeeName ? 'none' : 'translateY(-2px)',
                                     boxShadow: lead.employeeName ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.4)',
                                   },
                                   '&.Mui-disabled': {
-                                    background: '#f1f5f9',
-                                    color: '#94a3b8',
+                                    background: mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
+                                    color: 'text.disabled',
                                   },
                                 }}
                               >
@@ -907,10 +1088,11 @@ const LeadInfoPage: React.FC = () => {
               onPageChange={handleChangePage}
               onRowsPerPageChange={handleChangeRowsPerPage}
               sx={{
-                borderTop: '1px solid #f1f5f9',
+                borderTop: '1px solid',
+                borderColor: 'divider',
                 '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
                   fontWeight: 500,
-                  color: '#64748b',
+                  color: 'text.secondary',
                 },
               }}
             />
@@ -926,8 +1108,9 @@ const LeadInfoPage: React.FC = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: '20px',
+            borderRadius: '16px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            maxWidth: 560,
           },
         }}
       >
@@ -936,469 +1119,448 @@ const LeadInfoPage: React.FC = () => {
             background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
             color: '#ffffff',
             fontWeight: 700,
-            fontSize: '1.5rem',
+            fontSize: '1.1rem',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            p: 3,
+            p: 2,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <PersonIcon sx={{ fontSize: 32 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PersonIcon sx={{ fontSize: 22 }} />
             <span>Lead Details</span>
           </Box>
           <IconButton
             onClick={handleCloseDialog}
             sx={{
               color: '#ffffff',
+              p: 0.5,
               '&:hover': {
                 background: 'rgba(255, 255, 255, 0.1)',
               },
             }}
           >
-            <CloseIcon />
+            <CloseIcon sx={{ fontSize: 20 }} />
           </IconButton>
         </DialogTitle>
 
-        <DialogContent sx={{ p: 4 }}>
+        <DialogContent sx={{ p: 2.5 }}>
           {selectedLead && (
             <Box>
               {/* Message Alert */}
               {showMessage && selectedLead.message && (
                 <Alert
-                  icon={<MessageIcon sx={{ fontSize: 24 }} />}
+                  icon={<MessageIcon sx={{ fontSize: 18 }} />}
                   severity="info"
                   onClose={() => setShowMessage(false)}
                   sx={{
-                    mb: 3,
-                    borderRadius: '12px',
+                    mb: 2,
+                    borderRadius: '10px',
                     background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
                     border: '1px solid #93c5fd',
-                    '& .MuiAlert-icon': {
-                      color: '#3b82f6',
-                    },
-                    '& .MuiAlert-message': {
-                      color: '#1e40af',
-                      fontWeight: 500,
-                    },
+                    py: 1,
+                    '& .MuiAlert-icon': { color: '#3b82f6' },
+                    '& .MuiAlert-message': { color: '#1e40af', fontWeight: 500, fontSize: '0.82rem' },
                   }}
                 >
-                  <Typography sx={{ fontWeight: 700, mb: 0.5 }}>Customer Message:</Typography>
+                  <Typography sx={{ fontWeight: 700, mb: 0.25, fontSize: '0.82rem' }}>Customer Message:</Typography>
                   {selectedLead.message}
                 </Alert>
               )}
 
               {/* Lead Information Grid */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+
                 {/* Customer Name */}
-                <Box
-                  sx={{
-                    p: 2.5,
-                    borderRadius: '12px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <PersonIcon sx={{ color: '#3b82f6', fontSize: 20 }} />
-                    <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
-                      Customer Name
-                    </Typography>
+                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                    <PersonIcon sx={{ color: '#3b82f6', fontSize: 16 }} />
+                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Customer Name</Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>
+                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
                     {selectedLead.customerName}
                   </Typography>
                 </Box>
 
                 {/* Lead ID */}
-                <Box
-                  sx={{
-                    p: 2.5,
-                    borderRadius: '12px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600, mb: 1 }}>
-                    Lead ID
-                  </Typography>
-                  <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#3b82f6' }}>
+                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                  <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Lead ID</Typography>
+                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: '#3b82f6' }}>
                     {selectedLead.customId || selectedLead.id}
                   </Typography>
                 </Box>
 
                 {/* Lead Date */}
-                <Box
-                  sx={{
-                    p: 2.5,
-                    borderRadius: '12px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <CalendarIcon sx={{ color: '#8b5cf6', fontSize: 20 }} />
-                    <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
-                      Lead Date
-                    </Typography>
+                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                    <CalendarIcon sx={{ color: '#8b5cf6', fontSize: 16 }} />
+                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Lead Date</Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>
+                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
                     {formatDate(selectedLead.leadDate)}
                   </Typography>
                 </Box>
 
                 {/* Tour Date */}
-                <Box
-                  sx={{
-                    p: 2.5,
-                    borderRadius: '12px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <CalendarIcon sx={{ color: '#10b981', fontSize: 20 }} />
-                    <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
-                      Tour Date
-                    </Typography>
+                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                    <CalendarIcon sx={{ color: '#10b981', fontSize: 16 }} />
+                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tour Date</Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>
+                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
                     {formatDate(selectedLead.tourDate)}
                   </Typography>
                 </Box>
 
                 {/* Number of Passengers */}
-                <Box
-                  sx={{
-                    p: 2.5,
-                    borderRadius: '12px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <PeopleIcon sx={{ color: '#f59e0b', fontSize: 20 }} />
-                    <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
-                      Number of Passengers
-                    </Typography>
+                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                    <PeopleIcon sx={{ color: '#f59e0b', fontSize: 16 }} />
+                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Passengers</Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>
+                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
                     {selectedLead.numberOfPassengers} {selectedLead.numberOfPassengers === 1 ? 'Person' : 'People'}
                   </Typography>
                 </Box>
 
                 {/* Vehicle Name */}
-                <Box
-                  sx={{
-                    p: 2.5,
-                    borderRadius: '12px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <DirectionsCarIcon sx={{ color: '#ec4899', fontSize: 20 }} />
-                    <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
-                      Vehicle Name
-                    </Typography>
+                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                    <DirectionsCarIcon sx={{ color: '#ec4899', fontSize: 16 }} />
+                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Vehicle</Typography>
                   </Box>
-                  <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>
+                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
                     {selectedLead.vehicleName}
                   </Typography>
                 </Box>
 
-                {/* From Location */}
-                {selectedLead.source !== 'Contact Us' && (
-                  <Box
-                    sx={{
-                      p: 2.5,
-                      borderRadius: '12px',
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <LocationOnIcon sx={{ color: '#0ea5e9', fontSize: 20 }} />
-                      <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
-                        From Location
-                      </Typography>
-                    </Box>
-                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>
-                      {selectedLead.fromLocation}
-                    </Typography>
-                  </Box>
-                )}
-
-                {/* To Location */}
-                {selectedLead.source !== 'Contact Us' && (
-                  <Box
-                    sx={{
-                      p: 2.5,
-                      borderRadius: '12px',
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                      <LocationOnIcon sx={{ color: '#14b8a6', fontSize: 20 }} />
-                      <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600 }}>
-                        To Location
-                      </Typography>
-                    </Box>
-                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>
-                      {selectedLead.toLocation}
-                    </Typography>
-                  </Box>
-                )}
-
-                {/* Contact Information */}
+                {/* Phone */}
                 {selectedLead.customerPhone && (
-                  <Box
-                    sx={{
-                      p: 2.5,
-                      borderRadius: '12px',
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                    }}
-                  >
-                    <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600, mb: 1 }}>
-                      Phone Number
-                    </Typography>
-                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>
+                  <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Phone</Typography>
+                    <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
                       {selectedLead.customerPhone}
                     </Typography>
                   </Box>
                 )}
 
+                {/* Email */}
                 {selectedLead.customerEmail && (
-                  <Box
-                    sx={{
-                      p: 2.5,
-                      borderRadius: '12px',
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                    }}
-                  >
-                    <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600, mb: 1 }}>
-                      Email Address
-                    </Typography>
-                    <Typography sx={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>
+                  <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Email</Typography>
+                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: 'text.primary', wordBreak: 'break-all' }}>
                       {selectedLead.customerEmail}
                     </Typography>
                   </Box>
                 )}
 
-                {/* Status and Employee */}
-                <Box
-                  sx={{
-                    p: 2.5,
-                    borderRadius: '12px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600, mb: 1 }}>
-                    Status
-                  </Typography>
+                {/* Status */}
+                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                  <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Status</Typography>
                   {(() => {
                     const statusStyle = getStatusColor(selectedLead.status);
                     return (
                       <Chip
-                        icon={<statusStyle.IconComponent sx={{ fontSize: 16 }} />}
-                        label={selectedLead.status}
+                        icon={<statusStyle.IconComponent sx={{ fontSize: 14 }} />}
+                        label={statusStyle.label || selectedLead.status}
                         sx={{
-                          background: `linear-gradient(135deg, ${statusStyle.bgColor} 0%, ${statusStyle.bgColor}cc 100%)`,
+                          background: mode === 'light'
+                            ? `linear-gradient(135deg, ${statusStyle.bgColor} 0%, ${statusStyle.bgColor}cc 100%)`
+                            : `linear-gradient(135deg, ${statusStyle.color}33 0%, ${statusStyle.color}1a 100%)`,
                           color: statusStyle.color,
                           fontWeight: 600,
-                          fontSize: '0.9375rem',
-                          borderRadius: '8px',
-                          height: '32px',
-                          '& .MuiChip-icon': {
-                            color: statusStyle.color,
-                          },
+                          fontSize: '0.78rem',
+                          borderRadius: '6px',
+                          height: '26px',
+                          '& .MuiChip-icon': { color: statusStyle.color },
                         }}
                       />
                     );
                   })()}
                 </Box>
 
-                <Box
-                  sx={{
-                    p: 2.5,
-                    borderRadius: '12px',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  <Typography sx={{ fontSize: '0.875rem', color: '#64748b', fontWeight: 600, mb: 1 }}>
-                    Followed By
-                  </Typography>
+                {/* Followed By */}
+                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                  <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Followed By</Typography>
                   <Typography sx={{
-                    fontSize: '1.125rem',
+                    fontSize: '0.95rem',
                     fontWeight: 700,
-                    color: selectedLead.employeeName ? '#1e293b' : '#94a3b8',
+                    color: selectedLead.employeeName ? 'text.primary' : 'text.disabled',
                     fontStyle: selectedLead.employeeName ? 'normal' : 'italic',
                   }}>
                     {selectedLead.employeeName || 'Not Assigned'}
                   </Typography>
                 </Box>
               </Box>
+
+              {/* Route Section — only for booking leads */}
+              {selectedLead.source !== 'Contact Us' && (
+                <Box sx={{ mt: 2, p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.25 }}>
+                    <LocationOnIcon sx={{ color: '#0ea5e9', fontSize: 16 }} />
+                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Route</Typography>
+                  </Box>
+
+                  {/* Horizontal left-to-right timeline */}
+                  <Box sx={{ overflowX: 'auto', pb: 0.5 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', minWidth: 'max-content', pt: 0.5 }}>
+
+                      {/* PICKUP */}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 90 }}>
+                        <Typography sx={{ fontSize: '0.62rem', color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5, whiteSpace: 'nowrap' }}>Pickup</Typography>
+                        <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: '#22c55e', border: '2.5px solid', borderColor: 'background.paper', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #22c55e33', flexShrink: 0 }}>
+                          <Box sx={{ width: 7, height: 7, borderRadius: '50%', background: 'white' }} />
+                        </Box>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary', mt: 0.5, textAlign: 'center', maxWidth: 85, wordBreak: 'break-word', lineHeight: 1.3 }}>{selectedLead.fromLocation}</Typography>
+                      </Box>
+
+                      {/* Connector after pickup */}
+                      <Box sx={{ width: 36, height: 2, background: (selectedLead.destinations || []).filter((d: string) => d.trim()).length > 0 ? 'linear-gradient(to right, #22c55e, #C9A961)' : 'linear-gradient(to right, #22c55e, #ef4444)', borderRadius: '2px', mt: '10px', flexShrink: 0 }} />
+
+                      {/* INTERMEDIATE STOPS */}
+                      {(selectedLead.destinations || []).filter((d: string) => d.trim()).map((dest: string, idx: number, arr: string[]) => (
+                        <Box key={idx} sx={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 90 }}>
+                            <Typography sx={{ fontSize: '0.62rem', color: '#C9A961', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5, whiteSpace: 'nowrap' }}>Stop {idx + 1}</Typography>
+                            <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: '#C9A961', border: '2.5px solid', borderColor: 'background.paper', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #C9A96133', flexShrink: 0 }}>
+                              <Typography sx={{ fontSize: '0.55rem', color: 'white', fontWeight: 700, lineHeight: 1 }}>{idx + 1}</Typography>
+                            </Box>
+                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary', mt: 0.5, textAlign: 'center', maxWidth: 85, wordBreak: 'break-word', lineHeight: 1.3 }}>{dest}</Typography>
+                          </Box>
+                          {/* Connector after each stop */}
+                          <Box sx={{ width: 36, height: 2, background: idx === arr.length - 1 ? 'linear-gradient(to right, #C9A961, #ef4444)' : 'linear-gradient(to right, #C9A961, #C9A961)', borderRadius: '2px', mt: '10px', flexShrink: 0 }} />
+                        </Box>
+                      ))}
+
+                      {/* DROPOFF */}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 90 }}>
+                        <Typography sx={{ fontSize: '0.62rem', color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5, whiteSpace: 'nowrap' }}>Drop-off</Typography>
+                        <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: '#ef4444', border: '2.5px solid', borderColor: 'background.paper', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #ef444433', flexShrink: 0 }}>
+                          <Box sx={{ width: 7, height: 7, borderRadius: '50%', background: 'white' }} />
+                        </Box>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary', mt: 0.5, textAlign: 'center', maxWidth: 85, wordBreak: 'break-word', lineHeight: 1.3 }}>{selectedLead.toLocation}</Typography>
+                      </Box>
+
+                    </Box>
+                  </Box>
+                </Box>
+              )}
             </Box>
           )}
         </DialogContent>
 
         <DialogActions
           sx={{
-            p: 3,
-            background: '#f8fafc',
-            borderTop: '1px solid #e2e8f0',
-            gap: 1.5,
+            p: 2,
+            background: 'background.default',
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            gap: 1,
             flexWrap: 'wrap',
             justifyContent: 'center'
           }}
         >
-          {selectedLead?.status === 'Not Followed Yet' && (
+          {/* ── CONTACT LEADS (Complaint / General Inquiry / Feedback) ── */}
+          {isContactLead(selectedLead) && (
             <>
-              <Button
-                onClick={() => handleLeadAction('Pending')}
-                disabled={actionLoading}
-                variant="contained"
-                sx={{
-                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                  borderRadius: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  fontSize: '0.9375rem',
-                  px: 3,
-                  py: 1.5,
-                  boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)',
-                    boxShadow: '0 6px 20px rgba(245, 158, 11, 0.5)',
-                    transform: 'translateY(-2px)',
-                  },
-                  '&:disabled': {
-                    background: '#e2e8f0',
-                    color: '#94a3b8',
-                  },
-                }}
-              >
-                {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as Pending'}
-              </Button>
-              <Button
-                onClick={() => handleLeadAction('Not Contacted')}
-                disabled={actionLoading}
-                variant="contained"
-                sx={{
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                  borderRadius: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  fontSize: '0.9375rem',
-                  px: 3,
-                  py: 1.5,
-                  boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
-                    boxShadow: '0 6px 20px rgba(139, 92, 246, 0.5)',
-                    transform: 'translateY(-2px)',
-                  },
-                  '&:disabled': {
-                    background: '#e2e8f0',
-                    color: '#94a3b8',
-                  },
-                }}
-              >
-                {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Not Contacted'}
-              </Button>
-              <Button
-                onClick={() => handleLeadAction('Rejected')}
-                disabled={actionLoading}
-                variant="contained"
-                sx={{
-                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                  borderRadius: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  fontSize: '0.9375rem',
-                  px: 3,
-                  py: 1.5,
-                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                    boxShadow: '0 6px 20px rgba(239, 68, 68, 0.5)',
-                    transform: 'translateY(-2px)',
-                  },
-                  '&:disabled': {
-                    background: '#e2e8f0',
-                    color: '#94a3b8',
-                  },
-                }}
-              >
-                {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Reject'}
-              </Button>
+              {/* Mark as New — available when status is read / responded / archived */}
+              {selectedLead?.status !== 'new' && (
+                <Button
+                  onClick={() => handleLeadAction('new')}
+                  disabled={actionLoading}
+                  variant="contained"
+                  sx={{
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    borderRadius: '12px',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    fontSize: '0.9375rem',
+                    px: 3,
+                    py: 1.5,
+                    boxShadow: '0 4px 14px rgba(59,130,246,0.4)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                      boxShadow: '0 6px 20px rgba(59,130,246,0.5)',
+                      transform: 'translateY(-2px)',
+                    },
+                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                  }}
+                >
+                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as New'}
+                </Button>
+              )}
+
+              {/* Mark as Read — available when status is new */}
+              {selectedLead?.status !== 'read' && (
+                <Button
+                  onClick={() => handleLeadAction('read')}
+                  disabled={actionLoading}
+                  variant="contained"
+                  sx={{
+                    background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+                    borderRadius: '12px',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    fontSize: '0.9375rem',
+                    px: 3,
+                    py: 1.5,
+                    boxShadow: '0 4px 14px rgba(14,165,233,0.4)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                      boxShadow: '0 6px 20px rgba(14,165,233,0.5)',
+                      transform: 'translateY(-2px)',
+                    },
+                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                  }}
+                >
+                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as Read'}
+                </Button>
+              )}
+
+              {/* Mark as Responded — available when status is new or read */}
+              {selectedLead?.status !== 'responded' && (
+                <Button
+                  onClick={() => handleLeadAction('responded')}
+                  disabled={actionLoading}
+                  variant="contained"
+                  sx={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    borderRadius: '12px',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    fontSize: '0.9375rem',
+                    px: 3,
+                    py: 1.5,
+                    boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                      boxShadow: '0 6px 20px rgba(16,185,129,0.5)',
+                      transform: 'translateY(-2px)',
+                    },
+                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                  }}
+                >
+                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as Responded'}
+                </Button>
+              )}
+
+              {/* Archive — available when not already archived */}
+              {selectedLead?.status !== 'archived' && (
+                <Button
+                  onClick={() => handleLeadAction('archived')}
+                  disabled={actionLoading}
+                  variant="outlined"
+                  sx={{
+                    borderColor: '#ef4444',
+                    borderWidth: '2px',
+                    color: '#ef4444',
+                    borderRadius: '12px',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    fontSize: '0.9375rem',
+                    px: 3,
+                    py: 1.5,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      borderColor: '#dc2626',
+                      borderWidth: '2px',
+                      backgroundColor: '#fee2e2',
+                      transform: 'translateY(-2px)',
+                    },
+                    '&:disabled': { borderColor: '#e2e8f0', color: '#94a3b8' },
+                  }}
+                >
+                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Archive'}
+                </Button>
+              )}
             </>
           )}
 
-          {(selectedLead?.status === 'Not Contacted' || selectedLead?.status === 'Pending') && (
+          {/* ── BOOKING LEADS — Confirm / Sent Inquiry / Reject workflow ── */}
+          {!isContactLead(selectedLead) && (
             <>
-              <Button
-                onClick={() => handleLeadAction('Rejected')}
-                disabled={actionLoading}
-                variant="contained"
-                sx={{
-                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                  borderRadius: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  fontSize: '0.9375rem',
-                  px: 3,
-                  py: 1.5,
-                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-                    boxShadow: '0 6px 20px rgba(239, 68, 68, 0.5)',
-                    transform: 'translateY(-2px)',
-                  },
-                  '&:disabled': {
-                    background: '#e2e8f0',
-                    color: '#94a3b8',
-                  },
-                }}
-              >
-                {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Reject'}
-              </Button>
-              <Button
-                onClick={() => handleLeadAction('Confirmed')}
-                disabled={actionLoading}
-                variant="contained"
-                sx={{
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  borderRadius: '12px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  fontSize: '0.9375rem',
-                  px: 3,
-                  py: 1.5,
-                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                    boxShadow: '0 6px 20px rgba(16, 185, 129, 0.5)',
-                    transform: 'translateY(-2px)',
-                  },
-                  '&:disabled': {
-                    background: '#e2e8f0',
-                    color: '#94a3b8',
-                  },
-                }}
-              >
-                {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Confirm'}
-              </Button>
+              {/* Pending — shown when not already Pending */}
+              {selectedLead?.status !== 'Pending' && selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && (
+                <Button
+                  onClick={() => handleLeadAction('Pending')}
+                  disabled={actionLoading}
+                  variant="contained"
+                  sx={{
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    borderRadius: '12px', fontWeight: 600, textTransform: 'none',
+                    fontSize: '0.9375rem', px: 3, py: 1.5,
+                    boxShadow: '0 4px 14px rgba(245,158,11,0.4)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': { background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', transform: 'translateY(-2px)' },
+                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                  }}
+                >
+                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as Pending'}
+                </Button>
+              )}
+
+              {/* Sent Inquiry — shown when status is Pending */}
+              {selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && (
+                <Button
+                  onClick={() => handleLeadAction('Sent Inquiry')}
+                  disabled={actionLoading}
+                  variant="contained"
+                  sx={{
+                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                    borderRadius: '12px', fontWeight: 600, textTransform: 'none',
+                    fontSize: '0.9375rem', px: 3, py: 1.5,
+                    boxShadow: '0 4px 14px rgba(139,92,246,0.4)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': { background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)', transform: 'translateY(-2px)' },
+                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                  }}
+                >
+                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Sent Inquiry'}
+                </Button>
+              )}
+
+              {/* Confirm — shown when not already Confirmed */}
+              {selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && (
+                <Button
+                  onClick={() => handleLeadAction('Confirmed')}
+                  disabled={actionLoading}
+                  variant="contained"
+                  sx={{
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    borderRadius: '12px', fontWeight: 600, textTransform: 'none',
+                    fontSize: '0.9375rem', px: 3, py: 1.5,
+                    boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': { background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', transform: 'translateY(-2px)' },
+                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                  }}
+                >
+                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Confirm'}
+                </Button>
+              )}
+
+              {/* Reject — shown when not already Cancelled */}
+              {selectedLead?.status !== 'Cancelled' && selectedLead?.status !== 'Confirmed' && (
+                <Button
+                  onClick={() => handleLeadAction('Cancelled')}
+                  disabled={actionLoading}
+                  variant="contained"
+                  sx={{
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    borderRadius: '12px', fontWeight: 600, textTransform: 'none',
+                    fontSize: '0.9375rem', px: 3, py: 1.5,
+                    boxShadow: '0 4px 14px rgba(239,68,68,0.4)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': { background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', transform: 'translateY(-2px)' },
+                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                  }}
+                >
+                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Reject'}
+                </Button>
+              )}
             </>
           )}
 
