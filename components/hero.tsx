@@ -477,7 +477,7 @@ export default function HeroSection() {
                         backdropFilter: "blur(16px)",
                         WebkitBackdropFilter: "blur(16px)",
                         border: formData.vehicleType === vehicle.name
-                          ? "2px solid #C9A961"
+                          ? "2px solid #0d9488"
                           : "1.5px solid rgba(255,255,255,0.42)",
                         borderRadius: "10px",
                         padding: "0.7rem 0.4rem",
@@ -534,7 +534,7 @@ export default function HeroSection() {
                             position: "absolute",
                             top: "4px",
                             right: "4px",
-                            color: "#C9A961",
+                            color: "#0d9488",
                             fontSize: "0.9rem",
                           }}
                         >
@@ -550,9 +550,9 @@ export default function HeroSection() {
                     <div
                       style={{
                         padding: "0.5rem 0.8rem",
-                        background: "rgba(201,169,97,0.24)",
+                        background: "rgba(13,148,136,0.12)",
                         backdropFilter: "blur(12px)",
-                        border: "1.5px solid rgba(201,169,97,0.55)",
+                        border: "1.5px solid rgba(13,148,136,0.45)",
                         borderRadius: "16px",
                         marginBottom: "0.5rem",
                       }}
@@ -656,7 +656,7 @@ export default function HeroSection() {
                     top: "18px",
                     bottom: "18px",
                     width: "2px",
-                    background: "linear-gradient(to bottom, #22c55e, #C9A961, #ef4444)",
+                    background: "linear-gradient(to bottom, #0d9488, #3b82f6, #0d9488)",
                     borderRadius: "2px",
                     zIndex: 0,
                   }} />
@@ -711,7 +711,7 @@ export default function HeroSection() {
                         width: "24px",
                         height: "24px",
                         borderRadius: "50%",
-                        background: "#C9A961",
+                        background: "#0d9488",
                         border: "2.5px solid rgba(255,255,255,0.8)",
                         flexShrink: 0,
                         display: "flex",
@@ -732,9 +732,9 @@ export default function HeroSection() {
                         style={{
                           flex: 1,
                           padding: "0.6rem 0.85rem",
-                          background: "rgba(201,169,97,0.1)",
+                          background: "rgba(13,148,136,0.08)",
                           backdropFilter: "blur(12px)",
-                          border: "1.5px solid rgba(201,169,97,0.4)",
+                          border: "1.5px solid rgba(13,148,136,0.3)",
                           borderRadius: "8px",
                           color: "#000000",
                           fontFamily: "'Montserrat', sans-serif",
@@ -742,12 +742,12 @@ export default function HeroSection() {
                           outline: "none",
                         }}
                         onFocus={(e) => {
-                          e.currentTarget.style.background = "rgba(201,169,97,0.18)";
-                          e.currentTarget.style.borderColor = "#C9A961";
+                          e.currentTarget.style.background = "rgba(13,148,136,0.15)";
+                          e.currentTarget.style.borderColor = "#0d9488";
                         }}
                         onBlur={(e) => {
-                          e.currentTarget.style.background = "rgba(201,169,97,0.1)";
-                          e.currentTarget.style.borderColor = "rgba(201,169,97,0.4)";
+                          e.currentTarget.style.background = "rgba(13,148,136,0.08)";
+                          e.currentTarget.style.borderColor = "rgba(13,148,136,0.3)";
                         }}
                       />
                       <button
@@ -793,10 +793,10 @@ export default function HeroSection() {
                         alignItems: "center",
                         gap: "0.4rem",
                         padding: "0.45rem 0.85rem",
-                        background: "rgba(201,169,97,0.14)",
-                        border: "1.5px dashed rgba(150,115,50,0.85)",
+                        background: "rgba(13,148,136,0.08)",
+                        border: "1.5px dashed rgba(13,148,136,0.5)",
                         borderRadius: "8px",
-                        color: "#5a4520",
+                        color: "#0f766e",
                         fontFamily: "'Montserrat', sans-serif",
                         fontSize: "0.73rem",
                         fontWeight: 600,
@@ -805,14 +805,14 @@ export default function HeroSection() {
                         transition: "all 0.2s ease",
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "rgba(201,169,97,0.25)";
-                        e.currentTarget.style.borderColor = "rgba(150,115,50,1)";
-                        e.currentTarget.style.color = "#3a2c0e";
+                        e.currentTarget.style.background = "rgba(13,148,136,0.18)";
+                        e.currentTarget.style.borderColor = "rgba(13,148,136,0.9)";
+                        e.currentTarget.style.color = "#0d9488";
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "rgba(201,169,97,0.14)";
-                        e.currentTarget.style.borderColor = "rgba(150,115,50,0.85)";
-                        e.currentTarget.style.color = "#5a4520";
+                        e.currentTarget.style.background = "rgba(13,148,136,0.08)";
+                        e.currentTarget.style.borderColor = "rgba(13,148,136,0.5)";
+                        e.currentTarget.style.color = "#0f766e";
                       }}
                     >
                       <span style={{ fontSize: "1rem", lineHeight: 1 }}>+</span>
@@ -900,8 +900,8 @@ export default function HeroSection() {
                       colorScheme: "light",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.24)";
-                      e.currentTarget.style.borderColor = "#C9A961";
+                      e.currentTarget.style.background = "rgba(13,148,136,0.1)";
+                      e.currentTarget.style.borderColor = "#0d9488";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.background = "rgba(255,255,255,0.16)";
@@ -942,8 +942,8 @@ export default function HeroSection() {
                       outline: "none",
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.24)";
-                      e.currentTarget.style.borderColor = "#C9A961";
+                      e.currentTarget.style.background = "rgba(13,148,136,0.1)";
+                      e.currentTarget.style.borderColor = "#0d9488";
                     }}
                     onBlur={(e) => {
                       e.currentTarget.style.background = "rgba(255,255,255,0.16)";
@@ -956,9 +956,9 @@ export default function HeroSection() {
               {totalPrice > 0 && (
                 <div
                   style={{
-                    background: "rgba(201,169,97,0.18)",
+                    background: "rgba(13,148,136,0.12)",
                     backdropFilter: "blur(12px)",
-                    border: "1.5px solid rgba(201,169,97,0.50)",
+                    border: "1.5px solid rgba(13,148,136,0.40)",
                     borderRadius: "7px",
                     padding: "0.35rem 0.9rem",
                     marginBottom: "0.75rem",
@@ -1000,19 +1000,17 @@ export default function HeroSection() {
                     fontWeight: 500,
                     fontSize: "0.82rem",
                     letterSpacing: "0.04em",
-                    border: "1.8px solid #C9A961",
+                    border: "1.8px solid #0d9488",
                     borderRadius: "9999px",
                     padding: "0.72rem 1.6rem",
                     marginTop: "0.5rem",
                     background: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
-                      ? "#C9A961"
-                      : "rgba(201,169,97,0.35)",
+                      ? "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)"
+                      : "rgba(13,148,136,0.35)",
                     backdropFilter: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
                       ? "none"
                       : "blur(10px)",
-                    color: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
-                      ? "#2D231B"
-                      : "rgba(255,255,255,0.7)",
+                    color: "#ffffff",
                     transition: "all 0.3s ease",
                     cursor: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
                       ? "pointer"
@@ -1021,15 +1019,15 @@ export default function HeroSection() {
                   onMouseEnter={(e) => {
                     if (formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime) {
                       const el = e.currentTarget;
-                      el.style.background = "rgba(201,169,97,0.9)";
+                      el.style.background = "linear-gradient(135deg, #0f766e 0%, #2563eb 100%)";
                       el.style.transform = "translateY(-2px)";
-                      el.style.boxShadow = "0 10px 30px rgba(201,169,97,0.3)";
+                      el.style.boxShadow = "0 10px 30px rgba(13,148,136,0.35)";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime) {
                       const el = e.currentTarget;
-                      el.style.background = "#C9A961";
+                      el.style.background = "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)";
                       el.style.transform = "translateY(0)";
                       el.style.boxShadow = "none";
                     }

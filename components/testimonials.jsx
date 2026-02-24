@@ -85,7 +85,7 @@ export default function TestimonialsSection() {
 
           <div className="testimonial-card">
             <div className="quote-icon">“</div>
-            
+
             <p className="testimonial-text">
               {testimonials[currentIndex].quote}
             </p>
@@ -97,14 +97,14 @@ export default function TestimonialsSection() {
 
             {/* Navigation Buttons */}
             <div className="navigation-buttons">
-              <button 
+              <button
                 onClick={prevTestimonial}
                 className="nav-button prev-button"
                 aria-label="Previous testimonial"
               >
                 <ChevronLeft size={24} />
               </button>
-              <button 
+              <button
                 onClick={nextTestimonial}
                 className="nav-button next-button"
                 aria-label="Next testimonial"
@@ -131,8 +131,23 @@ export default function TestimonialsSection() {
       <style jsx>{`
         .testimonials-section {
           padding: 80px 0;
-          background-color: #faf8f5;
+          background: #ffffff;
           overflow: hidden;
+          position: relative;
+        }
+        .testimonials-section::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 50%; transform: translateX(-50%);
+          width: 60%; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(13,148,136,0.4), transparent);
+        }
+        .testimonials-section::after {
+          content: '';
+          position: absolute;
+          bottom: 0; left: 50%; transform: translateX(-50%);
+          width: 60%; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(13,148,136,0.3), transparent);
         }
 
         .container {
@@ -198,7 +213,7 @@ export default function TestimonialsSection() {
         .dot {
           width: 8px;
           height: 8px;
-          background-color: #c4374a;
+          background-color: #0d9488;
           border-radius: 50%;
         }
 
@@ -229,7 +244,7 @@ export default function TestimonialsSection() {
 
         .testimonial-card {
           position: relative;
-          background: white;
+          background: #ffffff;
           padding: 50px 40px;
           border-radius: 8px;
           box-shadow: 0 5px 30px rgba(0, 0, 0, 0.08);
@@ -237,7 +252,7 @@ export default function TestimonialsSection() {
 
         .quote-icon {
           font-size: 80px;
-          color: #c4374a;
+          color: #0d9488;
           line-height: 1;
           margin-bottom: 20px;
           font-family: Georgia, serif;
@@ -260,7 +275,7 @@ export default function TestimonialsSection() {
         .author-name {
           font-size: 16px;
           font-weight: 600;
-          color: #c4374a;
+          color: #0d9488;
         }
 
         .author-location {
@@ -293,19 +308,19 @@ export default function TestimonialsSection() {
         }
 
         .nav-button:hover {
-          background: #c4374a;
+          background: #0d9488;
           color: white;
           transform: translateY(-2px);
-          box-shadow: 0 4px 15px rgba(196, 55, 74, 0.3);
+          box-shadow: 0 4px 15px rgba(13,148,136,0.35);
         }
 
         .next-button {
-          background: #d4b896;
+          background: #0d9488;
           color: white;
         }
 
         .next-button:hover {
-          background: #c4374a;
+          background: #0f766e;
         }
 
         /* Pagination Dots */
@@ -328,13 +343,13 @@ export default function TestimonialsSection() {
         }
 
         .dot-button.active {
-          background: #c4374a;
+          background: #0d9488;
           width: 30px;
           border-radius: 5px;
         }
 
         .dot-button:hover {
-          background: #c4374a;
+          background: #0d9488;
         }
 
         /* Responsive Design */

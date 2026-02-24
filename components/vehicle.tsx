@@ -215,18 +215,18 @@ export default function VehicleSection() {
               onClick={() => setActiveTab(cat)}
               className={`
                 px-5 py-2.5 text-lg font-medium transition-all duration-300
-                border-b-4 border-transparent text-gray-600 hover:text-gray-900 hover:border-[#3eb489]/60
-                ${activeTab === cat ? "text-gray-900 border-[#3eb489] font-semibold" : ""}
+                border-b-4 border-transparent text-gray-600 hover:text-gray-900 hover:border-[#0891b2]
+                ${activeTab === cat ? "text-gray-900 border-[#0891b2] font-semibold" : ""}
               `}
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
               {cat === "suv"
                 ? "SUV / JEEP"
                 : cat === "vans"
-                ? "Vans & Buses"
-                : cat === "wedding"
-                ? "Wedding Cars"
-                : `${cat.charAt(0).toUpperCase() + cat.slice(1)} Cars`}
+                  ? "Vans & Buses"
+                  : cat === "wedding"
+                    ? "Wedding Cars"
+                    : `${cat.charAt(0).toUpperCase() + cat.slice(1)} Cars`}
             </button>
           ))}
         </div>
@@ -234,9 +234,9 @@ export default function VehicleSection() {
 
       {/* Content */}
       <div className="grid lg:grid-cols-12 gap-6 lg:gap-8">
-        {/* Left - Info Card – also using #faf8f5 */}
+        {/* Left - Info Card – also using #ecfdf5 */}
         <div className="lg:col-span-5">
-          <div className="vehicle-card rounded-xl shadow-2xl p-6 md:p-8 h-full bg-[#faf8f5] border border-gray-200/70">
+          <div className="vehicle-card rounded-xl shadow-2xl p-6 md:p-8 h-full bg-white border border-gray-200/70">
             <h4
               className="text-3xl font-bold text-gray-900 mb-7"
               style={{ fontFamily: "'Playfair Display', serif" }}
@@ -247,7 +247,7 @@ export default function VehicleSection() {
             <ul className="space-y-4 mb-9">
               {categories[activeTab].features.map((feature, i) => (
                 <li key={i} className="flex items-center text-gray-800 text-[15px] md:text-base">
-                  <i className="bi bi-check-circle-fill me-3 text-[#3eb489] text-xl"></i>
+                  <i className="bi bi-check-circle-fill me-3 text-[#0891b2] text-xl"></i>
                   {feature}
                 </li>
               ))}
@@ -289,7 +289,7 @@ export default function VehicleSection() {
         <div className="lg:col-span-7">
           <div className="space-y-5">
             {/* Main Image */}
-            <div className="overflow-hidden rounded-xl border-4 border-gray-300/70 shadow-2xl bg-[#faf8f5] p-1">
+            <div className="overflow-hidden rounded-xl border-4 border-gray-300/70 shadow-2xl bg-white p-1">
               <div className="relative aspect-[4/3] md:aspect-[5/3] lg:aspect-[16/10]">
                 <Image
                   src={currentImages.main}
@@ -307,7 +307,7 @@ export default function VehicleSection() {
               {[1, 2, 3].map((num) => (
                 <div
                   key={num}
-                  className="overflow-hidden rounded-xl border-4 border-gray-300/70 shadow-xl bg-[#faf8f5] p-1 hover:border-[#3eb489] transition-all duration-300 hover:scale-[1.02]"
+                  className="overflow-hidden rounded-xl border-4 border-gray-300/70 shadow-xl bg-white p-1 hover:border-[#0d9488] transition-all duration-300 hover:scale-[1.02]"
                 >
                   <div className="relative aspect-square">
                     <Image
@@ -328,22 +328,37 @@ export default function VehicleSection() {
       {/* Styles */}
       <style jsx>{`
         .vehicle-section {
-          background: #faf8f5;
+          background: #ffffff;
           padding: 60px 8%;
           border-radius: 0;
           width: 100vw;
           margin-left: calc(-50vw + 50%);
           margin-right: calc(-50vw + 50%);
+          position: relative;
+        }
+        .vehicle-section::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 50%; transform: translateX(-50%);
+          width: 60%; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(13,148,136,0.4), transparent);
+        }
+        .vehicle-section::after {
+          content: '';
+          position: absolute;
+          bottom: 0; left: 50%; transform: translateX(-50%);
+          width: 60%; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(13,148,136,0.3), transparent);
         }
 
         .vehicle-card {
-          background: #faf8f5;
+          background: #ffffff;
           box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
         }
 
         .vehicle-model-dropdown {
-          background: #faf8f5;
-          border: 2px solid rgba(62, 180, 137, 0.3);
+          background: #ffffff;
+          border: 2px solid rgba(13,148,136,0.3);
           padding: 14px 18px;
           font-size: 15px;
           font-weight: 500;
@@ -359,27 +374,27 @@ export default function VehicleSection() {
         }
 
         .vehicle-model-dropdown:hover {
-          border-color: #3eb489;
-          box-shadow: 0 0 0 4px rgba(62, 180, 137, 0.12);
+          border-color: #0d9488;
+          box-shadow: 0 0 0 4px rgba(13,148,136,0.12);
         }
 
         .vehicle-model-dropdown:focus {
-          border-color: #3eb489;
-          box-shadow: 0 0 0 0.3rem rgba(62, 180, 137, 0.2);
+          border-color: #0d9488;
+          box-shadow: 0 0 0 0.3rem rgba(13,148,136,0.2);
           outline: none;
         }
 
         .btn-book-now {
-          background: linear-gradient(135deg, #3eb489 0%, #2a9d6f 100%);
+          background: linear-gradient(135deg, #0d9488 0%, #3b82f6 100%);
           color: white;
           transition: all 0.35s ease;
-          box-shadow: 0 6px 20px rgba(62, 180, 137, 0.3);
+          box-shadow: 0 6px 20px rgba(13,148,136,0.3);
         }
 
         .btn-book-now:hover {
-          background: linear-gradient(135deg, #2a9d6f 0%, #3eb489 100%);
+          background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
           transform: translateY(-4px);
-          box-shadow: 0 10px 30px rgba(62, 180, 137, 0.4);
+          box-shadow: 0 10px 30px rgba(13,148,136,0.4);
         }
       `}</style>
     </div>

@@ -72,13 +72,7 @@ export default function AboutUsPage() {
       bio: 'Crafting unique itineraries that showcase the best of Sri Lankan culture and nature.',
       color: '#8b5cf6'
     },
-    {
-      name: 'Dilini Jayawardena',
-      role: 'Guest Relations',
-      avatar: 'DJ',
-      bio: 'Dedicated to making every guest feel at home from arrival to departure.',
-      color: '#ec4899'
-    }
+
   ];
 
   const milestones = [
@@ -126,7 +120,7 @@ export default function AboutUsPage() {
       >
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Fade in timeout={1000}>
-            <Box textAlign="center" color="white" sx={{ 
+            <Box textAlign="center" color="white" sx={{
               textShadow: '2px 2px 8px rgba(0,0,0,0.7)',
               padding: 4,
               borderRadius: 2
@@ -442,7 +436,7 @@ export default function AboutUsPage() {
                         fontWeight: 'bold'
                       }}
                     >
-                      
+
                       {member.avatar}
                     </Avatar>
                   )}

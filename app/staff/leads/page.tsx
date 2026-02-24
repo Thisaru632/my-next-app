@@ -993,8 +993,10 @@ const LeadInfoPage: React.FC = () => {
                               label={lead.formType}
                               size="small"
                               sx={{
-                                background: mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
-                                color: mode === 'light' ? '#64748b' : '#94a3b8',
+                                background: mode === 'light'
+                                  ? 'linear-gradient(135deg, #475569 0%, #334155 100%)'
+                                  : 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
+                                color: '#ffffff',
                                 fontWeight: 600,
                                 fontSize: '0.8125rem',
                                 borderRadius: '6px',
