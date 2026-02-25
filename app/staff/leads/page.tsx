@@ -52,6 +52,7 @@ import {
   PhoneMissed as PhoneMissedIcon,
   Send as SendIcon,
   AssignmentInd as AssignmentIcon,
+  TableChart as TableChartIcon,
 } from '@mui/icons-material';
 
 // Types
@@ -75,6 +76,7 @@ interface Lead {
   customerEmail?: string;
   customId?: string;
   isViewed?: boolean;
+  matchedPackage?: any;
 }
 
 // Mock data
@@ -252,6 +254,7 @@ const LeadInfoPage: React.FC = () => {
               customId: booking.customId,
               isViewed: booking.isViewed || false,
               destinations: booking.destinations || [],
+              matchedPackage: booking.matchedPackage || null,
             }));
             allLeads = [...allLeads, ...mappedBookings];
           } catch (e) {
@@ -1294,6 +1297,30 @@ const LeadInfoPage: React.FC = () => {
                   </Typography>
                 </Box>
               </Box>
+
+              {/* Matched Package Details — only for booking leads */}
+              {selectedLead.source !== 'Contact Us' && selectedLead.matchedPackage && (
+                <Box sx={{ mt: 2, p: 2, borderRadius: '12px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '1px solid #b7e4c7' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <TableChartIcon sx={{ color: '#16a34a', fontSize: 18 }} />
+                    <Typography sx={{ fontSize: '0.8rem', color: '#166534', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selected Package Details</Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                    <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(22,101,52,0.1)' }}>
+                      <Typography sx={{ fontSize: '0.65rem', color: '#166534', fontWeight: 600, mb: 0.5, opacity: 0.8 }}>KM & HOURLY LIMIT</Typography>
+                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: '#065f46' }}>
+                        {selectedLead.matchedPackage.km} KM / {selectedLead.matchedPackage.hrs} HRS
+                      </Typography>
+                    </Box>
+                    <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(22,101,52,0.1)' }}>
+                      <Typography sx={{ fontSize: '0.65rem', color: '#166534', fontWeight: 600, mb: 0.5, opacity: 0.8 }}>BASE RATE (LKR)</Typography>
+                      <Typography sx={{ fontSize: '1.1rem', fontWeight: 900, color: '#166534' }}>
+                        {selectedLead.matchedPackage.rateAmount?.toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              )}
 
               {/* Route Section — only for booking leads */}
               {selectedLead.source !== 'Contact Us' && (

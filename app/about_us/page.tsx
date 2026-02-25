@@ -31,6 +31,7 @@ import {
   FlightTakeoff as AirportIcon,
   AutoAwesome as DiamondIcon,
   Security as SecurityIcon,
+  DirectionsCar,
 } from '@mui/icons-material';
 
 export default function AboutUsPage() {
@@ -43,19 +44,19 @@ export default function AboutUsPage() {
   };
 
   const stats = [
-    { number: '15+', label: 'Years Experience', icon: <TrophyIcon /> },
-    { number: '5000+', label: 'Happy Travelers', icon: <GroupIcon /> },
-    { number: '50+', label: 'Tour Packages', icon: <PackageIcon /> },
-    { number: '100%', label: 'Customer Satisfaction', icon: <SatisfactionIcon /> }
+    { number: '7+', label: 'Years Experience', icon: <TrophyIcon /> },
+    { number: '10,000+', label: 'Happy Travelers', icon: <GroupIcon /> },
+    { number: '1,000+', label: 'Registered Vehicles', icon: <DirectionsCar sx={{ fontSize: 28 }} /> },
+    { number: '24/7', label: 'Customer Support', icon: <SatisfactionIcon /> }
   ];
 
   const team = [
     {
-      name: 'Senura Perera',
-      role: 'Founder & CEO',
-      avatar: 'SP',
+      name: 'Udara Sampath Liyanage',
+      role: 'Founder & Managing Director',
+      avatar: 'UL',
       image: '/about/3.jpeg',
-      bio: 'With over 15 years in hospitality, Senura founded Senu Tours to share his passion for Sri Lanka.',
+      bio: 'A dynamic entrepreneur with a visionary outlook, Mr. Liyanage founded Senu Cabs & Tours with a commitment to redefining travel and transport services across Sri Lanka.',
       color: '#0d9488'
     },
     {
@@ -76,30 +77,46 @@ export default function AboutUsPage() {
   ];
 
   const milestones = [
-    { year: '2010', event: 'Senu Tours was founded with a single vehicle and a big dream' },
-    { year: '2013', event: 'Expanded fleet to 10 vehicles, serving 500+ annual travelers' },
-    { year: '2016', event: 'Launched luxury tour packages and corporate travel services' },
-    { year: '2019', event: 'Reached 3000+ satisfied customers milestone' },
-    { year: '2022', event: 'Introduced sustainable tourism initiatives and eco-friendly practices' },
-    { year: '2025', event: 'Celebrating 15 years of excellence with 5000+ happy travelers' }
+    { year: '2018', event: 'Senu Cabs & Tours was founded by Mr. Udara Sampath Liyanage with a vision for excellence' },
+    { year: '2020', event: 'Expanded fleet significantly to meet growing demand for reliable transport' },
+    { year: '2022', event: 'Evolved into a large-scale mobility provider serving island-wide travelers' },
+    { year: '2024', event: 'Became a total solution provider for both local and international travelers' },
+    { year: '2025', event: 'Continuing our commitment to providing safe, reliable, and premium travel experiences' }
   ];
 
   const whyChooseUs = [
     {
-      icon: <AirportIcon sx={{ fontSize: 60 }} />,
-      title: 'Local Expertise',
-      description: 'Born and raised in Sri Lanka, we know every hidden gem, authentic restaurant, and breathtaking viewpoint that guidebooks miss.'
+      icon: <DirectionsCar sx={{ fontSize: 60 }} />,
+      title: 'Unmatched Fleet',
+      description: 'We maintain a robust, island-wide fleet of over 1,000 vehicles. From luxury cars and comfortable passenger vans to large buses for group tours.'
+    },
+    {
+      icon: <GroupIcon sx={{ fontSize: 60 }} />,
+      title: 'Professional Drivers',
+      description: 'Our drivers are well trained, uniformed, and courteous, keeping your safety and comfort as their highest priority.'
     },
     {
       icon: <DiamondIcon sx={{ fontSize: 60 }} />,
-      title: 'Personalized Service',
-      description: 'No cookie-cutter tours here. We customize every journey to match your interests, pace, and preferences perfectly.'
+      title: 'Transparent & Hassle-Free',
+      description: 'We provide vehicles with drivers and fuel included, ensuring there are no hidden charges throughout your journey.'
     },
     {
-      icon: <SecurityIcon sx={{ fontSize: 60 }} />,
-      title: 'Safety First',
-      description: 'Modern vehicles, professional drivers, comprehensive insurance, and 24/7 support ensure your peace of mind throughout your journey.'
+      icon: <EcoIcon sx={{ fontSize: 60 }} />,
+      title: 'Value for Long Journeys',
+      description: 'We offer the most competitive rates in the market for long-distance trips, ensuring peace of mind throughout your vacation.'
+    },
+    {
+      icon: <AirportIcon sx={{ fontSize: 60 }} />,
+      title: 'Seamless Airport Transfers',
+      description: 'We provide 24/7 airport pickup and drop services, so your Sri Lankan adventure begins and ends smoothly without delays.'
     }
+  ];
+
+  const coreValues = [
+    { title: 'Customer First', desc: 'We design every journey around our clients\' convenience.', icon: <HeartIcon sx={{ color: '#0d9488' }} /> },
+    { title: 'Professionalism', desc: 'Our support staff and drivers deliver high quality, courteous service.', icon: <TrophyIcon sx={{ color: '#0d9488' }} /> },
+    { title: 'Safety & Reliability', desc: 'Every vehicle is maintained in top condition with full insurance coverage, ensuring a safe trip every time.', icon: <SecurityIcon sx={{ color: '#0d9488' }} /> },
+    { title: 'Flexibility', desc: 'We offer flexible, customizable packages to suit your specific itinerary.', icon: <EcoIcon sx={{ color: '#0d9488' }} /> }
   ];
 
   return (
@@ -126,10 +143,10 @@ export default function AboutUsPage() {
               borderRadius: 2
             }}>
               <Typography variant={isMobile ? 'h3' : 'h2'} fontWeight="bold" gutterBottom>
-                Your Journey, Our Passion
+                Discover the Beauty of Sri Lanka with Senu Cabs & Tours
               </Typography>
               <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ mb: 4, fontWeight: 300 }}>
-                Crafting unforgettable Sri Lankan experiences since 2018
+                Your Trusted Transport Partner Since 2018
               </Typography>
               <Box sx={{ width: 100, height: 4, bgcolor: '#14b8a6', mx: 'auto' }} />
             </Box>
@@ -196,6 +213,7 @@ export default function AboutUsPage() {
               <Tab label="Our Story" />
               <Tab label="Our Mission" />
               <Tab label="Our Vision" />
+              <Tab label="Core Values" />
             </Tabs>
           </Box>
 
@@ -206,17 +224,17 @@ export default function AboutUsPage() {
                   <Typography variant="h4" fontWeight="bold" gutterBottom color="primary">
                     Our Story
                   </Typography>
-                  <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
-                    Senu Tours was born from a simple yet profound love for Sri Lanka and a desire to share its magic with the world. Founded in 2010 by Senura Perera, what started as a one-vehicle operation has blossomed into one of Sri Lankas most trusted travel companions.
+                  <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary', textAlign: 'justify' }}>
+                    Established in 2018, Senu Cabs & Tours has grown into a trusted name in the Sri Lankan transport industry. What began as a small-scale service has rapidly evolved into a large-scale mobility provider known for reliability, safety, and a customer-focused approach.
                   </Typography>
-                  <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
-                    Growing up in the heart of Sri Lanka, Senura witnessed firsthand the islands breathtaking diversity—from misty mountain peaks to sun-kissed beaches, ancient temples to vibrant cities. He dreamed of creating a service that wouldnt just transport visitors, but would transform their journey into a deeply personal experience.
+                  <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary', textAlign: 'justify' }}>
+                    Founded by Mr. Udara Sampath Liyanage, a dynamic entrepreneur with a visionary outlook, our company is committed to redefining travel and transport services across the island. His leadership has been the driving force behind our rapid growth and reputation for excellence.
                   </Typography>
-                  <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
-                    Over the years, Senu Tours has grown, but our core values remain unchanged. Were not just a tour company; were your local friends, your cultural guides, and your gateway to authentic Sri Lankan hospitality. Every journey we craft is infused with the warmth, care, and attention to detail that has become our signature.
+                  <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary', textAlign: 'justify' }}>
+                    Today, we are proud to be a total solution provider, adapting to the diverse needs of both local holidaymakers and international travelers exploring our beautiful country. Our success is built on the foundation of trust we have earned from our clients through years of dedicated service.
                   </Typography>
-                  <Typography variant="body1" sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
-                    Today, with a fleet of modern vehicles, a team of passionate professionals, and thousands of happy memories created, we continue our mission: to make every traveler feel at home while exploring the wonders of our beautiful island.
+                  <Typography variant="body1" sx={{ lineHeight: 1.8, color: 'text.secondary', textAlign: 'justify' }}>
+                    Whether you are seeking a quick airport transfer or an extensive island-wide tour, we continue our journey with the same passion that started it all: ensuring every traveler experiences the best of Sri Lanka with comfort and peace of mind.
                   </Typography>
                 </Box>
               )}
@@ -227,7 +245,7 @@ export default function AboutUsPage() {
                     Our Mission
                   </Typography>
                   <Typography variant="h6" sx={{ mb: 3, color: '#0d9488', fontWeight: 600 }}>
-                    To create transformative travel experiences that connect people with the authentic heart of Sri Lanka.
+                    To provide convenient, affordable, and customized vehicle services with professionalism and care, while continuously upgrading our services to meet the evolving needs of our travelers.
                   </Typography>
                   <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
                     We believe travel is more than just visiting places—its about creating meaningful connections, understanding different cultures, and making memories that last a lifetime. Our mission is to:
@@ -257,10 +275,24 @@ export default function AboutUsPage() {
                     Our Vision
                   </Typography>
                   <Typography variant="h6" sx={{ mb: 3, color: '#0d9488', fontWeight: 600 }}>
-                    To be Sri Lankas most beloved and trusted travel companion, recognized globally for excellence, authenticity, and sustainable tourism.
+                    To be the most dependable and customer-preferred transport solutions provider in Sri Lanka recognized for safety, innovation, and excellence.
                   </Typography>
                   <Typography variant="body1" paragraph sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
-                    We envision a future where Senu Tours is synonymous with exceptional Sri Lankan experiences. A future where:
+                    We envision a future where Senu Cabs & Tours is synonymous with exceptional Sri Lankan experiences. Our goal is to set the gold standard in the mobility industry, ensuring that every passenger—whether a local commuter or an international explorer—receives the highest level of care and reliability.
+                  </Typography>
+                  <Typography variant="body1" sx={{ lineHeight: 1.8, color: 'text.secondary' }}>
+                    By continuously integrating modern technology, maintaining a world-class fleet, and fostering a culture of service excellence, we aim to be the first choice for anyone seeking to discover the wonders of Sri Lanka.
+                  </Typography>
+                </Box>
+              )}
+
+              {activeTab === 3 && (
+                <Box>
+                  <Typography variant="h4" fontWeight="bold" gutterBottom color="primary">
+                    Our Core Values
+                  </Typography>
+                  <Typography variant="h6" sx={{ mb: 3, color: '#0d9488', fontWeight: 600 }}>
+                    The principles that guide our journey and define our commitment to you.
                   </Typography>
                   <Box
                     sx={{
@@ -270,25 +302,20 @@ export default function AboutUsPage() {
                       mt: 2
                     }}
                   >
-                    {[
-                      { title: '🌍 Global Recognition', desc: 'Travelers worldwide choose Senu Tours as their first choice for exploring Sri Lanka, recommended by friends and recognized for our unwavering commitment to quality.' },
-                      { title: '🌿 Sustainability Leadership', desc: 'We lead the industry in eco-friendly practices, protecting Sri Lanka\'s natural beauty while supporting local communities and creating positive environmental impact.' },
-                      { title: '✨ Innovation in Travel', desc: 'We continuously innovate, incorporating technology and creative solutions to enhance the travel experience while maintaining the personal touch that makes us special.' },
-                      { title: '❤️ Community Impact', desc: 'Our success translates directly into thriving local communities, empowered employees, and preserved cultural heritage for future generations.' }
-                    ].map((vision, idx) => (
-                      <Paper elevation={2} sx={{ p: 3, height: '100%', bgcolor: '#f0fdfa' }} key={idx}>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                          {vision.title}
-                        </Typography>
+                    {coreValues.map((value, idx) => (
+                      <Paper elevation={2} sx={{ p: 3, height: '100%', bgcolor: '#f0fdfa', borderRadius: '16px', border: '1px solid rgba(13,148,136,0.1)' }} key={idx}>
+                        <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {value.icon}
+                          <Typography variant="subtitle1" fontWeight="bold" color="#2D231B">
+                            {value.title}
+                          </Typography>
+                        </Box>
                         <Typography variant="body2" color="text.secondary">
-                          {vision.desc}
+                          {value.desc}
                         </Typography>
                       </Paper>
                     ))}
                   </Box>
-                  <Typography variant="body1" sx={{ lineHeight: 1.8, color: 'text.secondary', mt: 3 }}>
-                    This vision drives us forward every day, inspiring us to raise the bar, challenge ourselves, and never settle for anything less than extraordinary.
-                  </Typography>
                 </Box>
               )}
             </Paper>
@@ -390,8 +417,11 @@ export default function AboutUsPage() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-            gap: 4
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+            gap: 4,
+            justifyContent: 'center',
+            maxWidth: '1000px',
+            mx: 'auto'
           }}
         >
           {team.map((member, index) => (
@@ -471,10 +501,10 @@ export default function AboutUsPage() {
         <Container maxWidth="lg">
           <Box textAlign="center" mb={6}>
             <Typography variant="h3" fontWeight="bold" gutterBottom>
-              Why Choose Senu Tours?
+              Why Travel With Us?
             </Typography>
             <Typography variant="h6" sx={{ opacity: 0.9 }}>
-              Experience the difference that makes us Sri Lankas trusted travel partner
+              Whether you are planning a short day trip or an extensive island-wide tour, we build services that fit your unique needs.
             </Typography>
           </Box>
 
@@ -482,7 +512,8 @@ export default function AboutUsPage() {
             sx={{
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-              gap: 4
+              gap: 4,
+              mb: 8
             }}
           >
             {whyChooseUs.map((item, index) => (

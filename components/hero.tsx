@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -44,6 +44,247 @@ const SLIDES = [
 ];
 
 const INTERVAL_MS = 6000;
+
+// ---------------------------------------------------------------------------
+// LocationInput — Nominatim Autocomplete
+// ---------------------------------------------------------------------------
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  class: string;   // e.g. "place", "boundary", "amenity", "shop", …
+  type: string;    // e.g. "city", "town", "village", "hamlet", …
+}
+
+/* Filter Nominatim results to show ONLY cities, villages, waterfalls, and temples.
+   Strictly excludes roads and highways to prevent compound names like 'Rathnapura-Matara Road'. */
+const isRelevantResult = (r: NominatimResult) => {
+  if (!r) return false;
+
+  const type = r.type.toLowerCase();
+  const cls = r.class.toLowerCase();
+  const displayName = r.display_name.toLowerCase();
+  const primaryName = r.display_name.split(',')[0].toLowerCase();
+
+  // 1. Specific Target: Transport Hubs (Bus Stands, Stations, Airports)
+  const isTransport =
+    ['bus_station', 'bus_stop', 'railway_station', 'aerodrome', 'airport'].includes(type) ||
+    displayName.includes('bus stand') ||
+    displayName.includes('bus station');
+
+  // 2. HARD BLOCK: No general roads, information points, shops, or offices
+  if (!isTransport) {
+    if (
+      cls === 'highway' ||
+      cls === 'shop' ||
+      cls === 'office' ||
+      cls === 'industrial' ||
+      type === 'information' || // Excludes "Rathnapura-Matara" type route signs
+      type === 'map' ||
+      type.includes('road') ||
+      displayName.includes(' road')
+    ) {
+      return false;
+    }
+
+    // Additional check for compound road names like "Rathnapura-Matara"
+    if (primaryName.includes('-') && !['city', 'town', 'village'].includes(type)) {
+      return false;
+    }
+  }
+
+  // 3. Settlement Check: Cities, Villages, Suburbs
+  const settlementTypes = ['city', 'town', 'village', 'hamlet', 'suburb', 'neighbourhood', 'municipality', 'administrative'];
+  const isSettlement = settlementTypes.includes(type) || cls === 'place';
+
+  // 4. Landmark Check: Waterfalls, Temples, Tourism points
+  const isWaterfall = type === 'waterfall' || displayName.includes('waterfall') || (cls === 'natural' && type === 'waterfall');
+  const isTemple = type === 'place_of_worship' || type.includes('temple') || displayName.includes(' temple');
+  const isTourism = (cls === 'tourism' && type !== 'information') || ['attraction', 'viewpoint', 'museum', 'hotel'].includes(type);
+
+  // Exclude very high-level entities (Country/State)
+  if (['country', 'state', 'province', 'continent', 'region'].includes(type)) return false;
+
+  return isSettlement || isWaterfall || isTemple || isTourism || isTransport;
+};
+
+function LocationInput({
+  value,
+  onChange,
+  onSelect,
+  onManualType,
+  placeholder,
+  inputStyle,
+  onFocusStyle,
+  onBlurStyle,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onSelect?: (lat: string, lon: string) => void;
+  onManualType?: () => void;  // fired ONLY when user types, not when suggestion clicked
+  placeholder: string;
+  inputStyle: React.CSSProperties;
+  onFocusStyle: React.CSSProperties;
+  onBlurStyle: React.CSSProperties;
+}) {
+  const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [coordsConfirmed, setCoordsConfirmed] = useState(false);
+  const [activeStyle, setActiveStyle] = useState<React.CSSProperties>(inputStyle);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const coordsSetRef = useRef(false); // tracks if onSelect has been called
+
+  /* Close dropdown when clicking outside */
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (query.trim().length < 1) { setSuggestions([]); setShowDropdown(false); return; }
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+    setLoading(true);
+    try {
+      /* Use our own Next.js proxy to avoid CORS with Nominatim */
+      const url = `/api/geocode?q=${encodeURIComponent(query)}`;
+      const res = await fetch(url, { signal: abortRef.current.signal });
+      if (!res.ok) throw new Error(`Geocode HTTP ${res.status}`);
+      const raw: NominatimResult[] = await res.json();
+      /* Filter out junk but keep most relevant geocoded items */
+      const data = raw.filter(isRelevantResult).slice(0, 8);
+      setSuggestions(data);
+      setShowDropdown(data.length > 0);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    onChange(val);
+    coordsSetRef.current = false; // user is typing again — coords no longer valid
+    setCoordsConfirmed(false);
+    onManualType?.();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 220);
+  };
+
+  const handleSelect = (result: NominatimResult) => {
+    const clean = result.display_name.split(',')[0].trim();
+    onChange(clean);
+    onSelect?.(result.lat, result.lon); // pass coords to parent
+    coordsSetRef.current = true;
+    setCoordsConfirmed(true);
+    setSuggestions([]);
+    setShowDropdown(false);
+  };
+
+  /* Auto-resolve: when user leaves the field without clicking a suggestion,
+     silently geocode the typed text and pick the top result */
+  const handleBlur = async () => {
+    setActiveStyle(onBlurStyle);
+    setShowDropdown(false);
+    if (coordsSetRef.current || !value.trim()) return; // already resolved
+    try {
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(value.trim())}`);
+      if (!res.ok) return;
+      const raw: NominatimResult[] = await res.json();
+      /* Pick the best match even if spelling was slightly off */
+      const top = raw.find(isRelevantResult);
+      if (top) {
+        console.log('[AutoCorrect] Resolving:', top.display_name);
+        // Automatically correct the text to the official name
+        const officialName = top.display_name.split(',')[0].trim();
+        onChange(officialName);
+        onSelect?.(top.lat, top.lon);
+        coordsSetRef.current = true;
+        setCoordsConfirmed(true);
+      }
+    } catch { /* silently ignore */ }
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', flex: 1 }}>
+      <input
+        type="text"
+        value={value}
+        onChange={handleInput}
+        placeholder={placeholder}
+        autoComplete="off"
+        style={{ ...inputStyle, ...activeStyle, width: '100%', boxSizing: 'border-box', paddingRight: coordsConfirmed ? '32px' : undefined }}
+        onFocus={() => {
+          setActiveStyle(onFocusStyle);
+          if (value.trim().length >= 1) setShowDropdown(suggestions.length > 0);
+        }}
+        onBlur={handleBlur}
+      />
+      {/* Green tick when coords confirmed */}
+      {coordsConfirmed && (
+        <div style={{
+          position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+          color: '#22c55e', fontSize: '14px', fontWeight: 700, lineHeight: 1,
+          pointerEvents: 'none',
+        }}>✓</div>
+      )}
+      {/* Loading indicator */}
+      {loading && (
+        <div style={{
+          position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+          width: '14px', height: '14px', border: '2px solid rgba(13,148,136,0.3)',
+          borderTop: '2px solid #0d9488', borderRadius: '50%',
+          animation: 'loc-spin 0.7s linear infinite',
+        }} />
+      )}
+      {/* Suggestions dropdown */}
+      {showDropdown && suggestions.length > 0 && (
+        <ul style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+          background: '#ffffff', border: '1.5px solid rgba(13,148,136,0.25)',
+          borderRadius: '10px', boxShadow: '0 8px 28px rgba(0,0,0,0.14)',
+          zIndex: 9999, margin: 0, padding: '4px 0', listStyle: 'none',
+          maxHeight: '210px', overflowY: 'auto',
+        }}>
+          {suggestions.map((s) => (
+            <li
+              key={s.place_id}
+              onMouseDown={() => handleSelect(s)}
+              style={{
+                padding: '9px 14px', cursor: 'pointer', fontSize: '0.78rem',
+                fontFamily: "'Montserrat', sans-serif", color: '#1a1a1a', lineHeight: 1.4,
+                borderBottom: '1px solid rgba(0,0,0,0.05)',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(13,148,136,0.08)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <span style={{ color: '#0d9488', fontWeight: 600 }}>
+                {s.display_name.split(',')[0].trim()}
+              </span>
+              <span style={{ color: '#9ca3af', marginLeft: '6px', fontSize: '0.71rem' }}>
+                {s.display_name.split(',').slice(1, 3).join(',').trim()}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <style>{`
+        @keyframes loc-spin { to { transform: translateY(-50%) rotate(360deg); } }
+      `}</style>
+    </div>
+  );
+}
 
 const vehicleTypes = [
   {
@@ -116,6 +357,23 @@ const sampleVehicles = {
   }
 };
 
+interface LatLon { lat: string; lon: string; }
+
+interface RateCard {
+  _id: string;
+  type: string;
+  vehicle: string;
+  days: number;
+  km: number;
+  hrs: number;
+  ratePercent: string;
+  rateAmount: number;
+  extraKMRate: number;
+  extraHrRate1: number;
+  extraHrRate2: number;
+  status: string;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -144,17 +402,99 @@ export default function HeroSection() {
   // Intermediate destinations state
   const [destinations, setDestinations] = useState<string[]>([]);
 
+  // Coordinate state for route calculation
+  const [pickupCoords, setPickupCoords] = useState<LatLon | null>(null);
+  const [dropoffCoords, setDropoffCoords] = useState<LatLon | null>(null);
+  const [stopCoords, setStopCoords] = useState<(LatLon | null)[]>([]);
+
+  // Route distance state
+  const [routeDistance, setRouteDistance] = useState<number | null>(null);
+  const [routeDuration, setRouteDuration] = useState<number | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+
+  // Rate Cards state
+  const [rateCards, setRateCards] = useState<RateCard[]>([]);
+
+  // Fetch Rate Cards
+  useEffect(() => {
+    const fetchRateCards = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.RATE_CARDS);
+        if (response.ok) {
+          const data = await response.json();
+          setRateCards(data);
+        }
+      } catch (error) {
+        console.error('Error fetching rate cards:', error);
+      }
+    };
+    fetchRateCards();
+  }, []);
+
   const addDestination = () => {
     setDestinations((prev) => [...prev, '']);
+    setStopCoords((prev) => [...prev, null]);
   };
 
   const removeDestination = (index: number) => {
     setDestinations((prev) => prev.filter((_, i) => i !== index));
+    setStopCoords((prev) => prev.filter((_, i) => i !== index));
   };
 
   const updateDestination = (index: number, value: string) => {
     setDestinations((prev) => prev.map((d, i) => (i === index ? value : d)));
+    // Clear coord for this stop when text changes manually
+    setStopCoords((prev) => prev.map((c, i) => (i === index ? null : c)));
   };
+
+  /* ── OSRM route calculation ── */
+  useEffect(() => {
+    if (!pickupCoords || !dropoffCoords) {
+      setRouteDistance(null);
+      setRouteDuration(null);
+      return;
+    }
+    // Build waypoints array: pickup → intermediate stops with coords → dropoff
+    const waypoints: LatLon[] = [
+      pickupCoords,
+      ...stopCoords.filter((c): c is LatLon => c !== null),
+      dropoffCoords,
+    ];
+    // OSRM expects: lon,lat;lon,lat;...
+    const coordStr = waypoints.map((w) => `${w.lon},${w.lat}`).join(';');
+    /* Use our Next.js proxy to avoid CORS with OSRM */
+    const osrmUrl = `/api/osrm?coords=${encodeURIComponent(coordStr)}`;
+    console.log('[Route] Fetching OSRM via proxy:', osrmUrl);
+
+    let cancelled = false;
+    setRouteLoading(true);
+    fetch(osrmUrl, { headers: { 'Accept': 'application/json' } })
+      .then((r) => {
+        if (!r.ok) throw new Error(`OSRM HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        console.log('[Route] OSRM response:', data);
+        if (data.code === 'Ok' && data.routes?.length > 0) {
+          setRouteDistance(data.routes[0].distance); // metres
+          setRouteDuration(data.routes[0].duration); // seconds
+        } else {
+          console.warn('[Route] OSRM returned no route:', data.code);
+          setRouteDistance(null);
+          setRouteDuration(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error('[Route] OSRM error:', err);
+          setRouteDistance(null);
+        }
+      })
+      .finally(() => { if (!cancelled) setRouteLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [pickupCoords, dropoffCoords, stopCoords]);
 
   const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
   const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
@@ -245,6 +585,8 @@ export default function HeroSection() {
     setFormData((prev) => ({
       ...prev,
       tripType: tripTypeName,
+      // If trip type is 'Drop', we default to 1 day and lock it
+      numberOfDays: tripTypeName === 'Drop' ? 1 : prev.numberOfDays,
     }));
     setOpenTripTypeDialog(false);
   };
@@ -267,6 +609,7 @@ export default function HeroSection() {
         body: JSON.stringify({
           ...formData,
           destinations: destinations.filter((d) => d.trim() !== ''),
+          matchedPackage: matchedPackage,
         }),
       });
 
@@ -290,6 +633,11 @@ export default function HeroSection() {
           maxBags: 0,
         });
         setDestinations([]);
+        setPickupCoords(null);
+        setDropoffCoords(null);
+        setStopCoords([]);
+        setRouteDistance(null);
+        setRouteDuration(null);
       } else {
         const errorData = await response.json();
         setSnackbarMessage(errorData.message || 'Failed to send booking request.');
@@ -306,13 +654,110 @@ export default function HeroSection() {
 
   const currentCategoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles] || { models: [] };
 
+  // --- Dynamic Pricing Logic from Rate Card ---
+  const distanceInKm = routeDistance ? ((routeDistance / 1000) * (formData.tripType === 'Return' ? 2 : 1)) : 0;
+
+  const matchedPackage = (() => {
+    if (!formData.vehicleType || !formData.tripType) return null;
+
+    // Filter by vehicle (check both Model Name and Category), type, and days
+    const potentialCards = rateCards.filter(card => {
+      const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+      const cleanFormVehType = formData.vehicleType.toLowerCase().replace(/\s+/g, '').trim();
+
+      const vehicleMatch =
+        cleanCardVeh === cleanFormVehName ||
+        cleanCardVeh === cleanFormVehType ||
+        cleanFormVehName.includes(cleanCardVeh) ||
+        cleanCardVeh.includes(cleanFormVehName);
+
+      const cleanCardType = card.type.toLowerCase().trim();
+      const cleanFormType = formData.tripType.toLowerCase().trim();
+
+      const typeMatch =
+        cleanCardType === cleanFormType ||
+        (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) ||
+        (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
+
+      const dayMatch = Number(card.days) === Number(formData.numberOfDays);
+
+      return vehicleMatch && typeMatch && dayMatch;
+    });
+
+    if (potentialCards.length === 0) {
+      console.log('[Pricing] No matching rate cards found for:', {
+        vehicle: formData.vehicleName,
+        category: formData.vehicleType,
+        type: formData.tripType,
+        days: formData.numberOfDays
+      });
+      return null;
+    }
+
+    // Sort by KM ascending, and then by Hours ascending to find the best fit
+    const sortedCards = potentialCards.sort((a, b) => {
+      if (a.km !== b.km) return a.km - b.km;
+      return a.hrs - b.hrs; // Priority: smaller hours among same KM
+    });
+
+    // If we have distance, find the package that covers it (next recent package)
+    if (routeDistance !== null) {
+      const coverMatch = sortedCards.find(card => card.km >= distanceInKm);
+      const bestMatch = coverMatch || sortedCards[sortedCards.length - 1];
+      console.log('[Pricing] Successfully matched rate card:', bestMatch);
+      return bestMatch;
+    }
+
+    // Default to first package if distance not yet available
+    return sortedCards[0];
+  })();
+
+  const minKmRequired = (() => {
+    if (!formData.vehicleType || !formData.tripType || rateCards.length === 0) return 0;
+    const potentialCards = rateCards.filter(card => {
+      const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+      const cleanFormVehType = formData.vehicleType.toLowerCase().replace(/\s+/g, '').trim();
+
+      const vehicleMatch = cleanCardVeh === cleanFormVehName || cleanCardVeh === cleanFormVehType ||
+        cleanFormVehName.includes(cleanCardVeh) || cleanCardVeh.includes(cleanFormVehName);
+
+      const cleanCardType = card.type.toLowerCase().trim();
+      const cleanFormType = formData.tripType.toLowerCase().trim();
+      const typeMatch = cleanCardType === cleanFormType ||
+        (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) ||
+        (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
+
+      const dayMatch = Number(card.days) === Number(formData.numberOfDays);
+      return vehicleMatch && typeMatch && dayMatch;
+    });
+
+    if (potentialCards.length === 0) return 0;
+    return Math.min(...potentialCards.map(c => c.km));
+  })();
+
   const basePricePerDay =
     formData.vehicleType === 'Car' ? 15000 :
       formData.vehicleType === 'Van' ? 18000 :
         formData.vehicleType === 'Bus' ? 35000 :
           formData.vehicleType === 'SUV' ? 25000 : 0;
 
-  const totalPrice = basePricePerDay * formData.numberOfDays;
+  const ratePerKm =
+    formData.vehicleType === 'Car' ? 110 :
+      formData.vehicleType === 'Van' ? 160 :
+        formData.vehicleType === 'Bus' ? 450 :
+          formData.vehicleType === 'SUV' ? 250 : 0;
+
+  const estimatedRoutePrice = distanceInKm * ratePerKm;
+
+  // Final Price Selection
+  // Use matched package rate if available, otherwise fall back to old logic
+  const displayPrice = matchedPackage
+    ? matchedPackage.rateAmount
+    : (routeDistance !== null ? estimatedRoutePrice : (basePricePerDay * formData.numberOfDays));
+
+  const totalPrice = Math.round(displayPrice);
 
   // -----------------------------------------------------------------------
   // Render
@@ -409,11 +854,12 @@ export default function HeroSection() {
             </p>
           </div>
 
-          {/* Booking Form Card */}
+          {/* Container for form and summary side-by-side */}
           <div
-            className="flex justify-center mt-1 sm:mt-2 mb-2 sm:mb-4"
+            className="flex flex-col lg:flex-row justify-center items-start gap-6 mt-1 sm:mt-2 mb-2 sm:mb-4 w-full"
             style={{ animation: "fadeInUp 1s ease-out 0.3s both" }}
           >
+            {/* Booking Form Card */}
             <div
               className="booking-form-card w-full max-w-lg rounded-xl px-4 sm:px-5 py-4 sm:py-8 text-left"
               style={{
@@ -422,6 +868,7 @@ export default function HeroSection() {
                 WebkitBackdropFilter: "blur(24px) saturate(180%)",
                 border: "1px solid rgba(255,255,255,0.45)",
                 boxShadow: "0 8px 40px 0 rgba(31, 38, 135, 0.14)",
+                flexShrink: 0,
               }}
             >
               {/* Header */}
@@ -434,7 +881,7 @@ export default function HeroSection() {
                     color: "#000000",
                   }}
                 >
-                  Book Your Journey
+                  Request a Quote For Your Journey
                 </h3>
                 <p
                   className="hidden sm:block"
@@ -545,90 +992,9 @@ export default function HeroSection() {
                   ))}
                 </div>
 
-                {formData.vehicleName && (
-                  <div style={{ marginTop: "0.6rem" }}>
-                    <div
-                      style={{
-                        padding: "0.5rem 0.8rem",
-                        background: "rgba(13,148,136,0.12)",
-                        backdropFilter: "blur(12px)",
-                        border: "1.5px solid rgba(13,148,136,0.45)",
-                        borderRadius: "16px",
-                        marginBottom: "0.5rem",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontFamily: "'Montserrat', sans-serif",
-                          fontSize: "0.72rem",
-                          color: "#000000",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {formData.vehicleType} - {formData.vehicleName}
-                        {formData.tripType && ` • ${formData.tripType}`}
-                      </span>
-                    </div>
-
-                    {/* Max Persons and Max Bags Display */}
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <div
-                        style={{
-                          flex: 1,
-                          padding: "0.4rem 0.7rem",
-                          background: "rgba(255,255,255,0.18)",
-                          backdropFilter: "blur(12px)",
-                          border: "1.5px solid rgba(255,255,255,0.45)",
-                          borderRadius: "10px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "0.4rem",
-                        }}
-                      >
-                        <span style={{ fontSize: "1rem" }}>👥</span>
-                        <span
-                          style={{
-                            fontFamily: "'Montserrat', sans-serif",
-                            fontSize: "0.7rem",
-                            color: "#000000",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Max {formData.maxPersons} {formData.maxPersons === 1 ? 'Person' : 'Persons'}
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          flex: 1,
-                          padding: "0.4rem 0.7rem",
-                          background: "rgba(255,255,255,0.18)",
-                          backdropFilter: "blur(12px)",
-                          border: "1.5px solid rgba(255,255,255,0.45)",
-                          borderRadius: "10px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: "0.4rem",
-                        }}
-                      >
-                        <span style={{ fontSize: "1rem" }}>🧳</span>
-                        <span
-                          style={{
-                            fontFamily: "'Montserrat', sans-serif",
-                            fontSize: "0.7rem",
-                            color: "#000000",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Max {formData.maxBags} {formData.maxBags === 1 ? 'Bag' : 'Bags'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
+
+
 
               {/* Pickup + Destinations + Dropoff Timeline */}
               <div className="mb-4">
@@ -676,32 +1042,66 @@ export default function HeroSection() {
                     }}>
                       <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "white" }} />
                     </div>
-                    <input
-                      type="text"
-                      value={formData.pickupLocation}
-                      onChange={(e) => handleChange('pickupLocation', e.target.value)}
-                      placeholder="Pickup location"
-                      style={{
-                        flex: 1,
-                        padding: "0.6rem 0.85rem",
-                        background: "rgba(34,197,94,0.1)",
-                        backdropFilter: "blur(12px)",
-                        border: "1.5px solid rgba(34,197,94,0.4)",
-                        borderRadius: "8px",
-                        color: "#000000",
-                        fontFamily: "'Montserrat', sans-serif",
-                        fontSize: "0.82rem",
-                        outline: "none",
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.background = "rgba(34,197,94,0.18)";
-                        e.currentTarget.style.borderColor = "#22c55e";
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.background = "rgba(34,197,94,0.1)";
-                        e.currentTarget.style.borderColor = "rgba(34,197,94,0.4)";
-                      }}
-                    />
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <LocationInput
+                        value={formData.pickupLocation}
+                        onChange={(val) => handleChange('pickupLocation', val)}
+                        onSelect={(lat, lon) => { console.log('[Pickup] coords:', lat, lon); setPickupCoords({ lat, lon }); }}
+                        onManualType={() => { setPickupCoords(null); setRouteDistance(null); }}
+                        placeholder="Pickup location"
+                        inputStyle={{
+                          flex: 1,
+                          padding: "0.6rem 0.85rem",
+                          background: "rgba(34,197,94,0.1)",
+                          backdropFilter: "blur(12px)",
+                          border: "1.5px solid rgba(34,197,94,0.4)",
+                          borderRadius: "8px",
+                          color: "#000000",
+                          fontFamily: "'Montserrat', sans-serif",
+                          fontSize: "0.82rem",
+                          outline: "none",
+                        }}
+                        onFocusStyle={{ background: "rgba(34,197,94,0.18)", borderColor: "#22c55e" }}
+                        onBlurStyle={{ background: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.4)" }}
+                      />
+                      {/* RELOCATED SMALL ADD DESTINATION BUTTON INSIDE FIELD */}
+                      <button
+                        onClick={addDestination}
+                        title="Add Stop"
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: '26px',
+                          height: '26px',
+                          borderRadius: '8px',
+                          background: 'rgba(13,148,136,1)',
+                          border: 'none',
+                          color: 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          fontSize: '1.2rem',
+                          fontWeight: 700,
+                          zIndex: 10,
+                          transition: 'all 0.2s ease',
+                          padding: 0,
+                          lineHeight: 1,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#0f766e';
+                          e.currentTarget.style.transform = 'translateY(-50%) scale(1.05)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#0d9488';
+                          e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
 
                   {/* INTERMEDIATE DESTINATIONS */}
@@ -724,12 +1124,12 @@ export default function HeroSection() {
                       }}>
                         {index + 1}
                       </div>
-                      <input
-                        type="text"
+                      <LocationInput
                         value={dest}
-                        onChange={(e) => updateDestination(index, e.target.value)}
+                        onChange={(val) => updateDestination(index, val)}
+                        onSelect={(lat, lon) => setStopCoords((prev) => prev.map((c, i) => i === index ? { lat, lon } : c))}
                         placeholder={`Stop ${index + 1}`}
-                        style={{
+                        inputStyle={{
                           flex: 1,
                           padding: "0.6rem 0.85rem",
                           background: "rgba(13,148,136,0.08)",
@@ -741,14 +1141,8 @@ export default function HeroSection() {
                           fontSize: "0.82rem",
                           outline: "none",
                         }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.background = "rgba(13,148,136,0.15)";
-                          e.currentTarget.style.borderColor = "#0d9488";
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.background = "rgba(13,148,136,0.08)";
-                          e.currentTarget.style.borderColor = "rgba(13,148,136,0.3)";
-                        }}
+                        onFocusStyle={{ background: "rgba(13,148,136,0.15)", borderColor: "#0d9488" }}
+                        onBlurStyle={{ background: "rgba(13,148,136,0.08)", borderColor: "rgba(13,148,136,0.3)" }}
                       />
                       <button
                         onClick={() => removeDestination(index)}
@@ -783,42 +1177,6 @@ export default function HeroSection() {
                     </div>
                   ))}
 
-                  {/* ADD DESTINATION button */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", position: "relative", zIndex: 1 }}>
-                    <div style={{ width: "24px", flexShrink: 0 }} />
-                    <button
-                      onClick={addDestination}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.4rem",
-                        padding: "0.45rem 0.85rem",
-                        background: "rgba(13,148,136,0.08)",
-                        border: "1.5px dashed rgba(13,148,136,0.5)",
-                        borderRadius: "8px",
-                        color: "#0f766e",
-                        fontFamily: "'Montserrat', sans-serif",
-                        fontSize: "0.73rem",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        letterSpacing: "0.03em",
-                        transition: "all 0.2s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "rgba(13,148,136,0.18)";
-                        e.currentTarget.style.borderColor = "rgba(13,148,136,0.9)";
-                        e.currentTarget.style.color = "#0d9488";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "rgba(13,148,136,0.08)";
-                        e.currentTarget.style.borderColor = "rgba(13,148,136,0.5)";
-                        e.currentTarget.style.color = "#0f766e";
-                      }}
-                    >
-                      <span style={{ fontSize: "1rem", lineHeight: 1 }}>+</span>
-                      ADD DESTINATION
-                    </button>
-                  </div>
 
                   {/* DROPOFF */}
                   <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", position: "relative", zIndex: 1 }}>
@@ -835,12 +1193,13 @@ export default function HeroSection() {
                     }}>
                       <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "white" }} />
                     </div>
-                    <input
-                      type="text"
+                    <LocationInput
                       value={formData.dropoffLocation}
-                      onChange={(e) => handleChange('dropoffLocation', e.target.value)}
+                      onChange={(val) => handleChange('dropoffLocation', val)}
+                      onSelect={(lat, lon) => { console.log('[Dropoff] coords:', lat, lon); setDropoffCoords({ lat, lon }); }}
+                      onManualType={() => { setDropoffCoords(null); setRouteDistance(null); }}
                       placeholder="Drop-off location"
-                      style={{
+                      inputStyle={{
                         flex: 1,
                         padding: "0.6rem 0.85rem",
                         background: "rgba(239,68,68,0.08)",
@@ -852,19 +1211,13 @@ export default function HeroSection() {
                         fontSize: "0.82rem",
                         outline: "none",
                       }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.background = "rgba(239,68,68,0.15)";
-                        e.currentTarget.style.borderColor = "#ef4444";
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.background = "rgba(239,68,68,0.08)";
-                        e.currentTarget.style.borderColor = "rgba(239,68,68,0.35)";
-                      }}
+                      onFocusStyle={{ background: "rgba(239,68,68,0.15)", borderColor: "#ef4444" }}
+                      onBlurStyle={{ background: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.35)" }}
                     />
-                  </div>
+                  </div>{/* end of dropoff row */}
 
-                </div>
-              </div>
+                </div>{/* end of timeline container */}
+              </div>{/* end of mb-4 route section */}
 
               {/* Date and Days */}
               <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
@@ -927,119 +1280,279 @@ export default function HeroSection() {
                   <input
                     type="number"
                     min="1"
+                    disabled={formData.tripType === 'Drop'}
                     value={formData.numberOfDays}
                     onChange={(e) => handleChange('numberOfDays', Math.max(1, parseInt(e.target.value) || 1))}
                     style={{
                       width: "100%",
                       padding: "0.7rem 0.9rem",
-                      background: "rgba(255,255,255,0.16)",
+                      background: formData.tripType === 'Drop' ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.16)",
                       backdropFilter: "blur(12px)",
                       border: "1.5px solid rgba(255,255,255,0.45)",
                       borderRadius: "7px",
-                      color: "#000000",
+                      color: formData.tripType === 'Drop' ? "rgba(0,0,0,0.4)" : "#000000",
                       fontFamily: "'Montserrat', sans-serif",
                       fontSize: "0.88rem",
                       outline: "none",
+                      cursor: formData.tripType === 'Drop' ? "not-allowed" : "text",
+                      opacity: formData.tripType === 'Drop' ? 0.6 : 1,
                     }}
                     onFocus={(e) => {
-                      e.currentTarget.style.background = "rgba(13,148,136,0.1)";
-                      e.currentTarget.style.borderColor = "#0d9488";
+                      if (formData.tripType !== 'Drop') {
+                        e.currentTarget.style.background = "rgba(13,148,136,0.1)";
+                        e.currentTarget.style.borderColor = "#0d9488";
+                      }
                     }}
                     onBlur={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.16)";
-                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)";
+                      if (formData.tripType !== 'Drop') {
+                        e.currentTarget.style.background = "rgba(255,255,255,0.16)";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)";
+                      }
                     }}
                   />
                 </div>
               </div>
 
-              {totalPrice > 0 && (
-                <div
-                  style={{
-                    background: "rgba(13,148,136,0.12)",
-                    backdropFilter: "blur(12px)",
-                    border: "1.5px solid rgba(13,148,136,0.40)",
-                    borderRadius: "7px",
-                    padding: "0.35rem 0.9rem",
-                    marginBottom: "0.75rem",
-                    textAlign: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: "0.72rem",
-                      color: "#000000",
-                      display: "block",
-                      marginBottom: "0.15rem",
-                    }}
-                  >
-                    Est. Price
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "'Cormorant Garamond', serif",
-                      fontSize: "1.25rem",
-                      fontWeight: 600,
-                      color: "#000000",
-                    }}
-                  >
-                    LKR {totalPrice.toLocaleString()}
-                  </span>
-                </div>
-              )}
 
-              {/* CTA button */}
-              <div style={{ marginBottom: "1rem" }}>
-                <button
-                  onClick={handleRequestBooking}
-                  disabled={!formData.vehicleName || !formData.tripType || !formData.pickupLocation || !formData.dropoffLocation || !formData.dateTime}
-                  className="inline-flex items-center justify-center text-white uppercase w-full"
-                  style={{
-                    fontFamily: "'Montserrat', sans-serif",
-                    fontWeight: 500,
-                    fontSize: "0.82rem",
-                    letterSpacing: "0.04em",
-                    border: "1.8px solid #0d9488",
-                    borderRadius: "9999px",
-                    padding: "0.72rem 1.6rem",
-                    marginTop: "0.5rem",
-                    background: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
-                      ? "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)"
-                      : "rgba(13,148,136,0.35)",
-                    backdropFilter: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
-                      ? "none"
-                      : "blur(10px)",
-                    color: "#ffffff",
-                    transition: "all 0.3s ease",
-                    cursor: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
-                      ? "pointer"
-                      : "not-allowed",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime) {
-                      const el = e.currentTarget;
-                      el.style.background = "linear-gradient(135deg, #0f766e 0%, #2563eb 100%)";
-                      el.style.transform = "translateY(-2px)";
-                      el.style.boxShadow = "0 10px 30px rgba(13,148,136,0.35)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime) {
-                      const el = e.currentTarget;
-                      el.style.background = "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)";
-                      el.style.transform = "translateY(0)";
-                      el.style.boxShadow = "none";
-                    }
-                  }}
-                >
-                  Request Booking
-                  <span className="ml-2 inline-block" style={{ transition: "transform 0.3s ease" }}>
-                    →
-                  </span>
-                </button>
-              </div>
+
             </div>
+
+            {/* ═══ UNIFIED TRIP SUMMARY CARD (External) ═══ */}
+            {(formData.vehicleName || formData.tripType || routeDistance !== null || routeLoading) && (
+              <div
+                className="w-full lg:max-w-xs xl:max-w-sm rounded-xl p-6"
+                style={{
+                  background: "rgba(255,255,255,0.75)",
+                  backdropFilter: "blur(24px) saturate(180%)",
+                  WebkitBackdropFilter: "blur(24px) saturate(180%)",
+                  border: "1px solid rgba(255,255,255,0.45)",
+                  boxShadow: "0 8px 40px 0 rgba(31, 38, 135, 0.14)",
+                  alignSelf: "flex-start",
+                  textAlign: "left",
+                }}
+              >
+                {/* Header row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #0d9488, #3b82f6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <span style={{
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontSize: '0.85rem', fontWeight: 700, color: '#0d9488',
+                    letterSpacing: '0.1em', textTransform: 'uppercase',
+                  }}>Trip Summary</span>
+                </div>
+
+                {/* Vertical list of summary items for the side panel */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                  {/* Trip Type */}
+                  {formData.tripType && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>🗺️</span>
+                      <div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>Trip Type</div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{formData.tripType}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Duration (Number of Days) */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>📅</span>
+                    <div>
+                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>Duration</div>
+                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{formData.numberOfDays} {formData.numberOfDays === 1 ? 'Day' : 'Days'}</div>
+                    </div>
+                  </div>
+
+                  {/* Vehicle */}
+                  {formData.vehicleName && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>🚗</span>
+                      <div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>Selected Vehicle</div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{formData.vehicleType} — {formData.vehicleName}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Passengers & Luggage (grouped) */}
+                  {(formData.maxPersons > 0 || formData.maxBags > 0) && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>👥</span>
+                      <div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>Capacity Details</div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>
+                          {formData.maxPersons > 0 && `Max ${formData.maxPersons} Persons`}
+                          {formData.maxPersons > 0 && formData.maxBags > 0 && ' • '}
+                          {formData.maxBags > 0 && `Max ${formData.maxBags} Bags`}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Route & Distance */}
+                  {(routeLoading || routeDistance !== null) && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>📍</span>
+                      <div style={{ flexGrow: 1 }}>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>
+                          Route Distance{formData.tripType === 'Return' ? ' (×2 return)' : ''}
+                        </div>
+                        {routeLoading ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                            <div style={{ width: '12px', height: '12px', border: '2px solid rgba(13,148,136,0.25)', borderTop: '2px solid #0d9488', borderRadius: '50%', animation: 'loc-spin 0.7s linear infinite' }} />
+                            <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.8rem', color: '#0d9488', fontWeight: 600 }}>Calculating...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.1rem', fontWeight: 700, color: '#111827' }}>
+                              {((routeDistance! / 1000) * (formData.tripType === 'Return' ? 2 : 1)).toFixed(1)} km
+                            </div>
+                            {routeDuration !== null && (
+                              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.75rem', color: '#4b5563', marginTop: '2px' }}>
+                                Estimated Drive: {(() => {
+                                  const mult = formData.tripType === 'Return' ? 2 : 1;
+                                  const d = routeDuration * mult;
+                                  return d >= 3600
+                                    ? `${Math.floor(d / 3600)}h ${Math.round((d % 3600) / 60)}m`
+                                    : `${Math.round(d / 60)} min`;
+                                })()}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Price Estimate (Highlighted) */}
+                  {displayPrice > 0 && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '16px',
+                      background: 'rgba(13,148,136,0.06)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(13,148,136,0.15)',
+                    }}>
+                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>
+                        Total Estimate
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                        <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.4rem', fontWeight: 800, color: '#0d9488' }}>
+                          LKR {totalPrice.toLocaleString()}
+                        </span>
+                      </div>
+                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.62rem', color: '#6b7280', marginTop: '4px' }}>
+                        *Actual price may vary based on route changes.
+                      </div>
+
+                      {/* Informational Message - Policy Notice OR Booking Confirmation */}
+                      {routeDistance !== null && (
+                        minKmRequired > distanceInKm ? (
+                          <div style={{
+                            fontFamily: "'Montserrat', sans-serif",
+                            fontSize: '0.68rem',
+                            color: '#0f766e',
+                            marginTop: '12px',
+                            lineHeight: 1.5,
+                            padding: '10px 12px',
+                            background: 'rgba(13,148,136,0.05)',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(13,148,136,0.2)',
+                          }}>
+                            <div style={{ fontWeight: 700, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '0.9rem' }}>ℹ️</span> Package Policy Notice
+                            </div>
+                            For a {formData.numberOfDays}-day reservation with this vehicle, the minimum applicable package starts from <strong>{minKmRequired} km</strong>.
+                            <div style={{ marginTop: '8px', color: '#4b5563', fontWeight: 500, fontSize: '0.64rem' }}>
+                              Should you require a customized plan or wish to negotiate specific terms, please submit your request and our representatives will contact you shortly.
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{
+                            fontFamily: "'Montserrat', sans-serif",
+                            fontSize: '0.68rem',
+                            color: '#3b82f6',
+                            marginTop: '12px',
+                            lineHeight: 1.5,
+                            padding: '10px 12px',
+                            background: 'rgba(59,130,246,0.05)',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(59,130,246,0.2)',
+                          }}>
+                            <div style={{ fontWeight: 700, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '0.9rem' }}>✅</span> Next Steps
+                            </div>
+                            Please submit your request. Our dedicated team will contact you shortly to confirm your booking and finalize all arrangements.
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+
+                  {/* CTA button (RELOCATED TO SUMMARY CARD) */}
+                  <div style={{ marginTop: "1rem" }}>
+                    <button
+                      onClick={handleRequestBooking}
+                      disabled={!formData.vehicleName || !formData.tripType || !formData.pickupLocation || !formData.dropoffLocation || !formData.dateTime}
+                      className="inline-flex items-center justify-center text-white uppercase w-full"
+                      style={{
+                        fontFamily: "'Montserrat', sans-serif",
+                        fontWeight: 600,
+                        fontSize: "0.85rem",
+                        letterSpacing: "0.04em",
+                        border: "1.8px solid #0d9488",
+                        borderRadius: "12px",
+                        padding: "0.85rem 1.6rem",
+                        background: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
+                          ? "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)"
+                          : "rgba(13,148,136,0.35)",
+                        backdropFilter: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
+                          ? "none"
+                          : "blur(10px)",
+                        color: "#ffffff",
+                        transition: "all 0.3s ease",
+                        cursor: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
+                          ? "pointer"
+                          : "not-allowed",
+                        boxShadow: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
+                          ? "0 4px 14px 0 rgba(13,148,136,0.39)"
+                          : "none",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime) {
+                          const el = e.currentTarget;
+                          el.style.background = "linear-gradient(135deg, #0f766e 0%, #2563eb 100%)";
+                          el.style.transform = "translateY(-2px)";
+                          el.style.boxShadow = "0 10px 30px rgba(13,148,136,0.35)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime) {
+                          const el = e.currentTarget;
+                          el.style.background = "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)";
+                          el.style.transform = "translateY(0)";
+                          el.style.boxShadow = "0 4px 14px 0 rgba(13,148,136,0.39)";
+                        }
+                      }}
+                    >
+                      Request Booking
+                      <span className="ml-2 inline-block" style={{ transition: "transform 0.3s ease" }}>
+                        →
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1110,8 +1623,8 @@ export default function HeroSection() {
             m: 2,
             borderRadius: '24px',
             background: '#ffffff',
-            border: '1px solid rgba(201,169,110,0.2)',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.14), 0 4px 16px rgba(201,169,110,0.1)',
+            border: '1px solid rgba(13,148,136,0.15)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.12), 0 4px 16px rgba(13,148,136,0.08)',
             overflow: 'hidden',
           }
         }}
@@ -1120,8 +1633,8 @@ export default function HeroSection() {
         {/* Header */}
         <Box sx={{
           px: 3, pt: 3, pb: 2,
-          background: 'linear-gradient(135deg, #fffdf7 0%, #fef9ec 100%)',
-          borderBottom: '1px solid rgba(201,169,110,0.18)',
+          background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%)',
+          borderBottom: '1px solid rgba(13,148,136,0.12)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <Box>
@@ -1135,12 +1648,12 @@ export default function HeroSection() {
             </Typography>
             <Typography sx={{
               fontSize: '0.72rem',
-              color: '#c9a96e',
+              color: '#0d9488',
               fontFamily: "'Montserrat', sans-serif",
               letterSpacing: '0.1em',
               textTransform: 'uppercase',
               mt: 0.25,
-              fontWeight: 600,
+              fontWeight: 700,
             }}>
               {formData.vehicleType} Collection
             </Typography>
@@ -1180,13 +1693,13 @@ export default function HeroSection() {
                     cursor: 'pointer',
                     transition: 'all 0.22s ease',
                     boxShadow: isSelected
-                      ? '0 4px 16px rgba(201,169,110,0.2)'
+                      ? '0 4px 16px rgba(13,148,136,0.15)'
                       : '0 1px 4px rgba(0,0,0,0.05)',
                     '&:hover': {
-                      borderColor: '#c9a96e',
-                      background: 'linear-gradient(135deg, #fffbf0 0%, #fff8e6 100%)',
+                      borderColor: '#0d9488',
+                      background: 'rgba(13,148,136,0.02)',
                       transform: 'translateY(-3px)',
-                      boxShadow: '0 8px 24px rgba(201,169,110,0.18)',
+                      boxShadow: '0 8px 24px rgba(13,148,136,0.12)',
                     },
                   }}
                 >
@@ -1195,7 +1708,7 @@ export default function HeroSection() {
                     <Box sx={{
                       position: 'absolute', top: 10, right: 10,
                       width: 20, height: 20, borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #c9a96e, #d4b176)',
+                      background: '#0d9488',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                       <CheckCircle sx={{ fontSize: 14, color: '#fff' }} />
@@ -1203,7 +1716,7 @@ export default function HeroSection() {
                   )}
 
                   {/* Vehicle icon */}
-                  <Box sx={{ mb: 1.5, color: isSelected ? '#c9a96e' : '#b8935a' }}>
+                  <Box sx={{ mb: 1.5, color: isSelected ? '#0d9488' : '#94a3b8' }}>
                     <DirectionsCar sx={{ fontSize: 28 }} />
                   </Box>
 
@@ -1212,7 +1725,7 @@ export default function HeroSection() {
                     fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 700,
                     fontSize: '0.9rem',
-                    color: isSelected ? '#b8935a' : '#1e293b',
+                    color: isSelected ? '#0d9488' : '#1e293b',
                     mb: 0.4,
                   }}>
                     {model.name}
@@ -1234,21 +1747,21 @@ export default function HeroSection() {
                       display: 'flex', alignItems: 'center', gap: 0.4,
                       px: 0.75, py: 0.25,
                       borderRadius: '8px',
-                      background: 'rgba(201,169,110,0.1)',
-                      border: '1px solid rgba(201,169,110,0.25)',
+                      background: 'rgba(13,148,136,0.06)',
+                      border: '1px solid rgba(13,148,136,0.15)',
                     }}>
-                      <Group sx={{ fontSize: 11, color: '#c9a96e' }} />
-                      <Typography sx={{ fontSize: '0.65rem', color: '#b8935a', fontWeight: 600 }}>{model.maxPersons}</Typography>
+                      <Group sx={{ fontSize: 11, color: '#0d9488' }} />
+                      <Typography sx={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 600 }}>{model.maxPersons}</Typography>
                     </Box>
                     <Box sx={{
                       display: 'flex', alignItems: 'center', gap: 0.4,
                       px: 0.75, py: 0.25,
                       borderRadius: '8px',
-                      background: 'rgba(201,169,110,0.1)',
-                      border: '1px solid rgba(201,169,110,0.25)',
+                      background: 'rgba(13,148,136,0.06)',
+                      border: '1px solid rgba(13,148,136,0.15)',
                     }}>
-                      <Work sx={{ fontSize: 11, color: '#c9a96e' }} />
-                      <Typography sx={{ fontSize: '0.65rem', color: '#b8935a', fontWeight: 600 }}>{model.maxBags}</Typography>
+                      <Work sx={{ fontSize: 11, color: '#0d9488' }} />
+                      <Typography sx={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 600 }}>{model.maxBags}</Typography>
                     </Box>
                   </Box>
                 </Box>
@@ -1269,8 +1782,8 @@ export default function HeroSection() {
             m: 2,
             borderRadius: '24px',
             background: '#ffffff',
-            border: '1px solid rgba(201,169,110,0.2)',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.14), 0 4px 16px rgba(201,169,110,0.1)',
+            border: '1px solid rgba(13,148,136,0.15)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.12), 0 4px 16px rgba(13,148,136,0.08)',
             overflow: 'hidden',
           }
         }}
@@ -1279,8 +1792,8 @@ export default function HeroSection() {
         {/* Header */}
         <Box sx={{
           px: 3, pt: 3, pb: 2,
-          background: 'linear-gradient(135deg, #fffdf7 0%, #fef9ec 100%)',
-          borderBottom: '1px solid rgba(201,169,110,0.18)',
+          background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%)',
+          borderBottom: '1px solid rgba(13,148,136,0.12)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <Box>
@@ -1294,12 +1807,12 @@ export default function HeroSection() {
             </Typography>
             <Typography sx={{
               fontSize: '0.72rem',
-              color: '#c9a96e',
+              color: '#0d9488',
               fontFamily: "'Montserrat', sans-serif",
               letterSpacing: '0.1em',
               textTransform: 'uppercase',
               mt: 0.25,
-              fontWeight: 600,
+              fontWeight: 700,
             }}>
               Choose your journey style
             </Typography>
@@ -1343,13 +1856,13 @@ export default function HeroSection() {
                     transition: 'all 0.22s ease',
                     overflow: 'hidden',
                     boxShadow: isSelected
-                      ? '0 4px 16px rgba(201,169,110,0.2)'
+                      ? '0 4px 16px rgba(13,148,136,0.15)'
                       : '0 1px 4px rgba(0,0,0,0.05)',
                     '&:hover': {
-                      borderColor: '#c9a96e',
-                      background: 'linear-gradient(135deg, #fffbf0 0%, #fff8e6 100%)',
+                      borderColor: '#0d9488',
+                      background: 'rgba(13,148,136,0.02)',
                       transform: 'translateX(4px)',
-                      boxShadow: '0 6px 20px rgba(201,169,110,0.18)',
+                      boxShadow: '0 6px 20px rgba(13,148,136,0.12)',
                     },
                   }}
                 >
@@ -1358,7 +1871,7 @@ export default function HeroSection() {
                     <Box sx={{
                       position: 'absolute', left: 0, top: 0, bottom: 0,
                       width: '3px',
-                      background: 'linear-gradient(to bottom, #b8935a, #c9a96e, #d4b176)',
+                      background: '#0d9488',
                       borderRadius: '0 2px 2px 0',
                     }} />
                   )}
@@ -1367,12 +1880,12 @@ export default function HeroSection() {
                   <Box sx={{
                     width: 52, height: 52, borderRadius: '14px', flexShrink: 0,
                     background: isSelected
-                      ? 'linear-gradient(135deg, rgba(201,169,110,0.22) 0%, rgba(201,169,110,0.08) 100%)'
-                      : 'rgba(201,169,110,0.07)',
+                      ? 'rgba(13,148,136,0.1)'
+                      : 'rgba(13,148,136,0.05)',
                     border: '1px solid',
-                    borderColor: isSelected ? 'rgba(201,169,110,0.45)' : '#e9ecef',
+                    borderColor: isSelected ? 'rgba(13,148,136,0.3)' : '#e5e7eb',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: isSelected ? '#c9a96e' : '#b8935a',
+                    color: isSelected ? '#0d9488' : '#94a3b8',
                     fontSize: 26,
                     transition: 'all 0.22s ease',
                   }}>
@@ -1385,7 +1898,7 @@ export default function HeroSection() {
                       fontFamily: "'Montserrat', sans-serif",
                       fontWeight: 700,
                       fontSize: '0.98rem',
-                      color: isSelected ? '#b8935a' : '#1e293b',
+                      color: isSelected ? '#0d9488' : '#1e293b',
                       mb: 0.3,
                       transition: 'color 0.22s ease',
                     }}>
@@ -1404,7 +1917,7 @@ export default function HeroSection() {
                   {isSelected && (
                     <Box sx={{
                       width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
-                      background: 'linear-gradient(135deg, #c9a96e, #d4b176)',
+                      background: '#0d9488',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                       <CheckCircle sx={{ fontSize: 16, color: '#fff' }} />
@@ -1426,9 +1939,10 @@ export default function HeroSection() {
             maxWidth: 400,
             m: 2,
             borderRadius: '24px',
-            background: 'rgba(255, 255, 255, 0.95)',
+            background: 'rgba(255, 255, 255, 0.98)',
             backdropFilter: 'blur(20px)',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)'
+            boxShadow: '0 24px 48px rgba(0,0,0,0.12)',
+            border: '1px solid rgba(13,148,136,0.1)'
           }
         }}
       >
@@ -1454,7 +1968,7 @@ export default function HeroSection() {
         <DialogContent>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
             <div style={{ position: 'relative' }}>
-              <AccountCircle style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#C9A961', zIndex: 1 }} />
+              <AccountCircle style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1 }} />
               <input
                 type="text"
                 placeholder="Full Name"
@@ -1472,9 +1986,9 @@ export default function HeroSection() {
                   transition: 'all 0.3s ease'
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#C9A961';
+                  e.target.style.borderColor = '#0d9488';
                   e.target.style.background = '#fff';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(201, 169, 97, 0.1)';
+                  e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = 'rgba(0,0,0,0.08)';
@@ -1484,7 +1998,7 @@ export default function HeroSection() {
               />
             </div>
             <div style={{ position: 'relative' }}>
-              <Phone style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#C9A961', zIndex: 1, fontSize: '1.2rem' }} />
+              <Phone style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
               <input
                 type="tel"
                 placeholder="Telephone"
@@ -1502,9 +2016,9 @@ export default function HeroSection() {
                   transition: 'all 0.3s ease'
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#C9A961';
+                  e.target.style.borderColor = '#0d9488';
                   e.target.style.background = '#fff';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(201, 169, 97, 0.1)';
+                  e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = 'rgba(0,0,0,0.08)';
@@ -1514,7 +2028,7 @@ export default function HeroSection() {
               />
             </div>
             <div style={{ position: 'relative' }}>
-              <Email style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#C9A961', zIndex: 1, fontSize: '1.2rem' }} />
+              <Email style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
               <input
                 type="email"
                 placeholder="Email Address"
@@ -1532,9 +2046,9 @@ export default function HeroSection() {
                   transition: 'all 0.3s ease'
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#C9A961';
+                  e.target.style.borderColor = '#0d9488';
                   e.target.style.background = '#fff';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(201, 169, 97, 0.1)';
+                  e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = 'rgba(0,0,0,0.08)';
@@ -1559,9 +2073,9 @@ export default function HeroSection() {
                 transition: 'all 0.3s ease'
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#C9A961';
+                e.target.style.borderColor = '#0d9488';
                 e.target.style.background = '#fff';
-                e.target.style.boxShadow = '0 0 0 4px rgba(201, 169, 97, 0.1)';
+                e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
               }}
               onBlur={(e) => {
                 e.target.style.borderColor = 'rgba(0,0,0,0.08)';
@@ -1573,8 +2087,8 @@ export default function HeroSection() {
               onClick={handleSendRequest}
               style={{
                 padding: '1.1rem',
-                background: 'linear-gradient(135deg, #C9A961 0%, #B3924D 100%)',
-                color: '#2D231B',
+                background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
+                color: '#ffffff',
                 border: 'none',
                 borderRadius: '14px',
                 fontWeight: 600,
@@ -1582,16 +2096,16 @@ export default function HeroSection() {
                 fontFamily: "'Montserrat', sans-serif",
                 cursor: 'pointer',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: '0 10px 20px rgba(201, 169, 97, 0.2)',
+                boxShadow: '0 10px 20px rgba(13, 148, 136, 0.2)',
                 marginTop: '0.5rem'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 15px 30px rgba(201, 169, 97, 0.3)';
+                e.currentTarget.style.boxShadow = '0 15px 30px rgba(13, 148, 136, 0.3)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 10px 20px rgba(201, 169, 97, 0.2)';
+                e.currentTarget.style.boxShadow = '0 10px 20px rgba(13, 148, 136, 0.2)';
               }}
             >
               Confirm Booking
