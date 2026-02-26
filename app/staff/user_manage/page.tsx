@@ -42,6 +42,8 @@ import {
     Close as CloseIcon,
     Undo as UndoIcon,
     History as HistoryIcon,
+    Key as KeyIcon,
+    Visibility as ViewIcon,
 } from '@mui/icons-material';
 import { API_ENDPOINTS } from '@/config/api';
 import { CircularProgress } from '@mui/material';
@@ -283,6 +285,15 @@ const UserManagementPage: React.FC = () => {
         role: 'Staff'
     });
 
+    // Password reset dialog
+    const [passDialog, setPassDialog] = useState<{ open: boolean; user: CurrentUser | null; newPass: string; currentHash: string; showHash: boolean }>({
+        open: false,
+        user: null,
+        newPass: '',
+        currentHash: '',
+        showHash: false
+    });
+
     // Reject dialog (new users)
     const [rejectDialog, setRejectDialog] = useState<{ open: boolean; user: NewUser | null }>({ open: false, user: null });
 
@@ -303,6 +314,43 @@ const UserManagementPage: React.FC = () => {
             }
         }
         setDeleteDialog({ open: false, user: null });
+    };
+
+    const handlePassReset = async () => {
+        if (passDialog.user && passDialog.newPass) {
+            try {
+                const token = localStorage.getItem('staffToken');
+                const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${passDialog.user.id}/password`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ password: passDialog.newPass })
+                });
+                if (res.ok) {
+                    alert('Password updated successfully');
+                    setPassDialog({ ...passDialog, open: false, newPass: '' });
+                }
+            } catch (error) {
+                console.error('Password reset failed:', error);
+            }
+        }
+    };
+
+    const fetchHash = async (user: CurrentUser) => {
+        try {
+            const token = localStorage.getItem('staffToken');
+            const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${user.id}/password`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setPassDialog(prev => ({ ...prev, currentHash: data.password, showHash: true }));
+            }
+        } catch (error) {
+            console.error('Fetch hash failed:', error);
+        }
     };
 
     const openPermDialog = (user: CurrentUser) => {
@@ -773,6 +821,15 @@ const UserManagementPage: React.FC = () => {
                                                                 </IconButton>
                                                             </span>
                                                         </Tooltip>
+                                                        <Tooltip title="Manage Password">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => setPassDialog({ open: true, user, newPass: '', currentHash: '', showHash: false })}
+                                                                sx={{ color: '#f59e0b', '&:hover': { backgroundColor: '#fff7ed' } }}
+                                                            >
+                                                                <KeyIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
                                                     </Box>
                                                 </TableCell>
                                             </TableRow>
@@ -1175,6 +1232,91 @@ const UserManagementPage: React.FC = () => {
                     <Button onClick={handlePermSave} variant="contained"
                         sx={{ backgroundColor: '#3b82f6', textTransform: 'none', '&:hover': { backgroundColor: '#2563eb' } }}>
                         Save Permissions
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* ── Password Management Dialog ── */}
+            <Dialog
+                open={passDialog.open}
+                onClose={() => setPassDialog({ ...passDialog, open: false })}
+                PaperProps={{ sx: { backgroundColor: 'background.paper', color: 'text.primary', borderRadius: 4, border: '1px solid', borderColor: 'divider', width: '95%', maxWidth: 450, m: 2 } }}
+            >
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 700, color: 'text.primary' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <KeyIcon sx={{ color: '#f59e0b' }} />
+                        Password Management
+                    </Box>
+                    <IconButton size="small" onClick={() => setPassDialog({ ...passDialog, open: false })}
+                        sx={{ color: '#94a3b8', '&:hover': { backgroundColor: '#f1f5f9' } }}>
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </DialogTitle>
+
+                <Divider sx={{ borderColor: '#334155' }} />
+
+                <DialogContent sx={{ pt: 2 }}>
+                    {passDialog.user && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                            <Avatar sx={{ bgcolor: avatarColors[passDialog.user.avatar] || '#3b82f6', width: 40, height: 40, fontWeight: 700 }}>
+                                {passDialog.user.avatar}
+                            </Avatar>
+                            <Box>
+                                <Typography sx={{ color: 'text.primary', fontWeight: 600 }}>{passDialog.user.name}</Typography>
+                                <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>{passDialog.user.email}</Typography>
+                            </Box>
+                        </Box>
+                    )}
+
+                    <Box sx={{ mb: 3 }}>
+                        <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>Set New Password</Typography>
+                        <TextField
+                            fullWidth
+                            type="text"
+                            placeholder="Enter new password"
+                            value={passDialog.newPass}
+                            onChange={(e) => setPassDialog(prev => ({ ...prev, newPass: e.target.value }))}
+                            variant="outlined"
+                            size="small"
+                        />
+                    </Box>
+
+                    <Box>
+                        <Button
+                            size="small"
+                            startIcon={<ViewIcon />}
+                            onClick={() => passDialog.user && fetchHash(passDialog.user)}
+                            sx={{ color: '#3b82f6', textTransform: 'none', mb: 1 }}
+                        >
+                            View Password Hash
+                        </Button>
+
+                        {passDialog.showHash && (
+                            <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px dashed', borderColor: 'divider' }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                                    {passDialog.currentHash}
+                                </Typography>
+                                <Typography variant="caption" display="block" sx={{ mt: 1, color: 'info.main', fontStyle: 'italic' }}>
+                                    * Passwords are encrypted for security. The above is the secure hash.
+                                </Typography>
+                            </Box>
+                        )}
+                    </Box>
+                </DialogContent>
+
+                <Divider sx={{ borderColor: '#f1f5f9' }} />
+                <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+                    <Button onClick={() => setPassDialog({ ...passDialog, open: false })}
+                        sx={{ color: '#64748b', textTransform: 'none', '&:hover': { backgroundColor: '#f1f5f9' } }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handlePassReset}
+                        variant="contained"
+                        disabled={!passDialog.newPass}
+                        sx={{ backgroundColor: '#f59e0b', color: 'white', textTransform: 'none', '&:hover': { backgroundColor: '#d97706' } }}
+                    >
+                        Update Password
                     </Button>
                 </DialogActions>
             </Dialog>

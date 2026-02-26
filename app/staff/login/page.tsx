@@ -202,6 +202,20 @@ export default function LoginPage() {
                                 }}
                             />
 
+                            <Box sx={{ textAlign: 'right', mt: 1 }}>
+                                <Link
+                                    href="/staff/forgot-password"
+                                    sx={{
+                                        color: 'rgba(255, 255, 255, 0.6)',
+                                        textDecoration: 'none',
+                                        fontSize: '0.85rem',
+                                        '&:hover': { color: 'rgba(255, 255, 255, 0.9)', textDecoration: 'underline' }
+                                    }}
+                                >
+                                    Forgot Password?
+                                </Link>
+                            </Box>
+
                             <Button
                                 fullWidth
                                 type="submit"

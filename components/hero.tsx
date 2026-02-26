@@ -30,6 +30,7 @@ import {
   DirectionsCar,
   TrendingFlat,
   Loop,
+  Visibility,
 } from '@mui/icons-material';
 import Image from 'next/image';
 import { API_ENDPOINTS } from '@/config/api';
@@ -339,6 +340,7 @@ const sampleVehicles = {
     models: [
       { name: 'KDH High Roof', description: 'Extra headroom', maxPersons: 12, maxBags: 10 },
       { name: 'KDH Flat Roof', description: 'Classic style', maxPersons: 10, maxBags: 8 },
+      { name: 'Mini Van', description: 'Compact & comfortable', maxPersons: 6, maxBags: 4 },
       { name: 'Dual AC Van', description: 'Dual climate control', maxPersons: 10, maxBags: 8 },
       { name: 'Non-AC Van', description: 'Budget friendly', maxPersons: 10, maxBags: 8 },
     ]
@@ -351,8 +353,7 @@ const sampleVehicles = {
   },
   SUV: {
     models: [
-      { name: 'Prado', description: 'Luxury 4x4', maxPersons: 7, maxBags: 6 },
-      { name: 'Fortuner', description: 'Premium SUV', maxPersons: 7, maxBags: 6 },
+      { name: 'Vezel', description: 'Modern Crossover', maxPersons: 4, maxBags: 3 },
     ]
   }
 };
@@ -505,6 +506,22 @@ export default function HeroSection() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+
+  const [openPhotosDialog, setOpenPhotosDialog] = useState(false);
+  const [photosVehicle, setPhotosVehicle] = useState('');
+
+  const getVehicleFolderName = (modelName: string) => {
+    const mapping: { [key: string]: string } = {
+      'Aqua': 'Toyota Aqua',
+      'Axio': 'Toyota Axio',
+      'KDH Flat Roof': 'KDH Flat Roof  9 Seats',
+      'Dual AC Van': 'Dual Ac 9 Seater',
+      'Non-AC Van': 'NON AC Van',
+      'AC 29 Seater': 'AC 29 Seater Bus',
+      'Non-AC 29 Seater': 'Non AC 29 seater bus',
+    };
+    return mapping[modelName] || modelName;
+  };
 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
@@ -1357,7 +1374,7 @@ export default function HeroSection() {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                       <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>🗺️</span>
                       <div>
-                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>Trip Type</div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>Trip Type</div>
                         <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{formData.tripType}</div>
                       </div>
                     </div>
@@ -1367,7 +1384,7 @@ export default function HeroSection() {
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                     <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>📅</span>
                     <div>
-                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>Duration</div>
+                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>Duration</div>
                       <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{formData.numberOfDays} {formData.numberOfDays === 1 ? 'Day' : 'Days'}</div>
                     </div>
                   </div>
@@ -1377,8 +1394,46 @@ export default function HeroSection() {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                       <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>🚗</span>
                       <div>
-                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>Selected Vehicle</div>
-                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{formData.vehicleType} — {formData.vehicleName}</div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>Selected Vehicle</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{formData.vehicleType} — {formData.vehicleName}</div>
+                          <button
+                            onClick={() => {
+                              setPhotosVehicle(formData.vehicleName);
+                              setOpenPhotosDialog(true);
+                            }}
+                            className="group flex items-center gap-1.5"
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '0.68rem',
+                              background: 'rgba(13,148,136,0.08)',
+                              border: '1.5px solid rgba(13,148,136,0.35)',
+                              borderRadius: '8px',
+                              color: '#0d9488',
+                              cursor: 'pointer',
+                              fontFamily: "'Montserrat', sans-serif",
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.05em',
+                              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#0d9488';
+                              e.currentTarget.style.color = '#fff';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(13,148,136,0.2)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(13,148,136,0.08)';
+                              e.currentTarget.style.color = '#0d9488';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <Visibility sx={{ fontSize: '0.9rem' }} />
+                            View
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1388,10 +1443,10 @@ export default function HeroSection() {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                       <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>👥</span>
                       <div>
-                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>Capacity Details</div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>Capacity Details</div>
                         <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>
-                          {formData.maxPersons > 0 && `Max ${formData.maxPersons} Persons`}
-                          {formData.maxPersons > 0 && formData.maxBags > 0 && ' • '}
+                          {matchedPackage && matchedPackage.hrs > 0 ? `${matchedPackage.hrs} Seater` : (formData.maxPersons > 0 ? `Max ${formData.maxPersons} Persons` : '')}
+                          {((matchedPackage && matchedPackage.hrs > 0) || formData.maxPersons > 0) && formData.maxBags > 0 && ' • '}
                           {formData.maxBags > 0 && `Max ${formData.maxBags} Bags`}
                         </div>
                       </div>
@@ -1403,7 +1458,7 @@ export default function HeroSection() {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                       <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>📍</span>
                       <div style={{ flexGrow: 1 }}>
-                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '2px' }}>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>
                           Route Distance{formData.tripType === 'Return' ? ' (×2 return)' : ''}
                         </div>
                         {routeLoading ? (
@@ -1434,7 +1489,7 @@ export default function HeroSection() {
                   )}
 
                   {/* Price Estimate (Highlighted) */}
-                  {displayPrice > 0 && (
+                  {displayPrice > 0 && formData.pickupLocation && formData.dropoffLocation && (
                     <div style={{
                       marginTop: '8px',
                       padding: '16px',
@@ -1442,7 +1497,7 @@ export default function HeroSection() {
                       borderRadius: '12px',
                       border: '1px solid rgba(13,148,136,0.15)',
                     }}>
-                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.75rem', color: '#0d9488', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>
                         Total Estimate
                       </div>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
@@ -1450,8 +1505,12 @@ export default function HeroSection() {
                           LKR {totalPrice.toLocaleString()}
                         </span>
                       </div>
-                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.62rem', color: '#6b7280', marginTop: '4px' }}>
-                        *Actual price may vary based on route changes.
+                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#6b7280', marginTop: '4px' }}>
+                        {matchedPackage ? (
+                          formData.tripType === 'Drop'
+                            ? `*Price for ${matchedPackage.km} km package. `
+                            : `*Price for ${matchedPackage.km} km & ${matchedPackage.hrs} hrs package. `
+                        ) : ''}*Actual price may vary based on route changes.
                       </div>
 
                       {/* Informational Message - Policy Notice OR Booking Confirmation */}
@@ -2124,6 +2183,122 @@ export default function HeroSection() {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* ─── VEHICLE PHOTOS DIALOG ─── */}
+      <Dialog
+        open={openPhotosDialog}
+        onClose={() => setOpenPhotosDialog(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '28px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.18)',
+            border: '1px solid rgba(255,255,255,0.4)',
+            overflow: 'hidden',
+          }
+        }}
+        BackdropProps={{
+          sx: { backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.4)' }
+        }}
+      >
+        <Box sx={{
+          px: 4, py: 3,
+          background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%)',
+          borderBottom: '1px solid rgba(13,148,136,0.12)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <Box>
+            <Typography sx={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: '2rem', fontWeight: 700,
+              color: '#111827',
+              letterSpacing: '-0.02em',
+            }}>
+              {photosVehicle}
+            </Typography>
+            <Typography sx={{
+              fontSize: '0.78rem',
+              color: '#0d9488',
+              fontFamily: "'Montserrat', sans-serif",
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+            }}>
+              Experience the Comfort
+            </Typography>
+          </Box>
+          <IconButton
+            onClick={() => setOpenPhotosDialog(false)}
+            sx={{
+              color: '#9ca3af',
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+              '&:hover': { color: '#ef4444', background: '#fff0f0', borderColor: '#fecaca' },
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 22 }} />
+          </IconButton>
+        </Box>
+
+        <DialogContent sx={{ p: 4 }}>
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+            gap: 3,
+          }}>
+            {['front.png', 'side.png', 'back.png', 'inside.png'].map((img) => (
+              <Box
+                key={img}
+                sx={{
+                  position: 'relative',
+                  borderRadius: '20px',
+                  overflow: 'hidden',
+                  aspectRatio: '16/10',
+                  background: '#f3f4f6',
+                  border: '1px solid rgba(0,0,0,0.05)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'scale(1.02)',
+                    boxShadow: '0 12px 24px rgba(0,0,0,0.1)',
+                  },
+                }}
+              >
+                <img
+                  src={`/Vehicle images/${getVehicleFolderName(photosVehicle)}/${img}`}
+                  alt={`${photosVehicle} ${img.replace('.png', '')}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Image+Not+Available';
+                  }}
+                />
+                <Box sx={{
+                  position: 'absolute', bottom: 12, left: 12,
+                  px: 1.5, py: 0.5,
+                  borderRadius: '8px',
+                  background: 'rgba(0,0,0,0.4)',
+                  backdropFilter: 'blur(8px)',
+                  color: '#fff',
+                  fontSize: '0.65rem',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}>
+                  {img.replace('.png', '')} View
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </DialogContent>
+      </Dialog>
 
       {/* KEYFRAMES + GOOGLE FONTS */}
       <style>{`
