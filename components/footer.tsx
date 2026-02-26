@@ -57,15 +57,13 @@ export default function Footer() {
 
             {/* Column 1 - Navigation */}
             <div className="footer-col">
-              <h4 className="footer-heading">Navigation</h4>
+              <h4 className="footer-heading">Helpful Links</h4>
               <ul className="footer-links">
-                <li><a href="">Home</a></li>
-                <li><a href="/about">About Us</a></li>
-                <li><a href="/destinations">Destinations</a></li>
-                <li><a href="/experiences">Experiences</a></li>
-                <li><a href="/tours">Tours</a></li>
-                <li><a href="/events">Events Calendar</a></li>
-                <li><a href="/blog">Blog</a></li>
+                <li><a href="/">Home</a></li>
+                <li><a href="/all_packages">Tours</a></li>
+                <li><a href="/our-vehicles">Our Vehicles</a></li>
+                <li><a href="/gallery">Gallery</a></li>
+                <li><a href="/about_us">About Us</a></li>
                 <li><a href="/contact">Contact Us</a></li>
               </ul>
             </div>
@@ -83,42 +81,43 @@ export default function Footer() {
 
             {/* Column 3 - Partner Brands */}
             <div className="footer-col">
-              <h4 className="footer-heading">Partner Brands</h4>
+              <h4 className="footer-heading">Round Tours</h4>
               <ul className="footer-links">
-                <li><a href="#" target="_blank" rel="noopener">Brand Hotels</a></li>
-                <li><a href="#" target="_blank" rel="noopener">Tailor-Made Travel</a></li>
-                <li><a href="#" target="_blank" rel="noopener">Eco Holidays</a></li>
-                <li><a href="#" target="_blank" rel="noopener">Events &amp; Weddings</a></li>
-                <li><a href="#" target="_blank" rel="noopener">Air Charter</a></li>
-                <li><a href="#" target="_blank" rel="noopener">Adventures</a></li>
+                <li><a href="/all_packages">Honeymoon Tour</a></li>
+                <li><a href="/all_packages">Sri Lankan Splendors</a></li>
+                <li><a href="/all_packages">Adventure Safari Expedition</a></li>
+                <li><a href="/all_packages">Tropical Paradise Discovery</a></li>
+                <li><a href="/all_packages">The Grand Serendipity Sojourn</a></li>
+                <li><a href="/all_packages">Discovering the Pearl</a></li>
               </ul>
             </div>
 
             {/* Column 4 - Contact Info */}
             <div className="footer-col">
               <h4 className="footer-heading">Hotline</h4>
-              <a href="tel:+94777265746" className="footer-phone">
-                +94 77 726 5746
+              <a href="tel:+94702787787" className="footer-phone">
+                070 278 7787
               </a>
-              <p className="footer-phone-note">(24/7) Only for international inquiries</p>
+              <p className="footer-phone-note">(24/7) Support for all inquiries</p>
 
               <div className="footer-address">
-                <h5>Travel Company</h5>
+                <h5>Senu Tours</h5>
                 <p>
-                  46/26, Navam Mawatha,<br />
-                  Colombo 02,<br />
+                  167/2/C,<br />
+                  Hokandara North,<br />
+                  Hokandara,<br />
                   SRI LANKA.
                 </p>
               </div>
 
               <div className="footer-email">
                 <p>General:</p>
-                <a href="mailto:info@travelcompany.com">info@travelcompany.com</a>
+                <a href="mailto:info@senutours.com">info@senutours.com</a>
               </div>
 
               <div className="footer-hours">
                 <h5>Opening Hours</h5>
-                <p>Mon - Fri: 9 am to 5 pm</p>
+                <p>24 Hours / 7 Days</p>
               </div>
 
               <div className="footer-social">
@@ -160,11 +159,12 @@ export default function Footer() {
             {/* Logo */}
             <div className="footer-logo">
               <Image
-                src="/images/logo.png"
-                alt="Company Logo"
+                src="/senu tours 3d.png"
+                alt="Senu Tours Logo"
                 width={160}
-                height={45}
+                height={60}
                 priority
+                className="object-contain"
               />
             </div>
 
@@ -189,7 +189,7 @@ export default function Footer() {
 
             {/* Copyright */}
             <div className="footer-copyright">
-              <p>© {new Date().getFullYear()} Travel Company, All Rights Reserved</p>
+              <p>© {new Date().getFullYear()} Senu Tours, All Rights Reserved</p>
             </div>
 
           </div>
@@ -204,7 +204,7 @@ export default function Footer() {
         /* ═══════════════════════════════════════════════════════════ */
 
         .footer-section {
-          background: linear-gradient(to bottom, #1a1a2e 0%, #0f0f1a 100%);
+          background: linear-gradient(to bottom, #0a2a33 0%, #071d24 100%);
           color: #e4e6eb;
           font-family: 'Raleway', sans-serif;
         }
@@ -220,8 +220,9 @@ export default function Footer() {
         /* ─────────────────────────────────────────────────────────── */
 
         .newsletter-bar {
-          background: linear-gradient(135deg, #2a2a40 0%, #1e1e30 100%);
-          border-bottom: 1px solid rgba(201, 169, 110, 0.15);
+          background: #ecfdf5;
+          border-top: 1px solid rgba(8, 145, 178, 0.1);
+          border-bottom: 1px solid rgba(8, 145, 178, 0.1);
           padding: 56px 0;
         }
 
@@ -237,7 +238,7 @@ export default function Footer() {
           font-family: 'Playfair Display', serif;
           font-size: clamp(22px, 3vw, 28px);
           font-weight: 600;
-          color: #c9a96e;
+          color: #0891b2;
           margin: 0 0 6px 0;
           letter-spacing: 0.5px;
         }
@@ -259,11 +260,11 @@ export default function Footer() {
         .newsletter-input {
           flex: 1;
           padding: 14px 20px;
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(201, 169, 110, 0.25);
+          background: #ffffff;
+          border: 1px solid rgba(8, 145, 178, 0.2);
           border-right: none;
           border-radius: 8px 0 0 8px;
-          color: #fff;
+          color: #1a2a33;
           font-size: 14px;
           font-family: 'Raleway', sans-serif;
           transition: all 0.3s ease;
@@ -275,16 +276,17 @@ export default function Footer() {
 
         .newsletter-input:focus {
           outline: none;
-          background: rgba(255, 255, 255, 0.12);
-          border-color: #c9a96e;
+          background: #ffffff;
+          border-color: #0891b2;
+          box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
         }
 
         .newsletter-btn {
           padding: 14px 32px;
-          background: linear-gradient(135deg, #c9a96e 0%, #b8935a 100%);
+          background: linear-gradient(135deg, #0891b2 0%, #06708a 100%);
           border: none;
           border-radius: 0 8px 8px 0;
-          color: #1a1a2e;
+          color: #ffffff;
           font-size: 13px;
           font-weight: 600;
           font-family: 'Raleway', sans-serif;
@@ -296,9 +298,9 @@ export default function Footer() {
         }
 
         .newsletter-btn:hover {
-          background: linear-gradient(135deg, #d4b176 0%, #c9a96e 100%);
+          background: linear-gradient(135deg, #0a97b9 0%, #0891b2 100%);
           transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(201, 169, 110, 0.3);
+          box-shadow: 0 6px 20px rgba(8, 145, 178, 0.3);
         }
 
         .newsletter-btn:disabled {
@@ -312,7 +314,7 @@ export default function Footer() {
 
         .footer-main {
           padding: 72px 0 60px;
-          border-bottom: 1px solid rgba(201, 169, 110, 0.12);
+          border-bottom: 1px solid rgba(8, 145, 178, 0.12);
         }
 
         .footer-grid {
@@ -325,7 +327,7 @@ export default function Footer() {
           font-family: 'Playfair Display', serif;
           font-size: 16px;
           font-weight: 600;
-          color: #c9a96e;
+          color: #0891b2;
           margin: 0 0 22px 0;
           letter-spacing: 0.8px;
         }
@@ -350,7 +352,7 @@ export default function Footer() {
         }
 
         .footer-links a:hover {
-          color: #c9a96e;
+          color: #0891b2;
           transform: translateX(3px);
         }
 
@@ -367,7 +369,7 @@ export default function Footer() {
         }
 
         .footer-phone:hover {
-          color: #c9a96e;
+          color: #0891b2;
         }
 
         .footer-phone-note {
@@ -390,7 +392,7 @@ export default function Footer() {
           font-family: 'Raleway', sans-serif;
           font-size: 13px;
           font-weight: 600;
-          color: #c9a96e;
+          color: #0891b2;
           margin: 0 0 10px 0;
           text-transform: uppercase;
           letter-spacing: 1.5px;
@@ -412,13 +414,13 @@ export default function Footer() {
 
         .footer-email a {
           font-size: 14px;
-          color: #c9a96e;
+          color: #0891b2;
           text-decoration: none;
           transition: color 0.25s ease;
         }
 
         .footer-email a:hover {
-          color: #d4b176;
+          color: #0a97b9;
         }
 
         /* Social Icons */
@@ -432,20 +434,20 @@ export default function Footer() {
           width: 38px;
           height: 38px;
           border-radius: 50%;
-          background: rgba(201, 169, 110, 0.1);
-          border: 1px solid rgba(201, 169, 110, 0.25);
+          background: rgba(8, 145, 178, 0.1);
+          border: 1px solid rgba(8, 145, 178, 0.25);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #c9a96e;
+          color: #0891b2;
           transition: all 0.3s ease;
         }
 
         .social-icons a:hover {
-          background: #c9a96e;
-          color: #1a1a2e;
+          background: #0891b2;
+          color: #0a2a33;
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(201, 169, 110, 0.3);
+          box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
         }
 
         /* ─────────────────────────────────────────────────────────── */

@@ -56,7 +56,7 @@ export default function AboutUsPage() {
       role: 'Founder & Managing Director',
       avatar: 'UL',
       image: '/about/3.jpeg',
-      bio: 'A dynamic entrepreneur with a visionary outlook, Mr. Liyanage founded Senu Cabs & Tours with a commitment to redefining travel and transport services across Sri Lanka.',
+      bio: 'Udara Sampath Liyanage, the founder of Senu Tours, is a visionary leader dedicated to elevating the tourism landscape in Sri Lanka. With years of experience and a deep love for his homeland, he focuses on delivering premium, reliable, and authentic travel experiences that connect guests to the island\'s true heart.',
       color: '#0d9488'
     },
     {
@@ -124,7 +124,8 @@ export default function AboutUsPage() {
       {/* Hero Section */}
       <Box
         sx={{
-          height: '90vh',
+          height: { xs: '60vh', md: '80vh' },
+          minHeight: '400px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -138,8 +139,8 @@ export default function AboutUsPage() {
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Fade in timeout={1000}>
             <Box textAlign="center" color="white" sx={{
-              textShadow: '2px 2px 8px rgba(0,0,0,0.7)',
-              padding: 4,
+              textShadow: '2px 2px 12px rgba(0,0,0,0.8)',
+              padding: { xs: 2, sm: 4 },
               borderRadius: 2
             }}>
               <Typography variant={isMobile ? 'h3' : 'h2'} fontWeight="bold" gutterBottom>
@@ -159,7 +160,7 @@ export default function AboutUsPage() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
             gap: 4
           }}
         >
@@ -354,9 +355,10 @@ export default function AboutUsPage() {
                 <Box
                   sx={{
                     display: 'flex',
-                    justifyContent: index % 2 === 0 ? 'flex-start' : 'flex-end',
+                    justifyContent: { xs: 'center', md: index % 2 === 0 ? 'flex-start' : 'flex-end' },
                     mb: 4,
-                    position: 'relative'
+                    position: 'relative',
+                    width: '100%'
                   }}
                 >
                   <Paper
@@ -364,6 +366,7 @@ export default function AboutUsPage() {
                     sx={{
                       p: 3,
                       maxWidth: { xs: '100%', md: '45%' },
+                      width: { xs: '100%', md: 'auto' },
                       position: 'relative'
                     }}
                   >
@@ -577,7 +580,7 @@ export default function AboutUsPage() {
           <Button
             variant="outlined"
             size="large"
-            href="/contact-us"
+            href="/contact"
             sx={{
               px: 4,
               py: 1.5,
