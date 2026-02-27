@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import { Search, MapPin, Gauge, Clock, ChevronRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { API_ENDPOINTS } from "@/config/api";
 
 /* ─── DATA ─────────────────────────────────────────────────────── */
 const FREEDOM_PACKAGES = [
@@ -43,6 +44,55 @@ function ToursTabsContent() {
     const [hourFilter, setHourFilter] = useState("all");
     const [locFilter, setLocFilter] = useState("");
 
+    const getFullImageUrl = (path: string) => {
+        if (!path) return '';
+        if (path.startsWith('http')) return path;
+        const baseUrl = API_ENDPOINTS.AUTH.replace('/api/auth', '');
+        return `${baseUrl}${path}`;
+    };
+
+    const [dynamicFreedom, setDynamicFreedom] = useState<any[]>([]);
+    const [dynamicDests, setDynamicDests] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchPackages = async () => {
+            try {
+                const response = await fetch(`${API_ENDPOINTS.TOUR_PACKAGES}`);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    const freedom = data.filter((p: any) => p.type === 'freedom').map((p: any) => ({
+                        id: p._id,
+                        title: p.title,
+                        km: parseInt(p.limit?.split(' ')[0] || '0'),
+                        hrs: parseInt(p.limit?.split(' / ')[1]?.split(' ')[0] || '0'),
+                        description: p.description,
+                        image: p.image,
+                        gradient: p.gradient
+                    }));
+
+                    const dests = data.filter((p: any) => p.type === 'destination').map((p: any) => ({
+                        id: p._id,
+                        name: p.title,
+                        location: p.label || 'Destinations',
+                        label: p.label || 'Destinations',
+                        description: p.description,
+                        bg: p.image
+                    }));
+
+                    if (freedom.length > 0) setDynamicFreedom(freedom);
+                    if (dests.length > 0) setDynamicDests(dests);
+                }
+            } catch (error) {
+                console.error('Error fetching dynamic packages:', error);
+            }
+        };
+        fetchPackages();
+    }, []);
+
+    const freedomList = dynamicFreedom.length > 0 ? dynamicFreedom : FREEDOM_PACKAGES;
+    const destList = dynamicDests.length > 0 ? dynamicDests : DESTINATION_PACKAGES;
+
     // Update active tab if URL changes
     useEffect(() => {
         const tab = searchParams.get("tab");
@@ -52,13 +102,13 @@ function ToursTabsContent() {
     }, [searchParams]);
 
     // Filtering logic
-    const filteredDistancePacks = FREEDOM_PACKAGES.filter(pkg => {
+    const filteredDistancePacks = freedomList.filter(pkg => {
         const dMatch = distFilter === "all" || pkg.km >= parseInt(distFilter);
         const hMatch = hourFilter === "all" || pkg.hrs >= parseInt(hourFilter);
         return dMatch && hMatch;
     });
 
-    const filteredDestPacks = DESTINATION_PACKAGES.filter(pkg => {
+    const filteredDestPacks = destList.filter(pkg => {
         return pkg.name.toLowerCase().includes(locFilter.toLowerCase()) ||
             pkg.location.toLowerCase().includes(locFilter.toLowerCase());
     });
@@ -158,7 +208,7 @@ function ToursTabsContent() {
                     {activeTab === "distance" ? (
                         filteredDistancePacks.map(pkg => (
                             <div key={pkg.id} className="group relative h-[450px] rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500 hover:shadow-teal-500/10">
-                                <Image src={pkg.image} alt={pkg.title} fill className="object-cover transition-transform duration-1000 group-hover:scale-110" />
+                                <Image src={getFullImageUrl(pkg.image)} alt={pkg.title} fill className="object-cover transition-transform duration-1000 group-hover:scale-110" />
                                 <div className="absolute inset-0 z-10" style={{ background: pkg.gradient }} />
                                 <div className="absolute inset-x-0 bottom-0 p-8 z-20 flex flex-col items-start translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                                     <span className="text-white/70 text-xs font-bold tracking-widest uppercase mb-2">{pkg.km} KM / {pkg.hrs} Hours</span>
@@ -175,7 +225,7 @@ function ToursTabsContent() {
                     ) : (
                         filteredDestPacks.map(pkg => (
                             <div key={pkg.id} className="group relative h-[450px] rounded-3xl overflow-hidden cursor-pointer shadow-xl transition-all duration-500">
-                                <Image src={pkg.bg} alt={pkg.name} fill className="object-cover transition-transform duration-1000 group-hover:scale-110" />
+                                <Image src={getFullImageUrl(pkg.bg)} alt={pkg.name} fill className="object-cover transition-transform duration-1000 group-hover:scale-110" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/40 to-transparent z-10 transition-opacity duration-500 group-hover:opacity-95" />
                                 <div className="absolute inset-x-0 bottom-0 p-8 z-20 flex flex-col items-start translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                                     <div className="flex items-center gap-2 mb-2">

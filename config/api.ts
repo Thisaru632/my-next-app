@@ -5,4 +5,5 @@ export const API_ENDPOINTS = {
     CONTACTS: `${API_BASE_URL}/api/contacts`,
     AUTH: `${API_BASE_URL}/api/auth`,
     RATE_CARDS: `${API_BASE_URL}/api/rate-cards`,
+    TOUR_PACKAGES: `${API_BASE_URL}/api/tour-packages`,
 };
