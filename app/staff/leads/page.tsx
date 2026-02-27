@@ -77,6 +77,7 @@ interface Lead {
   customId?: string;
   isViewed?: boolean;
   matchedPackage?: any;
+  remark?: string;
 }
 
 // Mock data
@@ -137,6 +138,7 @@ const LeadInfoPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<number>(0);
+  const [staffRemark, setStaffRemark] = useState<string>('');
 
   useEffect(() => {
     const userStr = localStorage.getItem('staffUser');
@@ -163,6 +165,14 @@ const LeadInfoPage: React.FC = () => {
 
   const filteredLeads = useMemo(() => {
     let filtered = leads;
+
+    // Role-based visibility: Super admins/admins see all. 
+    // Regular staff only see unassigned (new) leads and their own leads.
+    if (currentUser && currentUser.role !== 'superadmin' && currentUser.role !== 'admin') {
+      filtered = filtered.filter(
+        (lead) => !lead.employeeName || lead.employeeName === (currentUser.fullName || currentUser.username)
+      );
+    }
 
     // Search filter
     if (searchQuery) {
@@ -255,6 +265,7 @@ const LeadInfoPage: React.FC = () => {
               isViewed: booking.isViewed || false,
               destinations: booking.destinations || [],
               matchedPackage: booking.matchedPackage || null,
+              remark: booking.remark || '',
             }));
             allLeads = [...allLeads, ...mappedBookings];
           } catch (e) {
@@ -285,6 +296,7 @@ const LeadInfoPage: React.FC = () => {
               customerEmail: contact.email,
               customId: contact.customId,
               isViewed: contact.status !== 'new',
+              remark: contact.remark || '',
             }));
             allLeads = [...allLeads, ...mappedContacts];
           } catch (e) {
@@ -322,16 +334,17 @@ const LeadInfoPage: React.FC = () => {
       const response = await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: action }),
+        body: JSON.stringify({ status: action, remark: staffRemark }),
       });
 
       if (response.ok) {
         // Update local state — for contacts rawStatus & status both track the backend value
         setLeads(prevLeads => prevLeads.map(l =>
           l.id === selectedLead.id
-            ? { ...l, status: action, rawStatus: action }
+            ? { ...l, status: action, rawStatus: action, remark: staffRemark }
             : l
         ));
+        setStaffRemark(''); // Clear remark after successful update
         handleCloseDialog();
       } else {
         const data = await response.json();
@@ -394,6 +407,7 @@ const LeadInfoPage: React.FC = () => {
   // Handle view button click
   const handleViewClick = async (lead: Lead) => {
     setSelectedLead(lead);
+    setStaffRemark(lead.remark || '');
     setOpenDialog(true);
 
     // Mark as viewed in backend
@@ -429,6 +443,7 @@ const LeadInfoPage: React.FC = () => {
     setOpenDialog(false);
     setShowMessage(false);
     setSelectedLead(null);
+    setStaffRemark('');
   };
 
   // Handle pagination
@@ -1374,6 +1389,56 @@ const LeadInfoPage: React.FC = () => {
                   </Box>
                 </Box>
               )}
+              {/* Staff Remark Field */}
+              <Box sx={{ mt: 3 }}>
+                <Typography sx={{
+                  fontSize: '0.72rem',
+                  color: 'text.secondary',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  mb: 1
+                }}>
+                  Staff Remark (Optional)
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  disabled={!!selectedLead.remark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                  placeholder={
+                    selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username)
+                      ? "You must pick this lead before entering remarks."
+                      : !!selectedLead.remark
+                        ? "Remark is locked and cannot be edited."
+                        : "Enter any internal remarks or notes here..."
+                  }
+                  value={staffRemark}
+                  onChange={(e) => setStaffRemark(e.target.value)}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                      fontSize: '0.875rem',
+                      backgroundColor: (!!selectedLead.remark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))
+                        ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
+                        : (mode === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.02)'),
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: (!!selectedLead.remark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))
+                          ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
+                          : (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)'),
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: mode === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                      }
+                    },
+                    '& .Mui-disabled': {
+                      WebkitTextFillColor: mode === 'light' ? '#475569' : '#94a3b8',
+                      cursor: 'not-allowed'
+                    }
+                  }}
+                />
+              </Box>
             </Box>
           )}
         </DialogContent>
@@ -1386,245 +1451,272 @@ const LeadInfoPage: React.FC = () => {
             borderColor: 'divider',
             gap: 1,
             flexWrap: 'wrap',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            flexDirection: 'column'
           }}
         >
-          {/* ── CONTACT LEADS (Complaint / General Inquiry / Feedback) ── */}
-          {isContactLead(selectedLead) && (
-            <>
-              {/* Mark as New — available when status is read / responded / archived */}
-              {selectedLead?.status !== 'new' && (
-                <Button
-                  onClick={() => handleLeadAction('new')}
-                  disabled={actionLoading}
-                  variant="contained"
-                  sx={{
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                    borderRadius: '12px',
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    fontSize: '0.9375rem',
-                    px: 3,
-                    py: 1.5,
-                    boxShadow: '0 4px 14px rgba(59,130,246,0.4)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                      boxShadow: '0 6px 20px rgba(59,130,246,0.5)',
-                      transform: 'translateY(-2px)',
-                    },
-                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
-                  }}
-                >
-                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as New'}
-                </Button>
-              )}
+          {selectedLead && selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username) && (
+            <Box sx={{ width: '100%', mb: 1, px: 2 }}>
+              <Alert
+                severity="warning"
+                icon={<AssignmentIcon fontSize="small" />}
+                action={
+                  <Button
+                    color="inherit"
+                    size="small"
+                    onClick={() => handlePickLead(selectedLead)}
+                    sx={{ fontWeight: 700 }}
+                  >
+                    Pick Now
+                  </Button>
+                }
+                sx={{
+                  borderRadius: '10px',
+                  '& .MuiAlert-message': { fontWeight: 600, fontSize: '0.85rem' }
+                }}
+              >
+                You must pick this lead to take actions.
+              </Alert>
+            </Box>
+          )}
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
+            {/* ── CONTACT LEADS (Complaint / General Inquiry / Feedback) ── */}
+            {isContactLead(selectedLead) && (
+              <>
+                {/* Mark as New — available when status is read / responded / archived */}
+                {selectedLead?.status !== 'new' && (
+                  <Button
+                    onClick={() => handleLeadAction('new')}
+                    disabled={actionLoading || selectedLead?.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                    variant="contained"
+                    sx={{
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                      borderRadius: '12px',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      fontSize: '0.9375rem',
+                      px: 3,
+                      py: 1.5,
+                      boxShadow: '0 4px 14px rgba(59,130,246,0.4)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                        boxShadow: '0 6px 20px rgba(59,130,246,0.5)',
+                        transform: 'translateY(-2px)',
+                      },
+                      '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                    }}
+                  >
+                    {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as New'}
+                  </Button>
+                )}
 
-              {/* Mark as Read — available when status is new */}
-              {selectedLead?.status !== 'read' && (
-                <Button
-                  onClick={() => handleLeadAction('read')}
-                  disabled={actionLoading}
-                  variant="contained"
-                  sx={{
-                    background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-                    borderRadius: '12px',
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    fontSize: '0.9375rem',
-                    px: 3,
-                    py: 1.5,
-                    boxShadow: '0 4px 14px rgba(14,165,233,0.4)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                      boxShadow: '0 6px 20px rgba(14,165,233,0.5)',
-                      transform: 'translateY(-2px)',
-                    },
-                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
-                  }}
-                >
-                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as Read'}
-                </Button>
-              )}
+                {/* Mark as Read — available when status is new */}
+                {selectedLead?.status !== 'read' && (
+                  <Button
+                    onClick={() => handleLeadAction('read')}
+                    disabled={actionLoading || selectedLead?.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                    variant="contained"
+                    sx={{
+                      background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+                      borderRadius: '12px',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      fontSize: '0.9375rem',
+                      px: 3,
+                      py: 1.5,
+                      boxShadow: '0 4px 14px rgba(14,165,233,0.4)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                        boxShadow: '0 6px 20px rgba(14,165,233,0.5)',
+                        transform: 'translateY(-2px)',
+                      },
+                      '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                    }}
+                  >
+                    {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as Read'}
+                  </Button>
+                )}
 
-              {/* Mark as Responded — available when status is new or read */}
-              {selectedLead?.status !== 'responded' && (
-                <Button
-                  onClick={() => handleLeadAction('responded')}
-                  disabled={actionLoading}
-                  variant="contained"
-                  sx={{
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    borderRadius: '12px',
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    fontSize: '0.9375rem',
-                    px: 3,
-                    py: 1.5,
-                    boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                      boxShadow: '0 6px 20px rgba(16,185,129,0.5)',
-                      transform: 'translateY(-2px)',
-                    },
-                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
-                  }}
-                >
-                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as Responded'}
-                </Button>
-              )}
+                {/* Mark as Responded — available when status is new or read */}
+                {selectedLead?.status !== 'responded' && (
+                  <Button
+                    onClick={() => handleLeadAction('responded')}
+                    disabled={actionLoading || selectedLead?.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                    variant="contained"
+                    sx={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      borderRadius: '12px',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      fontSize: '0.9375rem',
+                      px: 3,
+                      py: 1.5,
+                      boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                        boxShadow: '0 6px 20px rgba(16,185,129,0.5)',
+                        transform: 'translateY(-2px)',
+                      },
+                      '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                    }}
+                  >
+                    {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as Responded'}
+                  </Button>
+                )}
 
-              {/* Archive — available when not already archived */}
-              {selectedLead?.status !== 'archived' && (
-                <Button
-                  onClick={() => handleLeadAction('archived')}
-                  disabled={actionLoading}
-                  variant="outlined"
-                  sx={{
-                    borderColor: '#ef4444',
-                    borderWidth: '2px',
-                    color: '#ef4444',
-                    borderRadius: '12px',
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    fontSize: '0.9375rem',
-                    px: 3,
-                    py: 1.5,
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      borderColor: '#dc2626',
+                {/* Archive — available when not already archived */}
+                {selectedLead?.status !== 'archived' && (
+                  <Button
+                    onClick={() => handleLeadAction('archived')}
+                    disabled={actionLoading || selectedLead?.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                    variant="outlined"
+                    sx={{
+                      borderColor: '#ef4444',
                       borderWidth: '2px',
-                      backgroundColor: '#fee2e2',
-                      transform: 'translateY(-2px)',
-                    },
-                    '&:disabled': { borderColor: '#e2e8f0', color: '#94a3b8' },
-                  }}
-                >
-                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Archive'}
-                </Button>
-              )}
-            </>
-          )}
+                      color: '#ef4444',
+                      borderRadius: '12px',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      fontSize: '0.9375rem',
+                      px: 3,
+                      py: 1.5,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        borderColor: '#dc2626',
+                        borderWidth: '2px',
+                        backgroundColor: '#fee2e2',
+                        transform: 'translateY(-2px)',
+                      },
+                      '&:disabled': { borderColor: '#e2e8f0', color: '#94a3b8' },
+                    }}
+                  >
+                    {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Archive'}
+                  </Button>
+                )}
+              </>
+            )}
 
-          {/* ── BOOKING LEADS — Confirm / Sent Inquiry / Reject workflow ── */}
-          {!isContactLead(selectedLead) && (
-            <>
-              {/* Pending — shown when not already Pending */}
-              {selectedLead?.status !== 'Pending' && selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && (
-                <Button
-                  onClick={() => handleLeadAction('Pending')}
-                  disabled={actionLoading}
-                  variant="contained"
-                  sx={{
-                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                    borderRadius: '12px', fontWeight: 600, textTransform: 'none',
-                    fontSize: '0.9375rem', px: 3, py: 1.5,
-                    boxShadow: '0 4px 14px rgba(245,158,11,0.4)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': { background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', transform: 'translateY(-2px)' },
-                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
-                  }}
-                >
-                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as Pending'}
-                </Button>
-              )}
+            {/* ── BOOKING LEADS — Confirm / Sent Inquiry / Reject workflow ── */}
+            {!isContactLead(selectedLead) && (
+              <>
+                {/* Pending — shown when not already Pending */}
+                {selectedLead?.status !== 'Pending' && selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && selectedLead?.status !== 'Sent Inquiry' && (
+                  <Button
+                    onClick={() => handleLeadAction('Pending')}
+                    disabled={actionLoading || selectedLead?.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                    variant="contained"
+                    sx={{
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      borderRadius: '12px', fontWeight: 600, textTransform: 'none',
+                      fontSize: '0.9375rem', px: 3, py: 1.5,
+                      boxShadow: '0 4px 14px rgba(245,158,11,0.4)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': { background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', transform: 'translateY(-2px)' },
+                      '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                    }}
+                  >
+                    {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Mark as Pending'}
+                  </Button>
+                )}
 
-              {/* Sent Inquiry — shown when status is Pending */}
-              {selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && (
-                <Button
-                  onClick={() => handleLeadAction('Sent Inquiry')}
-                  disabled={actionLoading}
-                  variant="contained"
-                  sx={{
-                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                    borderRadius: '12px', fontWeight: 600, textTransform: 'none',
-                    fontSize: '0.9375rem', px: 3, py: 1.5,
-                    boxShadow: '0 4px 14px rgba(139,92,246,0.4)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': { background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)', transform: 'translateY(-2px)' },
-                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
-                  }}
-                >
-                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Sent Inquiry'}
-                </Button>
-              )}
+                {/* Sent Inquiry — shown when status is Pending */}
+                {selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && selectedLead?.status !== 'Sent Inquiry' && (
+                  <Button
+                    onClick={() => handleLeadAction('Sent Inquiry')}
+                    disabled={actionLoading || selectedLead?.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                    variant="contained"
+                    sx={{
+                      background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                      borderRadius: '12px', fontWeight: 600, textTransform: 'none',
+                      fontSize: '0.9375rem', px: 3, py: 1.5,
+                      boxShadow: '0 4px 14px rgba(139,92,246,0.4)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': { background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)', transform: 'translateY(-2px)' },
+                      '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                    }}
+                  >
+                    {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Sent Inquiry'}
+                  </Button>
+                )}
 
-              {/* Confirm — shown when not already Confirmed */}
-              {selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && (
-                <Button
-                  onClick={() => handleLeadAction('Confirmed')}
-                  disabled={actionLoading}
-                  variant="contained"
-                  sx={{
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    borderRadius: '12px', fontWeight: 600, textTransform: 'none',
-                    fontSize: '0.9375rem', px: 3, py: 1.5,
-                    boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': { background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', transform: 'translateY(-2px)' },
-                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
-                  }}
-                >
-                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Confirm'}
-                </Button>
-              )}
+                {/* Confirm — shown when not already Confirmed */}
+                {selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && (
+                  <Button
+                    onClick={() => handleLeadAction('Confirmed')}
+                    disabled={actionLoading || selectedLead?.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                    variant="contained"
+                    sx={{
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      borderRadius: '12px', fontWeight: 600, textTransform: 'none',
+                      fontSize: '0.9375rem', px: 3, py: 1.5,
+                      boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': { background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', transform: 'translateY(-2px)' },
+                      '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                    }}
+                  >
+                    {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Confirm'}
+                  </Button>
+                )}
 
-              {/* Reject — shown when not already Cancelled */}
-              {selectedLead?.status !== 'Cancelled' && selectedLead?.status !== 'Confirmed' && (
-                <Button
-                  onClick={() => handleLeadAction('Cancelled')}
-                  disabled={actionLoading}
-                  variant="contained"
-                  sx={{
-                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                    borderRadius: '12px', fontWeight: 600, textTransform: 'none',
-                    fontSize: '0.9375rem', px: 3, py: 1.5,
-                    boxShadow: '0 4px 14px rgba(239,68,68,0.4)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': { background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', transform: 'translateY(-2px)' },
-                    '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
-                  }}
-                >
-                  {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Reject'}
-                </Button>
-              )}
-            </>
-          )}
+                {/* Reject — shown when not already Cancelled */}
+                {selectedLead?.status !== 'Cancelled' && selectedLead?.status !== 'Confirmed' && (
+                  <Button
+                    onClick={() => handleLeadAction('Cancelled')}
+                    disabled={actionLoading || selectedLead?.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                    variant="contained"
+                    sx={{
+                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                      borderRadius: '12px', fontWeight: 600, textTransform: 'none',
+                      fontSize: '0.9375rem', px: 3, py: 1.5,
+                      boxShadow: '0 4px 14px rgba(239,68,68,0.4)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': { background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', transform: 'translateY(-2px)' },
+                      '&:disabled': { background: '#e2e8f0', color: '#94a3b8' },
+                    }}
+                  >
+                    {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Reject'}
+                  </Button>
+                )}
+              </>
+            )}
 
-          <Box sx={{ flex: 1 }} />
+            <Box sx={{ flex: 1 }} />
 
-          <Button
-            onClick={handleCloseDialog}
-            variant="outlined"
-            disabled={actionLoading}
-            sx={{
-              borderColor: '#cbd5e1',
-              borderWidth: '2px',
-              color: '#475569',
-              borderRadius: '12px',
-              fontWeight: 600,
-              textTransform: 'none',
-              fontSize: '0.9375rem',
-              px: 4,
-              py: 1.5,
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                borderColor: '#94a3b8',
+            <Button
+              onClick={handleCloseDialog}
+              variant="outlined"
+              disabled={actionLoading}
+              sx={{
+                borderColor: '#cbd5e1',
                 borderWidth: '2px',
-                backgroundColor: '#f1f5f9',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 12px rgba(100, 116, 139, 0.15)',
-              },
-              '&:disabled': {
-                borderColor: '#e2e8f0',
-                color: '#cbd5e1',
-              },
-            }}
-          >
-            Close
-          </Button>
+                color: '#475569',
+                borderRadius: '12px',
+                fontWeight: 600,
+                textTransform: 'none',
+                fontSize: '0.9375rem',
+                px: 4,
+                py: 1.5,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  borderColor: '#94a3b8',
+                  borderWidth: '2px',
+                  backgroundColor: '#f1f5f9',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(100, 116, 139, 0.15)',
+                },
+                '&:disabled': {
+                  borderColor: '#e2e8f0',
+                  color: '#cbd5e1',
+                },
+              }}
+            >
+              Close
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
     </Box >
