@@ -383,6 +383,7 @@ export default function HeroSection() {
   const [paused, setPaused] = useState(false);
   const [kenKey, setKenKey] = useState(0);
   const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [firstImageLoaded, setFirstImageLoaded] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -530,24 +531,9 @@ export default function HeroSection() {
   };
 
   // -----------------------------------------------------------------------
-  // Preload images
-  // -----------------------------------------------------------------------
+  // No manual preloading needed - Next/Image with priority handled this better
   useEffect(() => {
-    const imagePromises = SLIDES.map((slide) => {
-      return new Promise((resolve, reject) => {
-        const img = new window.Image();
-        img.src = slide.src;
-        img.onload = resolve;
-        img.onerror = reject;
-      });
-    });
-
-    Promise.all(imagePromises)
-      .then(() => setImagesLoaded(true))
-      .catch((err) => {
-        console.error('Error loading images:', err);
-        setImagesLoaded(true);
-      });
+    setImagesLoaded(true);
   }, []);
 
   // -----------------------------------------------------------------------
@@ -789,7 +775,8 @@ export default function HeroSection() {
         minHeight: "850px",
         height: "auto",
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
+        background: "#071d24", // Dark background matching site theme
       }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -801,20 +788,22 @@ export default function HeroSection() {
           className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
           style={{
             zIndex: i === current ? 1 : 0,
-            opacity: imagesLoaded && i === current ? 1 : 0
+            opacity: i === current ? 1 : 0,
+            pointerEvents: i === current ? "auto" : "none"
           }}
           aria-hidden={i !== current}
         >
-          <div
-            key={`${kenKey}-${i}`}
-            className="absolute inset-0"
+          <Image
+            src={slide.src}
+            alt={slide.alt}
+            fill
+            priority={i === 0}
+            className="object-cover"
             style={{
-              backgroundImage: `url('${slide.src}')`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-              animation: i === current && imagesLoaded ? "kenBurns 8s ease-out forwards" : "none",
-              willChange: "transform",
+              animation: i === current ? "kenBurns 8s ease-out forwards" : "none",
+            }}
+            onLoadingComplete={() => {
+              if (i === 0) setFirstImageLoaded(true);
             }}
           />
           <div
@@ -827,21 +816,10 @@ export default function HeroSection() {
         </div>
       ))}
 
-      {/* Fallback background */}
-      {!imagesLoaded && (
-        <div
-          className="absolute inset-0"
-          style={{
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
-            zIndex: 0,
-          }}
-        />
-      )}
-
       {/* HERO CONTENT */}
       <div
-        className="relative flex-grow flex flex-col items-center justify-center px-4 pt-40 pb-40 text-center"
-        style={{ zIndex: 10 }}
+        className="relative flex-grow flex flex-col items-center justify-center px-4 pt-40 pb-40 text-center transition-opacity duration-500"
+        style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}
       >
         <div className="w-full max-w-4xl">
 
@@ -2353,9 +2331,8 @@ export default function HeroSection() {
         </DialogContent>
       </Dialog>
 
-      {/* KEYFRAMES + GOOGLE FONTS */}
+      {/* KEYFRAMES */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap');
 
         @keyframes kenBurns {
           0%   { transform: scale(1); }

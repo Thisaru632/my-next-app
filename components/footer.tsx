@@ -197,8 +197,6 @@ export default function Footer() {
       </div>
 
       <style jsx>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Raleway:wght@300;400;500;600&display=swap');
-
         /* ═══════════════════════════════════════════════════════════ */
         /*  FOOTER SECTION — Luxury Heritage Aesthetic                */
         /* ═══════════════════════════════════════════════════════════ */
