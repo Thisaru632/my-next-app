@@ -122,20 +122,20 @@ export default function FreedomPackages() {
             </div>
 
             {/* Carousel Container */}
-            <div className="relative h-[500px] md:h-[650px] flex items-center justify-center">
+            <div className="relative h-[550px] md:h-[650px] flex items-center justify-center">
                 {/* Navigation Buttons */}
                 <button
                     onClick={prevSlide}
-                    className="absolute left-4 md:left-10 z-30 p-4 rounded-full bg-gray-100 border border-gray-200 text-gray-800 hover:bg-teal-500 hover:border-teal-500 hover:text-white transition-all duration-300 shadow-md backdrop-blur-sm"
+                    className="absolute left-2 md:left-10 z-30 p-2 md:p-4 rounded-full bg-white/80 border border-gray-200 text-gray-800 hover:bg-teal-500 hover:border-teal-500 hover:text-white transition-all duration-300 shadow-md backdrop-blur-sm"
                 >
-                    <ChevronLeft size={24} />
+                    <ChevronLeft size={20} className="md:w-6 md:h-6" />
                 </button>
 
                 <button
                     onClick={nextSlide}
-                    className="absolute right-4 md:right-10 z-30 p-4 rounded-full bg-gray-100 border border-gray-200 text-gray-800 hover:bg-teal-500 hover:border-teal-500 hover:text-white transition-all duration-300 shadow-md backdrop-blur-sm"
+                    className="absolute right-2 md:right-10 z-30 p-2 md:p-4 rounded-full bg-white/80 border border-gray-200 text-gray-800 hover:bg-teal-500 hover:border-teal-500 hover:text-white transition-all duration-300 shadow-md backdrop-blur-sm"
                 >
-                    <ChevronRight size={24} />
+                    <ChevronRight size={20} className="md:w-6 md:h-6" />
                 </button>
 
                 {/* Slides */}
@@ -146,10 +146,10 @@ export default function FreedomPackages() {
                         return (
                             <div
                                 key={pkg.id}
-                                className={`absolute w-[280px] md:w-[400px] h-[450px] md:h-[600px] transition-all duration-700 ease-out rounded-3xl overflow-hidden cursor-pointer shadow-2xl group
-                  ${pos === 'center' ? 'z-20 opacity-100 translate-x-0 scale-110' : ''}
-                  ${pos === 'left' ? 'z-10 opacity-65 -translate-x-[60%] md:-translate-x-[80%] scale-90 blur-[1px]' : ''}
-                  ${pos === 'right' ? 'z-10 opacity-65 translate-x-[60%] md:translate-x-[80%] scale-90 blur-[1px]' : ''}
+                                className={`absolute w-[85vw] md:w-[400px] h-[480px] md:h-[600px] transition-all duration-700 ease-out rounded-3xl overflow-hidden cursor-pointer shadow-2xl group
+                  ${pos === 'center' ? 'z-20 opacity-100 translate-x-0 scale-100 md:scale-110' : ''}
+                  ${pos === 'left' ? 'z-10 opacity-40 md:opacity-65 -translate-x-[70%] md:-translate-x-[80%] scale-80 md:scale-90 blur-[2px] md:blur-[1px]' : ''}
+                  ${pos === 'right' ? 'z-10 opacity-40 md:opacity-65 translate-x-[70%] md:translate-x-[80%] scale-80 md:scale-90 blur-[2px] md:blur-[1px]' : ''}
                   ${pos === 'hidden' ? 'opacity-0 scale-50 pointer-events-none' : ''}
                 `}
                                 onClick={() => pos !== 'center' && setActive(index)}
@@ -169,14 +169,14 @@ export default function FreedomPackages() {
                                 />
 
                                 {/* Content Overlay */}
-                                <div className="absolute inset-x-0 bottom-0 p-8 z-20 flex flex-col items-start translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                                    <span className="text-white/70 text-xs font-bold tracking-widest uppercase mb-2">{pkg.limit}</span>
-                                    <h3 className="text-white text-3xl md:text-4xl font-serif font-bold mb-4">{pkg.title}</h3>
-                                    <p className="text-white/80 text-sm md:text-base leading-relaxed mb-8 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 line-clamp-3">
+                                <div className="absolute inset-x-0 bottom-0 p-6 md:p-8 z-20 flex flex-col items-start translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                                    <span className="text-white/70 text-[10px] md:text-xs font-bold tracking-widest uppercase mb-1 md:mb-2">{pkg.limit}</span>
+                                    <h3 className="text-white text-2xl md:text-4xl font-serif font-bold mb-2 md:mb-4">{pkg.title}</h3>
+                                    <p className="text-white/80 text-xs md:text-base leading-relaxed mb-6 md:mb-8 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 line-clamp-2 md:line-clamp-3">
                                         {pkg.description}
                                     </p>
 
-                                    <button className="px-8 py-3 bg-white text-gray-900 rounded-xl font-bold text-sm tracking-wider uppercase hover:bg-teal-600 hover:text-white transition-all duration-300 shadow-xl self-stretch md:self-start">
+                                    <button className="px-6 md:px-8 py-2.5 md:py-3 bg-white text-gray-900 rounded-xl font-bold text-xs md:text-sm tracking-wider uppercase hover:bg-teal-600 hover:text-white transition-all duration-300 shadow-xl self-stretch md:self-start">
                                         Request Package
                                     </button>
                                 </div>
@@ -189,12 +189,12 @@ export default function FreedomPackages() {
                 </div>
 
                 {/* Indicators */}
-                <div className="absolute -bottom-10 flex gap-3 z-30">
+                <div className="absolute -bottom-16 md:-bottom-10 flex gap-3 z-30">
                     {PACKAGES.map((_, i) => (
                         <button
                             key={i}
                             onClick={() => setActive(i)}
-                            className={`h-2 rounded-full transition-all duration-500 ${active === i ? 'w-12 bg-teal-500' : 'w-2 bg-gray-300'}`}
+                            className={`h-2 rounded-full transition-all duration-500 ${active === i ? 'w-10 md:w-12 bg-teal-500' : 'w-2 bg-gray-300'}`}
                         />
                     ))}
                 </div>
