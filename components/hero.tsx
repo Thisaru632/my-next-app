@@ -400,6 +400,8 @@ export default function HeroSection() {
     maxBags: 0,
   });
 
+  const [requestSent, setRequestSent] = useState(false);
+
   // Intermediate destinations state
   const [destinations, setDestinations] = useState<string[]>([]);
 
@@ -631,10 +633,11 @@ export default function HeroSection() {
       });
 
       if (response.ok) {
-        setSnackbarMessage('Booking request sent successfully!');
-        setSnackbarSeverity('success');
-        setSnackbarOpen(true);
-        setOpenPersonalDialog(false);
+        setRequestSent(true);
+        // setSnackbarMessage('Thank you for sending request. We will contact you shortly!');
+        // setSnackbarSeverity('success');
+        // setSnackbarOpen(true);
+        // We handle closing in the success view now
         setFormData({
           vehicleType: '',
           vehicleName: '',
@@ -1489,7 +1492,7 @@ export default function HeroSection() {
                   )}
 
                   {/* Price Estimate (Highlighted) */}
-                  {displayPrice > 0 && formData.pickupLocation && formData.dropoffLocation && (
+                  {formData.pickupLocation && formData.dropoffLocation && (formData.vehicleType === 'SUV' || displayPrice > 0) && (
                     <div style={{
                       marginTop: '8px',
                       padding: '16px',
@@ -1498,20 +1501,29 @@ export default function HeroSection() {
                       border: '1px solid rgba(13,148,136,0.15)',
                     }}>
                       <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.75rem', color: '#0d9488', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>
-                        Total Estimate
+                        {formData.vehicleType === 'SUV' ? 'Booking Request' : 'Total Estimate'}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                        <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.4rem', fontWeight: 800, color: '#0d9488' }}>
-                          LKR {totalPrice.toLocaleString()}
-                        </span>
-                      </div>
-                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#6b7280', marginTop: '4px' }}>
-                        {matchedPackage ? (
-                          formData.tripType === 'Drop'
-                            ? `*Price for ${matchedPackage.km} km package. `
-                            : `*Price for ${matchedPackage.km} km & ${matchedPackage.hrs} hrs package. `
-                        ) : ''}*Actual price may vary based on route changes.
-                      </div>
+
+                      {formData.vehicleType === 'SUV' ? (
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.2rem', fontWeight: 800, color: '#0d9488', margin: '4px 0' }}>
+                          Price on Request
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                            <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.4rem', fontWeight: 800, color: '#0d9488' }}>
+                              LKR {totalPrice.toLocaleString()}
+                            </span>
+                          </div>
+                          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#6b7280', marginTop: '4px' }}>
+                            {matchedPackage ? (
+                              formData.tripType === 'Drop'
+                                ? `*Price for ${matchedPackage.km} km package. `
+                                : `*Price for ${matchedPackage.km} km & ${matchedPackage.hrs} hrs package. `
+                            ) : ''}*Actual price may vary based on route changes.
+                          </div>
+                        </>
+                      )}
 
                       {/* Informational Message - Policy Notice OR Booking Confirmation */}
                       {routeDistance !== null && (
@@ -2025,151 +2037,192 @@ export default function HeroSection() {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
-            <div style={{ position: 'relative' }}>
-              <AccountCircle style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1 }} />
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '1rem 1rem 1rem 3rem',
-                  borderRadius: '14px',
-                  border: '1.5px solid rgba(0,0,0,0.08)',
-                  background: 'rgba(0,0,0,0.02)',
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '0.95rem',
-                  outline: 'none',
-                  transition: 'all 0.3s ease'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#0d9488';
-                  e.target.style.background = '#fff';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'rgba(0,0,0,0.08)';
-                  e.target.style.background = 'rgba(0,0,0,0.02)';
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-            <div style={{ position: 'relative' }}>
-              <Phone style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
-              <input
-                type="tel"
-                placeholder="Telephone"
-                value={formData.telephone}
-                onChange={(e) => handleChange('telephone', e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '1rem 1rem 1rem 3rem',
-                  borderRadius: '14px',
-                  border: '1.5px solid rgba(0,0,0,0.08)',
-                  background: 'rgba(0,0,0,0.02)',
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '0.95rem',
-                  outline: 'none',
-                  transition: 'all 0.3s ease'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#0d9488';
-                  e.target.style.background = '#fff';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'rgba(0,0,0,0.08)';
-                  e.target.style.background = 'rgba(0,0,0,0.02)';
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-            <div style={{ position: 'relative' }}>
-              <Email style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
-              <input
-                type="email"
-                placeholder="Email Address"
-                value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '1rem 1rem 1rem 3rem',
-                  borderRadius: '14px',
-                  border: '1.5px solid rgba(0,0,0,0.08)',
-                  background: 'rgba(0,0,0,0.02)',
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontSize: '0.95rem',
-                  outline: 'none',
-                  transition: 'all 0.3s ease'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#0d9488';
-                  e.target.style.background = '#fff';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = 'rgba(0,0,0,0.08)';
-                  e.target.style.background = 'rgba(0,0,0,0.02)';
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-            <input
-              type="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={(e) => handleChange('email', e.target.value)}
-              style={{
-                padding: '1rem',
-                borderRadius: '12px',
-                border: '1.5px solid rgba(0,0,0,0.08)',
-                background: 'rgba(0,0,0,0.02)',
+          {requestSent ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center',
+              padding: '2rem 1rem',
+              gap: '1.5rem'
+            }}>
+              <div style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                background: 'rgba(13, 148, 136, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#0d9488',
+                marginBottom: '0.5rem'
+              }}>
+                <CheckCircle style={{ fontSize: '3.5rem' }} />
+              </div>
+
+              <h3 style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: '1.8rem',
+                fontWeight: 700,
+                color: '#111827',
+                margin: 0
+              }}>
+                Thank You!
+              </h3>
+
+              <p style={{
                 fontFamily: "'Montserrat', sans-serif",
-                fontSize: '0.9rem',
-                outline: 'none',
-                transition: 'all 0.3s ease'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#0d9488';
-                e.target.style.background = '#fff';
-                e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = 'rgba(0,0,0,0.08)';
-                e.target.style.background = 'rgba(0,0,0,0.02)';
-                e.target.style.boxShadow = 'none';
-              }}
-            />
-            <button
-              onClick={handleSendRequest}
-              style={{
-                padding: '1.1rem',
-                background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '14px',
-                fontWeight: 600,
-                fontSize: '1rem',
-                fontFamily: "'Montserrat', sans-serif",
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: '0 10px 20px rgba(13, 148, 136, 0.2)',
-                marginTop: '0.5rem'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 15px 30px rgba(13, 148, 136, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 10px 20px rgba(13, 148, 136, 0.2)';
-              }}
-            >
-              Confirm Booking
-            </button>
-          </div>
+                fontSize: '0.95rem',
+                color: '#4b5563',
+                lineHeight: 1.6,
+                margin: 0
+              }}>
+                Your journey request has been sent successfully. We will contact you shortly to finalize your booking.
+              </p>
+
+              <button
+                onClick={() => {
+                  setOpenPersonalDialog(false);
+                  setTimeout(() => setRequestSent(false), 500);
+                }}
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.8rem 2rem',
+                  background: '#0d9488',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontWeight: 600,
+                  fontFamily: "'Montserrat', sans-serif",
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1.5rem', marginBottom: '0.5rem' }}>
+              <div style={{ position: 'relative' }}>
+                <AccountCircle style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1 }} />
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={formData.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '1rem 1rem 1rem 3rem',
+                    borderRadius: '14px',
+                    border: '1.5px solid rgba(0,0,0,0.08)',
+                    background: 'rgba(0,0,0,0.02)',
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#0d9488';
+                    e.target.style.background = '#fff';
+                    e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(0,0,0,0.08)';
+                    e.target.style.background = 'rgba(0,0,0,0.02)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+              <div style={{ position: 'relative' }}>
+                <Phone style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
+                <input
+                  type="tel"
+                  placeholder="Telephone"
+                  value={formData.telephone}
+                  onChange={(e) => handleChange('telephone', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '1rem 1rem 1rem 3rem',
+                    borderRadius: '14px',
+                    border: '1.5px solid rgba(0,0,0,0.08)',
+                    background: 'rgba(0,0,0,0.02)',
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#0d9488';
+                    e.target.style.background = '#fff';
+                    e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(0,0,0,0.08)';
+                    e.target.style.background = 'rgba(0,0,0,0.02)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+              <div style={{ position: 'relative' }}>
+                <Email style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
+                <input
+                  type="email"
+                  placeholder="Email Address"
+                  value={formData.email}
+                  onChange={(e) => handleChange('email', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '1rem 1rem 1rem 3rem',
+                    borderRadius: '14px',
+                    border: '1.5px solid rgba(0,0,0,0.08)',
+                    background: 'rgba(0,0,0,0.02)',
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#0d9488';
+                    e.target.style.background = '#fff';
+                    e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'rgba(0,0,0,0.08)';
+                    e.target.style.background = 'rgba(0,0,0,0.02)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+
+              <button
+                onClick={handleSendRequest}
+                style={{
+                  padding: '1.1rem',
+                  background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  fontFamily: "'Montserrat', sans-serif",
+                  cursor: 'pointer',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 10px 20px rgba(13, 148, 136, 0.2)',
+                  marginTop: '0.5rem'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 15px 30px rgba(13, 148, 136, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 10px 20px rgba(13, 148, 136, 0.2)';
+                }}
+              >
+                Send Request
+              </button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
