@@ -27,7 +27,6 @@ import {
     Tab,
     Switch,
     FormControlLabel,
-    Grid,
     CircularProgress,
     Tooltip,
     useTheme,
@@ -376,8 +375,8 @@ const CMSPage = () => {
                     {editingPackage ? 'Edit Package' : 'Add New Package'}
                 </DialogTitle>
                 <DialogContent sx={{ px: 3 }}>
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                        <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mt: 1 }}>
+                        <Box>
                             <FormControl fullWidth size="small">
                                 <InputLabel>Package Type</InputLabel>
                                 <Select
@@ -390,8 +389,8 @@ const CMSPage = () => {
                                     <MenuItem value="destination">Magical Destination</MenuItem>
                                 </Select>
                             </FormControl>
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
+                        </Box>
+                        <Box>
                             <TextField
                                 fullWidth
                                 size="small"
@@ -399,11 +398,11 @@ const CMSPage = () => {
                                 value={formData.title}
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                             />
-                        </Grid>
+                        </Box>
 
                         {formData.type === 'freedom' ? (
                             <>
-                                <Grid item xs={12} sm={6}>
+                                <Box>
                                     <TextField
                                         fullWidth
                                         size="small"
@@ -411,8 +410,8 @@ const CMSPage = () => {
                                         value={formData.limit}
                                         onChange={(e) => setFormData({ ...formData, limit: e.target.value })}
                                     />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
+                                </Box>
+                                <Box>
                                     <TextField
                                         fullWidth
                                         size="small"
@@ -421,11 +420,11 @@ const CMSPage = () => {
                                         onChange={(e) => setFormData({ ...formData, gradient: e.target.value })}
                                         helperText="CSS gradient for the card bottom"
                                     />
-                                </Grid>
+                                </Box>
                             </>
                         ) : (
                             <>
-                                <Grid item xs={12} sm={6}>
+                                <Box>
                                     <TextField
                                         fullWidth
                                         size="small"
@@ -433,8 +432,8 @@ const CMSPage = () => {
                                         value={formData.label}
                                         onChange={(e) => setFormData({ ...formData, label: e.target.value })}
                                     />
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
+                                </Box>
+                                <Box>
                                     <FormControlLabel
                                         control={
                                             <Switch
@@ -444,11 +443,11 @@ const CMSPage = () => {
                                         }
                                         label="Large Layout (Tall Card)"
                                     />
-                                </Grid>
+                                </Box>
                             </>
                         )}
 
-                        <Grid item xs={12}>
+                        <Box sx={{ gridColumn: 'span 2' }}>
                             <Box sx={{ border: '1px dashed', borderColor: 'divider', p: 2, borderRadius: 2, textAlign: 'center' }}>
                                 {formData.image ? (
                                     <Box sx={{ position: 'relative', width: 'fit-content', mx: 'auto' }}>
@@ -491,9 +490,9 @@ const CMSPage = () => {
                                     </Box>
                                 )}
                             </Box>
-                        </Grid>
+                        </Box>
 
-                        <Grid item xs={12}>
+                        <Box sx={{ gridColumn: 'span 2' }}>
                             <TextField
                                 fullWidth
                                 multiline
@@ -502,9 +501,9 @@ const CMSPage = () => {
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             />
-                        </Grid>
+                        </Box>
 
-                        <Grid item xs={12}>
+                        <Box sx={{ gridColumn: 'span 2' }}>
                             <FormControlLabel
                                 control={
                                     <Switch
@@ -514,8 +513,8 @@ const CMSPage = () => {
                                 }
                                 label="Active Status"
                             />
-                        </Grid>
-                    </Grid>
+                        </Box>
+                    </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
                     <Button onClick={handleCloseDialog} sx={{ textTransform: 'none', fontWeight: 600 }}>
