@@ -29,32 +29,85 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
         setMobileOpen(!mobileOpen);
     };
 
+    const handleLogout = () => {
+        localStorage.removeItem('staffToken');
+        localStorage.removeItem('staffUser');
+        localStorage.removeItem('staffTokenExpiry');
+        router.push('/staff/login');
+    };
+
     useEffect(() => {
         const token = localStorage.getItem('staffToken');
+        const expiry = localStorage.getItem('staffTokenExpiry');
 
+        // Initial session check
         if (!token && !isAuthPage) {
             router.push('/staff/login');
-        } else if (token && isAuthPage) {
-            router.push('/staff');
-        } else {
-            setIsAuthenticated(!!token);
-            setLoading(false);
+            return;
+        }
 
-            if (token && !isAuthPage) {
-                try {
-                    const userStr = localStorage.getItem('staffUser');
-                    if (userStr) {
-                        const user = JSON.parse(userStr);
-                        fetch(`${API_ENDPOINTS.AUTH}/mark-online`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email: user.email, username: user.username }),
-                        }).catch(() => { });
-                    }
-                } catch (e) { }
-            }
+        // 1-hour absolute expiry check (from login)
+        if (expiry && Date.now() > parseInt(expiry)) {
+            handleLogout();
+            return;
+        }
+
+        if (token && isAuthPage) {
+            router.push('/staff');
+            return;
+        }
+
+        setIsAuthenticated(!!token);
+        setLoading(false);
+
+        if (token && !isAuthPage) {
+            try {
+                const userStr = localStorage.getItem('staffUser');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    fetch(`${API_ENDPOINTS.AUTH}/mark-online`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: user.email, username: user.username }),
+                    }).catch(() => { });
+                }
+            } catch (e) { }
         }
     }, [pathname, router, isAuthPage]);
+
+    // --- Idle Timeout Logic (1 Hour) ---
+    useEffect(() => {
+        if (isAuthPage || !isAuthenticated) return;
+
+        let timeoutId: NodeJS.Timeout;
+        const IDLE_TIME = 60 * 60 * 1000; // 1 hour in milliseconds
+
+        const resetTimer = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                console.log("Session expired due to inactivity");
+                handleLogout();
+            }, IDLE_TIME);
+        };
+
+        // Events to track user activity
+        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+
+        // Initial timer setup
+        resetTimer();
+
+        // Add listeners
+        events.forEach(event => {
+            window.addEventListener(event, resetTimer);
+        });
+
+        return () => {
+            clearTimeout(timeoutId);
+            events.forEach(event => {
+                window.removeEventListener(event, resetTimer);
+            });
+        };
+    }, [isAuthenticated, isAuthPage]);
 
 
     return (

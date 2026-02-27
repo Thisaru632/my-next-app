@@ -509,7 +509,8 @@ export default function MagicalDestinations() {
 function ViewMoreButton() {
   const [hovered, setHovered] = useState(false);
   return (
-    <button
+    <Link
+      href="/all_packages?tab=destination"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -529,12 +530,13 @@ function ViewMoreButton() {
         display: "inline-flex",
         alignItems: "center",
         gap: "8px",
+        textDecoration: "none",
       }}
     >
       View more destinations
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
         <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-    </button>
+    </Link>
   );
 }

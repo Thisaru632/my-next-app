@@ -331,24 +331,24 @@ const sampleVehicles = {
   Car: {
     models: [
       { name: 'Alto', description: 'Compact & Efficient', maxPersons: 3, maxBags: 2 },
-      { name: 'Wagon R', description: 'Spacious Interior', maxPersons: 4, maxBags: 3 },
-      { name: 'Aqua', description: 'Hybrid Technology', maxPersons: 4, maxBags: 3 },
-      { name: 'Axio', description: 'Premium Comfort', maxPersons: 4, maxBags: 3 },
+      { name: 'Wagon R', description: 'Spacious Interior', maxPersons: 3, maxBags: 2 },
+      { name: 'Aqua', description: 'Hybrid Technology', maxPersons: 4, maxBags: 2 },
+      { name: 'Axio', description: 'Premium Comfort', maxPersons: 4, maxBags: 2 },
     ]
   },
   Van: {
     models: [
-      { name: 'KDH High Roof', description: 'Extra headroom', maxPersons: 12, maxBags: 10 },
-      { name: 'KDH Flat Roof', description: 'Classic style', maxPersons: 10, maxBags: 8 },
-      { name: 'Mini Van', description: 'Compact & comfortable', maxPersons: 6, maxBags: 4 },
-      { name: 'Dual AC Van', description: 'Dual climate control', maxPersons: 10, maxBags: 8 },
-      { name: 'Non-AC Van', description: 'Budget friendly', maxPersons: 10, maxBags: 8 },
+      { name: 'KDH High Roof', description: 'Extra headroom', maxPersons: 14, maxBags: 5 },
+      { name: 'KDH Flat Roof', description: 'Classic style', maxPersons: 9, maxBags: 4 },
+      { name: 'Mini Van', description: 'Compact & comfortable', maxPersons: 6, maxBags: 3 },
+      { name: 'Dual AC Van', description: 'Dual climate control', maxPersons: 9, maxBags: 4 },
+      { name: 'Non-AC Van', description: 'Budget friendly', maxPersons: 14, maxBags: 4 },
     ]
   },
   Bus: {
     models: [
-      { name: 'AC 29 Seater', description: 'Air conditioned comfort', maxPersons: 29, maxBags: 25 },
-      { name: 'Non-AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 25 },
+      { name: 'AC 29 Seater', description: 'Air conditioned comfort', maxPersons: 29, maxBags: 8 },
+      { name: 'Non-AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 8 },
     ]
   },
   SUV: {
@@ -1045,7 +1045,7 @@ export default function HeroSection() {
                   }} />
 
                   {/* PICKUP */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", position: "relative", zIndex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", position: "relative", zIndex: 50 }}>
                     <div style={{
                       width: "24px",
                       height: "24px",
@@ -1123,7 +1123,7 @@ export default function HeroSection() {
 
                   {/* INTERMEDIATE DESTINATIONS */}
                   {destinations.map((dest, index) => (
-                    <div key={index} style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", position: "relative", zIndex: 1 }}>
+                    <div key={index} style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", position: "relative", zIndex: 40 - index }}>
                       <div style={{
                         width: "24px",
                         height: "24px",
@@ -1445,8 +1445,8 @@ export default function HeroSection() {
                       <div>
                         <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>Capacity Details</div>
                         <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>
-                          {matchedPackage && matchedPackage.hrs > 0 ? `${matchedPackage.hrs} Seater` : (formData.maxPersons > 0 ? `Max ${formData.maxPersons} Persons` : '')}
-                          {((matchedPackage && matchedPackage.hrs > 0) || formData.maxPersons > 0) && formData.maxBags > 0 && ' • '}
+                          {formData.maxPersons > 0 ? `Max ${formData.maxPersons} Persons` : ''}
+                          {formData.maxPersons > 0 && formData.maxBags > 0 && ' • '}
                           {formData.maxBags > 0 && `Max ${formData.maxBags} Bags`}
                         </div>
                       </div>

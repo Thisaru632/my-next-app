@@ -54,6 +54,7 @@ export default function LoginPage() {
 
             // Save user data and token
             localStorage.setItem('staffToken', data.token);
+            localStorage.setItem('staffTokenExpiry', (Date.now() + 60 * 60 * 1000).toString()); // 1 hour expiry
             localStorage.setItem('staffUser', JSON.stringify({
                 username: data.username,
                 fullName: data.fullName,

@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -17,29 +18,50 @@ interface NavbarProps {
 }
 
 export default function Navbar({ isHeroPage = true }: NavbarProps) {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeLink, setActiveLink] = useState("/");
+  const [isScrolled, setIsScrolled] = useState(false);
 
-  const textColor = isHeroPage ? "text-white/90" : "text-gray-800";
-  const hoverBg = isHeroPage ? "hover:bg-green-500/10" : "hover:bg-green-50";
-  const hoverText = isHeroPage ? "hover:text-green-400" : "hover:text-green-600";
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 50) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Header should be light (white background, dark text) if not on hero page OR if scrolled down
+  const isLightHeader = !isHeroPage || isScrolled;
+
+  const textColor = isLightHeader ? "text-gray-800" : "text-white/90";
+  const hoverBg = isLightHeader ? "hover:bg-green-50" : "hover:bg-green-500/10";
+  const hoverText = isLightHeader ? "hover:text-green-600" : "hover:text-green-400";
   const activeBg = "bg-green-600";
   const activeText = "text-white";
 
   return (
-    <nav className={`${isHeroPage ? "absolute bg-transparent" : "relative bg-white shadow-sm"} top-0 left-0 w-full z-50 transition-all duration-300`}>
+    <nav
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${isLightHeader
+        ? "bg-white shadow-md py-1"
+        : "bg-transparent py-3"
+        }`}
+    >
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
 
-          {/* Logo - if isHeroPage is false, we might want a different logo or just the same one if it looks good */}
+          {/* Logo */}
           <Link href="/" className="flex items-center -ml-4">
             <Image
               src="/senu tours 3d.png"
               alt="Senu Tours Logo"
-              width={60}
+              width={isScrolled ? 50 : 60}
               height={20}
               priority
-              className="object-contain"
+              className="object-contain transition-all duration-300"
             />
           </Link>
 
@@ -49,8 +71,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
               <li key={link.label}>
                 <Link
                   href={link.href}
-                  onClick={() => setActiveLink(link.href)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${activeLink === link.href
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${pathname === link.href
                     ? `${activeBg} ${activeText}`
                     : `${textColor} ${hoverBg} ${hoverText}`
                     }`}
@@ -64,7 +85,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
           {/* Mobile Hamburger */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className={`md:hidden focus:outline-none ${isHeroPage ? "text-white" : "text-gray-800"}`}
+            className={`md:hidden focus:outline-none ${isLightHeader ? "text-gray-800" : "text-white"}`}
             aria-label="Toggle menu"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,18 +101,17 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className={`md:hidden ${isHeroPage ? "bg-black/80 backdrop-blur-md border-t border-white/10" : "bg-white border-t border-gray-100"} px-4 py-2`}>
+        <div className={`md:hidden ${isLightHeader ? "bg-white border-t border-gray-100" : "bg-black/80 backdrop-blur-md border-t border-white/10"} px-4 py-2`}>
           {navLinks.map((link) => (
             <Link
               key={link.label}
               href={link.href}
               onClick={() => {
-                setActiveLink(link.href);
                 setIsOpen(false);
               }}
-              className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${activeLink === link.href
+              className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${pathname === link.href
                 ? `${activeBg} ${activeText}`
-                : `${isHeroPage ? "text-white/80 hover:text-green-400 hover:bg-green-500/10" : "text-gray-700 hover:text-green-600 hover:bg-green-50"}`
+                : `${isLightHeader ? "text-gray-700 hover:text-green-600 hover:bg-green-50" : "text-white/80 hover:text-green-400 hover:bg-green-500/10"}`
                 }`}
             >
               {link.label}
