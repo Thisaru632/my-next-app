@@ -169,6 +169,37 @@ const RateCardManagePage = () => {
         setKmFilter('');
     };
 
+    const handleStatusUpdate = async (id: string, newStatus: string) => {
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+        console.log(`Attempting to update rate card ${id} to ${newStatus}`);
+
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/${id}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Update success:', data);
+                setRateCards(prev => prev.map(card => card._id === id ? { ...card, status: newStatus } : card));
+                setSuccess(`Rate card status updated to ${newStatus}`);
+            } else {
+                const errorData = await response.json();
+                console.error('Update failed:', errorData);
+                setError(errorData.message || 'Failed to update status');
+            }
+        } catch (err) {
+            console.error('Fetch error:', err);
+            setError('An error occurred while updating status. Please check if the backend is running.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <Box sx={{ p: 0 }}>
             {/* Page Header */}
@@ -437,10 +468,11 @@ const RateCardManagePage = () => {
                                 <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Hrs</TableCell>
                                 <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}></TableCell>
                                 <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Rate</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}></TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Ext KM</TableCell>
                                 <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Ext Hrs</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}></TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}></TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Ext Hr 2</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Status</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Action</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -483,9 +515,40 @@ const RateCardManagePage = () => {
                                         <TableCell>{row.extraHrRate1}</TableCell>
                                         <TableCell>{row.extraHrRate2}</TableCell>
                                         <TableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#10b981', fontWeight: 600 }}>
-                                                <CheckCircleIcon sx={{ fontSize: 16 }} />
-                                                {row.status}
+                                            <Chip
+                                                label={row.status || 'Pending'}
+                                                size="small"
+                                                color={
+                                                    row.status === 'Approved' ? 'success' :
+                                                        row.status === 'Rejected' ? 'error' : 'warning'
+                                                }
+                                                sx={{ fontWeight: 700, borderRadius: '6px' }}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                                {row.status !== 'Approved' && (
+                                                    <Button
+                                                        size="small"
+                                                        variant="contained"
+                                                        color="success"
+                                                        onClick={() => handleStatusUpdate(row._id, 'Approved')}
+                                                        sx={{ py: 0, minWidth: '70px', textTransform: 'none', fontSize: '0.75rem', borderRadius: '6px', bgcolor: '#10b981' }}
+                                                    >
+                                                        Approve
+                                                    </Button>
+                                                )}
+                                                {row.status !== 'Rejected' && (
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        color="error"
+                                                        onClick={() => handleStatusUpdate(row._id, 'Rejected')}
+                                                        sx={{ py: 0, minWidth: '70px', textTransform: 'none', fontSize: '0.75rem', borderRadius: '6px' }}
+                                                    >
+                                                        Reject
+                                                    </Button>
+                                                )}
                                             </Box>
                                         </TableCell>
                                     </TableRow>

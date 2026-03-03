@@ -78,6 +78,11 @@ interface Lead {
   isViewed?: boolean;
   matchedPackage?: any;
   remark?: string;
+  additionalPhones?: string[];
+  customerRemark?: string;
+  staffRemark?: string;
+  promoCode?: string;
+  discount?: number;
 }
 
 // Mock data
@@ -244,6 +249,10 @@ const LeadInfoPage: React.FC = () => {
         if (bookingsRes.ok) {
           try {
             const bookingsData = await bookingsRes.json();
+            console.log('[LEADS] Fetched raw bookings:', bookingsData.length, 'bookings');
+            if (bookingsData.length > 0) {
+              console.log('[LEADS] Sample booking promo:', bookingsData[0].promoCode, 'discount:', bookingsData[0].discount);
+            }
             const mappedBookings = bookingsData.map((booking: any) => ({
               id: booking._id,
               leadDate: booking.createdAt,
@@ -265,7 +274,12 @@ const LeadInfoPage: React.FC = () => {
               isViewed: booking.isViewed || false,
               destinations: booking.destinations || [],
               matchedPackage: booking.matchedPackage || null,
-              remark: booking.remark || '',
+              remark: booking.staffRemark || '',
+              staffRemark: booking.staffRemark || '',
+              customerRemark: booking.remark || '',
+              additionalPhones: booking.additionalPhones || [],
+              promoCode: booking.promoCode || '',
+              discount: booking.discount || 0,
             }));
             allLeads = [...allLeads, ...mappedBookings];
           } catch (e) {
@@ -296,7 +310,8 @@ const LeadInfoPage: React.FC = () => {
               customerEmail: contact.email,
               customId: contact.customId,
               isViewed: contact.status !== 'new',
-              remark: contact.remark || '',
+              staffRemark: contact.staffRemark || '',
+              remark: contact.staffRemark || '',
             }));
             allLeads = [...allLeads, ...mappedContacts];
           } catch (e) {
@@ -341,7 +356,7 @@ const LeadInfoPage: React.FC = () => {
         // Update local state — for contacts rawStatus & status both track the backend value
         setLeads(prevLeads => prevLeads.map(l =>
           l.id === selectedLead.id
-            ? { ...l, status: action, rawStatus: action, remark: staffRemark }
+            ? { ...l, status: action, rawStatus: action, staffRemark: staffRemark, remark: staffRemark }
             : l
         ));
         setStaffRemark(''); // Clear remark after successful update
@@ -407,7 +422,7 @@ const LeadInfoPage: React.FC = () => {
   // Handle view button click
   const handleViewClick = async (lead: Lead) => {
     setSelectedLead(lead);
-    setStaffRemark(lead.remark || '');
+    setStaffRemark(lead.staffRemark || '');
     setOpenDialog(true);
 
     // Mark as viewed in backend
@@ -1024,19 +1039,36 @@ const LeadInfoPage: React.FC = () => {
 
                           {/* Form Type (new column) */}
                           <TableCell>
-                            <Chip
-                              label={lead.source}
-                              size="small"
-                              sx={{
-                                background: lead.source === 'Online Booking'
-                                  ? (mode === 'light' ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' : 'rgba(59, 130, 246, 0.1)')
-                                  : (mode === 'light' ? 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)' : 'rgba(124, 58, 237, 0.1)'),
-                                color: lead.source === 'Online Booking' ? (mode === 'light' ? '#2563eb' : '#60a5fa') : (mode === 'light' ? '#7c3aed' : '#a78bfa'),
-                                fontWeight: 600,
-                                fontSize: '0.8125rem',
-                                borderRadius: '6px',
-                              }}
-                            />
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                              <Chip
+                                label={lead.source}
+                                size="small"
+                                sx={{
+                                  background: lead.source === 'Online Booking'
+                                    ? (mode === 'light' ? 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' : 'rgba(59, 130, 246, 0.1)')
+                                    : (mode === 'light' ? 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)' : 'rgba(124, 58, 237, 0.1)'),
+                                  color: lead.source === 'Online Booking' ? (mode === 'light' ? '#2563eb' : '#60a5fa') : (mode === 'light' ? '#7c3aed' : '#a78bfa'),
+                                  fontWeight: 600,
+                                  fontSize: '0.8125rem',
+                                  borderRadius: '6px',
+                                }}
+                              />
+                              {lead.promoCode && (
+                                <Chip
+                                  label="PROMO"
+                                  size="small"
+                                  sx={{
+                                    height: '18px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 800,
+                                    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                                    color: '#92400e',
+                                    border: '1px solid #f59e0b',
+                                    '& .MuiChip-label': { px: 1 }
+                                  }}
+                                />
+                              )}
+                            </Box>
                           </TableCell>
 
                           {/* Action */}
@@ -1261,6 +1293,11 @@ const LeadInfoPage: React.FC = () => {
                     <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
                       {selectedLead.customerPhone}
                     </Typography>
+                    {selectedLead.additionalPhones && selectedLead.additionalPhones.length > 0 && selectedLead.additionalPhones.map((phone, idx) => (
+                      <Typography key={idx} sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
+                        {phone}
+                      </Typography>
+                    ))}
                   </Box>
                 )}
 
@@ -1337,6 +1374,30 @@ const LeadInfoPage: React.FC = () => {
                 </Box>
               )}
 
+              {/* Promo Code & Discount — Decoupled from Package check */}
+              {selectedLead.source !== 'Contact Us' && selectedLead.promoCode && (
+                <Box sx={{ mt: 1.5, p: 2, borderRadius: '12px', background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', border: '1px solid #fed7aa' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <Chip label="PROMO APPLIED" size="small" color="error" sx={{ fontWeight: 800, fontSize: '0.65rem', height: '20px' }} />
+                    <Typography sx={{ fontSize: '0.8rem', color: '#9a3412', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Discount Information</Typography>
+                  </Box>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                    <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.6)', border: '1px solid #fdba74' }}>
+                      <Typography sx={{ fontSize: '0.65rem', color: '#9a3412', fontWeight: 600, mb: 0.5 }}>PROMO CODE</Typography>
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: '#c2410c', letterSpacing: '0.1em' }}>
+                        {selectedLead.promoCode}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.6)', border: '1px solid #fdba74' }}>
+                      <Typography sx={{ fontSize: '0.65rem', color: '#9a3412', fontWeight: 600, mb: 0.5 }}>DISCOUNT SAVED</Typography>
+                      <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: '#ef4444' }}>
+                        LKR {selectedLead.discount?.toLocaleString()} (10%)
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+
               {/* Route Section — only for booking leads */}
               {selectedLead.source !== 'Contact Us' && (
                 <Box sx={{ mt: 2, p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
@@ -1389,6 +1450,18 @@ const LeadInfoPage: React.FC = () => {
                   </Box>
                 </Box>
               )}
+              {/* Customer Remark Section */}
+              {selectedLead.customerRemark && (
+                <Box sx={{ mt: 3, p: 2, borderRadius: '12px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+                  <Typography sx={{ fontSize: '0.72rem', color: '#2563eb', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 1 }}>
+                    Customer Remark
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.9rem', color: 'text.primary', fontStyle: 'italic' }}>
+                    "{selectedLead.customerRemark}"
+                  </Typography>
+                </Box>
+              )}
+
               {/* Staff Remark Field */}
               <Box sx={{ mt: 3 }}>
                 <Typography sx={{
@@ -1405,11 +1478,11 @@ const LeadInfoPage: React.FC = () => {
                   fullWidth
                   multiline
                   rows={3}
-                  disabled={!!selectedLead.remark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                  disabled={!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username)}
                   placeholder={
                     selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username)
                       ? "You must pick this lead before entering remarks."
-                      : !!selectedLead.remark
+                      : !!selectedLead.staffRemark
                         ? "Remark is locked and cannot be edited."
                         : "Enter any internal remarks or notes here..."
                   }
@@ -1419,12 +1492,12 @@ const LeadInfoPage: React.FC = () => {
                     '& .MuiOutlinedInput-root': {
                       borderRadius: '12px',
                       fontSize: '0.875rem',
-                      backgroundColor: (!!selectedLead.remark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))
+                      backgroundColor: (!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))
                         ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
                         : (mode === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.02)'),
                       transition: 'all 0.2s ease',
                       '&:hover': {
-                        backgroundColor: (!!selectedLead.remark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))
+                        backgroundColor: (!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))
                           ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
                           : (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)'),
                       },

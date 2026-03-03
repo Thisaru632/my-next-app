@@ -31,6 +31,8 @@ import {
   TrendingFlat,
   Loop,
   Visibility,
+  AddCircle,
+  RemoveCircle,
 } from '@mui/icons-material';
 import Image from 'next/image';
 import { API_ENDPOINTS } from '@/config/api';
@@ -393,15 +395,23 @@ export default function HeroSection() {
     pickupLocation: '',
     dropoffLocation: '',
     dateTime: '',
-    numberOfDays: 1,
+    numberOfDays: 0,
     name: '',
     telephone: '',
+    additionalPhones: [] as string[],
     email: '',
+    remark: '',
     maxPersons: 0,
     maxBags: 0,
   });
 
+  const [openPromoDialog, setOpenPromoDialog] = useState(false);
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState('');
+  const [hasPromoOption, setHasPromoOption] = useState<boolean | null>(null);
+
   const [requestSent, setRequestSent] = useState(false);
+  const [showRemark, setShowRemark] = useState(false);
 
   // Intermediate destinations state
   const [destinations, setDestinations] = useState<string[]>([]);
@@ -423,7 +433,7 @@ export default function HeroSection() {
   useEffect(() => {
     const fetchRateCards = async () => {
       try {
-        const response = await fetch(API_ENDPOINTS.RATE_CARDS);
+        const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}?status=Approved`);
         if (response.ok) {
           const data = await response.json();
           setRateCards(data);
@@ -503,12 +513,13 @@ export default function HeroSection() {
   const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
   const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
   const [openPersonalDialog, setOpenPersonalDialog] = useState(false);
+  const [showExtraPrices, setShowExtraPrices] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
 
   // Snackbar state
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning'>('success');
 
   const [openPhotosDialog, setOpenPhotosDialog] = useState(false);
   const [photosVehicle, setPhotosVehicle] = useState('');
@@ -561,8 +572,64 @@ export default function HeroSection() {
   // -----------------------------------------------------------------------
   // Form handlers
   // -----------------------------------------------------------------------
-  const handleChange = (field: string, value: string | number) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (field: string, value: string | any) => {
+    if (field === 'dateTime' && value) {
+      const selectedTime = new Date(value).getTime();
+      const minLeadTime = new Date().getTime() + (2 * 60 * 60 * 1000);
+
+      if (selectedTime < minLeadTime) {
+        setSnackbarMessage('Bookings must be made at least 2 hours in advance.');
+        setSnackbarSeverity('warning');
+        setSnackbarOpen(true);
+
+        // Auto-set to minimum valid time
+        const minDate = new Date(minLeadTime - (new Date().getTimezoneOffset() * 60000));
+        value = minDate.toISOString().slice(0, 16);
+      }
+    }
+
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+
+      // Trigger promo popup removed from here, now triggered by dropoff selection
+      if (!appliedPromo && !openPromoDialog) {
+        // Triggers moved to specific selection handlers
+      }
+
+      return updated;
+    });
+  };
+
+  const handlePromoSubmit = () => {
+    if (promoCodeInput.trim()) {
+      setAppliedPromo(promoCodeInput.trim());
+      setOpenPromoDialog(false);
+      setSnackbarMessage('Promo code applied! 10% discount added.');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleAddPhone = () => {
+    setFormData(prev => ({
+      ...prev,
+      additionalPhones: [...prev.additionalPhones, '']
+    }));
+  };
+
+  const handleRemovePhone = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      additionalPhones: prev.additionalPhones.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateAdditionalPhone = (index: number, value: string) => {
+    setFormData(prev => {
+      const newPhones = [...prev.additionalPhones];
+      newPhones[index] = value;
+      return { ...prev, additionalPhones: newPhones };
+    });
   };
 
   const handleVehicleCardClick = (type: string) => {
@@ -590,8 +657,8 @@ export default function HeroSection() {
     setFormData((prev) => ({
       ...prev,
       tripType: tripTypeName,
-      // If trip type is 'Drop', we default to 1 day and lock it
-      numberOfDays: tripTypeName === 'Drop' ? 1 : prev.numberOfDays,
+      // If trip type is 'Drop', we default to 0 day (per user request for 0 default)
+      numberOfDays: tripTypeName === 'Drop' ? 0 : prev.numberOfDays,
     }));
     setOpenTripTypeDialog(false);
   };
@@ -601,21 +668,36 @@ export default function HeroSection() {
       alert('Please fill all required fields');
       return;
     }
+
+    // Final time check
+    const selectedTime = new Date(formData.dateTime).getTime();
+    const minLeadTime = new Date().getTime() + (2 * 60 * 60 * 1000);
+    if (selectedTime < minLeadTime) {
+      alert('Sorry, your selected time is too soon. Please select a time at least 2 hours from now.');
+      return;
+    }
+
     setOpenPersonalDialog(true);
   };
 
   const handleSendRequest = async () => {
     try {
+      const payload = {
+        ...formData,
+        destinations: destinations.filter((d) => d.trim() !== ''),
+        matchedPackage: matchedPackage,
+        promoCode: appliedPromo,
+        discount: appliedPromo ? Math.round(displayPrice * 0.1) : 0,
+      };
+
+      console.log('[BOOKING] Sending payload:', payload);
+
       const response = await fetch(API_ENDPOINTS.BOOKINGS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          destinations: destinations.filter((d) => d.trim() !== ''),
-          matchedPackage: matchedPackage,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -631,13 +713,19 @@ export default function HeroSection() {
           pickupLocation: '',
           dropoffLocation: '',
           dateTime: '',
-          numberOfDays: 1,
+          numberOfDays: 0,
           name: '',
           telephone: '',
+          additionalPhones: [],
           email: '',
+          remark: '',
           maxPersons: 0,
           maxBags: 0,
         });
+        setAppliedPromo('');
+        setPromoCodeInput('');
+        setHasPromoOption(null);
+        setShowRemark(false);
         setDestinations([]);
         setPickupCoords(null);
         setDropoffCoords(null);
@@ -763,7 +851,9 @@ export default function HeroSection() {
     ? matchedPackage.rateAmount
     : (routeDistance !== null ? estimatedRoutePrice : (basePricePerDay * formData.numberOfDays));
 
-  const totalPrice = Math.round(displayPrice);
+  const rawTotalPrice = Math.round(displayPrice);
+  const discountAmount = appliedPromo ? Math.round(rawTotalPrice * 0.1) : 0;
+  const totalPrice = rawTotalPrice - discountAmount;
 
   // -----------------------------------------------------------------------
   // Render
@@ -1194,7 +1284,13 @@ export default function HeroSection() {
                     <LocationInput
                       value={formData.dropoffLocation}
                       onChange={(val) => handleChange('dropoffLocation', val)}
-                      onSelect={(lat, lon) => { console.log('[Dropoff] coords:', lat, lon); setDropoffCoords({ lat, lon }); }}
+                      onSelect={(lat, lon) => {
+                        console.log('[Dropoff] coords:', lat, lon);
+                        setDropoffCoords({ lat, lon });
+                        if (!appliedPromo && !openPromoDialog) {
+                          setOpenPromoDialog(true);
+                        }
+                      }}
                       onManualType={() => { setDropoffCoords(null); setRouteDistance(null); }}
                       placeholder="Drop-off location"
                       inputStyle={{
@@ -1231,11 +1327,12 @@ export default function HeroSection() {
                       letterSpacing: "0.04em",
                     }}
                   >
-                    DATE & TIME
+                    START DATE & TIME
                   </label>
                   <input
                     type="datetime-local"
                     value={formData.dateTime}
+                    min={new Date(new Date().getTime() + (2 * 60 * 60 * 1000) - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16)}
                     onChange={(e) => handleChange('dateTime', e.target.value)}
                     style={{
                       width: "100%",
@@ -1277,10 +1374,10 @@ export default function HeroSection() {
                   </label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     disabled={formData.tripType === 'Drop'}
                     value={formData.numberOfDays}
-                    onChange={(e) => handleChange('numberOfDays', Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => handleChange('numberOfDays', Math.max(0, parseInt(e.target.value) || 0))}
                     style={{
                       width: "100%",
                       padding: "0.7rem 0.9rem",
@@ -1355,8 +1452,8 @@ export default function HeroSection() {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                       <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>🗺️</span>
                       <div>
-                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>Trip Type</div>
-                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{formData.tripType}</div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>Trip Type and Payment Method</div>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{formData.tripType} — Cash</div>
                       </div>
                     </div>
                   )}
@@ -1366,7 +1463,12 @@ export default function HeroSection() {
                     <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>📅</span>
                     <div>
                       <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>Duration</div>
-                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>{formData.numberOfDays} {formData.numberOfDays === 1 ? 'Day' : 'Days'}</div>
+                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>
+                        {formData.tripType === 'Drop'
+                          ? '0 Waiting Time'
+                          : (matchedPackage ? `${matchedPackage.hrs} Hours ` : `${formData.numberOfDays} ${formData.numberOfDays === 1 ? 'Day' : 'Days'} `) +
+                          `(${formData.numberOfDays === 1 ? 'for one day trip' : `for ${formData.numberOfDays} days`})`}
+                      </div>
                     </div>
                   </div>
 
@@ -1470,7 +1572,7 @@ export default function HeroSection() {
                   )}
 
                   {/* Price Estimate (Highlighted) */}
-                  {formData.pickupLocation && formData.dropoffLocation && (formData.vehicleType === 'SUV' || displayPrice > 0) && (
+                  {formData.pickupLocation && formData.dropoffLocation && (formData.vehicleType === 'SUV' || formData.tripType) && (
                     <div style={{
                       marginTop: '8px',
                       padding: '16px',
@@ -1488,10 +1590,29 @@ export default function HeroSection() {
                         </div>
                       ) : (
                         <>
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                            <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.4rem', fontWeight: 800, color: '#0d9488' }}>
-                              LKR {totalPrice.toLocaleString()}
-                            </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            {appliedPromo ? (
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#6b7280', textDecoration: 'line-through' }}>
+                                    LKR {rawTotalPrice.toLocaleString()}
+                                  </span>
+                                  <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                                    -10% OFF
+                                  </span>
+                                </div>
+                                <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.45rem', fontWeight: 800, color: '#0d9488' }}>
+                                  LKR {totalPrice.toLocaleString()}
+                                </span>
+                                <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#10b981', fontWeight: 600, marginTop: '2px' }}>
+                                  Promo applied: {appliedPromo} (Saved LKR {discountAmount.toLocaleString()})
+                                </div>
+                              </>
+                            ) : (
+                              <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.4rem', fontWeight: 800, color: '#0d9488' }}>
+                                LKR {totalPrice.toLocaleString()}
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#6b7280', marginTop: '4px' }}>
                             {matchedPackage ? (
@@ -1500,6 +1621,48 @@ export default function HeroSection() {
                                 : `*Price for ${matchedPackage.km} km & ${matchedPackage.hrs} hrs package. `
                             ) : ''}*Actual price may vary based on route changes.
                           </div>
+
+                          {matchedPackage && (
+                            <div style={{ marginTop: '8px' }}>
+                              <button
+                                onClick={() => setShowExtraPrices(!showExtraPrices)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
+                                  color: '#0d9488',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  fontFamily: "'Montserrat', sans-serif"
+                                }}
+                              >
+                                {showExtraPrices ? 'See less' : 'See more'}
+                              </button>
+
+                              {showExtraPrices && (
+                                <div style={{
+                                  marginTop: '8px',
+                                  padding: '8px',
+                                  background: 'rgba(255,255,255,0.5)',
+                                  borderRadius: '6px',
+                                  fontSize: '0.7rem',
+                                  color: '#374151',
+                                  fontFamily: "'Montserrat', sans-serif"
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                    <span>Extra KM Rate:</span>
+                                    <span style={{ fontWeight: 700 }}>LKR {matchedPackage.extraKMRate || 0}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Extra Hour Rate:</span>
+                                    <span style={{ fontWeight: 700 }}>LKR {matchedPackage.extraHrRate1 || 0}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </>
                       )}
 
@@ -1852,7 +2015,7 @@ export default function HeroSection() {
               color: '#2D231B',
               letterSpacing: '-0.01em',
             }}>
-              Trip Type
+              Trip Type and Payment Method
             </Typography>
             <Typography sx={{
               fontSize: '0.72rem',
@@ -1951,7 +2114,7 @@ export default function HeroSection() {
                       mb: 0.3,
                       transition: 'color 0.22s ease',
                     }}>
-                      {type.name}
+                      {type.name} — Cash
                     </Typography>
                     <Typography sx={{
                       fontSize: '0.72rem',
@@ -1977,6 +2140,141 @@ export default function HeroSection() {
             })}
           </Box>
         </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openPromoDialog}
+        onClose={() => setOpenPromoDialog(false)}
+        PaperProps={{
+          sx: {
+            width: '95%',
+            maxWidth: 400,
+            borderRadius: '24px',
+            p: 3,
+            textAlign: 'center',
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.15)',
+            border: '1px solid rgba(13,148,136,0.1)'
+          }
+        }}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🎁</div>
+          <h3 style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: '1.6rem',
+            fontWeight: 700,
+            color: '#111827',
+            marginBottom: '0.75rem'
+          }}>
+            Do you have any promo code?
+          </h3>
+          <p style={{
+            fontFamily: "'Montserrat', sans-serif",
+            fontSize: '0.85rem',
+            color: '#6b7280',
+            marginBottom: '2rem'
+          }}>
+            Enter a promo code to unlock exclusive discounts on your journey.
+          </p>
+
+          {hasPromoOption === null ? (
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={() => setOpenPromoDialog(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.8rem',
+                  borderRadius: '12px',
+                  border: '1.5px solid #e5e7eb',
+                  background: '#fff',
+                  color: '#4b5563',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                No, thanks
+              </button>
+              <button
+                onClick={() => setHasPromoOption(true)}
+                style={{
+                  flex: 1,
+                  padding: '0.8rem',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: '#0d9488',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(13,148,136,0.2)'
+                }}
+              >
+                Yes, I have
+              </button>
+            </div>
+          ) : (
+            <div style={{ animation: 'fadeIn 0.3s ease' }}>
+              <input
+                type="text"
+                placeholder="Enter Promo Code"
+                value={promoCodeInput}
+                onChange={(e) => setPromoCodeInput(e.target.value)}
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: '0.9rem 1.25rem',
+                  borderRadius: '14px',
+                  border: '1.5px solid rgba(13,148,136,0.3)',
+                  background: 'rgba(13,148,136,0.05)',
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  marginBottom: '1rem'
+                }}
+              />
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => { setHasPromoOption(null); setPromoCodeInput(''); }}
+                  style={{
+                    flex: 1,
+                    padding: '0.8rem',
+                    borderRadius: '12px',
+                    border: '1.5px solid #e5e7eb',
+                    background: '#fff',
+                    color: '#4b5563',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handlePromoSubmit}
+                  disabled={!promoCodeInput.trim()}
+                  style={{
+                    flex: 1,
+                    padding: '0.8rem',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: promoCodeInput.trim() ? '#0d9488' : '#9ca3af',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    cursor: promoCodeInput.trim() ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </Dialog>
 
       <Dialog
@@ -2111,35 +2409,93 @@ export default function HeroSection() {
                   }}
                 />
               </div>
-              <div style={{ position: 'relative' }}>
-                <Phone style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
-                <input
-                  type="tel"
-                  placeholder="Telephone"
-                  value={formData.telephone}
-                  onChange={(e) => handleChange('telephone', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '1rem 1rem 1rem 3rem',
-                    borderRadius: '14px',
-                    border: '1.5px solid rgba(0,0,0,0.08)',
-                    background: 'rgba(0,0,0,0.02)',
-                    fontFamily: "'Montserrat', sans-serif",
-                    fontSize: '0.95rem',
-                    outline: 'none',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#0d9488';
-                    e.target.style.background = '#fff';
-                    e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'rgba(0,0,0,0.08)';
-                    e.target.style.background = 'rgba(0,0,0,0.02)';
-                    e.target.style.boxShadow = 'none';
-                  }}
-                />
+              <div>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Phone style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
+                  <input
+                    type="tel"
+                    placeholder="Primary Telephone"
+                    value={formData.telephone}
+                    onChange={(e) => handleChange('telephone', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '1rem 3rem 1rem 3rem',
+                      borderRadius: '14px',
+                      border: '1.5px solid rgba(0,0,0,0.08)',
+                      background: 'rgba(0,0,0,0.02)',
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontSize: '0.95rem',
+                      outline: 'none',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#0d9488';
+                      e.target.style.background = '#fff';
+                      e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = 'rgba(0,0,0,0.08)';
+                      e.target.style.background = 'rgba(0,0,0,0.02)';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                  <IconButton
+                    onClick={handleAddPhone}
+                    sx={{
+                      position: 'absolute',
+                      right: '0.5rem',
+                      color: '#0d9488',
+                      '&:hover': { color: '#0891b2' }
+                    }}
+                  >
+                    <AddCircle />
+                  </IconButton>
+                </div>
+
+                {/* Additional Phones */}
+                {formData.additionalPhones.map((phoneVal, idx) => (
+                  <div key={idx} style={{ position: 'relative', marginTop: '0.75rem', display: 'flex', alignItems: 'center' }}>
+                    <Phone style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
+                    <input
+                      type="tel"
+                      placeholder={`Additional Phone ${idx + 1}`}
+                      value={phoneVal}
+                      onChange={(e) => updateAdditionalPhone(idx, e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '1rem 3rem 1rem 3rem',
+                        borderRadius: '14px',
+                        border: '1.5px solid rgba(0,0,0,0.08)',
+                        background: 'rgba(0,0,0,0.02)',
+                        fontFamily: "'Montserrat', sans-serif",
+                        fontSize: '0.95rem',
+                        outline: 'none',
+                        transition: 'all 0.3s ease'
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#0d9488';
+                        e.target.style.background = '#fff';
+                        e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = 'rgba(0,0,0,0.08)';
+                        e.target.style.background = 'rgba(0,0,0,0.02)';
+                        e.target.style.boxShadow = 'none';
+                      }}
+                    />
+                    <IconButton
+                      onClick={() => handleRemovePhone(idx)}
+                      sx={{
+                        position: 'absolute',
+                        right: '0.5rem',
+                        color: '#ef4444',
+                        '&:hover': { color: '#dc2626' }
+                      }}
+                    >
+                      <RemoveCircle />
+                    </IconButton>
+                  </div>
+                ))}
               </div>
               <div style={{ position: 'relative' }}>
                 <Email style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
@@ -2171,6 +2527,58 @@ export default function HeroSection() {
                   }}
                 />
               </div>
+
+              {!showRemark ? (
+                <button
+                  onClick={() => setShowRemark(true)}
+                  style={{
+                    alignSelf: 'flex-start',
+                    background: 'none',
+                    border: 'none',
+                    color: '#0d9488',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    padding: 0,
+                    fontFamily: "'Montserrat', sans-serif",
+                    marginTop: '-0.25rem'
+                  }}
+                >
+                  + Add a Remark
+                </button>
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <textarea
+                    placeholder="Enter your remark or special requirements..."
+                    value={formData.remark}
+                    onChange={(e) => handleChange('remark', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '1rem',
+                      borderRadius: '14px',
+                      border: '1.5px solid rgba(0,0,0,0.08)',
+                      background: 'rgba(0,0,0,0.02)',
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontSize: '0.95rem',
+                      outline: 'none',
+                      transition: 'all 0.3s ease',
+                      minHeight: '80px',
+                      resize: 'vertical'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#0d9488';
+                      e.target.style.background = '#fff';
+                      e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = 'rgba(0,0,0,0.08)';
+                      e.target.style.background = 'rgba(0,0,0,0.02)';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+              )}
 
               <button
                 onClick={handleSendRequest}

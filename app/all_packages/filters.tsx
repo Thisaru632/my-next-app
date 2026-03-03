@@ -2,7 +2,8 @@
 
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '@/config/api';
 import {
   Box,
   Typography,
@@ -56,27 +57,27 @@ import {
 
 // Updated vehicle types with gradient backgrounds and better styling
 const vehicleTypes = [
-  { 
-    name: 'Car', 
-    icon: <DriveEta sx={{ fontSize: 40 }} />, 
+  {
+    name: 'Car',
+    icon: <DriveEta sx={{ fontSize: 40 }} />,
     gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     color: '#667eea'
   },
-  { 
-    name: 'Van', 
-    icon: <AirportShuttle sx={{ fontSize: 40 }} />, 
+  {
+    name: 'Van',
+    icon: <AirportShuttle sx={{ fontSize: 40 }} />,
     gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
     color: '#f093fb'
   },
-  { 
-    name: 'Bus', 
-    icon: <DirectionsBus sx={{ fontSize: 40 }} />, 
+  {
+    name: 'Bus',
+    icon: <DirectionsBus sx={{ fontSize: 40 }} />,
     gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     color: '#4facfe'
   },
-  { 
-    name: 'SUV', 
-    icon: <LocalTaxi sx={{ fontSize: 40 }} />, 
+  {
+    name: 'SUV',
+    icon: <LocalTaxi sx={{ fontSize: 40 }} />,
     gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
     color: '#43e97b'
   },
@@ -92,13 +93,13 @@ const vehicleSpecs = {
 
 // Trip types with icons
 const tripTypes = [
-  { 
-    name: 'Drop', 
+  {
+    name: 'Drop',
     description: 'Single destination trip',
     icon: <FlagCircle sx={{ fontSize: 32, color: '#667eea' }} />
   },
-  { 
-    name: 'Return', 
+  {
+    name: 'Return',
     description: 'Return to starting point',
     icon: <TripOrigin sx={{ fontSize: 32, color: '#f093fb' }} />
   },
@@ -124,18 +125,51 @@ const sampleVehicles = {
   Bus: {
     models: [
       { name: 'AC 29 Seater', description: 'Air conditioned comfort' },
-      { name: 'Non-AC 29 Seater', description: 'Economical choice' }, 
+      { name: 'Non-AC 29 Seater', description: 'Economical choice' },
     ]
   },
   SUV: {
     models: [
       { name: 'Prado', description: 'Luxury 4x4' },
-      { name: 'Fortuner', description: 'Premium SUV' }, 
+      { name: 'Fortuner', description: 'Premium SUV' },
     ]
   },
 };
 
+interface RateCard {
+  _id: string;
+  type: string;
+  vehicle: string;
+  days: number;
+  km: number;
+  hrs: number;
+  ratePercent: string;
+  rateAmount: number;
+  extraKMRate: number;
+  extraHrRate1: number;
+  extraHrRate2: number;
+  status: string;
+}
+
 export default function BookingForm() {
+  const [rateCards, setRateCards] = useState<RateCard[]>([]);
+  const [showExtraPrices, setShowExtraPrices] = useState(false);
+
+  useEffect(() => {
+    const fetchRateCards = async () => {
+      try {
+        const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}?status=Approved`);
+        if (response.ok) {
+          const data = await response.json();
+          setRateCards(data);
+        }
+      } catch (error) {
+        console.error('Error fetching rate cards:', error);
+      }
+    };
+    fetchRateCards();
+  }, []);
+
   const [formData, setFormData] = useState({
     vehicleType: '',
     vehicleName: '',
@@ -147,17 +181,42 @@ export default function BookingForm() {
     numberOfDays: 1,
     name: '',
     telephone: '',
+    additionalPhones: [] as string[],
     email: '',
+    remark: '',
   });
 
   const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
   const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
   const [openPersonalDialog, setOpenPersonalDialog] = useState(false);
+  const [showRemark, setShowRemark] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newDestination, setNewDestination] = useState('');
 
-  const handleChange = (field: string, value: string | number) => {
+  const handleChange = (field: string, value: string | any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddPhone = () => {
+    setFormData(prev => ({
+      ...prev,
+      additionalPhones: [...prev.additionalPhones, '']
+    }));
+  };
+
+  const handleRemovePhone = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      additionalPhones: prev.additionalPhones.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateAdditionalPhone = (index: number, value: string) => {
+    setFormData(prev => {
+      const newPhones = [...prev.additionalPhones];
+      newPhones[index] = value;
+      return { ...prev, additionalPhones: newPhones };
+    });
   };
 
   const handleAddDestination = () => {
@@ -208,29 +267,104 @@ export default function BookingForm() {
     setOpenPersonalDialog(true);
   };
 
-  const handleSendRequest = () => {
-    console.log('Booking request submitted:', formData);
-    alert('Booking request sent successfully!');
-    setOpenPersonalDialog(false);
+  const handleSendRequest = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.BOOKINGS, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          destinations: formData.destinations.filter((d) => d.trim() !== ''),
+        }),
+      });
+
+      if (response.ok) {
+        alert('Thank you for sending request. We will contact you shortly!');
+        setFormData({
+          vehicleType: '',
+          vehicleName: '',
+          tripType: '',
+          pickupLocation: '',
+          dropoffLocation: '',
+          destinations: [],
+          dateTime: '',
+          numberOfDays: 1,
+          name: '',
+          telephone: '',
+          additionalPhones: [],
+          email: '',
+          remark: '',
+        });
+        setShowRemark(false);
+        setOpenPersonalDialog(false);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to send booking request.');
+      }
+    } catch (error) {
+      console.error('Error submitting booking:', error);
+      alert('An error occurred. Please try again later.');
+    }
   };
 
   const currentCategoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles] || { models: [] };
 
+  const matchedPackage = (() => {
+    if (!formData.vehicleType || !formData.tripType) return null;
+
+    const potentialCards = rateCards.filter(card => {
+      const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+      const cleanFormVehType = formData.vehicleType.toLowerCase().replace(/\s+/g, '').trim();
+
+      const vehicleMatch =
+        cleanCardVeh === cleanFormVehName ||
+        cleanCardVeh === cleanFormVehType ||
+        cleanFormVehName.includes(cleanCardVeh) ||
+        cleanCardVeh.includes(cleanFormVehName);
+
+      const cleanCardType = card.type.toLowerCase().trim();
+      const cleanFormType = formData.tripType.toLowerCase().trim();
+
+      const typeMatch =
+        cleanCardType === cleanFormType ||
+        (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) ||
+        (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
+
+      const dayMatch = Number(card.days) === Number(formData.numberOfDays);
+
+      return vehicleMatch && typeMatch && dayMatch;
+    });
+
+    if (potentialCards.length === 0) return null;
+
+    const sortedCards = potentialCards.sort((a, b) => {
+      if (a.km !== b.km) return a.km - b.km;
+      return a.hrs - b.hrs;
+    });
+
+    return sortedCards[0];
+  })();
+
   const basePricePerDay =
     formData.vehicleType === 'Car' ? 15000 :
-    formData.vehicleType === 'Van' ? 18000 :
-    formData.vehicleType === 'Bus' ? 35000 :
-    formData.vehicleType === 'SUV' ? 25000 : 0;
+      formData.vehicleType === 'Van' ? 18000 :
+        formData.vehicleType === 'Bus' ? 35000 :
+          formData.vehicleType === 'SUV' ? 25000 : 0;
 
-  const totalPrice = basePricePerDay * formData.numberOfDays;
+  const totalPrice = matchedPackage
+    ? matchedPackage.rateAmount
+    : (basePricePerDay * formData.numberOfDays);
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto', p: { xs: 2, md: 4 } }} suppressHydrationWarning>
       {/* Header Section */}
       <Box sx={{ textAlign: 'center', mb: 4 }}>
-        <Typography 
-          variant="h4" 
-          sx={{ 
+        <Typography
+          variant="h4"
+          sx={{
             fontWeight: 700,
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             WebkitBackgroundClip: 'text',
@@ -246,11 +380,11 @@ export default function BookingForm() {
       </Box>
 
       {/* Vehicle Selection Section */}
-      <Paper 
+      <Paper
         elevation={3}
-        sx={{ 
-          borderRadius: 4, 
-          p: 4, 
+        sx={{
+          borderRadius: 4,
+          p: 4,
           mb: 4,
           background: 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
           position: 'relative',
@@ -267,9 +401,9 @@ export default function BookingForm() {
         }}
       >
         {/* Header */}
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           mb: 4,
           flexWrap: 'wrap',
@@ -283,26 +417,84 @@ export default function BookingForm() {
               Choose from our premium fleet
             </Typography>
           </Box>
-          
+
           {totalPrice > 0 && (
-            <Chip 
-              label={`Estimated: LKR ${totalPrice.toLocaleString()}`}
-              icon={<CreditCard />}
-              sx={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                fontWeight: 600,
-                fontSize: '1rem',
-                py: 2.5,
-                px: 1,
-                '& .MuiChip-icon': { color: 'white' }
-              }}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+              <Chip
+                label={`Estimated: LKR ${totalPrice.toLocaleString()}`}
+                icon={<CreditCard />}
+                sx={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  py: 2.5,
+                  px: 1,
+                  '& .MuiChip-icon': { color: 'white' }
+                }}
+              />
+              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', textAlign: 'right', mt: 0.5 }}>
+                {formData.tripType === 'Drop'
+                  ? '0 Waiting Time'
+                  : (matchedPackage ? `${matchedPackage.hrs} Hours ` : `${formData.numberOfDays} ${formData.numberOfDays === 1 ? 'Day' : 'Days'} `) + `(${formData.numberOfDays === 1 ? 'for one day trip' : `for ${formData.numberOfDays} days`})`}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'right', display: 'block', maxWidth: 250 }}>
+                {matchedPackage ? (
+                  formData.tripType === 'Drop'
+                    ? `*Price for ${matchedPackage.km} km package. `
+                    : `*Price for ${matchedPackage.km} km & ${matchedPackage.hrs} hrs package. `
+                ) : ''}*Actual price may vary based on route changes.
+              </Typography>
+
+              {matchedPackage && (
+                <Box sx={{ width: '100%', textAlign: 'right' }}>
+                  <Button
+                    variant="text"
+                    size="small"
+                    onClick={() => setShowExtraPrices(!showExtraPrices)}
+                    sx={{
+                      p: 0,
+                      minWidth: 0,
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: '#667eea',
+                      textDecoration: 'underline',
+                      '&:hover': { textDecoration: 'underline', background: 'none' }
+                    }}
+                  >
+                    {showExtraPrices ? 'See less' : 'See more'}
+                  </Button>
+
+                  {showExtraPrices && (
+                    <Fade in={true}>
+                      <Paper sx={{
+                        mt: 1,
+                        p: 1.5,
+                        background: 'rgba(102, 126, 234, 0.05)',
+                        borderRadius: 2,
+                        border: '1px solid rgba(102, 126, 234, 0.1)',
+                        width: 200,
+                        ml: 'auto'
+                      }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="caption">Extra KM Rate:</Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 700 }}>LKR {matchedPackage.extraKMRate || 0}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="caption">Extra Hour Rate:</Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 700 }}>LKR {matchedPackage.extraHrRate1 || 0}</Typography>
+                        </Box>
+                      </Paper>
+                    </Fade>
+                  )}
+                </Box>
+              )}
+            </Box>
           )}
         </Box>
 
         {/* Vehicle Cards Grid */}
-        <Box sx={{ 
+        <Box sx={{
           display: 'grid',
           gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
           gap: 2,
@@ -318,7 +510,7 @@ export default function BookingForm() {
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   position: 'relative',
                   overflow: 'hidden',
-                  '&:hover': { 
+                  '&:hover': {
                     transform: 'translateY(-8px)',
                     boxShadow: `0 12px 24px ${vehicle.color}40`,
                   },
@@ -333,12 +525,12 @@ export default function BookingForm() {
                   } : {},
                 }}
               >
-                <CardContent sx={{ 
-                  textAlign: 'center', 
+                <CardContent sx={{
+                  textAlign: 'center',
                   p: 3,
                   '&:last-child': { pb: 3 }
                 }}>
-                  <Box sx={{ 
+                  <Box sx={{
                     mb: 2,
                     color: formData.vehicleType === vehicle.name ? vehicle.color : '#666',
                     transform: formData.vehicleType === vehicle.name ? 'scale(1.1)' : 'scale(1)',
@@ -346,9 +538,9 @@ export default function BookingForm() {
                   }}>
                     {vehicle.icon}
                   </Box>
-                  <Typography 
-                    variant="subtitle1" 
-                    sx={{ 
+                  <Typography
+                    variant="subtitle1"
+                    sx={{
                       fontWeight: 600,
                       color: formData.vehicleType === vehicle.name ? vehicle.color : '#424242'
                     }}
@@ -356,14 +548,14 @@ export default function BookingForm() {
                     {vehicle.name}
                   </Typography>
                   {formData.vehicleType === vehicle.name && (
-                    <CheckCircle 
-                      sx={{ 
+                    <CheckCircle
+                      sx={{
                         position: 'absolute',
                         top: 8,
                         right: 8,
                         color: vehicle.color,
                         fontSize: 24
-                      }} 
+                      }}
                     />
                   )}
                 </CardContent>
@@ -375,7 +567,7 @@ export default function BookingForm() {
         {/* Vehicle Features */}
         {formData.vehicleType && (
           <Fade in={true}>
-            <Box sx={{ 
+            <Box sx={{
               display: 'grid',
               gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
               gap: 2,
@@ -395,7 +587,7 @@ export default function BookingForm() {
                   </Typography>
                 </Box>
               </Box>
-              
+
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <AcUnit sx={{ color: '#4facfe', fontSize: 28 }} />
                 <Box>
@@ -407,7 +599,7 @@ export default function BookingForm() {
                   </Typography>
                 </Box>
               </Box>
-              
+
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <Groups sx={{ color: '#f093fb', fontSize: 28 }} />
                 <Box>
@@ -419,7 +611,7 @@ export default function BookingForm() {
                   </Typography>
                 </Box>
               </Box>
-              
+
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <Luggage sx={{ color: '#43e97b', fontSize: 28 }} />
                 <Box>
@@ -438,9 +630,9 @@ export default function BookingForm() {
         {/* Selected Items Display */}
         {(formData.vehicleName || formData.tripType) && (
           <Fade in={true}>
-            <Box sx={{ 
-              mt: 4, 
-              pt: 4, 
+            <Box sx={{
+              mt: 4,
+              pt: 4,
               borderTop: '2px dashed #e0e0e0',
               display: 'flex',
               gap: 2,
@@ -449,8 +641,8 @@ export default function BookingForm() {
               {formData.vehicleName && (
                 <Chip
                   icon={formData.vehicleType === 'Van' ? <AirportShuttle /> :
-                        formData.vehicleType === 'Bus' ? <DirectionsBus /> :
-                        formData.vehicleType === 'SUV' ? <LocalTaxi /> :
+                    formData.vehicleType === 'Bus' ? <DirectionsBus /> :
+                      formData.vehicleType === 'SUV' ? <LocalTaxi /> :
                         <DriveEta />}
                   label={`${formData.vehicleType} - ${formData.vehicleName}`}
                   onDelete={() => handleVehicleCardClick(formData.vehicleType)}
@@ -469,7 +661,7 @@ export default function BookingForm() {
               {formData.tripType && (
                 <Chip
                   icon={<CheckCircle />}
-                  label={`${formData.tripType} Trip`}
+                  label={`${formData.tripType} Trip — Cash`}
                   onDelete={() => setOpenTripTypeDialog(true)}
                   sx={{
                     background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -488,10 +680,10 @@ export default function BookingForm() {
       </Paper>
 
       {/* Trip Details Section */}
-      <Paper 
+      <Paper
         elevation={3}
-        sx={{ 
-          borderRadius: 4, 
+        sx={{
+          borderRadius: 4,
           p: 4,
           background: 'linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%)',
         }}
@@ -550,7 +742,7 @@ export default function BookingForm() {
                       '&:hover': { boxShadow: 3 }
                     }}
                   >
-                    <Box sx={{ 
+                    <Box sx={{
                       minWidth: 32,
                       height: 32,
                       borderRadius: '50%',
@@ -567,7 +759,7 @@ export default function BookingForm() {
                     <Typography variant="body1" sx={{ flex: 1 }}>
                       {destination}
                     </Typography>
-                    <IconButton 
+                    <IconButton
                       onClick={() => handleRemoveDestination(index)}
                       size="small"
                       sx={{
@@ -657,10 +849,13 @@ export default function BookingForm() {
           {/* Date/Time and Days */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
             <TextField
-              label="Date & Time"
+              label="Start Date & Time"
               type="datetime-local"
               value={formData.dateTime}
               onChange={(e) => handleChange('dateTime', e.target.value)}
+              inputProps={{
+                min: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+              }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -735,10 +930,10 @@ export default function BookingForm() {
       </Paper>
 
       {/* Vehicle Selection Dialog */}
-      <Dialog 
-        open={openVehicleDialog} 
-        onClose={() => setOpenVehicleDialog(false)} 
-        maxWidth="sm" 
+      <Dialog
+        open={openVehicleDialog}
+        onClose={() => setOpenVehicleDialog(false)}
+        maxWidth="sm"
         fullWidth
         PaperProps={{
           sx: {
@@ -747,7 +942,7 @@ export default function BookingForm() {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           background: vehicleTypes.find(v => v.name === selectedCategory)?.gradient || '#667eea',
           color: 'white',
           fontWeight: 600,
@@ -782,7 +977,7 @@ export default function BookingForm() {
                   mb: 1.5,
                   overflow: 'hidden',
                   border: formData.vehicleName === model.name ? '2px solid' : '1px solid',
-                  borderColor: formData.vehicleName === model.name ? 
+                  borderColor: formData.vehicleName === model.name ?
                     vehicleTypes.find(v => v.name === selectedCategory)?.color : '#e0e0e0',
                   borderRadius: 2,
                   transition: 'all 0.3s',
@@ -796,13 +991,13 @@ export default function BookingForm() {
                   onClick={() => handleVehicleSelect(model.name)}
                   sx={{ py: 2, px: 3 }}
                 >
-                  <ListItemText 
+                  <ListItemText
                     primary={model.name}
                     secondary={model.description}
                     primaryTypographyProps={{ fontWeight: 600 }}
                   />
                   {formData.vehicleName === model.name && (
-                    <CheckCircle sx={{ 
+                    <CheckCircle sx={{
                       color: vehicleTypes.find(v => v.name === selectedCategory)?.color,
                       fontSize: 28
                     }} />
@@ -815,10 +1010,10 @@ export default function BookingForm() {
       </Dialog>
 
       {/* Trip Type Dialog */}
-      <Dialog 
-        open={openTripTypeDialog} 
-        onClose={() => setOpenTripTypeDialog(false)} 
-        maxWidth="sm" 
+      <Dialog
+        open={openTripTypeDialog}
+        onClose={() => setOpenTripTypeDialog(false)}
+        maxWidth="sm"
         fullWidth
         PaperProps={{
           sx: {
@@ -827,7 +1022,7 @@ export default function BookingForm() {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
           color: 'white',
           fontWeight: 600,
@@ -874,8 +1069,8 @@ export default function BookingForm() {
                   <Box sx={{ mr: 2 }}>
                     {trip.icon}
                   </Box>
-                  <ListItemText 
-                    primary={trip.name}
+                  <ListItemText
+                    primary={`${trip.name} — Cash`}
                     secondary={trip.description}
                     primaryTypographyProps={{ fontWeight: 600, fontSize: '1.1rem' }}
                   />
@@ -890,10 +1085,10 @@ export default function BookingForm() {
       </Dialog>
 
       {/* Personal Information Dialog */}
-      <Dialog 
-        open={openPersonalDialog} 
-        onClose={() => setOpenPersonalDialog(false)} 
-        maxWidth="sm" 
+      <Dialog
+        open={openPersonalDialog}
+        onClose={() => setOpenPersonalDialog(false)}
+        maxWidth="sm"
         fullWidth
         PaperProps={{
           sx: {
@@ -902,7 +1097,7 @@ export default function BookingForm() {
           }
         }}
       >
-        <DialogTitle sx={{ 
+        <DialogTitle sx={{
           background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
           color: 'white',
           fontWeight: 600,
@@ -950,7 +1145,7 @@ export default function BookingForm() {
             />
 
             <TextField
-              label="Telephone"
+              label="Primary Telephone"
               placeholder="Enter your phone number"
               value={formData.telephone}
               onChange={(e) => handleChange('telephone', e.target.value)}
@@ -960,6 +1155,13 @@ export default function BookingForm() {
                     <Phone sx={{ color: '#4facfe' }} />
                   </InputAdornment>
                 ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton onClick={handleAddPhone} sx={{ color: '#4facfe' }}>
+                      <AddIcon />
+                    </IconButton>
+                  </InputAdornment>
+                )
               }}
               variant="outlined"
               fullWidth
@@ -970,6 +1172,38 @@ export default function BookingForm() {
                 }
               }}
             />
+
+            {formData.additionalPhones.map((phoneVal, idx) => (
+              <TextField
+                key={idx}
+                label={`Additional Phone ${idx + 1}`}
+                placeholder="Enter additional phone number"
+                value={phoneVal}
+                onChange={(e) => updateAdditionalPhone(idx, e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Phone sx={{ color: '#4facfe' }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => handleRemovePhone(idx)} sx={{ color: '#f5576c' }}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+                variant="outlined"
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '&:hover fieldset': { borderColor: '#4facfe' },
+                    '&.Mui-focused fieldset': { borderColor: '#4facfe', borderWidth: 2 },
+                  }
+                }}
+              />
+            ))}
 
             <TextField
               label="Email"
@@ -993,6 +1227,39 @@ export default function BookingForm() {
                 }
               }}
             />
+
+            {!showRemark ? (
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => setShowRemark(true)}
+                sx={{
+                  alignSelf: 'flex-start',
+                  color: '#43e97b',
+                  fontWeight: 600,
+                  textDecoration: 'underline',
+                  '&:hover': { background: 'none', textDecoration: 'underline' }
+                }}
+              >
+                + Add a Remark
+              </Button>
+            ) : (
+              <TextField
+                label="Remark"
+                placeholder="Enter any special requests..."
+                multiline
+                rows={3}
+                value={formData.remark}
+                onChange={(e) => handleChange('remark', e.target.value)}
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    '&:hover fieldset': { borderColor: '#43e97b' },
+                    '&.Mui-focused fieldset': { borderColor: '#43e97b', borderWidth: 2 },
+                  }
+                }}
+              />
+            )}
 
             <Button
               variant="contained"

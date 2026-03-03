@@ -10,7 +10,7 @@ const destinations = [
     name: "Sigiriya",
     label: "Destinations",
     description: "Ancient rock fortress & UNESCO world heritage site",
-    bg: "https://images.unsplash.com/photo-1588332099090-f82e1ec5ea97?w=800&q=80",
+    bg: "/destination/sigiriya.jpg",
     tall: true,
   },
   {
@@ -18,7 +18,7 @@ const destinations = [
     name: "Ella",
     label: "Destinations",
     description: "Misty mountains & iconic Nine Arch Bridge",
-    bg: "https://images.unsplash.com/photo-1586016413664-864c0dd76f53?w=800&q=80",
+    bg: "/destination/ella.jpg",
     tall: false,
   },
   {
@@ -26,7 +26,7 @@ const destinations = [
     name: "Galle",
     label: "Destinations",
     description: "Colonial fort city by the sea",
-    bg: "https://images.unsplash.com/photo-1580130718646-9f694209b207?w=800&q=80",
+    bg: "/destination/galle.jpg",
     tall: false,
   },
   {
@@ -34,7 +34,7 @@ const destinations = [
     name: "Yala",
     label: "Destinations",
     description: "Sri Lanka's premier wildlife sanctuary",
-    bg: "https://images.unsplash.com/photo-1564760054108-694b5fb36362?w=800&q=80",
+    bg: "/destination/yala.jpg",
     tall: true,
   },
   {
@@ -42,7 +42,7 @@ const destinations = [
     name: "Kandy",
     label: "Destinations",
     description: "Temple of the Tooth & cultural capital",
-    bg: "https://images.unsplash.com/photo-1593511655855-d069183787a1?w=800&q=80",
+    bg: "/destination/kandy.jpg",
     tall: false,
   },
   {
@@ -50,7 +50,7 @@ const destinations = [
     name: "Mirissa",
     label: "Destinations",
     description: "Whale watching & golden beaches",
-    bg: "https://images.unsplash.com/photo-1506929562872-bb421503ef7e?w=800&q=80",
+    bg: "/destination/mirissa.jpg",
     tall: false,
   },
   {
@@ -58,7 +58,7 @@ const destinations = [
     name: "Polonnaruwa",
     label: "Destinations",
     description: "Ancient kingdoms & sacred ruins",
-    bg: "https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=800&q=80",
+    bg: "/destination/polonnaruwa.jpg",
     tall: false,
   },
   {
@@ -66,7 +66,7 @@ const destinations = [
     name: "Nuwara Eliya",
     label: "Destinations",
     description: "Tea trails & colonial hill station",
-    bg: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800&q=80",
+    bg: "/destination/34.jpg",
     tall: false,
   },
 ];

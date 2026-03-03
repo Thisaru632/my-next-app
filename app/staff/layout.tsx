@@ -29,7 +29,20 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
         setMobileOpen(!mobileOpen);
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            const userStr = localStorage.getItem('staffUser');
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                await fetch(`${API_ENDPOINTS.AUTH}/logout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: user.email, username: user.username }),
+                });
+            }
+        } catch (e) {
+            console.error('Failed to notify backend of logout:', e);
+        }
         localStorage.removeItem('staffToken');
         localStorage.removeItem('staffUser');
         localStorage.removeItem('staffTokenExpiry');
@@ -80,7 +93,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
         if (isAuthPage || !isAuthenticated) return;
 
         let timeoutId: NodeJS.Timeout;
-        const IDLE_TIME = 60 * 60 * 1000; // 1 hour in milliseconds
+        const IDLE_TIME = 15 * 60 * 1000; // 15 minutes in milliseconds
 
         const resetTimer = () => {
             clearTimeout(timeoutId);
@@ -107,6 +120,31 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
                 window.removeEventListener(event, resetTimer);
             });
         };
+    }, [isAuthenticated, isAuthPage]);
+
+    // --- Heartbeat Logic (Every 1 minute) ---
+    useEffect(() => {
+        if (isAuthPage || !isAuthenticated) return;
+
+        const sendHeartbeat = () => {
+            try {
+                const userStr = localStorage.getItem('staffUser');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    fetch(`${API_ENDPOINTS.AUTH}/heartbeat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: user.email, username: user.username }),
+                    }).catch(() => { });
+                }
+            } catch (e) { }
+        };
+
+        // Initial heartbeat
+        sendHeartbeat();
+
+        const heartbeatInterval = setInterval(sendHeartbeat, 60000); // 1 minute
+        return () => clearInterval(heartbeatInterval);
     }, [isAuthenticated, isAuthPage]);
 
 
