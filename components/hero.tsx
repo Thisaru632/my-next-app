@@ -42,7 +42,7 @@ import { API_ENDPOINTS } from '@/config/api';
 // ---------------------------------------------------------------------------
 const SLIDES = [
   { src: "/hero/beautiful-woman-dress-by-waterfall.jpg", alt: "Woman by waterfall" },
-  { src: "/hero/don-kaveen-93IYznJPkOA-unsplash.jpg", alt: "Tropical scenery" },
+  { src: "/service/island.jpg", alt: "Tropical Island" },
   { src: "/hero/promodhya-abeysekara-gjd-7_3Ek_w-unsplash.jpg", alt: "Beach view" },
 ];
 
