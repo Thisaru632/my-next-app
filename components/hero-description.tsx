@@ -173,7 +173,7 @@ export default function HeroDescription() {
           border-radius: 16px;
           border: 1px solid rgba(13,148,136,0.15);
           background: #ffffff;
-          box-shadow: 0 2px 16px rgba(0,0,0,0.04);
+          box-shadow: 0 2px 16px rgba(0,0,0,.004);
           opacity: 0;
           transform: translateY(28px);
           transition: opacity 0.65s ease, transform 0.65s ease, box-shadow 0.3s ease, border-color 0.3s ease;

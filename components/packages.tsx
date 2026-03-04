@@ -28,6 +28,7 @@ const destinations = [
     description: "Colonial fort city by the sea",
     bg: "/destination/galle.jpg",
     tall: false,
+    slug: "galle",
   },
   {
     id: 4,
@@ -111,57 +112,115 @@ function DestCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Background image with zoom */}
-      <div
-        className="dest-img"
-        style={{
-          backgroundImage: `url(${dest.bg})`,
-          transform: hovered ? "scale(1.07)" : "scale(1)",
-        }}
-      />
+      {dest.slug ? (
+        <Link href={`/destination/${dest.slug}`} style={{ display: 'block', height: '100%', width: '100%', textDecoration: 'none', color: 'inherit' }}>
+          {/* Background image with zoom */}
+          <div
+            className="dest-img"
+            style={{
+              backgroundImage: `url(${dest.bg})`,
+              transform: hovered ? "scale(1.07)" : "scale(1)",
+            }}
+          />
 
-      {/* Dark gradient overlay */}
-      <div
-        className="dest-overlay"
-        style={{
-          background: hovered
-            ? "linear-gradient(to top, rgba(5,5,5,0.85) 0%, rgba(5,5,5,0.3) 60%, rgba(5,5,5,0.06) 100%)"
-            : "linear-gradient(to top, rgba(5,5,5,0.72) 0%, rgba(5,5,5,0.18) 60%, rgba(5,5,5,0.02) 100%)",
-        }}
-      />
+          {/* Dark gradient overlay */}
+          <div
+            className="dest-overlay"
+            style={{
+              background: hovered
+                ? "linear-gradient(to top, rgba(5,5,5,0.85) 0%, rgba(5,5,5,0.3) 60%, rgba(5,5,5,0.06) 100%)"
+                : "linear-gradient(to top, rgba(5,5,5,0.72) 0%, rgba(5,5,5,0.18) 60%, rgba(5,5,5,0.02) 100%)",
+            }}
+          />
 
-      {/* Content */}
-      <div className="dest-content">
-        {/* Hover description */}
-        <p
-          className="dest-desc"
-          style={{
-            maxHeight: hovered ? "80px" : "0px",
-            opacity: hovered ? 1 : 0,
-          }}
-        >
-          {dest.description}
-        </p>
+          {/* Content */}
+          <div className="dest-content">
+            {/* Hover description */}
+            <p
+              className="dest-desc"
+              style={{
+                maxHeight: hovered ? "80px" : "0px",
+                opacity: hovered ? 1 : 0,
+              }}
+            >
+              {dest.description}
+            </p>
 
-        <div className="dest-bottom">
-          <h3 className="dest-name">{dest.name}</h3>
-          <span className="dest-label">{dest.label}</span>
-        </div>
+            <div className="dest-bottom">
+              <h3 className="dest-name">{dest.name}</h3>
+              <span className="dest-label">{dest.label}</span>
+            </div>
 
-        {/* Hover CTA */}
-        <div
-          className="dest-cta"
-          style={{
-            opacity: hovered ? 1 : 0,
-            transform: hovered ? "translateY(0)" : "translateY(8px)",
-          }}
-        >
-          <span>Explore</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-      </div>
+            {/* Hover CTA */}
+            <div
+              className="dest-cta"
+              style={{
+                opacity: hovered ? 1 : 0,
+                transform: hovered ? "translateY(0)" : "translateY(8px)",
+              }}
+            >
+              <span>Explore</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+        </Link>
+      ) : (
+        <>
+          {/* Background image with zoom */}
+          <div
+            className="dest-img"
+            style={{
+              backgroundImage: `url(${dest.bg})`,
+              transform: hovered ? "scale(1.07)" : "scale(1)",
+            }}
+          />
+
+          {/* Dark gradient overlay */}
+          <div
+            className="dest-overlay"
+            style={{
+              background: hovered
+                ? "linear-gradient(to top, rgba(5,5,5,0.85) 0%, rgba(5,5,5,0.3) 60%, rgba(5,5,5,0.06) 100%)"
+                : "linear-gradient(to top, rgba(5,5,5,0.72) 0%, rgba(5,5,5,0.18) 60%, rgba(5,5,5,0.02) 100%)",
+            }}
+          />
+
+          {/* Content */}
+          <div className="dest-content">
+            {/* Hover description */}
+            <p
+              className="dest-desc"
+              style={{
+                maxHeight: hovered ? "80px" : "0px",
+                opacity: hovered ? 1 : 0,
+              }}
+            >
+              {dest.description}
+            </p>
+
+            <div className="dest-bottom">
+              <h3 className="dest-name">{dest.name}</h3>
+              <span className="dest-label">{dest.label}</span>
+            </div>
+
+            {/* Hover CTA */}
+            <div
+              className="dest-cta"
+              style={{
+                opacity: hovered ? 1 : 0,
+                transform: hovered ? "translateY(0)" : "translateY(8px)",
+              }}
+            >
+              <span>Explore</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
