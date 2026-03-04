@@ -9,42 +9,42 @@ const HERO_DESTINATIONS = [
     name: "Galle Fort",
     label: "Heritage",
     description: "Centuries of history preserved in stone walls.",
-    bg: "/destination/galle.jpg",
+    bg: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.jpg",
     tall: true,
   },
   {
     name: "Dutch Hospital",
     label: "Landmark",
     description: "Restored colonial architecture with modern vibes.",
-    bg: "/destination/34.jpg",
+    bg: "/destination/galle/matt-dany-FOYmbDX-sTs-unsplash.jpg",
     tall: false,
   },
   {
     name: "Lighthouse",
     label: "Iconic",
     description: "The guardian of the southern coast since 1848.",
-    bg: "/destination/sigiriya.jpg", // Placeholder
+    bg: "/destination/galle/matt-dany-iitTkHI4Tqw-unsplash.jpg",
     tall: false,
   },
   {
     name: "Beachfront",
     label: "Coastal",
     description: "Where the Indian Ocean meets the golden sands.",
-    bg: "/destination/mirissa.jpg", // Placeholder
+    bg: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.jpg",
     tall: true,
   },
   {
     name: "Old Streets",
     label: "Culture",
     description: "Winding cobblestone paths filled with charm.",
-    bg: "/destination/ella.jpg", // Placeholder
+    bg: "/destination/galle/sarmat-batagov-VB-ugSBaVzA-unsplash.jpg",
     tall: false,
   },
   {
     name: "Pagoda",
     label: "Peace",
     description: "Quiet reflection overlooking the vast blue sea.",
-    bg: "/destination/kandy.jpg", // Placeholder
+    bg: "/destination/galle/sarmat-batagov-ehxQ3o8FKTs-unsplash.jpg",
     tall: false,
   },
 ];
@@ -53,32 +53,32 @@ const THINGS_TO_DO = [
   {
     title: "Walk the Galle Fort Ramparts",
     desc: "Experience breathtaking sunset views over the Indian Ocean while walking along the ancient stone walls.",
-    image: "/destination/galle.jpg",
+    image: "/destination/galle/zoshua-colah-bYdRfOLE2JU-unsplash.jpg",
   },
   {
     title: "Old Dutch Hospital",
     desc: "A beautifully restored colonial building now housing upscale restaurants, cafes, and boutique shops.",
-    image: "/destination/34.jpg",
+    image: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.jpg",
   },
   {
     title: "Galle Lighthouse",
     desc: "One of the island's most iconic landmarks, standing tall on the fort's southeast tip since 1848.",
-    image: "/destination/sigiriya.jpg",
+    image: "/destination/galle/matt-dany-FOYmbDX-sTs-unsplash.jpg",
   },
   {
     title: "Unawatuna Beach",
     desc: "A stunning crescent-shaped bay known for its golden sands and vibrant turquoise waters.",
-    image: "/destination/mirissa.jpg",
+    image: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.jpg",
   },
   {
     title: "Rumassala Jungle Beach",
     desc: "A hidden gem tucked away in the jungle, perfect for snorkeling and quiet relaxation.",
-    image: "/destination/yala.jpg", // Placeholder
+    image: "/destination/galle/sarmat-batagov-VB-ugSBaVzA-unsplash.jpg",
   },
   {
     title: "Flag Rock Cliff Jumping",
     desc: "Watch local daredevils jump into the sea or simply enjoy the historical significance of this lookout point.",
-    image: "/destination/kandy.jpg", // Placeholder
+    image: "/destination/galle/sarmat-batagov-ehxQ3o8FKTs-unsplash.jpg",
   },
 ];
 
@@ -86,28 +86,28 @@ const PLACES_TO_VISIT = [
   {
     name: "One Day Galle Tour",
     desc: "Experience the essential highlights of Galle in a perfectly curated day. From the colonial grandeur of the Fort to the iconic lighthouse and vibrant local markets, see the best of the southern coast.",
-    image: "/destination/galle.jpg",
+    image: "/destination/galle/matt-dany-iitTkHI4Tqw-unsplash.jpg",
     days: "1 Day",
     itinerary: ["Galle Fort Heritage Walk", "Ramparts Sunset", "Old Dutch Hospital", "Galle Lighthouse"]
   },
   {
     name: "Two Day Galle Tour",
     desc: "A balanced blend of history and coastal relaxation. Dive deeper into the local culture and enjoy the pristine hidden beaches surrounding the historic city center.",
-    image: "/destination/mirissa.jpg",
+    image: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.jpg",
     days: "2 Days",
     itinerary: ["Japanese Peace Pagoda", "Rumassala Jungle Beach", "Sea Turtle Hatchery", "Stilt Fishing Experience"]
   },
   {
     name: "Three Day Galle Tour",
     desc: "The complete southern experience. Explore the rich maritime history, lush tea estates, and the sophisticated dining scene that makes Galle a premier global destination.",
-    image: "/destination/34.jpg",
+    image: "/destination/galle/zoshua-colah-bYdRfOLE2JU-unsplash.jpg",
     days: "3 Days",
     itinerary: ["Handunugoda Tea Estate", "Maritime Archeology Museum", "Coastal Village Tour", "Premium Beach Club Access"]
   },
   {
     name: "Four Day Galle Tour",
     desc: "The ultimate colonial retreat. A luxurious deep dive into the south coast's heritage, including day trips to nearby gems and exclusive private tours.",
-    image: "/destination/sigiriya.jpg",
+    image: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.jpg",
     days: "4 Days",
     itinerary: ["Mirissa Whale Watching", "Koggala Lake Boat Safari", "Antique Mansion Tour", "Luxury Fine Dining Experience"]
   },
@@ -397,6 +397,37 @@ export default function GalleDestinationPage() {
           border-top: 1px solid rgba(13,148,136,0.1);
           position: relative;
         }
+        /* ── DESTINATION VIDEO SECTION ── */
+        .destination-video-section {
+          padding: 80px 5%;
+          background: #ffffff;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        .video-container {
+          width: 100%;
+          max-width: 1200px;
+          border-radius: 24px;
+          overflow: hidden;
+          box-shadow: 0 40px 100px rgba(0,0,0,0.15);
+          position: relative;
+          aspect-ratio: 16 / 9;
+          background: #000;
+          transition: transform 0.5s ease;
+        }
+        .video-container:hover {
+          transform: scale(1.02);
+        }
+        .video-container iframe {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          border: none;
+        }
+
         .section-header {
           text-align: center;
           margin-bottom: 64px;
@@ -800,6 +831,18 @@ export default function GalleDestinationPage() {
             that makes Galle one of the most beloved destinations on the island. Experience the perfect
             blend of culture, heritage, and coastal beauty.
           </p>
+        </div>
+      </section>
+
+      {/* ── Destination Video Section ── */}
+      <section className="destination-video-section">
+        <div className="video-container">
+          <iframe
+            src="https://www.youtube.com/embed/nE1E1U8GvL8?si=9kX5Xl_0x3H5T4-y&autoplay=0&mute=1&loop=1&playlist=nE1E1U8GvL8"
+            title="Things to do in Galle Sri Lanka"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          ></iframe>
         </div>
       </section>
 
