@@ -20,6 +20,11 @@ import {
     Tooltip,
     Chip,
     TablePagination,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
 } from '@mui/material';
 import {
     CloudUpload as CloudUploadIcon,
@@ -80,6 +85,7 @@ const RateCardManagePage = () => {
     const [adjustments, setAdjustments] = useState<RateAdjustment[]>([]);
     const [adjustValue, setAdjustValue] = useState<string>('');
     const [adjusting, setAdjusting] = useState(false);
+    const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
 
     const fetchRateCards = async () => {
         setLoading(true);
@@ -237,14 +243,11 @@ const RateCardManagePage = () => {
             return;
         }
 
-        const confirmMsg = `Are you sure you want to set a persistent adjustment of ${adjustValue}% for:
-- Vehicle: ${vehicleFilter}
-- Type: ${typeFilter}
+        setOpenConfirmDialog(true);
+    };
 
-This will be applied to the customer trip summary dynamically.`;
-
-        if (!confirm(confirmMsg)) return;
-
+    const handleConfirmAdjust = async () => {
+        setOpenConfirmDialog(false);
         setAdjusting(true);
         setError(null);
         setSuccess(null);
@@ -993,6 +996,78 @@ This will be applied to the customer trip summary dynamically.`;
                     Type, Vehicle, Days, KM, Hrs, Rate %, Rate, Extra KM, Ext Hrs... (Mapping handles variations like "Basic Rate" or "Amount")
                 </Typography>
             </Box>
+
+            {/* Confirmation Dialog */}
+            <Dialog
+                open={openConfirmDialog}
+                onClose={() => setOpenConfirmDialog(false)}
+                PaperProps={{
+                    sx: {
+                        borderRadius: '20px',
+                        p: 1,
+                        minWidth: '400px',
+                        background: 'background.paper',
+                        backgroundImage: 'none'
+                    }
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, fontSize: '1.4rem', color: 'text.primary', pb: 1 }}>
+                    Confirm Price Adjustment
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ color: 'text.secondary', fontSize: '1rem', mb: 2 }}>
+                        Are you sure you want to apply a persistent <strong>{adjustValue}%</strong> adjustment for current filters?
+                    </DialogContentText>
+
+                    <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider' }}>
+                        <Stack spacing={1}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body2" sx={{ color: 'text.secondary' }}>Target Vehicle:</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>{vehicleFilter}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body2" sx={{ color: 'text.secondary' }}>Trip Category:</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>{typeFilter}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body2" sx={{ color: 'text.secondary' }}>Percentage:</Typography>
+                                <Typography variant="body2" sx={{
+                                    fontWeight: 800,
+                                    color: parseFloat(adjustValue) >= 0 ? '#10b981' : '#ef4444'
+                                }}>
+                                    {parseFloat(adjustValue) >= 0 ? `+${adjustValue}%` : `${adjustValue}%`}
+                                </Typography>
+                            </Box>
+                        </Stack>
+                    </Box>
+                    <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'text.disabled', fontStyle: 'italic' }}>
+                        * This will be applied dynamically to the customer trip summary.
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, gap: 1 }}>
+                    <Button
+                        onClick={() => setOpenConfirmDialog(false)}
+                        sx={{ color: 'text.secondary', textTransform: 'none', fontWeight: 600 }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleConfirmAdjust}
+                        variant="contained"
+                        sx={{
+                            background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
+                            color: 'white !important',
+                            borderRadius: '10px',
+                            px: 3,
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.2)'
+                        }}
+                    >
+                        Confirm & Apply
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };
