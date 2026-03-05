@@ -888,17 +888,17 @@ export default function HeroSection() {
 
   const estimatedRoutePrice = distanceInKm * ratePerKm;
 
-  // Apply Adjustment Logic
+  // Apply Prioritized Adjustment Logic (Specific match over 'All')
   const activeAdjustment = (() => {
     if (!formData.vehicleType || adjustments.length === 0) return null;
 
     const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
     const cleanFormType = formData.tripType.toLowerCase().trim();
 
-    // Find adjustment that matches vehicle name first, then category
+    // Find all potential matches
     const matches = adjustments.filter(adj => {
       const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const vehicleMatch = cleanAdjVeh === 'all' || cleanAdjVeh === cleanFormVehName || cleanFormVehName.includes(cleanAdjVeh);
+      const vehicleMatch = cleanAdjVeh === 'all' || cleanAdjVeh === cleanFormVehName || cleanFormVehName.includes(cleanAdjVeh) || cleanAdjVeh.includes(cleanFormVehName);
 
       const cleanAdjType = adj.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
@@ -908,14 +908,23 @@ export default function HeroSection() {
 
     if (matches.length === 0) return null;
 
-    // Prioritize specific vehicle match over 'All'
+    // Pick the MOST specific one:
+    // 1. Prefer specific vehicle name over 'all'
+    // 2. Prefer specific trip type over 'all'
     return matches.sort((a, b) => {
-      if (a.vehicle !== b.vehicle) return a.vehicle === 'all' ? 1 : -1;
-      return a.type === 'all' ? 1 : -1;
+      const aVehAll = a.vehicle.toLowerCase() === 'all';
+      const bVehAll = b.vehicle.toLowerCase() === 'all';
+      if (aVehAll !== bVehAll) return aVehAll ? 1 : -1;
+
+      const aTypeAll = a.type.toLowerCase() === 'all';
+      const bTypeAll = b.type.toLowerCase() === 'all';
+      if (aTypeAll !== bTypeAll) return aTypeAll ? 1 : -1;
+
+      return 0;
     })[0];
   })();
 
-  const adjustmentMultiplier = activeAdjustment ? (1 + (activeAdjustment.percentage / 100)) : 1;
+  const adjustmentMultiplier = 1 + ((activeAdjustment?.percentage ?? 0) / 100);
 
   // Final Price Selection
   // Use matched package rate if available, otherwise fall back to old logic
