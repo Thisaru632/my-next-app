@@ -491,8 +491,8 @@ This will be applied to the customer trip summary dynamically.`;
                                 fontFamily: 'inherit'
                             }}
                         >
-                            <option value="All" style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>All Vehicles</option>
-                            {uniqueVehicles.map(v => <option key={v} value={v} style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>{v}</option>)}
+                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Vehicles</option>
+                            {uniqueVehicles.map(v => <option key={v} value={v} style={{ background: '#fff', color: '#000' }}>{v}</option>)}
                         </select>
                     </Box>
 
@@ -518,8 +518,8 @@ This will be applied to the customer trip summary dynamically.`;
                                 fontFamily: 'inherit'
                             }}
                         >
-                            <option value="All" style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>All Types</option>
-                            {uniqueTypes.map(t => <option key={t} value={t} style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>{t}</option>)}
+                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Types</option>
+                            {uniqueTypes.map(t => <option key={t} value={t} style={{ background: '#fff', color: '#000' }}>{t}</option>)}
                         </select>
                     </Box>
 
@@ -545,8 +545,8 @@ This will be applied to the customer trip summary dynamically.`;
                                 fontFamily: 'inherit'
                             }}
                         >
-                            <option value="All" style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>All Days</option>
-                            {uniqueDays.map(d => <option key={d} value={d} style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>{d}</option>)}
+                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Days</option>
+                            {uniqueDays.map(d => <option key={d} value={d} style={{ background: '#fff', color: '#000' }}>{d}</option>)}
                         </select>
                     </Box>
 
@@ -590,8 +590,11 @@ This will be applied to the customer trip summary dynamically.`;
                     mb: 5,
                     borderRadius: '24px',
                     border: '1px solid',
-                    borderColor: 'rgba(13, 148, 136, 0.2)',
-                    background: 'linear-gradient(135deg, rgba(13, 148, 136, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%)',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    background: (theme) => theme.palette.mode === 'dark'
+                        ? 'linear-gradient(135deg, rgba(13, 148, 136, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)'
+                        : 'linear-gradient(135deg, rgba(13, 148, 136, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%)',
                     position: 'relative',
                     overflow: 'hidden',
                     '&::before': {
@@ -682,7 +685,7 @@ This will be applied to the customer trip summary dynamically.`;
                                 disabled={adjusting || !adjustValue || filteredRateCards.length === 0}
                                 sx={{
                                     background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
-                                    color: 'white',
+                                    color: '#ffffff !important',
                                     borderRadius: '12px',
                                     textTransform: 'none',
                                     px: 4,
@@ -770,7 +773,7 @@ This will be applied to the customer trip summary dynamically.`;
                                     >
                                         <TableCell sx={{ px: 3, py: 2 }}>
                                             <Stack direction="row" spacing={1.5} alignItems="center">
-                                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: adj.vehicle === 'All' ? 'text.disabled' : '#0d9488' }} />
+                                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: adj.vehicle === 'All' ? '#94a3b8' : '#0d9488' }} />
                                                 <Typography sx={{ fontWeight: 700, color: 'text.primary' }}>{adj.vehicle}</Typography>
                                             </Stack>
                                         </TableCell>
