@@ -405,6 +405,17 @@ export default function HeroSection() {
     maxBags: 0,
   });
 
+  const [minDateTime, setMinDateTime] = useState("");
+
+  useEffect(() => {
+    // Calculate once on mount to avoid hydration mismatch
+    const calculateMinDateTime = () => {
+      const minDate = new Date(new Date().getTime() + (2 * 60 * 60 * 1000) - (new Date().getTimezoneOffset() * 60000));
+      return minDate.toISOString().slice(0, 16);
+    };
+    setMinDateTime(calculateMinDateTime());
+  }, []);
+
   const [openPromoDialog, setOpenPromoDialog] = useState(false);
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState('');
@@ -754,11 +765,14 @@ export default function HeroSection() {
   const matchedPackage = (() => {
     if (!formData.vehicleType || !formData.tripType) return null;
 
-    // Filter by vehicle (check both Model Name and Category), type, and days
+    // Use 1 day as minimum for matching since DB stores Drop trips as 1 day
+    const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
+    const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+    const cleanFormVehType = formData.vehicleType.toLowerCase().replace(/\s+/g, '').trim();
+
+    // 1. Filter by vehicle name and category, type, and days
     const potentialCards = rateCards.filter(card => {
       const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
-      const cleanFormVehType = formData.vehicleType.toLowerCase().replace(/\s+/g, '').trim();
 
       const vehicleMatch =
         cleanCardVeh === cleanFormVehName ||
@@ -774,7 +788,7 @@ export default function HeroSection() {
         (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) ||
         (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
 
-      const dayMatch = Number(card.days) === Number(formData.numberOfDays);
+      const dayMatch = Number(card.days) === targetDays;
 
       return vehicleMatch && typeMatch && dayMatch;
     });
@@ -784,18 +798,26 @@ export default function HeroSection() {
         vehicle: formData.vehicleName,
         category: formData.vehicleType,
         type: formData.tripType,
-        days: formData.numberOfDays
+        days: targetDays
       });
       return null;
     }
 
-    // Sort by KM ascending, and then by Hours ascending to find the best fit
-    const sortedCards = potentialCards.sort((a, b) => {
+    // 2. Prioritize specific vehicle name match over generic category match
+    const specificMatches = potentialCards.filter(card => {
+      const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      return cleanCardVeh === cleanFormVehName || cleanCardVeh.includes(cleanFormVehName) || cleanFormVehName.includes(cleanCardVeh);
+    });
+
+    const finalPotential = specificMatches.length > 0 ? specificMatches : potentialCards;
+
+    // 3. Sort by KM ascending, and then by Hours ascending to find the best fit
+    const sortedCards = finalPotential.sort((a, b) => {
       if (a.km !== b.km) return a.km - b.km;
       return a.hrs - b.hrs; // Priority: smaller hours among same KM
     });
 
-    // If we have distance, find the package that covers it (next recent package)
+    // 4. If we have distance, find the package that covers it (next recent package)
     if (routeDistance !== null) {
       const coverMatch = sortedCards.find(card => card.km >= distanceInKm);
       const bestMatch = coverMatch || sortedCards[sortedCards.length - 1];
@@ -809,10 +831,13 @@ export default function HeroSection() {
 
   const minKmRequired = (() => {
     if (!formData.vehicleType || !formData.tripType || rateCards.length === 0) return 0;
+
+    const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
+    const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+    const cleanFormVehType = formData.vehicleType.toLowerCase().replace(/\s+/g, '').trim();
+
     const potentialCards = rateCards.filter(card => {
       const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
-      const cleanFormVehType = formData.vehicleType.toLowerCase().replace(/\s+/g, '').trim();
 
       const vehicleMatch = cleanCardVeh === cleanFormVehName || cleanCardVeh === cleanFormVehType ||
         cleanFormVehName.includes(cleanCardVeh) || cleanCardVeh.includes(cleanFormVehName);
@@ -823,12 +848,20 @@ export default function HeroSection() {
         (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) ||
         (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
 
-      const dayMatch = Number(card.days) === Number(formData.numberOfDays);
+      const dayMatch = Number(card.days) === targetDays;
       return vehicleMatch && typeMatch && dayMatch;
     });
 
     if (potentialCards.length === 0) return 0;
-    return Math.min(...potentialCards.map(c => c.km));
+
+    // Prioritize specific match even for minKm
+    const specificMatches = potentialCards.filter(card => {
+      const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      return cleanCardVeh === cleanFormVehName || cleanCardVeh.includes(cleanFormVehName) || cleanFormVehName.includes(cleanCardVeh);
+    });
+
+    const finalPotential = specificMatches.length > 0 ? specificMatches : potentialCards;
+    return Math.min(...finalPotential.map(c => c.km));
   })();
 
   const basePricePerDay =
@@ -1332,7 +1365,7 @@ export default function HeroSection() {
                   <input
                     type="datetime-local"
                     value={formData.dateTime}
-                    min={new Date(new Date().getTime() + (2 * 60 * 60 * 1000) - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0, 16)}
+                    min={minDateTime}
                     onChange={(e) => handleChange('dateTime', e.target.value)}
                     style={{
                       width: "100%",

@@ -3,48 +3,50 @@
 import { useEffect, useRef, useState } from "react";
 import Footer from "@/components/footer";
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 
 const HERO_DESTINATIONS = [
   {
     name: "Galle Fort",
     label: "Heritage",
     description: "Centuries of history preserved in stone walls.",
-    bg: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.jpg",
+    bg: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.webp",
     tall: true,
   },
   {
     name: "Dutch Hospital",
     label: "Landmark",
     description: "Restored colonial architecture with modern vibes.",
-    bg: "/destination/galle/matt-dany-FOYmbDX-sTs-unsplash.jpg",
+    bg: "/destination/galle/matt-dany-FOYmbDX-sTs-unsplash.webp",
     tall: false,
   },
   {
     name: "Lighthouse",
     label: "Iconic",
     description: "The guardian of the southern coast since 1848.",
-    bg: "/destination/galle/matt-dany-iitTkHI4Tqw-unsplash.jpg",
+    bg: "/destination/galle/matt-dany-iitTkHI4Tqw-unsplash.webp",
     tall: false,
   },
   {
     name: "Beachfront",
     label: "Coastal",
     description: "Where the Indian Ocean meets the golden sands.",
-    bg: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.jpg",
+    bg: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.webp",
     tall: true,
   },
   {
     name: "Old Streets",
     label: "Culture",
     description: "Winding cobblestone paths filled with charm.",
-    bg: "/destination/galle/sarmat-batagov-VB-ugSBaVzA-unsplash.jpg",
+    bg: "/destination/galle/sarmat-batagov-VB-ugSBaVzA-unsplash.webp",
     tall: false,
   },
   {
     name: "Pagoda",
     label: "Peace",
     description: "Quiet reflection overlooking the vast blue sea.",
-    bg: "/destination/galle/sarmat-batagov-ehxQ3o8FKTs-unsplash.jpg",
+    bg: "/destination/galle/sarmat-batagov-ehxQ3o8FKTs-unsplash.webp",
     tall: false,
   },
 ];
@@ -53,32 +55,32 @@ const THINGS_TO_DO = [
   {
     title: "Walk the Galle Fort Ramparts",
     desc: "Experience breathtaking sunset views over the Indian Ocean while walking along the ancient stone walls.",
-    image: "/destination/galle/zoshua-colah-bYdRfOLE2JU-unsplash.jpg",
+    image: "/destination/galle/zoshua-colah-bYdRfOLE2JU-unsplash.webp",
   },
   {
     title: "Old Dutch Hospital",
     desc: "A beautifully restored colonial building now housing upscale restaurants, cafes, and boutique shops.",
-    image: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.jpg",
+    image: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.webp",
   },
   {
     title: "Galle Lighthouse",
     desc: "One of the island's most iconic landmarks, standing tall on the fort's southeast tip since 1848.",
-    image: "/destination/galle/matt-dany-FOYmbDX-sTs-unsplash.jpg",
+    image: "/destination/galle/matt-dany-FOYmbDX-sTs-unsplash.webp",
   },
   {
     title: "Unawatuna Beach",
     desc: "A stunning crescent-shaped bay known for its golden sands and vibrant turquoise waters.",
-    image: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.jpg",
+    image: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.webp",
   },
   {
     title: "Rumassala Jungle Beach",
     desc: "A hidden gem tucked away in the jungle, perfect for snorkeling and quiet relaxation.",
-    image: "/destination/galle/sarmat-batagov-VB-ugSBaVzA-unsplash.jpg",
+    image: "/destination/galle/sarmat-batagov-VB-ugSBaVzA-unsplash.webp",
   },
   {
     title: "Flag Rock Cliff Jumping",
     desc: "Watch local daredevils jump into the sea or simply enjoy the historical significance of this lookout point.",
-    image: "/destination/galle/sarmat-batagov-ehxQ3o8FKTs-unsplash.jpg",
+    image: "/destination/galle/sarmat-batagov-ehxQ3o8FKTs-unsplash.webp",
   },
 ];
 
@@ -86,28 +88,28 @@ const PLACES_TO_VISIT = [
   {
     name: "One Day Galle Tour",
     desc: "Experience the essential highlights of Galle in a perfectly curated day. From the colonial grandeur of the Fort to the iconic lighthouse and vibrant local markets, see the best of the southern coast.",
-    image: "/destination/galle/matt-dany-iitTkHI4Tqw-unsplash.jpg",
+    image: "/destination/galle/matt-dany-iitTkHI4Tqw-unsplash.webp",
     days: "1 Day",
     itinerary: ["Galle Fort Heritage Walk", "Ramparts Sunset", "Old Dutch Hospital", "Galle Lighthouse"]
   },
   {
     name: "Two Day Galle Tour",
     desc: "A balanced blend of history and coastal relaxation. Dive deeper into the local culture and enjoy the pristine hidden beaches surrounding the historic city center.",
-    image: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.jpg",
+    image: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.webp",
     days: "2 Days",
     itinerary: ["Japanese Peace Pagoda", "Rumassala Jungle Beach", "Sea Turtle Hatchery", "Stilt Fishing Experience"]
   },
   {
     name: "Three Day Galle Tour",
     desc: "The complete southern experience. Explore the rich maritime history, lush tea estates, and the sophisticated dining scene that makes Galle a premier global destination.",
-    image: "/destination/galle/zoshua-colah-bYdRfOLE2JU-unsplash.jpg",
+    image: "/destination/galle/zoshua-colah-bYdRfOLE2JU-unsplash.webp",
     days: "3 Days",
     itinerary: ["Handunugoda Tea Estate", "Maritime Archeology Museum", "Coastal Village Tour", "Premium Beach Club Access"]
   },
   {
     name: "Four Day Galle Tour",
     desc: "The ultimate colonial retreat. A luxurious deep dive into the south coast's heritage, including day trips to nearby gems and exclusive private tours.",
-    image: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.jpg",
+    image: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.webp",
     days: "4 Days",
     itinerary: ["Mirissa Whale Watching", "Koggala Lake Boat Safari", "Antique Mansion Tour", "Luxury Fine Dining Experience"]
   },
@@ -116,23 +118,24 @@ const PLACES_TO_VISIT = [
 function DestCard({ dest, index, inView }: { dest: any; index: number; inView: boolean }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <div
+    <motion.div
       className={`dest-card ${dest.tall ? "dest-tall" : ""}`}
-      style={{
-        opacity: inView ? 1 : 0,
-        transform: inView ? "translateY(0)" : "translateY(36px)",
-        transition: `opacity 0.75s cubic-bezier(.22,.61,0,1) ${index * 0.1}s, transform 0.75s cubic-bezier(.22,.61,0,1) ${index * 0.1}s`,
-      }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.8, delay: index * 0.1, ease: [0.22, 1, 0.36, 1] }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div
-        className="dest-img"
-        style={{
-          backgroundImage: `url(${dest.bg})`,
-          transform: hovered ? "scale(1.07)" : "scale(1)",
-        }}
-      />
+      <div className="dest-img-container">
+        <Image
+          src={dest.bg}
+          alt={dest.name}
+          fill
+          priority={index < 2}
+          className={`dest-img-optimized ${hovered ? "hovered" : ""}`}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+        />
+      </div>
       <div
         className="dest-overlay"
         style={{
@@ -168,7 +171,7 @@ function DestCard({ dest, index, inView }: { dest: any; index: number; inView: b
           </svg>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -199,15 +202,22 @@ export default function GalleDestinationPage() {
   const prevPlace = () => setActivePlace((prev) => (prev - 1 + PLACES_TO_VISIT.length) % PLACES_TO_VISIT.length);
 
   const getPosition = (index: number) => {
-    const diff = index - activePlace;
+    const total = PLACES_TO_VISIT.length;
+    const diff = (index - activePlace + total) % total;
+
     if (diff === 0) return 'center';
-    if (diff === 1 || (activePlace === PLACES_TO_VISIT.length - 1 && index === 0)) return 'right';
-    if (diff === -1 || (activePlace === 0 && index === PLACES_TO_VISIT.length - 1)) return 'left';
+    if (diff === 1) return 'right';
+    if (diff === total - 1) return 'left';
     return 'hidden';
   };
 
   return (
-    <div className="galle-page">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.8 }}
+      className="galle-page"
+    >
       <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:wght@300;400;500;600;700&display=swap"
         rel="stylesheet"
@@ -290,16 +300,22 @@ export default function GalleDestinationPage() {
            overflow: hidden;
            cursor: pointer;
            height: 260px;
-           background: #e5e7eb;
+           background: #f3f4f6;
         }
-        .dest-tall { height: 534px; }
-        .dest-img {
+        .dest-img-container {
           position: absolute;
           inset: 0;
-          background-size: cover;
-          background-position: center;
-          transition: transform 0.65s cubic-bezier(.4,0,.2,1);
+          width: 100%;
+          height: 100%;
         }
+        .dest-img-optimized {
+          object-fit: cover;
+          transition: transform 0.8s cubic-bezier(.4,0,.2,1) !important;
+        }
+        .dest-img-optimized.hovered {
+          transform: scale(1.1);
+        }
+        .dest-tall { height: 534px; }
         .dest-overlay {
           position: absolute;
           inset: 0;
@@ -862,16 +878,26 @@ export default function GalleDestinationPage() {
 
           <div className="things-grid" ref={scrollRef}>
             {THINGS_TO_DO.map((item, i) => (
-              <div key={i} className="thing-card">
-                <div
-                  className="thing-img-box"
-                  style={{ backgroundImage: `url(${item.image})` }}
-                />
+              <motion.div
+                key={i}
+                className="thing-card"
+                whileHover={{ y: -8 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <div className="thing-img-box relative overflow-hidden">
+                  <Image
+                    src={item.image}
+                    alt={item.title}
+                    fill
+                    className="object-cover"
+                    sizes="320px"
+                  />
+                </div>
                 <div className="thing-content">
                   <h3 className="thing-title">{item.title}</h3>
                   <p className="thing-desc">{item.desc}</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
 
@@ -908,33 +934,63 @@ export default function GalleDestinationPage() {
           </div>
 
           <div className="senu-visual">
-            <div className="relative w-full h-full flex items-center justify-center">
-              {PLACES_TO_VISIT.map((place, i) => {
-                const pos = getPosition(i);
-                return (
-                  <div
-                    key={i}
-                    className={`carousel-card ${pos}`}
-                    onClick={() => pos !== 'center' && setActivePlace(i)}
-                  >
-                    <div className="card-img" style={{ backgroundImage: `url(${place.image})` }} />
-                    <div className="card-overlay">
-                      <span className="day-count">{place.days}</span>
-                      <h4 className="card-title-small">{place.name}</h4>
-                      <button className="request-btn">Select a Vehicle and Request Booking</button>
-                    </div>
-                  </div>
-                );
-              })}
-              {/* Moving arrows to sides */}
-              <button className="nav-btn prev" onClick={prevPlace}><ChevronLeft size={24} /></button>
-              <button className="nav-btn next" onClick={nextPlace}><ChevronRight size={24} /></button>
+            <div className="relative w-full h-[600px] flex items-center justify-center overflow-visible">
+              <AnimatePresence>
+                {PLACES_TO_VISIT.map((place, i) => {
+                  const pos = getPosition(i);
+                  if (pos === 'hidden') return null;
+                  return (
+                    <motion.div
+                      key={i}
+                      className={`carousel-card ${pos}`}
+                      onClick={() => pos !== 'center' && setActivePlace(i)}
+                      initial={false}
+                      animate={{
+                        opacity: pos === 'center' ? 1 : 0.6,
+                        scale: pos === 'center' ? 1.1 : 0.85,
+                        x: pos === 'left' ? '-75%' : pos === 'right' ? '75%' : '0%',
+                        zIndex: pos === 'center' ? 10 : 5,
+                        filter: pos === 'center' ? 'blur(0px)' : 'blur(2px)'
+                      }}
+                      exit={{ opacity: 0, scale: 0.5 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 260,
+                        damping: 25,
+                      }}
+                    >
+                      <div className="card-img relative w-full h-full">
+                        <Image
+                          src={place.image}
+                          alt={place.name}
+                          fill
+                          className="object-cover transition-transform duration-700 hover:scale-105"
+                          sizes="400px"
+                        />
+                      </div>
+                      <div className="card-overlay">
+                        <span className="day-count">{place.days}</span>
+                        <h4 className="card-title-small">{place.name}</h4>
+                        <button className="request-btn">Select a Vehicle and Request Booking</button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+
+              {/* Navigation arrows */}
+              <button className="nav-btn prev" onClick={prevPlace} style={{ left: '-60px' }}>
+                <ChevronLeft size={24} />
+              </button>
+              <button className="nav-btn next" onClick={nextPlace} style={{ right: '-60px' }}>
+                <ChevronRight size={24} />
+              </button>
             </div>
           </div>
         </div>
       </section>
 
       <Footer />
-    </div>
+    </motion.div>
   );
 }
