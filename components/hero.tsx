@@ -377,6 +377,13 @@ interface RateCard {
   status: string;
 }
 
+interface RateAdjustment {
+  _id: string;
+  vehicle: string;
+  type: string;
+  percentage: number;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -439,21 +446,24 @@ export default function HeroSection() {
 
   // Rate Cards state
   const [rateCards, setRateCards] = useState<RateCard[]>([]);
+  const [adjustments, setAdjustments] = useState<RateAdjustment[]>([]);
 
   // Fetch Rate Cards
   useEffect(() => {
-    const fetchRateCards = async () => {
+    const fetchRateData = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}?status=Approved`);
-        if (response.ok) {
-          const data = await response.json();
-          setRateCards(data);
-        }
+        const [rcRes, adjRes] = await Promise.all([
+          fetch(`${API_ENDPOINTS.RATE_CARDS}?status=Approved`),
+          fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`)
+        ]);
+
+        if (rcRes.ok) setRateCards(await rcRes.json());
+        if (adjRes.ok) setAdjustments(await adjRes.json());
       } catch (error) {
-        console.error('Error fetching rate cards:', error);
+        console.error('Error fetching rate data:', error);
       }
     };
-    fetchRateCards();
+    fetchRateData();
   }, []);
 
   const addDestination = () => {
@@ -878,11 +888,40 @@ export default function HeroSection() {
 
   const estimatedRoutePrice = distanceInKm * ratePerKm;
 
+  // Apply Adjustment Logic
+  const activeAdjustment = (() => {
+    if (!formData.vehicleType || adjustments.length === 0) return null;
+
+    const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+    const cleanFormType = formData.tripType.toLowerCase().trim();
+
+    // Find adjustment that matches vehicle name first, then category
+    const matches = adjustments.filter(adj => {
+      const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const vehicleMatch = cleanAdjVeh === 'all' || cleanAdjVeh === cleanFormVehName || cleanFormVehName.includes(cleanAdjVeh);
+
+      const cleanAdjType = adj.type.toLowerCase().trim();
+      const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
+
+      return vehicleMatch && typeMatch;
+    });
+
+    if (matches.length === 0) return null;
+
+    // Prioritize specific vehicle match over 'All'
+    return matches.sort((a, b) => {
+      if (a.vehicle !== b.vehicle) return a.vehicle === 'all' ? 1 : -1;
+      return a.type === 'all' ? 1 : -1;
+    })[0];
+  })();
+
+  const adjustmentMultiplier = activeAdjustment ? (1 + (activeAdjustment.percentage / 100)) : 1;
+
   // Final Price Selection
   // Use matched package rate if available, otherwise fall back to old logic
-  const displayPrice = matchedPackage
+  const displayPrice = (matchedPackage
     ? matchedPackage.rateAmount
-    : (routeDistance !== null ? estimatedRoutePrice : (basePricePerDay * formData.numberOfDays));
+    : (routeDistance !== null ? estimatedRoutePrice : (basePricePerDay * formData.numberOfDays))) * adjustmentMultiplier;
 
   const rawTotalPrice = Math.round(displayPrice);
   const discountAmount = appliedPromo ? Math.round(rawTotalPrice * 0.1) : 0;

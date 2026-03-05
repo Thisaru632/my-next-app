@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Box,
     Paper,
@@ -19,6 +19,7 @@ import {
     Stack,
     Tooltip,
     Chip,
+    TablePagination,
 } from '@mui/material';
 import {
     CloudUpload as CloudUploadIcon,
@@ -26,6 +27,8 @@ import {
     Refresh as RefreshIcon,
     TableChart as TableChartIcon,
     CheckCircle as CheckCircleIcon,
+    TrendingUp as TrendingUpIcon,
+    Percent as PercentIcon,
 } from '@mui/icons-material';
 import { API_ENDPOINTS } from '@/config/api';
 
@@ -44,6 +47,14 @@ interface RateCardEntry {
     status: string;
 }
 
+interface RateAdjustment {
+    _id: string;
+    vehicle: string;
+    type: string;
+    percentage: number;
+    lastUpdated: string;
+}
+
 const RateCardManagePage = () => {
     const [rateCards, setRateCards] = useState<RateCardEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -52,11 +63,23 @@ const RateCardManagePage = () => {
     const [success, setSuccess] = useState<string | null>(null);
 
     // Filtering states
-    const [searchTerm, setSearchTerm] = useState('');
-    const [vehicleFilter, setVehicleFilter] = useState('All');
-    const [typeFilter, setTypeFilter] = useState('All');
-    const [daysFilter, setDaysFilter] = useState('All');
     const [kmFilter, setKmFilter] = useState('');
+    const [vehicleFilter, setVehicleFilter] = useState('All'); // Assuming these exist elsewhere
+    const [typeFilter, setTypeFilter] = useState('All'); // Assuming these exist elsewhere
+    const [daysFilter, setDaysFilter] = useState('All'); // Assuming these exist elsewhere
+    const [searchTerm, setSearchTerm] = useState(''); // State for debounced search term
+
+    // Pagination states
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(50);
+
+    // Debounced search state
+    const [searchInput, setSearchInput] = useState('');
+
+    // Adjustment states
+    const [adjustments, setAdjustments] = useState<RateAdjustment[]>([]);
+    const [adjustValue, setAdjustValue] = useState<string>('');
+    const [adjusting, setAdjusting] = useState(false);
 
     const fetchRateCards = async () => {
         setLoading(true);
@@ -77,8 +100,29 @@ const RateCardManagePage = () => {
         }
     };
 
+    const fetchAdjustments = async () => {
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`);
+            if (response.ok) {
+                const data = await response.json();
+                setAdjustments(data);
+            }
+        } catch (err) {
+            console.error('Error fetching adjustments:', err);
+        }
+    };
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setSearchTerm(searchInput);
+            setPage(0); // Reset to first page on search
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [searchInput]);
+
     useEffect(() => {
         fetchRateCards();
+        fetchAdjustments();
     }, []);
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,17 +188,24 @@ const RateCardManagePage = () => {
         }
     };
 
-    // Filter logic
-    const filteredRateCards = rateCards.filter(card => {
-        const matchesSearch = card.vehicle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            card.type.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesVehicle = vehicleFilter === 'All' || card.vehicle === vehicleFilter;
-        const matchesType = typeFilter === 'All' || card.type === typeFilter;
-        const matchesDays = daysFilter === 'All' || card.days.toString() === daysFilter;
-        const matchesKm = kmFilter === '' || card.km.toString().includes(kmFilter);
+    // Memoized filter logic to prevent lag during typing
+    const filteredRateCards = useMemo(() => {
+        return rateCards.filter(card => {
+            const matchesSearch = card.vehicle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                card.type.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesVehicle = vehicleFilter === 'All' || card.vehicle === vehicleFilter;
+            const matchesType = typeFilter === 'All' || card.type === typeFilter;
+            const matchesDays = daysFilter === 'All' || card.days.toString() === daysFilter;
+            const matchesKm = kmFilter === '' || card.km.toString().includes(kmFilter);
 
-        return matchesSearch && matchesVehicle && matchesType && matchesDays && matchesKm;
-    });
+            return matchesSearch && matchesVehicle && matchesType && matchesDays && matchesKm;
+        });
+    }, [rateCards, searchTerm, vehicleFilter, typeFilter, daysFilter, kmFilter]);
+
+    // Paginated data
+    const paginatedRateCards = useMemo(() => {
+        return filteredRateCards.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+    }, [filteredRateCards, page, rowsPerPage]);
 
     // Extract unique options for filters
     const uniqueVehicles = Array.from(new Set(rateCards.map(c => c.vehicle))).sort();
@@ -162,11 +213,89 @@ const RateCardManagePage = () => {
     const uniqueDays = Array.from(new Set(rateCards.map(c => c.days.toString()))).sort((a, b) => parseInt(a) - parseInt(b));
 
     const resetFilters = () => {
+        setSearchInput('');
         setSearchTerm('');
         setVehicleFilter('All');
         setTypeFilter('All');
         setDaysFilter('All');
         setKmFilter('');
+        setPage(0);
+    };
+
+    const handleChangePage = (event: unknown, newPage: number) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
+    };
+
+    const handleBulkAdjust = async () => {
+        if (!adjustValue || isNaN(parseFloat(adjustValue))) {
+            setError('Please enter a valid percentage (e.g. 5 or -5)');
+            return;
+        }
+
+        const confirmMsg = `Are you sure you want to set a persistent adjustment of ${adjustValue}% for:
+- Vehicle: ${vehicleFilter}
+- Type: ${typeFilter}
+
+This will be applied to the customer trip summary dynamically.`;
+
+        if (!confirm(confirmMsg)) return;
+
+        setAdjusting(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    percentage: parseFloat(adjustValue),
+                    vehicle: vehicleFilter,
+                    type: typeFilter
+                }),
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                setSuccess(result.message);
+                setAdjustValue('');
+                fetchAdjustments(); // Refresh adjustment table
+            } else {
+                const errData = await response.json();
+                setError(errData.message || 'Failed to update adjustment');
+            }
+        } catch (err) {
+            setError('An error occurred during adjustment');
+        } finally {
+            setAdjusting(false);
+        }
+    };
+
+    const handleResetAdjustment = async (id: string) => {
+        if (!confirm('Are you sure you want to reset this adjustment to 0%?')) return;
+
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                setSuccess('Adjustment reset successfully');
+                fetchAdjustments();
+            } else {
+                setError('Failed to reset adjustment');
+            }
+        } catch (err) {
+            setError('An error occurred while resetting');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleStatusUpdate = async (id: string, newStatus: string) => {
@@ -308,23 +437,32 @@ const RateCardManagePage = () => {
                 </label>
             </Paper>
 
-            <Paper sx={{ p: 2, mb: 3, borderRadius: '16px', border: '1px solid', borderColor: 'divider', bgcolor: 'background.default' }}>
+            {/* Filter Section (Moved up to define scope for both view and bulk adjustment) */}
+            <Paper sx={{
+                p: 2,
+                mb: 3,
+                borderRadius: '16px',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                backgroundImage: 'none'
+            }}>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
                     <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: '200px' } }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: '#94a3b8', textTransform: 'uppercase' }}>Search</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Search</Typography>
                         <input
                             placeholder="Search vehicle or type..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
                             style={{
                                 width: '100%',
                                 padding: '10px 14px',
                                 borderRadius: '10px',
-                                border: '1px solid #cbd5e1',
+                                border: '1px solid var(--border-color, #cbd5e1)',
                                 marginTop: '4px',
                                 outline: 'none',
-                                background: '#ffffff',
-                                color: '#1e293b',
+                                background: 'transparent',
+                                color: 'inherit',
                                 fontSize: '0.9rem',
                                 fontFamily: 'inherit'
                             }}
@@ -332,79 +470,88 @@ const RateCardManagePage = () => {
                     </Box>
 
                     <Box sx={{ minWidth: '150px' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: '#94a3b8', textTransform: 'uppercase' }}>Vehicle</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
                         <select
                             value={vehicleFilter}
-                            onChange={(e) => setVehicleFilter(e.target.value)}
+                            onChange={(e) => {
+                                setVehicleFilter(e.target.value);
+                                setPage(0);
+                            }}
                             style={{
                                 width: '100%',
                                 padding: '10px 14px',
                                 borderRadius: '10px',
-                                border: '1px solid #cbd5e1',
+                                border: '1px solid var(--border-color, #cbd5e1)',
                                 marginTop: '4px',
                                 outline: 'none',
-                                background: '#ffffff',
-                                color: '#1e293b',
+                                background: 'transparent',
+                                color: 'inherit',
                                 fontSize: '0.9rem',
                                 cursor: 'pointer',
                                 fontFamily: 'inherit'
                             }}
                         >
-                            <option value="All">All Vehicles</option>
-                            {uniqueVehicles.map(v => <option key={v} value={v}>{v}</option>)}
+                            <option value="All" style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>All Vehicles</option>
+                            {uniqueVehicles.map(v => <option key={v} value={v} style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>{v}</option>)}
                         </select>
                     </Box>
 
                     <Box sx={{ minWidth: '150px' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: '#94a3b8', textTransform: 'uppercase' }}>Type</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Type</Typography>
                         <select
                             value={typeFilter}
-                            onChange={(e) => setTypeFilter(e.target.value)}
+                            onChange={(e) => {
+                                setTypeFilter(e.target.value);
+                                setPage(0);
+                            }}
                             style={{
                                 width: '100%',
                                 padding: '10px 14px',
                                 borderRadius: '10px',
-                                border: '1px solid #cbd5e1',
+                                border: '1px solid var(--border-color, #cbd5e1)',
                                 marginTop: '4px',
                                 outline: 'none',
-                                background: '#ffffff',
-                                color: '#1e293b',
+                                background: 'transparent',
+                                color: 'inherit',
                                 fontSize: '0.9rem',
                                 cursor: 'pointer',
                                 fontFamily: 'inherit'
                             }}
                         >
-                            <option value="All">All Types</option>
-                            {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                            <option value="All" style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>All Types</option>
+                            {uniqueTypes.map(t => <option key={t} value={t} style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>{t}</option>)}
                         </select>
                     </Box>
 
                     <Box sx={{ minWidth: '100px' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: '#94a3b8', textTransform: 'uppercase' }}>Days</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Days</Typography>
                         <select
                             value={daysFilter}
-                            onChange={(e) => setDaysFilter(e.target.value)}
+                            onChange={(e) => {
+                                setDaysFilter(e.target.value);
+                                setPage(0);
+                            }}
                             style={{
                                 width: '100%',
                                 padding: '10px 14px',
                                 borderRadius: '10px',
-                                border: '1px solid #cbd5e1',
+                                border: '1px solid var(--border-color, #cbd5e1)',
                                 marginTop: '4px',
                                 outline: 'none',
-                                background: '#ffffff',
-                                color: '#1e293b',
+                                background: 'transparent',
+                                color: 'inherit',
                                 fontSize: '0.9rem',
                                 cursor: 'pointer',
                                 fontFamily: 'inherit'
                             }}
                         >
-                            <option value="All">All Days</option>
-                            {uniqueDays.map(d => <option key={d} value={d}>{d}</option>)}
+                            <option value="All" style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>All Days</option>
+                            {uniqueDays.map(d => <option key={d} value={d} style={{ background: 'var(--background, #fff)', color: 'var(--foreground, #000)' }}>{d}</option>)}
                         </select>
                     </Box>
 
                     <Box sx={{ minWidth: '100px' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: '#94a3b8', textTransform: 'uppercase' }}>KM Limit</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>KM Limit</Typography>
                         <input
                             type="text"
                             placeholder="e.g. 100"
@@ -414,11 +561,11 @@ const RateCardManagePage = () => {
                                 width: '100%',
                                 padding: '10px 14px',
                                 borderRadius: '10px',
-                                border: '1px solid #cbd5e1',
+                                border: '1px solid var(--border-color, #cbd5e1)',
                                 marginTop: '4px',
                                 outline: 'none',
-                                background: '#ffffff',
-                                color: '#1e293b',
+                                background: 'transparent',
+                                color: 'inherit',
                                 fontSize: '0.9rem',
                                 fontFamily: 'inherit'
                             }}
@@ -428,12 +575,277 @@ const RateCardManagePage = () => {
                     <Button
                         size="small"
                         onClick={resetFilters}
-                        sx={{ mt: { xs: 0, md: 2.5 }, textTransform: 'none', fontWeight: 600, color: '#94a3b8' }}
+                        sx={{ mt: { xs: 0, md: 2.5 }, textTransform: 'none', fontWeight: 600, color: 'text.disabled' }}
                     >
                         Reset
                     </Button>
                 </Stack>
             </Paper>
+
+            {/* Quick Price Adjustment Section (Premium Style) */}
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 4,
+                    mb: 5,
+                    borderRadius: '24px',
+                    border: '1px solid',
+                    borderColor: 'rgba(13, 148, 136, 0.2)',
+                    background: 'linear-gradient(135deg, rgba(13, 148, 136, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '4px',
+                        height: '100%',
+                        background: 'linear-gradient(180deg, #0d9488 0%, #3b82f6 100%)',
+                    }
+                }}
+            >
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} alignItems="center">
+                    <Box sx={{ flexGrow: 1 }}>
+                        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
+                            <Box sx={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: '16px',
+                                background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 8px 16px rgba(13, 148, 136, 0.2)',
+                                flexShrink: 0
+                            }}>
+                                <TrendingUpIcon sx={{ color: '#fff', fontSize: '1.8rem' }} />
+                            </Box>
+                            <Box>
+                                <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
+                                    Bulk Price Adjustment
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5, fontWeight: 500 }}>
+                                    Adjust rates for all packages matching current filters
+                                </Typography>
+                            </Box>
+                        </Stack>
+                    </Box>
+
+                    <Box sx={{
+                        p: 1.5,
+                        borderRadius: '20px',
+                        bgcolor: 'background.paper',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        width: { xs: '100%', md: 'auto' }
+                    }}>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Box sx={{ position: 'relative', width: '160px' }}>
+                                <PercentIcon sx={{
+                                    position: 'absolute',
+                                    left: '12px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    fontSize: '1.2rem',
+                                    color: '#0d9488',
+                                    pointerEvents: 'none',
+                                }} />
+                                <input
+                                    type="text"
+                                    placeholder="e.g. 10 or -5"
+                                    value={adjustValue}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === '' || /^-?\d*\.?\d*$/.test(val)) {
+                                            setAdjustValue(val);
+                                        }
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 14px 12px 38px',
+                                        borderRadius: '12px',
+                                        border: '1.5px solid var(--border-color, #cbd5e1)',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontWeight: 700,
+                                        fontSize: '1.05rem',
+                                        fontFamily: 'inherit',
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                />
+                            </Box>
+                            <Button
+                                variant="contained"
+                                onClick={handleBulkAdjust}
+                                disabled={adjusting || !adjustValue || filteredRateCards.length === 0}
+                                sx={{
+                                    background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
+                                    color: 'white',
+                                    borderRadius: '12px',
+                                    textTransform: 'none',
+                                    px: 4,
+                                    py: '14px',
+                                    fontWeight: 700,
+                                    boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
+                                    '&:hover': {
+                                        boxShadow: '0 6px 20px rgba(13, 148, 136, 0.35)',
+                                        transform: 'translateY(-1px)'
+                                    },
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                                }}
+                            >
+                                {adjusting ? <CircularProgress size={24} color="inherit" /> : 'Set Adjustment'}
+                            </Button>
+                        </Stack>
+                    </Box>
+                </Stack>
+
+                {adjustValue && (
+                    <Box sx={{
+                        mt: 2,
+                        ml: { xs: 0, md: 9 },
+                        p: 2,
+                        borderRadius: '12px',
+                        bgcolor: 'rgba(59, 130, 246, 0.05)',
+                        border: '1px solid rgba(59, 130, 246, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5
+                    }}>
+                        <Typography variant="body2" sx={{ color: '#1e40af', fontWeight: 600 }}>
+                            Preview:
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#4b5563', lineHeight: 1.4 }}>
+                            Applying a persistent <strong style={{ color: '#0d9488' }}>{adjustValue}%</strong> adjustment for <strong style={{ color: '#1e293b' }}>{vehicleFilter}</strong> vehicles ({typeFilter}).
+                        </Typography>
+                    </Box>
+                )}
+            </Paper>
+
+            {/* Active Adjustments Premium UI */}
+            {adjustments.length > 0 && (
+                <Box sx={{ mb: 6 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3, ml: 1 }}>
+                        <Box sx={{ p: 1, borderRadius: '10px', bgcolor: 'rgba(13, 148, 136, 0.1)' }}>
+                            <PercentIcon sx={{ color: '#0d9488' }} />
+                        </Box>
+                        <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                            Currently Active Price Rules
+                        </Typography>
+                    </Stack>
+
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            borderRadius: '24px',
+                            overflow: 'hidden',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'background.paper',
+                            boxShadow: '0 4px 25px rgba(0,0,0,0.04)'
+                        }}
+                    >
+                        <Table sx={{ minWidth: 650 }}>
+                            <TableHead sx={{ bgcolor: 'action.hover' }}>
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Target Vehicle</TableCell>
+                                    <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trip Category</TableCell>
+                                    <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price Change</TableCell>
+                                    <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Last Modified</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {adjustments.map((adj) => (
+                                    <TableRow
+                                        key={adj._id}
+                                        sx={{
+                                            transition: 'all 0.2s',
+                                            '&:hover': {
+                                                bgcolor: 'action.hover',
+                                            }
+                                        }}
+                                    >
+                                        <TableCell sx={{ px: 3, py: 2 }}>
+                                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: adj.vehicle === 'All' ? 'text.disabled' : '#0d9488' }} />
+                                                <Typography sx={{ fontWeight: 700, color: 'text.primary' }}>{adj.vehicle}</Typography>
+                                            </Stack>
+                                        </TableCell>
+                                        <TableCell sx={{ px: 3, py: 2 }}>
+                                            <Chip
+                                                label={adj.type}
+                                                size="small"
+                                                sx={{
+                                                    fontWeight: 600,
+                                                    borderRadius: '8px',
+                                                    px: 1,
+                                                    bgcolor: 'rgba(59, 130, 246, 0.08)',
+                                                    color: 'primary.main',
+                                                    border: '1px solid rgba(59, 130, 246, 0.15)'
+                                                }}
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ px: 3, py: 2 }}>
+                                            <Box sx={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                px: 2,
+                                                py: 1,
+                                                borderRadius: '12px',
+                                                bgcolor: adj.percentage >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                                color: adj.percentage >= 0 ? '#10b981' : '#ef4444',
+                                                border: '1px solid',
+                                                borderColor: adj.percentage >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'
+                                            }}>
+                                                <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>
+                                                    {adj.percentage >= 0 ? `+${adj.percentage}%` : `${adj.percentage}%`}
+                                                </Typography>
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell sx={{ px: 3, py: 2 }}>
+                                            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', fontWeight: 500 }}>
+                                                {new Date(adj.lastUpdated).toLocaleDateString('en-GB', {
+                                                    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                                })}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell align="right" sx={{ px: 3, py: 2 }}>
+                                            <Button
+                                                size="small"
+                                                variant="contained"
+                                                onClick={() => handleResetAdjustment(adj._id)}
+                                                sx={{
+                                                    textTransform: 'none',
+                                                    borderRadius: '10px',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 700,
+                                                    bgcolor: 'background.paper',
+                                                    color: '#ef4444',
+                                                    border: '1px solid',
+                                                    borderColor: 'divider',
+                                                    boxShadow: 'none',
+                                                    '&:hover': {
+                                                        bgcolor: 'error.light',
+                                                        color: '#fff',
+                                                        boxShadow: '0 4px 10px rgba(239, 68, 68, 0.1)',
+                                                        border: '1px solid transparent'
+                                                    }
+                                                }}
+                                            >
+                                                Reset to 0%
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </Paper>
+                </Box>
+            )}
+
 
             {/* Messages */}
             {error && (
@@ -478,20 +890,20 @@ const RateCardManagePage = () => {
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={11} align="center" sx={{ py: 8 }}>
+                                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
                                         <CircularProgress size={40} />
                                         <Typography sx={{ mt: 2, color: 'text.secondary' }}>Loading rate card data...</Typography>
                                     </TableCell>
                                 </TableRow>
-                            ) : filteredRateCards.length === 0 ? (
+                            ) : paginatedRateCards.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={11} align="center" sx={{ py: 8 }}>
+                                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
                                         <TableChartIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
                                         <Typography color="text.secondary">No matching rate cards found with current filters.</Typography>
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                filteredRateCards.map((row) => (
+                                paginatedRateCards.map((row) => (
                                     <TableRow
                                         key={row._id}
                                         sx={{ '&:hover': { bgcolor: 'action.hover' }, transition: 'background 0.2s' }}
@@ -557,6 +969,16 @@ const RateCardManagePage = () => {
                         </TableBody>
                     </Table>
                 </TableContainer>
+                <TablePagination
+                    rowsPerPageOptions={[25, 50, 100, 200]}
+                    component="div"
+                    count={filteredRateCards.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+                />
             </Paper>
 
             {/* Hint for CSV format */}
