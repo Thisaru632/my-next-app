@@ -13,6 +13,7 @@ import {
   Alert,
   Box,
   Typography,
+  CircularProgress,
 } from '@mui/material';
 import {
   DirectionsBus,
@@ -36,6 +37,17 @@ import {
 } from '@mui/icons-material';
 import Image from 'next/image';
 import { API_ENDPOINTS } from '@/config/api';
+
+interface PromoCode {
+  _id: string;
+  code: string;
+  discountType: 'Percentage' | 'Fixed Amount';
+  discountValue: number;
+  applicableVehicle: string;
+  status: string;
+  validFrom: string | null;
+  validTo: string | null;
+}
 
 // ---------------------------------------------------------------------------
 // Data
@@ -382,6 +394,8 @@ interface RateAdjustment {
   vehicle: string;
   type: string;
   percentage: number;
+  validFrom: string | null;
+  validTo: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -425,8 +439,9 @@ export default function HeroSection() {
 
   const [openPromoDialog, setOpenPromoDialog] = useState(false);
   const [promoCodeInput, setPromoCodeInput] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
   const [hasPromoOption, setHasPromoOption] = useState<boolean | null>(null);
+  const [isPromoLoading, setIsPromoLoading] = useState(false);
 
   const [requestSent, setRequestSent] = useState(false);
   const [showRemark, setShowRemark] = useState(false);
@@ -540,7 +555,7 @@ export default function HeroSection() {
   // Snackbar state
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning'>('success');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('success');
 
   const [openPhotosDialog, setOpenPhotosDialog] = useState(false);
   const [photosVehicle, setPhotosVehicle] = useState('');
@@ -621,13 +636,72 @@ export default function HeroSection() {
     });
   };
 
-  const handlePromoSubmit = () => {
-    if (promoCodeInput.trim()) {
-      setAppliedPromo(promoCodeInput.trim());
+  const handlePromoSubmit = async () => {
+    if (!promoCodeInput.trim()) return;
+
+    setIsPromoLoading(true);
+    try {
+      const res = await fetch(API_ENDPOINTS.PROMO_CODES);
+      if (!res.ok) throw new Error('Failed to fetch promo codes');
+
+      const codes: PromoCode[] = await res.json();
+      const code = codes.find(c => c.code.toUpperCase() === promoCodeInput.trim().toUpperCase());
+
+      if (!code) {
+        setSnackbarMessage('Invalid promo code.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      if (code.status !== 'Active') {
+        setSnackbarMessage('This promo code is no longer active.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      // Date check
+      const now = new Date();
+      if (code.validFrom && new Date(code.validFrom) > now) {
+        setSnackbarMessage('This promo code is not yet valid.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+      if (code.validTo && new Date(code.validTo) < now) {
+        setSnackbarMessage('This promo code has expired.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      // Vehicle check - allow applying even if no vehicle selected yet, but warn
+      if (code.applicableVehicle !== 'All' && formData.vehicleName && code.applicableVehicle !== formData.vehicleName) {
+        setSnackbarMessage(`This code is only valid for ${code.applicableVehicle}.`);
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        return;
+      }
+
+      setAppliedPromo(code);
       setOpenPromoDialog(false);
-      setSnackbarMessage('Promo code applied! 10% discount added.');
+      const discText = code.discountType === 'Percentage' ? `${code.discountValue}%` : `LKR ${code.discountValue.toLocaleString()}`;
+
+      let successMsg = `Promo code applied! ${discText} discount added.`;
+      if (code.applicableVehicle !== 'All' && !formData.vehicleName) {
+        successMsg = `Promo code for ${code.applicableVehicle} applied! Note: Discount will only count when you select this vehicle.`;
+      }
+
+      setSnackbarMessage(successMsg);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
+    } catch (err) {
+      setSnackbarMessage('Error validating promo code.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setIsPromoLoading(false);
     }
   };
 
@@ -670,6 +744,15 @@ export default function HeroSection() {
       maxPersons: selectedModel?.maxPersons || 0,
       maxBags: selectedModel?.maxBags || 0,
     }));
+
+    // Re-validate applied promo for the new vehicle
+    if (appliedPromo && appliedPromo.applicableVehicle !== 'All' && appliedPromo.applicableVehicle !== modelName) {
+      setAppliedPromo(null);
+      setSnackbarMessage(`Promo code removed: only valid for ${appliedPromo.applicableVehicle}.`);
+      setSnackbarSeverity('info');
+      setSnackbarOpen(true);
+    }
+
     setOpenVehicleDialog(false);
     setOpenTripTypeDialog(true);
   };
@@ -707,8 +790,8 @@ export default function HeroSection() {
         ...formData,
         destinations: destinations.filter((d) => d.trim() !== ''),
         matchedPackage: matchedPackage,
-        promoCode: appliedPromo,
-        discount: appliedPromo ? Math.round(displayPrice * 0.1) : 0,
+        promoCode: appliedPromo?.code || '',
+        discount: discountAmount,
       };
 
       console.log('[BOOKING] Sending payload:', payload);
@@ -743,7 +826,7 @@ export default function HeroSection() {
           maxPersons: 0,
           maxBags: 0,
         });
-        setAppliedPromo('');
+        setAppliedPromo(null);
         setPromoCodeInput('');
         setHasPromoOption(null);
         setShowRemark(false);
@@ -800,7 +883,10 @@ export default function HeroSection() {
 
       const dayMatch = Number(card.days) === targetDays;
 
-      return vehicleMatch && typeMatch && dayMatch;
+      // Ignore rejected rate cards
+      const isActive = card.status === 'Approved';
+
+      return vehicleMatch && typeMatch && dayMatch && isActive;
     });
 
     if (potentialCards.length === 0) {
@@ -859,7 +945,11 @@ export default function HeroSection() {
         (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
 
       const dayMatch = Number(card.days) === targetDays;
-      return vehicleMatch && typeMatch && dayMatch;
+
+      // Ignore rejected rate cards
+      const isActive = card.status === 'Approved';
+
+      return vehicleMatch && typeMatch && dayMatch && isActive;
     });
 
     if (potentialCards.length === 0) return 0;
@@ -893,28 +983,46 @@ export default function HeroSection() {
     if (!formData.vehicleType || adjustments.length === 0) return null;
 
     const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+    const cleanFormVehType = formData.vehicleType.toLowerCase().trim();
     const cleanFormType = formData.tripType.toLowerCase().trim();
 
     // Find all potential matches
     const matches = adjustments.filter(adj => {
       const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const vehicleMatch = cleanAdjVeh === 'all' || cleanAdjVeh === cleanFormVehName || cleanFormVehName.includes(cleanAdjVeh) || cleanAdjVeh.includes(cleanFormVehName);
+      const vehicleMatch =
+        cleanAdjVeh === 'all' ||
+        cleanAdjVeh === cleanFormVehName ||
+        cleanAdjVeh === cleanFormVehType ||
+        cleanFormVehName.includes(cleanAdjVeh) ||
+        cleanAdjVeh.includes(cleanFormVehName);
 
       const cleanAdjType = adj.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
 
-      return vehicleMatch && typeMatch;
+      // Date Validity Check
+      const now = new Date();
+      const vFrom = adj.validFrom ? new Date(adj.validFrom) : null;
+      const vTo = adj.validTo ? new Date(adj.validTo) : null;
+      const isDateValid = (!vFrom || now >= vFrom) && (!vTo || now <= vTo);
+
+      return vehicleMatch && typeMatch && isDateValid;
     });
 
     if (matches.length === 0) return null;
 
     // Pick the MOST specific one:
-    // 1. Prefer specific vehicle name over 'all'
-    // 2. Prefer specific trip type over 'all'
+    // Priority 1: Exact model name match
+    // Priority 2: Vehicle category (Car/Van/etc) match
+    // Priority 3: 'All' match
     return matches.sort((a, b) => {
-      const aVehAll = a.vehicle.toLowerCase() === 'all';
-      const bVehAll = b.vehicle.toLowerCase() === 'all';
-      if (aVehAll !== bVehAll) return aVehAll ? 1 : -1;
+      const aLow = a.vehicle.toLowerCase();
+      const bLow = b.vehicle.toLowerCase();
+
+      // Exact name match score
+      const aScoreVeh = (aLow === cleanFormVehName) ? 200 : (aLow === cleanFormVehType ? 100 : (aLow === 'all' ? 0 : 50));
+      const bScoreVeh = (bLow === cleanFormVehName) ? 200 : (bLow === cleanFormVehType ? 100 : (bLow === 'all' ? 0 : 50));
+
+      if (aScoreVeh !== bScoreVeh) return bScoreVeh - aScoreVeh;
 
       const aTypeAll = a.type.toLowerCase() === 'all';
       const bTypeAll = b.type.toLowerCase() === 'all';
@@ -928,13 +1036,30 @@ export default function HeroSection() {
 
   // Final Price Selection
   // Use matched package rate if available, otherwise fall back to old logic
-  const displayPrice = (matchedPackage
+  const basePriceBeforeAdjustment = (matchedPackage
     ? matchedPackage.rateAmount
-    : (routeDistance !== null ? estimatedRoutePrice : (basePricePerDay * formData.numberOfDays))) * adjustmentMultiplier;
+    : (routeDistance !== null ? estimatedRoutePrice : (basePricePerDay * formData.numberOfDays)));
+
+  const displayPrice = basePriceBeforeAdjustment * adjustmentMultiplier;
 
   const rawTotalPrice = Math.round(displayPrice);
-  const discountAmount = appliedPromo ? Math.round(rawTotalPrice * 0.1) : 0;
-  const totalPrice = rawTotalPrice - discountAmount;
+
+  const discountAmount = (() => {
+    if (!appliedPromo) return 0;
+
+    // Strict vehicle check
+    if (appliedPromo.applicableVehicle !== 'All' && appliedPromo.applicableVehicle !== formData.vehicleName) {
+      return 0;
+    }
+
+    if (appliedPromo.discountType === 'Percentage') {
+      return Math.round(rawTotalPrice * (appliedPromo.discountValue / 100));
+    } else {
+      return appliedPromo.discountValue;
+    }
+  })();
+
+  const totalPrice = Math.max(0, rawTotalPrice - discountAmount);
 
   // -----------------------------------------------------------------------
   // Render
@@ -1672,6 +1797,18 @@ export default function HeroSection() {
                       ) : (
                         <>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            {/* Original Rate before Adjustment ONLY if it is a DISCOUNT (negative percentage) */}
+                            {activeAdjustment && activeAdjustment.percentage < 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                                <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8', textDecoration: 'line-through' }}>
+                                  LKR {Math.round(basePriceBeforeAdjustment).toLocaleString()}
+                                </span>
+                                <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: '4px' }}>
+                                  {activeAdjustment.percentage}% Discount
+                                </span>
+                              </div>
+                            )}
+
                             {appliedPromo ? (
                               <>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1679,14 +1816,14 @@ export default function HeroSection() {
                                     LKR {rawTotalPrice.toLocaleString()}
                                   </span>
                                   <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '2px 6px', borderRadius: '4px' }}>
-                                    -10% OFF
+                                    {appliedPromo.discountType === 'Percentage' ? `-${appliedPromo.discountValue}%` : `- LKR ${appliedPromo.discountValue.toLocaleString()}`} OFF
                                   </span>
                                 </div>
                                 <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.45rem', fontWeight: 800, color: '#0d9488' }}>
                                   LKR {totalPrice.toLocaleString()}
                                 </span>
                                 <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#10b981', fontWeight: 600, marginTop: '2px' }}>
-                                  Promo applied: {appliedPromo} (Saved LKR {discountAmount.toLocaleString()})
+                                  Promo applied: {appliedPromo.code} (Saved LKR {discountAmount.toLocaleString()})
                                 </div>
                               </>
                             ) : (
@@ -2337,20 +2474,26 @@ export default function HeroSection() {
                 </button>
                 <button
                   onClick={handlePromoSubmit}
-                  disabled={!promoCodeInput.trim()}
+                  disabled={!promoCodeInput.trim() || isPromoLoading}
                   style={{
                     flex: 1,
                     padding: '0.8rem',
                     borderRadius: '12px',
                     border: 'none',
-                    background: promoCodeInput.trim() ? '#0d9488' : '#9ca3af',
+                    background: promoCodeInput.trim() && !isPromoLoading ? '#0d9488' : '#9ca3af',
                     color: '#fff',
                     fontWeight: 600,
                     fontSize: '0.9rem',
-                    cursor: promoCodeInput.trim() ? 'pointer' : 'not-allowed'
+                    cursor: promoCodeInput.trim() && !isPromoLoading ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
                   }}
                 >
-                  Apply
+                  {isPromoLoading ? (
+                    <CircularProgress size={16} sx={{ color: '#fff' }} />
+                  ) : 'Apply'}
                 </button>
               </div>
             </div>

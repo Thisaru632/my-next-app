@@ -57,6 +57,8 @@ interface RateAdjustment {
     vehicle: string;
     type: string;
     percentage: number;
+    validFrom: string | null;
+    validTo: string | null;
     lastUpdated: string;
 }
 
@@ -71,7 +73,8 @@ const RateCardManagePage = () => {
     const [kmFilter, setKmFilter] = useState('');
     const [vehicleFilter, setVehicleFilter] = useState('All'); // Assuming these exist elsewhere
     const [typeFilter, setTypeFilter] = useState('All'); // Assuming these exist elsewhere
-    const [daysFilter, setDaysFilter] = useState('All'); // Assuming these exist elsewhere
+    const [daysFilter, setDaysFilter] = useState('All');
+    const [hrsFilter, setHrsFilter] = useState('All');
     const [searchTerm, setSearchTerm] = useState(''); // State for debounced search term
 
     // Pagination states
@@ -86,6 +89,13 @@ const RateCardManagePage = () => {
     const [adjustValue, setAdjustValue] = useState<string>('');
     const [adjusting, setAdjusting] = useState(false);
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+    const [validFrom, setValidFrom] = useState<string>('');
+    const [validTo, setValidTo] = useState<string>('');
+
+    // Conflict states
+    const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+    const [conflictMessage, setConflictMessage] = useState('');
+    const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
 
     const fetchRateCards = async () => {
         setLoading(true);
@@ -202,11 +212,12 @@ const RateCardManagePage = () => {
             const matchesVehicle = vehicleFilter === 'All' || card.vehicle === vehicleFilter;
             const matchesType = typeFilter === 'All' || card.type === typeFilter;
             const matchesDays = daysFilter === 'All' || card.days.toString() === daysFilter;
+            const matchesHrs = hrsFilter === 'All' || card.hrs.toString() === hrsFilter;
             const matchesKm = kmFilter === '' || card.km.toString().includes(kmFilter);
 
-            return matchesSearch && matchesVehicle && matchesType && matchesDays && matchesKm;
+            return matchesSearch && matchesVehicle && matchesType && matchesDays && matchesHrs && matchesKm;
         });
-    }, [rateCards, searchTerm, vehicleFilter, typeFilter, daysFilter, kmFilter]);
+    }, [rateCards, searchTerm, vehicleFilter, typeFilter, daysFilter, hrsFilter, kmFilter]);
 
     // Paginated data
     const paginatedRateCards = useMemo(() => {
@@ -217,6 +228,7 @@ const RateCardManagePage = () => {
     const uniqueVehicles = Array.from(new Set(rateCards.map(c => c.vehicle))).sort();
     const uniqueTypes = Array.from(new Set(rateCards.map(c => c.type))).sort();
     const uniqueDays = Array.from(new Set(rateCards.map(c => c.days.toString()))).sort((a, b) => parseInt(a) - parseInt(b));
+    const uniqueHrs = Array.from(new Set(rateCards.map(c => c.hrs.toString()))).sort((a, b) => parseInt(a) - parseInt(b));
 
     const resetFilters = () => {
         setSearchInput('');
@@ -224,6 +236,7 @@ const RateCardManagePage = () => {
         setVehicleFilter('All');
         setTypeFilter('All');
         setDaysFilter('All');
+        setHrsFilter('All');
         setKmFilter('');
         setPage(0);
     };
@@ -243,23 +256,52 @@ const RateCardManagePage = () => {
             return;
         }
 
+        const newVehicle = vehicleFilter;
+        const newType = typeFilter;
+
+        // Conflict check: If adding a broader rule (Type = 'All') for the same vehicle scope
+        if (newType === 'All') {
+            const conflicts = adjustments.filter(adj =>
+                adj.vehicle === newVehicle && adj.type !== 'All'
+            );
+
+            if (conflicts.length > 0) {
+                const confNames = conflicts.map(c => `${c.percentage}% for ${c.vehicle} ${c.type}`).join(', ');
+                setConflictMessage(`Remove previously added ${confNames} and apply newly added ${newVehicle === 'All' ? 'All Vehicle' : newVehicle} All rate?`);
+                setIdsToDelete(conflicts.map(c => c._id));
+                setConflictDialogOpen(true);
+                return;
+            }
+        }
+
         setOpenConfirmDialog(true);
     };
 
     const handleConfirmAdjust = async () => {
         setOpenConfirmDialog(false);
+        setConflictDialogOpen(false);
         setAdjusting(true);
         setError(null);
         setSuccess(null);
 
         try {
+            // Delete conflicting IDs if any
+            if (idsToDelete.length > 0) {
+                await Promise.all(idsToDelete.map(id =>
+                    fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust/${id}`, { method: 'DELETE' })
+                ));
+                setIdsToDelete([]); // Clear after deletion
+            }
+
             const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     percentage: parseFloat(adjustValue),
                     vehicle: vehicleFilter,
-                    type: typeFilter
+                    type: typeFilter,
+                    validFrom: validFrom || null,
+                    validTo: validTo || null
                 }),
             });
 
@@ -267,6 +309,8 @@ const RateCardManagePage = () => {
                 const result = await response.json();
                 setSuccess(result.message);
                 setAdjustValue('');
+                setValidFrom('');
+                setValidTo('');
                 fetchAdjustments(); // Refresh adjustment table
             } else {
                 const errData = await response.json();
@@ -554,6 +598,33 @@ const RateCardManagePage = () => {
                     </Box>
 
                     <Box sx={{ minWidth: '100px' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Hours</Typography>
+                        <select
+                            value={hrsFilter}
+                            onChange={(e) => {
+                                setHrsFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit'
+                            }}
+                        >
+                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Hours</option>
+                            {uniqueHrs.map(h => <option key={h} value={h} style={{ background: '#fff', color: '#000' }}>{h}</option>)}
+                        </select>
+                    </Box>
+
+                    <Box sx={{ minWidth: '100px' }}>
                         <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>KM Limit</Typography>
                         <input
                             type="text"
@@ -759,6 +830,7 @@ const RateCardManagePage = () => {
                                     <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Target Vehicle</TableCell>
                                     <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trip Category</TableCell>
                                     <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price Change</TableCell>
+                                    <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Validity Period</TableCell>
                                     <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Last Modified</TableCell>
                                     <TableCell align="right" sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</TableCell>
                                 </TableRow>
@@ -810,6 +882,24 @@ const RateCardManagePage = () => {
                                                     {adj.percentage >= 0 ? `+${adj.percentage}%` : `${adj.percentage}%`}
                                                 </Typography>
                                             </Box>
+                                        </TableCell>
+                                        <TableCell sx={{ px: 3, py: 2 }}>
+                                            <Typography component="div" variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem', fontWeight: 500 }}>
+                                                {adj.validFrom || adj.validTo ? (
+                                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <Typography variant="caption" sx={{ color: 'text.disabled', minWidth: '35px' }}>From:</Typography>
+                                                            {adj.validFrom ? new Date(adj.validFrom).toLocaleDateString() : '—'}
+                                                        </Box>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <Typography variant="caption" sx={{ color: 'text.disabled', minWidth: '35px' }}>To:</Typography>
+                                                            {adj.validTo ? new Date(adj.validTo).toLocaleDateString() : '—'}
+                                                        </Box>
+                                                    </Box>
+                                                ) : (
+                                                    <Chip label="Permanent" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'rgba(0,0,0,0.05)' }} />
+                                                )}
+                                            </Typography>
                                         </TableCell>
                                         <TableCell sx={{ px: 3, py: 2 }}>
                                             <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -1040,6 +1130,52 @@ const RateCardManagePage = () => {
                             </Box>
                         </Stack>
                     </Box>
+
+                    <Box sx={{ mt: 3 }}>
+                        <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 700, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                            📅 Set Validity Period (Optional)
+                        </Typography>
+                        <Stack direction="row" spacing={2}>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>From Date</Typography>
+                                <input
+                                    type="date"
+                                    value={validFrom}
+                                    onChange={(e) => setValidFrom(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #cbd5e1',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit',
+                                        outline: 'none'
+                                    }}
+                                />
+                            </Box>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>To Date</Typography>
+                                <input
+                                    type="date"
+                                    value={validTo}
+                                    onChange={(e) => setValidTo(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #cbd5e1',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit',
+                                        outline: 'none'
+                                    }}
+                                />
+                            </Box>
+                        </Stack>
+                        <Typography variant="caption" sx={{ color: 'text.disabled', mt: 1, display: 'block' }}>
+                            Leave blank to apply the rule permanently.
+                        </Typography>
+                    </Box>
+
                     <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'text.disabled', fontStyle: 'italic' }}>
                         * This will be applied dynamically to the customer trip summary.
                     </Typography>
@@ -1065,6 +1201,86 @@ const RateCardManagePage = () => {
                         }}
                     >
                         Confirm & Apply
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Conflict Resolution Dialog */}
+            <Dialog
+                open={conflictDialogOpen}
+                onClose={() => setConflictDialogOpen(false)}
+                PaperProps={{
+                    sx: {
+                        borderRadius: '20px',
+                        p: 1,
+                        minWidth: '400px',
+                    }
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, color: 'warning.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <TrendingUpIcon /> Conflict Detected
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ color: 'text.primary', mb: 2 }}>
+                        {conflictMessage}
+                    </DialogContentText>
+                    <Typography variant="body2" color="text.secondary">
+                        Adding a broader "All" type rate will replace your more specific rates for this vehicle.
+                    </Typography>
+
+                    <Box sx={{ mt: 3 }}>
+                        <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 700, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
+                            📅 Set Validity Period (Optional)
+                        </Typography>
+                        <Stack direction="row" spacing={2}>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>From Date</Typography>
+                                <input
+                                    type="date"
+                                    value={validFrom}
+                                    onChange={(e) => setValidFrom(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #cbd5e1',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit',
+                                        outline: 'none'
+                                    }}
+                                />
+                            </Box>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>To Date</Typography>
+                                <input
+                                    type="date"
+                                    value={validTo}
+                                    onChange={(e) => setValidTo(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #cbd5e1',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit',
+                                        outline: 'none'
+                                    }}
+                                />
+                            </Box>
+                        </Stack>
+                    </Box>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setConflictDialogOpen(false)} sx={{ textTransform: 'none' }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleConfirmAdjust}
+                        variant="contained"
+                        color="warning"
+                        sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700 }}
+                    >
+                        Remove Previously Added & Apply New
                     </Button>
                 </DialogActions>
             </Dialog>

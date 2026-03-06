@@ -24,6 +24,7 @@ import {
     Logout as LogoutIcon,
     ManageAccounts as ManageAccountsIcon,
     Payments as PaymentsIcon,
+    LocalOffer as LocalOfferIcon,
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 import { API_ENDPOINTS } from '@/config/api';
@@ -53,6 +54,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'CMS', icon: <ArticleIcon />, path: '/staff/cms', key: 'cms' },
         { text: 'User Manage', icon: <ManageAccountsIcon />, path: '/staff/user_manage', key: 'userManagement' },
         { text: 'Rate Card Manage', icon: <PaymentsIcon />, path: '/staff/rate_card_manage', key: 'rateCardManage' },
+        { text: 'Promo Code Manager', icon: <LocalOfferIcon />, path: '/staff/promo_code_manage', key: 'promoCodeManage' },
     ];
 
     const [allowedItems, setAllowedItems] = React.useState<MenuItem[]>([]);

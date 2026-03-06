@@ -151,23 +151,35 @@ interface RateCard {
   status: string;
 }
 
+interface RateAdjustment {
+  _id: string;
+  vehicle: string;
+  type: string;
+  percentage: number;
+  validFrom: string | null;
+  validTo: string | null;
+}
+
 export default function BookingForm() {
   const [rateCards, setRateCards] = useState<RateCard[]>([]);
+  const [adjustments, setAdjustments] = useState<RateAdjustment[]>([]);
   const [showExtraPrices, setShowExtraPrices] = useState(false);
 
   useEffect(() => {
-    const fetchRateCards = async () => {
+    const fetchRateData = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}?status=Approved`);
-        if (response.ok) {
-          const data = await response.json();
-          setRateCards(data);
-        }
+        const [rcRes, adjRes] = await Promise.all([
+          fetch(`${API_ENDPOINTS.RATE_CARDS}?status=Approved`),
+          fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`)
+        ]);
+
+        if (rcRes.ok) setRateCards(await rcRes.json());
+        if (adjRes.ok) setAdjustments(await adjRes.json());
       } catch (error) {
-        console.error('Error fetching rate cards:', error);
+        console.error('Error fetching rate data:', error);
       }
     };
-    fetchRateCards();
+    fetchRateData();
   }, []);
 
   const [formData, setFormData] = useState({
@@ -335,7 +347,10 @@ export default function BookingForm() {
 
       const dayMatch = Number(card.days) === Number(formData.numberOfDays);
 
-      return vehicleMatch && typeMatch && dayMatch;
+      // Ignore rejected rate cards
+      const isActive = card.status === 'Approved';
+
+      return vehicleMatch && typeMatch && dayMatch && isActive;
     });
 
     if (potentialCards.length === 0) return null;
@@ -348,15 +363,63 @@ export default function BookingForm() {
     return sortedCards[0];
   })();
 
+  const activeAdjustment = (() => {
+    if (!formData.vehicleType || adjustments.length === 0) return null;
+
+    const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+    const cleanFormVehType = formData.vehicleType.toLowerCase().trim();
+    const cleanFormType = formData.tripType.toLowerCase().trim();
+
+    const matches = adjustments.filter(adj => {
+      const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const vehicleMatch =
+        cleanAdjVeh === 'all' ||
+        cleanAdjVeh === cleanFormVehName ||
+        cleanAdjVeh === cleanFormVehType ||
+        cleanFormVehName.includes(cleanAdjVeh) ||
+        cleanAdjVeh.includes(cleanFormVehName);
+
+      const cleanAdjType = adj.type.toLowerCase().trim();
+      const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
+
+      // Date Validity Check
+      const now = new Date();
+      const vFrom = adj.validFrom ? new Date(adj.validFrom) : null;
+      const vTo = adj.validTo ? new Date(adj.validTo) : null;
+      const isDateValid = (!vFrom || now >= vFrom) && (!vTo || now <= vTo);
+
+      return vehicleMatch && typeMatch && isDateValid;
+    });
+
+    if (matches.length === 0) return null;
+
+    return matches.sort((a, b) => {
+      const aLow = a.vehicle.toLowerCase();
+      const bLow = b.vehicle.toLowerCase();
+      const aScoreVeh = (aLow === cleanFormVehName) ? 200 : (aLow === cleanFormVehType ? 100 : (aLow === 'all' ? 0 : 50));
+      const bScoreVeh = (bLow === cleanFormVehName) ? 200 : (bLow === cleanFormVehType ? 100 : (bLow === 'all' ? 0 : 50));
+      if (aScoreVeh !== bScoreVeh) return bScoreVeh - aScoreVeh;
+
+      const aTypeAll = a.type.toLowerCase() === 'all';
+      const bTypeAll = b.type.toLowerCase() === 'all';
+      if (aTypeAll !== bTypeAll) return aTypeAll ? 1 : -1;
+      return 0;
+    })[0];
+  })();
+
+  const adjustmentMultiplier = 1 + ((activeAdjustment?.percentage ?? 0) / 100);
+
   const basePricePerDay =
     formData.vehicleType === 'Car' ? 15000 :
       formData.vehicleType === 'Van' ? 18000 :
         formData.vehicleType === 'Bus' ? 35000 :
           formData.vehicleType === 'SUV' ? 25000 : 0;
 
-  const totalPrice = matchedPackage
+  const basePriceBeforeAdjustment = matchedPackage
     ? matchedPackage.rateAmount
     : (basePricePerDay * formData.numberOfDays);
+
+  const totalPrice = Math.round(basePriceBeforeAdjustment * adjustmentMultiplier);
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto', p: { xs: 2, md: 4 } }} suppressHydrationWarning>
@@ -420,6 +483,26 @@ export default function BookingForm() {
 
           {totalPrice > 0 && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+              {/* Only show breakdown for DISCOUNTS (negative percentage) */}
+              {activeAdjustment && activeAdjustment.percentage < 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', textDecoration: 'line-through' }}>
+                    LKR {Math.round(basePriceBeforeAdjustment).toLocaleString()}
+                  </Typography>
+                  <Chip
+                    label={`${activeAdjustment.percentage}% Discount`}
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      bgcolor: 'rgba(245, 87, 108, 0.1)',
+                      color: '#f5576c',
+                      border: 'none'
+                    }}
+                  />
+                </Box>
+              )}
               <Chip
                 label={`Estimated: LKR ${totalPrice.toLocaleString()}`}
                 icon={<CreditCard />}
