@@ -13,6 +13,7 @@ import {
   CardContent,
   CircularProgress,
   styled,
+  Fab,
 } from '@mui/material';
 import {
   People as PeopleIcon,
@@ -23,8 +24,10 @@ import {
   CardGiftcard as CardGiftcardIcon,
   BookOnline as BookOnlineIcon,
   EventAvailable as EventAvailableIcon,
+  Book as BookIcon,
 } from '@mui/icons-material';
 import { API_ENDPOINTS } from '@/config/api';
+import NotebookModal from '@/components/admin/NotebookModal';
 
 interface LeadStats {
   totalLeads: number;
@@ -217,6 +220,7 @@ const AdminDashboard: React.FC = () => {
     canceledBookings: 0,
   });
   const [performanceData, setPerformanceData] = useState<EmployeePerformance[]>([]);
+  const [isNotebookOpen, setIsNotebookOpen] = useState(false);
 
   useEffect(() => {
     // Fetch ALL data on first load (no date restriction)
@@ -988,6 +992,30 @@ const AdminDashboard: React.FC = () => {
             : 'Showing all-time data'}
         </Typography>
       </Box>
+
+      {/* Notebook Floating Action Button */}
+      <Fab
+        aria-label="notebook"
+        onClick={() => setIsNotebookOpen(true)}
+        sx={{
+          position: 'fixed',
+          bottom: { xs: 16, md: 32 },
+          right: { xs: 16, md: 32 },
+          color: '#fff',
+          background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+          boxShadow: '0 8px 24px rgba(59, 130, 246, 0.4)',
+          transition: 'transform 0.2s',
+          zIndex: 1000,
+          '&:hover': {
+            transform: 'scale(1.05) translateY(-4px)',
+            background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+          }
+        }}
+      >
+        <BookIcon />
+      </Fab>
+
+      <NotebookModal open={isNotebookOpen} onClose={() => setIsNotebookOpen(false)} />
     </Box>
   );
 };
