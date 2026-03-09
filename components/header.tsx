@@ -3,6 +3,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useUser } from "@/context/UserContext";
+import AuthModal from "./AuthModal";
+import ProfileModal from "./ProfileModal";
+import { AccountCircle, Logout } from "@mui/icons-material";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -18,6 +22,9 @@ interface NavbarProps {
 }
 
 export default function Navbar({ isHeroPage = true }: NavbarProps) {
+  const { user, logout } = useUser();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -80,6 +87,38 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
                 </Link>
               </li>
             ))}
+
+            {/* Auth Button */}
+            <li className="ml-2">
+              {user ? (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 border border-green-100">
+                  <div
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => setProfileModalOpen(true)}
+                  >
+                    <AccountCircle className="text-green-600 w-5 h-5" />
+                    <span className="text-sm font-semibold text-gray-700">{user.name.split(' ')[0]}</span>
+                  </div>
+                  <button
+                    onClick={logout}
+                    className="ml-1 p-1 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                    title="Logout"
+                  >
+                    <Logout style={{ fontSize: '18px' }} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAuthModalOpen(true)}
+                  className={`px-5 py-2 rounded-full text-sm font-bold transition-all duration-200 ${isLightHeader
+                    ? "bg-green-600 text-white hover:bg-green-700 shadow-sm"
+                    : "bg-white/10 text-white border border-white/20 hover:bg-white/20 backdrop-blur-sm"
+                    }`}
+                >
+                  Login
+                </button>
+              )}
+            </li>
           </ul>
 
           {/* Mobile Hamburger */}
@@ -119,6 +158,14 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
           ))}
         </div>
       )}
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+      />
+      <ProfileModal
+        open={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+      />
     </nav>
   );
 }

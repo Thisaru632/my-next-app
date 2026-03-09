@@ -37,6 +37,8 @@ import {
 } from '@mui/icons-material';
 import Image from 'next/image';
 import { API_ENDPOINTS } from '@/config/api';
+import { useUser } from '@/context/UserContext';
+import AuthModal from './AuthModal';
 
 interface PromoCode {
   _id: string;
@@ -402,6 +404,8 @@ interface RateAdjustment {
 // Component
 // ---------------------------------------------------------------------------
 export default function HeroSection() {
+  const { user } = useUser();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
   const [kenKey, setKenKey] = useState(0);
@@ -425,6 +429,18 @@ export default function HeroSection() {
     maxPersons: 0,
     maxBags: 0,
   });
+
+  // Effect to pre-fill formData when user logs in
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.name,
+        telephone: user.phone || '',
+        email: user.email
+      }));
+    }
+  }, [user]);
 
   const [minDateTime, setMinDateTime] = useState("");
 
@@ -1114,7 +1130,7 @@ export default function HeroSection() {
 
       {/* HERO CONTENT */}
       <div
-        className="relative flex-grow flex flex-col items-center justify-center px-4 pt-40 pb-40 text-center transition-opacity duration-500"
+        className="relative flex-grow flex flex-col items-center justify-center px-4 pt-28 pb-40 text-center transition-opacity duration-500"
         style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}
       >
         <div className="w-full max-w-4xl">
@@ -3013,6 +3029,10 @@ export default function HeroSection() {
           pointer-events: none;
         }
       `}</style>
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+      />
     </section >
   );
 }

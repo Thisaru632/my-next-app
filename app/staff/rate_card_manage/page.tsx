@@ -450,9 +450,37 @@ const RateCardManagePage = () => {
                     <Typography variant="h6" fontWeight="600" gutterBottom>
                         Upload Rate Card CSV
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                         Upload your rate card CSV file to populate the table. The header columns should match the rate card structure.
                     </Typography>
+
+                    <Box sx={{
+                        display: 'inline-block',
+                        textAlign: 'left',
+                        mx: 'auto',
+                        mb: 3,
+                        p: 2,
+                        bgcolor: 'background.paper',
+                        borderRadius: '12px',
+                        border: '1px solid',
+                        borderColor: 'warning.light',
+                        boxShadow: '0 4px 12px rgba(237, 108, 2, 0.05)'
+                    }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: 'warning.main', display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            ⚠️ CSV Upload Guidelines
+                        </Typography>
+                        <Stack spacing={0.5}>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                • <strong>Nano</strong> and <strong>SUV</strong> must be removed from the rate card.
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                • Only <strong>100%</strong> rates are accepted.
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                • <strong>28h</strong>, <strong>52h</strong>, and <strong>76h</strong> packages must be removed.
+                            </Typography>
+                        </Stack>
+                    </Box>
                 </Box>
 
                 <input
@@ -1024,7 +1052,7 @@ const RateCardManagePage = () => {
                                         <TableCell>{row.extraHrRate2}</TableCell>
                                         <TableCell>
                                             <Chip
-                                                label={row.status || 'Pending'}
+                                                label={row.status || 'Approved'}
                                                 size="small"
                                                 color={
                                                     row.status === 'Approved' ? 'success' :

@@ -8,4 +8,5 @@ export const API_ENDPOINTS = {
     RATE_CARD_CATEGORIES: `${API_BASE_URL}/api/rate-cards/categories`,
     TOUR_PACKAGES: `${API_BASE_URL}/api/tour-packages`,
     PROMO_CODES: `${API_BASE_URL}/api/promo-codes`,
+    CUSTOMERS: `${API_BASE_URL}/api/customers`,
 };
