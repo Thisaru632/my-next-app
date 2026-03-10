@@ -83,6 +83,16 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
         }
     };
 
+    const inputStyles = {
+        '& .MuiOutlinedInput-root': {
+            background: 'rgba(13,148,136,0.02)',
+            borderRadius: '12px',
+            '& fieldset': { borderColor: 'rgba(13,148,136,0.2)' },
+            '&:hover fieldset': { borderColor: 'rgba(13,148,136,0.4)' },
+            '&.Mui-focused fieldset': { borderColor: '#0d9488' },
+        }
+    };
+
     return (
         <Dialog
             open={open}
@@ -109,16 +119,17 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                     sx={{
                         p: 4,
                         borderRadius: 4,
-                        bgcolor: 'rgba(30, 41, 59, 1)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        color: 'white',
+                        bgcolor: 'rgba(255, 255, 255, 0.98)',
+                        backdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(13,148,136,0.1)',
+                        color: '#111827',
                         position: 'relative',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                        boxShadow: '0 24px 64px rgba(0,0,0,0.15)'
                     }}
                 >
                     <IconButton
                         onClick={onClose}
-                        sx={{ position: 'absolute', top: 12, right: 12, color: 'rgba(255,255,255,0.6)', '&:hover': { color: 'white' } }}
+                        sx={{ position: 'absolute', top: 12, right: 12, color: '#9ca3af', '&:hover': { color: '#ef4444', background: '#fff0f0' } }}
                     >
                         <X size={20} />
                     </IconButton>
@@ -128,22 +139,22 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                             sx={{
                                 width: 56,
                                 height: 56,
-                                bgcolor: '#0d9488',
+                                bgcolor: 'rgba(13,148,136,0.1)',
                                 borderRadius: '50%',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 margin: '0 auto',
                                 mb: 2,
-                                boxShadow: '0 0 20px rgba(13, 148, 136, 0.5)'
+                                border: '1px solid rgba(13,148,136,0.3)'
                             }}
                         >
-                            {mode === 'login' ? <LogIn color="white" size={28} /> : <UserPlus color="white" size={28} />}
+                            {mode === 'login' ? <LogIn color="#0d9488" size={28} /> : <UserPlus color="#0d9488" size={28} />}
                         </Box>
-                        <Typography variant="h5" fontWeight="bold" gutterBottom>
+                        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ fontFamily: "'Cormorant Garamond', serif" }}>
                             {mode === 'login' ? 'Welcome Back' : 'Create Account'}
                         </Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                        <Typography variant="body2" sx={{ color: '#6b7280', fontFamily: "'Montserrat', sans-serif" }}>
                             {mode === 'login'
                                 ? 'Log in to your account to request a booking.'
                                 : 'Sign up for an account to manage your bookings and get special offers.'}
@@ -176,18 +187,13 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                                         InputProps={{
                                             startAdornment: (
                                                 <InputAdornment position="start">
-                                                    <User size={20} color="rgba(255, 255, 255, 0.6)" />
+                                                    <User size={20} color="#9ca3af" />
                                                 </InputAdornment>
                                             ),
-                                            sx: { color: 'white' }
+                                            sx: { color: '#111827', fontFamily: "'Montserrat', sans-serif", fontSize: '0.95rem' }
                                         }}
-                                        InputLabelProps={{ sx: { color: 'rgba(255, 255, 255, 0.6)' } }}
-                                        sx={{
-                                            '& .MuiOutlinedInput-root': {
-                                                '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                                                '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-                                            }
-                                        }}
+                                        InputLabelProps={{ sx: { color: '#6b7280' } }}
+                                        sx={inputStyles}
                                     />
                                     <TextField
                                         fullWidth
@@ -200,18 +206,13 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                                         InputProps={{
                                             startAdornment: (
                                                 <InputAdornment position="start">
-                                                    <Phone size={20} color="rgba(255, 255, 255, 0.6)" />
+                                                    <Phone size={20} color="#9ca3af" />
                                                 </InputAdornment>
                                             ),
-                                            sx: { color: 'white' }
+                                            sx: { color: '#111827', fontFamily: "'Montserrat', sans-serif", fontSize: '0.95rem' }
                                         }}
-                                        InputLabelProps={{ sx: { color: 'rgba(255, 255, 255, 0.6)' } }}
-                                        sx={{
-                                            '& .MuiOutlinedInput-root': {
-                                                '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                                                '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-                                            }
-                                        }}
+                                        InputLabelProps={{ sx: { color: '#6b7280' } }}
+                                        sx={inputStyles}
                                     />
                                 </motion.div>
                             </AnimatePresence>
@@ -230,18 +231,13 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <Mail size={20} color="rgba(255, 255, 255, 0.6)" />
+                                        <Mail size={20} color="#9ca3af" />
                                     </InputAdornment>
                                 ),
-                                sx: { color: 'white' }
+                                sx: { color: '#111827', fontFamily: "'Montserrat', sans-serif", fontSize: '0.95rem' }
                             }}
-                            InputLabelProps={{ sx: { color: 'rgba(255, 255, 255, 0.6)' } }}
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-                                }
-                            }}
+                            InputLabelProps={{ sx: { color: '#6b7280' } }}
+                            sx={inputStyles}
                         />
 
                         <TextField
@@ -257,25 +253,20 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                        <Lock size={20} color="rgba(255, 255, 255, 0.6)" />
+                                        <Lock size={20} color="#9ca3af" />
                                     </InputAdornment>
                                 ),
                                 endAdornment: (
                                     <InputAdornment position="end">
-                                        <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                                        <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" sx={{ color: '#9ca3af' }}>
                                             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                                         </IconButton>
                                     </InputAdornment>
                                 ),
-                                sx: { color: 'white' }
+                                sx: { color: '#111827', fontFamily: "'Montserrat', sans-serif", fontSize: '0.95rem' }
                             }}
-                            InputLabelProps={{ sx: { color: 'rgba(255, 255, 255, 0.6)' } }}
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' },
-                                    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.4)' },
-                                }
-                            }}
+                            InputLabelProps={{ sx: { color: '#6b7280' } }}
+                            sx={inputStyles}
                         />
 
                         {mode === 'login' && (
@@ -283,10 +274,11 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                                 <Link
                                     href="/forgot-password"
                                     sx={{
-                                        color: 'rgba(255, 255, 255, 0.6)',
+                                        color: '#6b7280',
                                         textDecoration: 'none',
                                         fontSize: '0.85rem',
-                                        '&:hover': { color: 'rgba(255, 255, 255, 0.9)', textDecoration: 'underline' }
+                                        fontFamily: "'Montserrat', sans-serif",
+                                        '&:hover': { color: '#0d9488', textDecoration: 'underline' }
                                     }}
                                 >
                                     Forgot Password?
@@ -304,20 +296,21 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                                 mt: 3,
                                 mb: 2,
                                 py: 1.5,
-                                borderRadius: 2,
+                                borderRadius: '12px',
                                 fontWeight: 'bold',
                                 textTransform: 'none',
+                                fontFamily: "'Montserrat', sans-serif",
                                 fontSize: '1.05rem',
                                 bgcolor: '#0d9488',
                                 boxShadow: '0 4px 14px 0 rgba(13, 148, 136, 0.39)',
-                                '&:hover': { bgcolor: '#0f766e' }
+                                '&:hover': { bgcolor: '#0f766e', boxShadow: '0 6px 20px 0 rgba(13, 148, 136, 0.5)' }
                             }}
                         >
                             {loading ? <CircularProgress size={24} color="inherit" /> : (mode === 'login' ? 'Log In' : 'Sign Up')}
                         </Button>
 
                         <Box sx={{ textAlign: 'center', mt: 1 }}>
-                            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                            <Typography variant="body2" sx={{ color: '#6b7280', fontFamily: "'Montserrat', sans-serif" }}>
                                 {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
                                 <Link
                                     component="button"
@@ -328,7 +321,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                                         setMode(mode === 'login' ? 'signup' : 'login');
                                         setError('');
                                     }}
-                                    sx={{ color: '#0d9488', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                                    sx={{ fontFamily: "'Montserrat', sans-serif", color: '#0d9488', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
                                 >
                                     {mode === 'login' ? 'Sign Up' : 'Log In'}
                                 </Link>
