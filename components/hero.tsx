@@ -34,6 +34,8 @@ import {
   Visibility,
   AddCircle,
   RemoveCircle,
+  MyLocation as MyLocationIcon,
+  Redeem as GiftIcon,
 } from '@mui/icons-material';
 import Image from 'next/image';
 import { API_ENDPOINTS } from '@/config/api';
@@ -61,68 +63,12 @@ const SLIDES = [
 const INTERVAL_MS = 6000;
 
 // ---------------------------------------------------------------------------
-// LocationInput — Nominatim Autocomplete
+// LocationInput — Google Places Autocomplete
 // ---------------------------------------------------------------------------
-interface NominatimResult {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
-  class: string;   // e.g. "place", "boundary", "amenity", "shop", …
-  type: string;    // e.g. "city", "town", "village", "hamlet", …
+interface GooglePlaceSuggestion {
+  description: string;
+  place_id: string;
 }
-
-/* Filter Nominatim results to show ONLY cities, villages, waterfalls, and temples.
-   Strictly excludes roads and highways to prevent compound names like 'Rathnapura-Matara Road'. */
-const isRelevantResult = (r: NominatimResult) => {
-  if (!r) return false;
-
-  const type = r.type.toLowerCase();
-  const cls = r.class.toLowerCase();
-  const displayName = r.display_name.toLowerCase();
-  const primaryName = r.display_name.split(',')[0].toLowerCase();
-
-  // 1. Specific Target: Transport Hubs (Bus Stands, Stations, Airports)
-  const isTransport =
-    ['bus_station', 'bus_stop', 'railway_station', 'aerodrome', 'airport'].includes(type) ||
-    displayName.includes('bus stand') ||
-    displayName.includes('bus station');
-
-  // 2. HARD BLOCK: No general roads, information points, shops, or offices
-  if (!isTransport) {
-    if (
-      cls === 'highway' ||
-      cls === 'shop' ||
-      cls === 'office' ||
-      cls === 'industrial' ||
-      type === 'information' || // Excludes "Rathnapura-Matara" type route signs
-      type === 'map' ||
-      type.includes('road') ||
-      displayName.includes(' road')
-    ) {
-      return false;
-    }
-
-    // Additional check for compound road names like "Rathnapura-Matara"
-    if (primaryName.includes('-') && !['city', 'town', 'village'].includes(type)) {
-      return false;
-    }
-  }
-
-  // 3. Settlement Check: Cities, Villages, Suburbs
-  const settlementTypes = ['city', 'town', 'village', 'hamlet', 'suburb', 'neighbourhood', 'municipality', 'administrative'];
-  const isSettlement = settlementTypes.includes(type) || cls === 'place';
-
-  // 4. Landmark Check: Waterfalls, Temples, Tourism points
-  const isWaterfall = type === 'waterfall' || displayName.includes('waterfall') || (cls === 'natural' && type === 'waterfall');
-  const isTemple = type === 'place_of_worship' || type.includes('temple') || displayName.includes(' temple');
-  const isTourism = (cls === 'tourism' && type !== 'information') || ['attraction', 'viewpoint', 'museum', 'hotel'].includes(type);
-
-  // Exclude very high-level entities (Country/State)
-  if (['country', 'state', 'province', 'continent', 'region'].includes(type)) return false;
-
-  return isSettlement || isWaterfall || isTemple || isTourism || isTransport;
-};
 
 function LocationInput({
   value,
@@ -133,17 +79,19 @@ function LocationInput({
   inputStyle,
   onFocusStyle,
   onBlurStyle,
+  showMyLocation,
 }: {
   value: string;
   onChange: (val: string) => void;
   onSelect?: (lat: string, lon: string) => void;
-  onManualType?: () => void;  // fired ONLY when user types, not when suggestion clicked
+  onManualType?: () => void;
   placeholder: string;
   inputStyle: React.CSSProperties;
   onFocusStyle: React.CSSProperties;
   onBlurStyle: React.CSSProperties;
+  showMyLocation?: boolean;
 }) {
-  const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
+  const [suggestions, setSuggestions] = useState<GooglePlaceSuggestion[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [coordsConfirmed, setCoordsConfirmed] = useState(false);
@@ -151,9 +99,41 @@ function LocationInput({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const coordsSetRef = useRef(false); // tracks if onSelect has been called
+  const coordsSetRef = useRef(false);
 
-  /* Close dropdown when clicking outside */
+  const handleMyLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await fetch(`/api/google-geocode?latlng=${latitude},${longitude}`);
+          const data = await res.json();
+          if (data.results && data.results[0]) {
+            const address = data.results[0].formatted_address;
+            onChange(address);
+            onSelect?.(latitude.toString(), longitude.toString());
+            coordsSetRef.current = true;
+            setCoordsConfirmed(true);
+          }
+        } catch (error) {
+          console.error("Reverse geocoding error:", error);
+        } finally {
+          setLoading(false);
+        }
+      },
+      (error) => {
+        setLoading(false);
+        console.error("Geolocation error:", error);
+        alert("Unable to retrieve your location. Please check your browser permissions.");
+      }
+    );
+  };
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -170,15 +150,12 @@ function LocationInput({
     abortRef.current = new AbortController();
     setLoading(true);
     try {
-      /* Use our own Next.js proxy to avoid CORS with Nominatim */
-      const url = `/api/geocode?q=${encodeURIComponent(query)}`;
+      const url = `/api/google-geocode?q=${encodeURIComponent(query)}`;
       const res = await fetch(url, { signal: abortRef.current.signal });
-      if (!res.ok) throw new Error(`Geocode HTTP ${res.status}`);
-      const raw: NominatimResult[] = await res.json();
-      /* Filter out junk but keep most relevant geocoded items */
-      const data = raw.filter(isRelevantResult).slice(0, 8);
-      setSuggestions(data);
-      setShowDropdown(data.length > 0);
+      if (!res.ok) throw new Error(`Google HTTP ${res.status}`);
+      const data = await res.json();
+      setSuggestions(data.predictions || []);
+      setShowDropdown((data.predictions || []).length > 0);
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') setSuggestions([]);
     } finally {
@@ -189,45 +166,32 @@ function LocationInput({
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     onChange(val);
-    coordsSetRef.current = false; // user is typing again — coords no longer valid
+    coordsSetRef.current = false;
     setCoordsConfirmed(false);
     onManualType?.();
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => fetchSuggestions(val), 220);
   };
 
-  const handleSelect = (result: NominatimResult) => {
-    const clean = result.display_name.split(',')[0].trim();
-    onChange(clean);
-    onSelect?.(result.lat, result.lon); // pass coords to parent
-    coordsSetRef.current = true;
-    setCoordsConfirmed(true);
-    setSuggestions([]);
-    setShowDropdown(false);
-  };
-
-  /* Auto-resolve: when user leaves the field without clicking a suggestion,
-     silently geocode the typed text and pick the top result */
-  const handleBlur = async () => {
-    setActiveStyle(onBlurStyle);
-    setShowDropdown(false);
-    if (coordsSetRef.current || !value.trim()) return; // already resolved
+  const handleSelect = async (suggestion: GooglePlaceSuggestion) => {
+    onChange(suggestion.description);
+    setLoading(true);
     try {
-      const res = await fetch(`/api/geocode?q=${encodeURIComponent(value.trim())}`);
-      if (!res.ok) return;
-      const raw: NominatimResult[] = await res.json();
-      /* Pick the best match even if spelling was slightly off */
-      const top = raw.find(isRelevantResult);
-      if (top) {
-        console.log('[AutoCorrect] Resolving:', top.display_name);
-        // Automatically correct the text to the official name
-        const officialName = top.display_name.split(',')[0].trim();
-        onChange(officialName);
-        onSelect?.(top.lat, top.lon);
+      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?place_id=${suggestion.place_id}&key=AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc`);
+      const data = await res.json();
+      if (data.results && data.results[0]) {
+        const { lat, lng } = data.results[0].geometry.location;
+        onSelect?.(lat.toString(), lng.toString());
         coordsSetRef.current = true;
         setCoordsConfirmed(true);
       }
-    } catch { /* silently ignore */ }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+    } finally {
+      setLoading(false);
+      setSuggestions([]);
+      setShowDropdown(false);
+    }
   };
 
   return (
@@ -241,11 +205,63 @@ function LocationInput({
         style={{ ...inputStyle, ...activeStyle, width: '100%', boxSizing: 'border-box', paddingRight: coordsConfirmed ? '32px' : undefined }}
         onFocus={() => {
           setActiveStyle(onFocusStyle);
-          if (value.trim().length >= 1) setShowDropdown(suggestions.length > 0);
+          setShowDropdown(true);
         }}
-        onBlur={handleBlur}
+        onBlur={() => {
+          setActiveStyle(onBlurStyle);
+          setTimeout(() => setShowDropdown(false), 200);
+        }}
       />
-      {/* Green tick when coords confirmed */}
+      {showDropdown && (showMyLocation || (suggestions.length > 0)) && (
+        <ul style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+          background: '#ffffff', border: '1.5px solid rgba(13,148,136,0.25)',
+          borderRadius: '10px', boxShadow: '0 8px 28px rgba(0,0,0,0.14)',
+          zIndex: 9999, margin: 0, padding: '4px 0', listStyle: 'none',
+          maxHeight: '260px', overflowY: 'auto',
+        }}>
+          {showMyLocation && (
+            <li
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleMyLocation();
+              }}
+              style={{
+                padding: '10px 14px', cursor: 'pointer', fontSize: '0.85rem',
+                fontFamily: "'Montserrat', sans-serif", color: '#0d9488', lineHeight: 1.4,
+                borderBottom: '2px solid rgba(13,148,136,0.1)',
+                display: 'flex', alignItems: 'center', gap: '8px',
+                fontWeight: 600,
+                background: 'rgba(13,148,136,0.04)',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(13,148,136,0.08)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(13,148,136,0.04)')}
+            >
+              <MyLocationIcon style={{ fontSize: '18px' }} />
+              Select my location
+            </li>
+          )}
+          {suggestions.map((s) => (
+            <li
+              key={s.place_id}
+              onMouseDown={() => handleSelect(s)}
+              style={{
+                padding: '9px 14px', cursor: 'pointer', fontSize: '0.78rem',
+                fontFamily: "'Montserrat', sans-serif", color: '#1a1a1a', lineHeight: 1.4,
+                borderBottom: '1px solid rgba(0,0,0,0.05)',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(13,148,136,0.08)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <span style={{ color: '#0d9488', fontWeight: 600 }}>
+                {s.description}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       {coordsConfirmed && (
         <div style={{
           position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
@@ -253,7 +269,6 @@ function LocationInput({
           pointerEvents: 'none',
         }}>✓</div>
       )}
-      {/* Loading indicator */}
       {loading && (
         <div style={{
           position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
@@ -262,7 +277,6 @@ function LocationInput({
           animation: 'loc-spin 0.7s linear infinite',
         }} />
       )}
-      {/* Suggestions dropdown */}
       {showDropdown && suggestions.length > 0 && (
         <ul style={{
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
@@ -285,10 +299,7 @@ function LocationInput({
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <span style={{ color: '#0d9488', fontWeight: 600 }}>
-                {s.display_name.split(',')[0].trim()}
-              </span>
-              <span style={{ color: '#9ca3af', marginLeft: '6px', fontSize: '0.71rem' }}>
-                {s.display_name.split(',').slice(1, 3).join(',').trim()}
+                {s.description}
               </span>
             </li>
           ))}
@@ -510,54 +521,49 @@ export default function HeroSection() {
     setStopCoords((prev) => prev.map((c, i) => (i === index ? null : c)));
   };
 
-  /* ── OSRM route calculation ── */
+  /* ── Google Maps route calculation ── */
   useEffect(() => {
-    if (!pickupCoords || !dropoffCoords) {
+    if (!formData.pickupLocation || !formData.dropoffLocation) {
       setRouteDistance(null);
       setRouteDuration(null);
       return;
     }
-    // Build waypoints array: pickup → intermediate stops with coords → dropoff
-    const waypoints: LatLon[] = [
-      pickupCoords,
-      ...stopCoords.filter((c): c is LatLon => c !== null),
-      dropoffCoords,
-    ];
-    // OSRM expects: lon,lat;lon,lat;...
-    const coordStr = waypoints.map((w) => `${w.lon},${w.lat}`).join(';');
-    /* Use our Next.js proxy to avoid CORS with OSRM */
-    const osrmUrl = `/api/osrm?coords=${encodeURIComponent(coordStr)}`;
-    console.log('[Route] Fetching OSRM via proxy:', osrmUrl);
 
     let cancelled = false;
     setRouteLoading(true);
-    fetch(osrmUrl, { headers: { 'Accept': 'application/json' } })
-      .then((r) => {
-        if (!r.ok) throw new Error(`OSRM HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
+
+    const fetchRoute = async () => {
+      try {
+        const url = `/api/google-distance?origin=${encodeURIComponent(formData.pickupLocation)}&destination=${encodeURIComponent(formData.dropoffLocation)}`;
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`Google HTTP ${r.status}`);
+        const data = await r.json();
+
         if (cancelled) return;
-        console.log('[Route] OSRM response:', data);
-        if (data.code === 'Ok' && data.routes?.length > 0) {
-          setRouteDistance(data.routes[0].distance); // metres
-          setRouteDuration(data.routes[0].duration); // seconds
+
+        if (data.rows && data.rows[0]?.elements[0]?.status === "OK") {
+          const element = data.rows[0].elements[0];
+          setRouteDistance(element.distance.value); // metres
+          setRouteDuration(element.duration.value); // seconds
         } else {
-          console.warn('[Route] OSRM returned no route:', data.code);
+          console.warn('[Route] Google returned no route status:', data.rows?.[0]?.elements?.[0]?.status);
           setRouteDistance(null);
           setRouteDuration(null);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (!cancelled) {
-          console.error('[Route] OSRM error:', err);
+          console.error('[Route] Google Distance error:', err);
           setRouteDistance(null);
         }
-      })
-      .finally(() => { if (!cancelled) setRouteLoading(false); });
+      } finally {
+        if (!cancelled) setRouteLoading(false);
+      }
+    };
+
+    fetchRoute();
 
     return () => { cancelled = true; };
-  }, [pickupCoords, dropoffCoords, stopCoords]);
+  }, [formData.pickupLocation, formData.dropoffLocation]);
 
   const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
   const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
@@ -775,7 +781,8 @@ export default function HeroSection() {
       ...prev,
       tripType: tripTypeName,
       // If trip type is 'Drop', we default to 0 day (per user request for 0 default)
-      numberOfDays: tripTypeName === 'Drop' ? 0 : prev.numberOfDays,
+      // Otherwise, ensure it is at least 1 day.
+      numberOfDays: tripTypeName === 'Drop' ? 0 : Math.max(1, prev.numberOfDays),
     }));
     setOpenTripTypeDialog(false);
   };
@@ -1370,6 +1377,7 @@ export default function HeroSection() {
                         }}
                         onFocusStyle={{ background: "rgba(34,197,94,0.18)", borderColor: "#22c55e" }}
                         onBlurStyle={{ background: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.4)" }}
+                        showMyLocation
                       />
                       {/* RELOCATED SMALL ADD DESTINATION BUTTON INSIDE FIELD */}
                       <button
@@ -1506,9 +1514,6 @@ export default function HeroSection() {
                       onSelect={(lat, lon) => {
                         console.log('[Dropoff] coords:', lat, lon);
                         setDropoffCoords({ lat, lon });
-                        if (!appliedPromo && !openPromoDialog) {
-                          setOpenPromoDialog(true);
-                        }
                       }}
                       onManualType={() => { setDropoffCoords(null); setRouteDistance(null); }}
                       placeholder="Drop-off location"
@@ -1593,10 +1598,13 @@ export default function HeroSection() {
                   </label>
                   <input
                     type="number"
-                    min="0"
+                    min={formData.tripType === 'Drop' ? "0" : "1"}
                     disabled={formData.tripType === 'Drop'}
                     value={formData.numberOfDays}
-                    onChange={(e) => handleChange('numberOfDays', Math.max(0, parseInt(e.target.value) || 0))}
+                    onChange={(e) => {
+                      const minDays = formData.tripType === 'Drop' ? 0 : 1;
+                      handleChange('numberOfDays', Math.max(minDays, parseInt(e.target.value) || minDays));
+                    }}
                     style={{
                       width: "100%",
                       padding: "0.7rem 0.9rem",
@@ -1625,6 +1633,39 @@ export default function HeroSection() {
                     }}
                   />
                 </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "center", marginTop: "4px", marginBottom: "12px" }}>
+                <button
+                  type="button"
+                  onClick={() => setOpenPromoDialog(true)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#0d9488",
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    padding: "8px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    borderRadius: "20px",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(13,148,136,0.08)";
+                    e.currentTarget.style.transform = "scale(1.02)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                >
+                  <GiftIcon style={{ fontSize: '20px' }} />
+                  Add promo code
+                </button>
               </div>
 
 
@@ -1685,7 +1726,7 @@ export default function HeroSection() {
                       <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>
                         {formData.tripType === 'Drop'
                           ? '0 Waiting Time'
-                          : (matchedPackage ? `${matchedPackage.hrs} Hours ` : `${formData.numberOfDays} ${formData.numberOfDays === 1 ? 'Day' : 'Days'} `) +
+                          : (matchedPackage ? `${matchedPackage?.hrs} Hours ` : `${formData.numberOfDays} ${formData.numberOfDays === 1 ? 'Day' : 'Days'} `) +
                           `(${formData.numberOfDays === 1 ? 'for one day trip' : `for ${formData.numberOfDays} days`})`}
                       </div>
                     </div>
@@ -1750,6 +1791,36 @@ export default function HeroSection() {
                           {formData.maxPersons > 0 ? `Max ${formData.maxPersons} Persons` : ''}
                           {formData.maxPersons > 0 && formData.maxBags > 0 && ' • '}
                           {formData.maxBags > 0 && `Max ${formData.maxBags} Bags`}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Extra Rates Info (if package matched) */}
+                  {matchedPackage && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>💳</span>
+                      <div style={{ width: '100%' }}>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '4px' }}>Package Allowances</div>
+                        <div style={{
+                          padding: '10px',
+                          background: 'rgba(255,255,255,0.7)',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(13,148,136,0.2)',
+                          fontSize: '0.75rem',
+                          color: '#111827',
+                          fontFamily: "'Montserrat', sans-serif"
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ color: '#4b5563' }}>Extra KM Rate:</span>
+                            <span style={{ fontWeight: 700 }}>LKR {matchedPackage?.extraKMRate || 0}</span>
+                          </div>
+                          {formData.tripType !== 'Drop' && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#4b5563' }}>Extra Hour Rate:</span>
+                              <span style={{ fontWeight: 700 }}>LKR {matchedPackage?.extraHrRate1 || 0}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1848,52 +1919,10 @@ export default function HeroSection() {
                           <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#6b7280', marginTop: '4px' }}>
                             {matchedPackage ? (
                               formData.tripType === 'Drop'
-                                ? `*Price for ${matchedPackage.km} km package. `
-                                : `*Price for ${matchedPackage.km} km & ${matchedPackage.hrs} hrs package. `
+                                ? `*Price for ${matchedPackage?.km} km package. `
+                                : `*Price for ${matchedPackage?.km} km & ${matchedPackage?.hrs} hrs package. `
                             ) : ''}*Actual price may vary based on route changes.
                           </div>
-
-                          {matchedPackage && (
-                            <div style={{ marginTop: '8px' }}>
-                              <button
-                                onClick={() => setShowExtraPrices(!showExtraPrices)}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  padding: 0,
-                                  color: '#0d9488',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  textDecoration: 'underline',
-                                  fontFamily: "'Montserrat', sans-serif"
-                                }}
-                              >
-                                {showExtraPrices ? 'See less' : 'See more'}
-                              </button>
-
-                              {showExtraPrices && (
-                                <div style={{
-                                  marginTop: '8px',
-                                  padding: '8px',
-                                  background: 'rgba(255,255,255,0.5)',
-                                  borderRadius: '6px',
-                                  fontSize: '0.7rem',
-                                  color: '#374151',
-                                  fontFamily: "'Montserrat', sans-serif"
-                                }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                    <span>Extra KM Rate:</span>
-                                    <span style={{ fontWeight: 700 }}>LKR {matchedPackage.extraKMRate || 0}</span>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>Extra Hour Rate:</span>
-                                    <span style={{ fontWeight: 700 }}>LKR {matchedPackage.extraHrRate1 || 0}</span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </>
                       )}
 
@@ -2785,7 +2814,7 @@ export default function HeroSection() {
                   + Add a Remark
                 </button>
               ) : (
-                <div style={{ position: 'relative' }}>
+                <div style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
                   <textarea
                     placeholder="Enter your remark or special requirements..."
                     value={formData.remark}
@@ -2793,6 +2822,7 @@ export default function HeroSection() {
                     style={{
                       width: '100%',
                       padding: '1rem',
+                      paddingRight: '2.5rem',
                       borderRadius: '14px',
                       border: '1.5px solid rgba(0,0,0,0.08)',
                       background: 'rgba(0,0,0,0.02)',
@@ -2814,6 +2844,22 @@ export default function HeroSection() {
                       e.target.style.boxShadow = 'none';
                     }}
                   />
+                  <IconButton
+                    onClick={() => {
+                      setShowRemark(false);
+                      handleChange('remark', '');
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      color: '#9ca3af',
+                      '&:hover': { color: '#ef4444', backgroundColor: '#fee2e2' }
+                    }}
+                    size="small"
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
                 </div>
               )}
 

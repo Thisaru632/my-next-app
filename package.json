@@ -14,16 +14,19 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.7",
     "@mui/material": "^7.3.8",
+    "@react-google-maps/api": "^2.20.8",
     "framer-motion": "^12.34.0",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "recharts": "^3.7.0"
+    "recharts": "^3.7.0",
+    "use-places-autocomplete": "^4.0.1"
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.15.7",
     "@tailwindcss/postcss": "^4",
+    "@types/google.maps": "^3.58.1",
     "@types/node": "^20",
     "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
