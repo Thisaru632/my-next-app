@@ -38,8 +38,6 @@ import {
 import Image from 'next/image';
 import { API_ENDPOINTS } from '@/config/api';
 import { useUser } from '@/context/UserContext';
-import AuthModal from './AuthModal';
-
 interface PromoCode {
   _id: string;
   code: string;
@@ -405,7 +403,6 @@ interface RateAdjustment {
 // ---------------------------------------------------------------------------
 export default function HeroSection() {
   const { user } = useUser();
-  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
   const [kenKey, setKenKey] = useState(0);
@@ -3029,10 +3026,6 @@ export default function HeroSection() {
           pointer-events: none;
         }
       `}</style>
-      <AuthModal
-        open={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-      />
     </section >
   );
 }
