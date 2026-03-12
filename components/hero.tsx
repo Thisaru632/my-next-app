@@ -36,6 +36,8 @@ import {
   RemoveCircle,
   MyLocation as MyLocationIcon,
   Redeem as GiftIcon,
+  CalendarMonth,
+  AccessTime,
 } from '@mui/icons-material';
 import Image from 'next/image';
 import { API_ENDPOINTS } from '@/config/api';
@@ -80,6 +82,7 @@ function LocationInput({
   onFocusStyle,
   onBlurStyle,
   showMyLocation,
+  onMyLocationUsed,
 }: {
   value: string;
   onChange: (val: string) => void;
@@ -90,6 +93,7 @@ function LocationInput({
   onFocusStyle: React.CSSProperties;
   onBlurStyle: React.CSSProperties;
   showMyLocation?: boolean;
+  onMyLocationUsed?: () => void;
 }) {
   const [suggestions, setSuggestions] = useState<GooglePlaceSuggestion[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -119,11 +123,13 @@ function LocationInput({
             onSelect?.(latitude.toString(), longitude.toString());
             coordsSetRef.current = true;
             setCoordsConfirmed(true);
+            onMyLocationUsed?.();
           }
         } catch (error) {
           console.error("Reverse geocoding error:", error);
         } finally {
           setLoading(false);
+          setShowDropdown(false);
         }
       },
       (error) => {
@@ -428,7 +434,7 @@ export default function HeroSection() {
     pickupLocation: '',
     dropoffLocation: '',
     dateTime: '',
-    numberOfDays: 0,
+    numberOfDays: '' as any,
     name: '',
     telephone: '',
     additionalPhones: [] as string[],
@@ -469,9 +475,16 @@ export default function HeroSection() {
 
   const [requestSent, setRequestSent] = useState(false);
   const [showRemark, setShowRemark] = useState(false);
+  const [isMyLocationUsed, setIsMyLocationUsed] = useState(false);
 
   // Intermediate destinations state
   const [destinations, setDestinations] = useState<string[]>([]);
+
+  // Date Time Picker Modal State
+  const [openDateTimePicker, setOpenDateTimePicker] = useState(false);
+  const [pickerStep, setPickerStep] = useState(0); // 0: Date, 1: Time
+  const [tempDate, setTempDate] = useState("");
+  const [tempTime, setTempTime] = useState("");
 
   // Coordinate state for route calculation
   const [pickupCoords, setPickupCoords] = useState<LatLon | null>(null);
@@ -725,6 +738,7 @@ export default function HeroSection() {
   };
 
   const handleAddPhone = () => {
+    if (formData.additionalPhones.length >= 1) return;
     setFormData(prev => ({
       ...prev,
       additionalPhones: [...prev.additionalPhones, '']
@@ -780,9 +794,8 @@ export default function HeroSection() {
     setFormData((prev) => ({
       ...prev,
       tripType: tripTypeName,
-      // If trip type is 'Drop', we default to 0 day (per user request for 0 default)
-      // Otherwise, ensure it is at least 1 day.
-      numberOfDays: tripTypeName === 'Drop' ? 0 : Math.max(1, prev.numberOfDays),
+      // If trip type is 'Drop', we default to 0 day
+      numberOfDays: tripTypeName === 'Drop' ? 0 : (prev.numberOfDays || ''),
     }));
     setOpenTripTypeDialog(false);
   };
@@ -837,7 +850,7 @@ export default function HeroSection() {
           pickupLocation: '',
           dropoffLocation: '',
           dateTime: '',
-          numberOfDays: 0,
+          numberOfDays: '' as any,
           name: '',
           telephone: '',
           additionalPhones: [],
@@ -1377,7 +1390,8 @@ export default function HeroSection() {
                         }}
                         onFocusStyle={{ background: "rgba(34,197,94,0.18)", borderColor: "#22c55e" }}
                         onBlurStyle={{ background: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.4)" }}
-                        showMyLocation
+                        showMyLocation={!isMyLocationUsed}
+                        onMyLocationUsed={() => setIsMyLocationUsed(true)}
                       />
                       {/* RELOCATED SMALL ADD DESTINATION BUTTON INSIDE FIELD */}
                       <button
@@ -1458,6 +1472,8 @@ export default function HeroSection() {
                         }}
                         onFocusStyle={{ background: "rgba(13,148,136,0.15)", borderColor: "#0d9488" }}
                         onBlurStyle={{ background: "rgba(13,148,136,0.08)", borderColor: "rgba(13,148,136,0.3)" }}
+                        showMyLocation={!isMyLocationUsed}
+                        onMyLocationUsed={() => setIsMyLocationUsed(true)}
                       />
                       <button
                         onClick={() => removeDestination(index)}
@@ -1531,6 +1547,8 @@ export default function HeroSection() {
                       }}
                       onFocusStyle={{ background: "rgba(239,68,68,0.15)", borderColor: "#ef4444" }}
                       onBlurStyle={{ background: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.35)" }}
+                      showMyLocation={!isMyLocationUsed}
+                      onMyLocationUsed={() => setIsMyLocationUsed(true)}
                     />
                   </div>{/* end of dropoff row */}
 
@@ -1538,8 +1556,8 @@ export default function HeroSection() {
               </div>{/* end of mb-4 route section */}
 
               {/* Date and Days */}
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
-                <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label
                     style={{
                       fontFamily: "'Montserrat', sans-serif",
@@ -1547,39 +1565,71 @@ export default function HeroSection() {
                       fontWeight: 500,
                       color: "#000000",
                       display: "block",
-                      marginBottom: "0.4rem",
                       letterSpacing: "0.04em",
                     }}
                   >
-                    START DATE & TIME
+                    PICKUP DATE & TIME
                   </label>
-                  <input
-                    type="datetime-local"
-                    value={formData.dateTime}
-                    min={minDateTime}
-                    onChange={(e) => handleChange('dateTime', e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem 0.9rem",
-                      background: "rgba(255,255,255,0.16)",
-                      backdropFilter: "blur(12px)",
-                      border: "1.5px solid rgba(255,255,255,0.45)",
-                      borderRadius: "7px",
-                      color: "#000000",
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: "0.88rem",
-                      outline: "none",
-                      colorScheme: "light",
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.background = "rgba(13,148,136,0.1)";
-                      e.currentTarget.style.borderColor = "#0d9488";
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.16)";
-                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)";
-                    }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <CalendarMonth style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '1.2rem',
+                      color: '#0d9488',
+                      pointerEvents: 'none',
+                      zIndex: 1
+                    }} />
+                    <div
+                      onClick={() => {
+                        // Initialize temp states from formData
+                        if (formData.dateTime) {
+                          const parts = formData.dateTime.split('T');
+                          setTempDate(parts[0]);
+                          setTempTime(parts[1] || "");
+                        } else {
+                          setTempDate("");
+                          setTempTime("");
+                        }
+                        setPickerStep(0);
+                        setOpenDateTimePicker(true);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.8rem 1rem 0.8rem 2.8rem",
+                        background: "rgba(255,255,255,0.16)",
+                        backdropFilter: "blur(12px)",
+                        border: "1.5px solid rgba(255,255,255,0.45)",
+                        borderRadius: "10px",
+                        color: formData.dateTime ? "#000000" : "rgba(0,0,0,0.45)",
+                        fontFamily: "'Montserrat', sans-serif",
+                        fontSize: "0.85rem",
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        minHeight: '44px',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {formData.dateTime ? (() => {
+                        const hasTime = formData.dateTime.includes('T');
+                        const dt = new Date(formData.dateTime);
+                        const datePart = dt.toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        });
+
+                        if (!hasTime) return datePart;
+
+                        return datePart + ' - ' + dt.toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        });
+                      })() : 'Select Date & Time'}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -1596,42 +1646,93 @@ export default function HeroSection() {
                   >
                     DAYS
                   </label>
-                  <input
-                    type="number"
-                    min={formData.tripType === 'Drop' ? "0" : "1"}
-                    disabled={formData.tripType === 'Drop'}
-                    value={formData.numberOfDays}
-                    onChange={(e) => {
-                      const minDays = formData.tripType === 'Drop' ? 0 : 1;
-                      handleChange('numberOfDays', Math.max(minDays, parseInt(e.target.value) || minDays));
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "0.7rem 0.9rem",
-                      background: formData.tripType === 'Drop' ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.16)",
-                      backdropFilter: "blur(12px)",
-                      border: "1.5px solid rgba(255,255,255,0.45)",
-                      borderRadius: "7px",
-                      color: formData.tripType === 'Drop' ? "rgba(0,0,0,0.4)" : "#000000",
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: "0.88rem",
-                      outline: "none",
-                      cursor: formData.tripType === 'Drop' ? "not-allowed" : "text",
-                      opacity: formData.tripType === 'Drop' ? 0.6 : 1,
-                    }}
-                    onFocus={(e) => {
-                      if (formData.tripType !== 'Drop') {
-                        e.currentTarget.style.background = "rgba(13,148,136,0.1)";
-                        e.currentTarget.style.borderColor = "#0d9488";
-                      }
-                    }}
-                    onBlur={(e) => {
-                      if (formData.tripType !== 'Drop') {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.16)";
-                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)";
-                      }
-                    }}
-                  />
+                  <div className="hidden sm:block">
+                    <input
+                      type="number"
+                      min={formData.tripType === 'Drop' ? "0" : "1"}
+                      disabled={formData.tripType === 'Drop'}
+                      value={formData.numberOfDays}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "") {
+                          handleChange('numberOfDays', "");
+                        } else {
+                          handleChange('numberOfDays', parseInt(val));
+                        }
+                      }}
+                      onFocus={(e) => {
+                        if (formData.tripType !== 'Drop') {
+                          e.currentTarget.style.background = "rgba(13,148,136,0.1)";
+                          e.currentTarget.style.borderColor = "#0d9488";
+                        }
+                        if (formData.numberOfDays === 0) {
+                          handleChange('numberOfDays', "");
+                        }
+                      }}
+                      onBlur={(e) => {
+                        if (formData.tripType !== 'Drop') {
+                          e.currentTarget.style.background = "rgba(255,255,255,0.16)";
+                          e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)";
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "0.7rem 0.9rem",
+                        background: formData.tripType === 'Drop' ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.16)",
+                        backdropFilter: "blur(12px)",
+                        border: "1.5px solid rgba(255,255,255,0.45)",
+                        borderRadius: "10px",
+                        color: formData.tripType === 'Drop' ? "rgba(0,0,0,0.4)" : "#000000",
+                        fontFamily: "'Montserrat', sans-serif",
+                        fontSize: "0.85rem",
+                        outline: "none",
+                        cursor: formData.tripType === 'Drop' ? "not-allowed" : "text",
+                        opacity: formData.tripType === 'Drop' ? 0.6 : 1,
+                      }}
+                    />
+                  </div>
+
+                  <div className="block sm:hidden" style={{ position: 'relative' }}>
+                    <select
+                      disabled={formData.tripType === 'Drop'}
+                      value={formData.numberOfDays}
+                      onChange={(e) => handleChange('numberOfDays', parseInt(e.target.value))}
+                      style={{
+                        width: "100%",
+                        padding: "0.7rem 0.9rem",
+                        background: formData.tripType === 'Drop' ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.16)",
+                        backdropFilter: "blur(12px)",
+                        border: "1.5px solid rgba(255,255,255,0.45)",
+                        borderRadius: "10px",
+                        color: formData.tripType === 'Drop' ? "rgba(0,0,0,0.4)" : "#000000",
+                        fontFamily: "'Montserrat', sans-serif",
+                        fontSize: "0.88rem",
+                        outline: "none",
+                        appearance: "none",
+                        cursor: formData.tripType === 'Drop' ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      <option value="" disabled>Select Days</option>
+                      {formData.tripType === 'Drop' ? (
+                        <option value="0">0 Days</option>
+                      ) : (
+                        Array.from({ length: 30 }, (_, i) => i + 1).map(num => (
+                          <option key={num} value={num}>{num} {num === 1 ? 'Day' : 'Days'}</option>
+                        ))
+                      )}
+                    </select>
+                    <div style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      pointerEvents: 'none',
+                      color: '#0d9488',
+                      fontSize: '0.8rem'
+                    }}>
+                      ▼
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2705,17 +2806,19 @@ export default function HeroSection() {
                       e.target.style.boxShadow = 'none';
                     }}
                   />
-                  <IconButton
-                    onClick={handleAddPhone}
-                    sx={{
-                      position: 'absolute',
-                      right: '0.5rem',
-                      color: '#0d9488',
-                      '&:hover': { color: '#0891b2' }
-                    }}
-                  >
-                    <AddCircle />
-                  </IconButton>
+                  {formData.additionalPhones.length < 1 && (
+                    <IconButton
+                      onClick={handleAddPhone}
+                      sx={{
+                        position: 'absolute',
+                        right: '0.5rem',
+                        color: '#0d9488',
+                        '&:hover': { color: '#0891b2' }
+                      }}
+                    >
+                      <AddCircle />
+                    </IconButton>
+                  )}
                 </div>
 
                 {/* Additional Phones */}
@@ -3019,6 +3122,156 @@ export default function HeroSection() {
               </Box>
             ))}
           </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── DATE TIME PICKER DIALOG ─── */}
+      <Dialog
+        open={openDateTimePicker}
+        onClose={() => setOpenDateTimePicker(false)}
+        PaperProps={{
+          sx: {
+            width: '95%',
+            maxWidth: 400,
+            borderRadius: '24px',
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.15)',
+            border: '1px solid rgba(13,148,136,0.1)',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <Box sx={{
+          p: 3,
+          background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%)',
+          borderBottom: '1px solid rgba(13,148,136,0.12)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Typography sx={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            color: '#111827'
+          }}>
+            {pickerStep === 0 ? 'Select Date' : 'Select Time'}
+          </Typography>
+          <IconButton onClick={() => setOpenDateTimePicker(false)}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        <DialogContent sx={{ p: 4, textAlign: 'center' }}>
+          {pickerStep === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              <div style={{ fontSize: '3.5rem', opacity: 0.9 }}>📅</div>
+              <input
+                type="date"
+                value={tempDate}
+                min={minDateTime.split('T')[0]}
+                onChange={(e) => setTempDate(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '1.2rem',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(13,148,136,0.2)',
+                  background: 'white',
+                  fontSize: '1.1rem',
+                  fontFamily: "'Montserrat', sans-serif",
+                  textAlign: 'center',
+                  outline: 'none',
+                  colorScheme: 'light'
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (tempDate) {
+                    // Only save the date part for now
+                    handleChange('dateTime', tempDate);
+                    setPickerStep(1);
+                  }
+                }}
+                disabled={!tempDate}
+                style={{
+                  padding: '1.1rem',
+                  background: tempDate ? '#0d9488' : '#9ca3af',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  cursor: tempDate ? 'pointer' : 'not-allowed',
+                  boxShadow: tempDate ? '0 8px 20px rgba(13,148,136,0.2)' : 'none',
+                  transition: 'all 0.3s'
+                }}
+              >
+                Set Start Date
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              <div style={{ fontSize: '3.5rem', opacity: 0.9 }}>🕒</div>
+              <input
+                type="time"
+                value={tempTime}
+                onChange={(e) => setTempTime(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '1.2rem',
+                  borderRadius: '16px',
+                  border: '2px solid rgba(13,148,136,0.2)',
+                  background: 'white',
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  fontFamily: "'Montserrat', sans-serif",
+                  textAlign: 'center',
+                  outline: 'none',
+                  colorScheme: 'light'
+                }}
+              />
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setPickerStep(0)}
+                  style={{
+                    flex: 1,
+                    padding: '1rem',
+                    background: 'white',
+                    color: '#4b5563',
+                    border: '1.5px solid #e5e7eb',
+                    borderRadius: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => {
+                    if (tempDate && tempTime) {
+                      handleChange('dateTime', `${tempDate}T${tempTime}`);
+                      setOpenDateTimePicker(false);
+                    }
+                  }}
+                  disabled={!tempTime}
+                  style={{
+                    flex: 2,
+                    padding: '1.1rem',
+                    background: tempTime ? '#0d9488' : '#9ca3af',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    fontWeight: 600,
+                    fontSize: '1rem',
+                    cursor: tempTime ? 'pointer' : 'not-allowed',
+                    boxShadow: tempTime ? '0 8px 20px rgba(13,148,136,0.2)' : 'none'
+                  }}
+                >
+                  Set Time & Confirm
+                </button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
