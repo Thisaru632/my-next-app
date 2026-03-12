@@ -38,6 +38,10 @@ import {
   Redeem as GiftIcon,
   CalendarMonth,
   AccessTime,
+  ChevronLeft,
+  ChevronRight,
+  KeyboardArrowUp,
+  KeyboardArrowDown,
 } from '@mui/icons-material';
 import Image from 'next/image';
 import { API_ENDPOINTS } from '@/config/api';
@@ -63,6 +67,121 @@ const SLIDES = [
 ];
 
 const INTERVAL_MS = 6000;
+
+// ---------------------------------------------------------------------------
+// CustomCalendar — Premium Mobile-first Date Picker
+// ---------------------------------------------------------------------------
+function CustomCalendar({
+  selectedDate,
+  minDate,
+  onSelect
+}: {
+  selectedDate: string;
+  minDate: string;
+  onSelect: (date: string) => void;
+}) {
+  const [viewDate, setViewDate] = useState(() => {
+    if (selectedDate) return new Date(selectedDate);
+    return new Date();
+  });
+  const daysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (month: number, year: number) => new Date(year, month, 1).getDay();
+
+  const handlePrevMonth = () => {
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+  };
+  const handleNextMonth = () => {
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+  };
+
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  const renderDays = () => {
+    const month = viewDate.getMonth();
+    const year = viewDate.getFullYear();
+    const numDays = daysInMonth(month, year);
+    const startDay = firstDayOfMonth(month, year);
+    const days = [];
+
+    // Empty slots for start of month
+    for (let i = 0; i < startDay; i++) {
+      days.push(<div key={`empty-${i}`} style={{ width: '100%', aspectRatio: '1/1' }} />);
+    }
+
+    const minDateObj = new Date(minDate.split('T')[0]);
+    const selectedDateObj = selectedDate ? new Date(selectedDate) : null;
+
+    for (let d = 1; d <= numDays; d++) {
+      const current = new Date(year, month, d);
+      const isToday = new Date().toDateString() === current.toDateString();
+      const isSelected = selectedDateObj && current.toDateString() === selectedDateObj.toDateString();
+      const isDisabled = current < minDateObj;
+
+      days.push(
+        <button
+          key={d}
+          disabled={isDisabled}
+          onClick={() => {
+            const formatted = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            onSelect(formatted);
+          }}
+          style={{
+            width: '100%',
+            aspectRatio: '1/1',
+            borderRadius: '10px',
+            border: 'none',
+            outline: 'none',
+            background: isSelected ? '#0d9488' : isToday ? 'rgba(13,148,136,0.1)' : 'transparent',
+            color: isSelected ? 'white' : isDisabled ? '#d1d5db' : isToday ? '#0d9488' : '#374151',
+            fontWeight: isSelected || isToday ? 700 : 500,
+            fontSize: '0.8rem',
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            position: 'relative'
+          }}
+        >
+          {d}
+          {isToday && !isSelected && (
+            <div style={{ position: 'absolute', bottom: '10%', width: '4px', height: '4px', borderRadius: '50%', background: '#0d9488' }} />
+          )}
+        </button>
+      );
+    }
+    return days;
+  };
+
+  return (
+    <div style={{ width: '100%', userSelect: 'none' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', background: 'rgba(13,148,136,0.04)', padding: '6px', borderRadius: '12px' }}>
+        <IconButton onClick={handlePrevMonth} size="small" sx={{ color: '#0d9488' }}>
+          <ChevronLeft />
+        </IconButton>
+        <Typography sx={{ fontWeight: 700, fontFamily: "'Montserrat', sans-serif", fontSize: '0.85rem', color: '#111827' }}>
+          {monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}
+        </Typography>
+        <IconButton onClick={handleNextMonth} size="small" sx={{ color: '#0d9488' }}>
+          <ChevronRight />
+        </IconButton>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '8px' }}>
+        {weekDays.map(day => (
+          <div key={day} style={{ textAlign: 'center', fontSize: '0.6rem', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', paddingBottom: '4px' }}>
+            {day}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+        {renderDays()}
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // LocationInput — Google Places Autocomplete
@@ -485,6 +604,9 @@ export default function HeroSection() {
   const [pickerStep, setPickerStep] = useState(0); // 0: Date, 1: Time
   const [tempDate, setTempDate] = useState("");
   const [tempTime, setTempTime] = useState("");
+  const [tempHour, setTempHour] = useState("12");
+  const [tempMin, setTempMin] = useState("00");
+  const [tempAmPm, setTempAmPm] = useState("AM");
 
   // Coordinate state for route calculation
   const [pickupCoords, setPickupCoords] = useState<LatLon | null>(null);
@@ -3162,43 +3284,35 @@ export default function HeroSection() {
             <CloseIcon />
           </IconButton>
         </Box>
-        <DialogContent sx={{ p: 4, textAlign: 'center' }}>
+        <DialogContent sx={{ p: { xs: 2, sm: 3 }, textAlign: 'center' }}>
           {pickerStep === 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-              <div style={{ fontSize: '3.5rem', opacity: 0.9 }}>📅</div>
-              <input
-                type="date"
-                value={tempDate}
-                min={minDateTime.split('T')[0]}
-                onChange={(e) => setTempDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '1.2rem',
-                  borderRadius: '16px',
-                  border: '2px solid rgba(13,148,136,0.2)',
-                  background: 'white',
-                  fontSize: '1.1rem',
-                  fontFamily: "'Montserrat', sans-serif",
-                  textAlign: 'center',
-                  outline: 'none',
-                  colorScheme: 'light'
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <CustomCalendar
+                selectedDate={tempDate}
+                minDate={minDateTime}
+                onSelect={(date) => {
+                  setTempDate(date);
+                  // Optional: Automatically move to time step after date selection
+                  // Or let user click button. User requested "arrange mobile properly", 
+                  // adding automatic transition for better UX.
                 }}
               />
               <button
                 onClick={() => {
                   if (tempDate) {
-                    // Only save the date part for now
                     handleChange('dateTime', tempDate);
                     setPickerStep(1);
                   }
                 }}
                 disabled={!tempDate}
                 style={{
+                  width: '100%',
+                  marginTop: '1.5rem',
                   padding: '1.1rem',
                   background: tempDate ? '#0d9488' : '#9ca3af',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '14px',
+                  borderRadius: '16px',
                   fontWeight: 600,
                   fontSize: '1rem',
                   cursor: tempDate ? 'pointer' : 'not-allowed',
@@ -3206,68 +3320,188 @@ export default function HeroSection() {
                   transition: 'all 0.3s'
                 }}
               >
-                Set Start Date
+                Set Date & Continue
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-              <div style={{ fontSize: '3.5rem', opacity: 0.9 }}>🕒</div>
-              <input
-                type="time"
-                value={tempTime}
-                onChange={(e) => setTempTime(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '1.2rem',
-                  borderRadius: '16px',
-                  border: '2px solid rgba(13,148,136,0.2)',
-                  background: 'white',
-                  fontSize: '1.5rem',
-                  fontWeight: 700,
-                  fontFamily: "'Montserrat', sans-serif",
-                  textAlign: 'center',
-                  outline: 'none',
-                  colorScheme: 'light'
-                }}
-              />
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button
-                  onClick={() => setPickerStep(0)}
-                  style={{
-                    flex: 1,
-                    padding: '1rem',
-                    background: 'white',
-                    color: '#4b5563',
-                    border: '1.5px solid #e5e7eb',
-                    borderRadius: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Back
-                </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+              <div style={{
+                background: 'rgba(13,148,136,0.05)',
+                padding: '1.2rem',
+                borderRadius: '20px',
+                width: '100%',
+                border: '1px solid rgba(13,148,136,0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.8rem',
+                alignItems: 'center'
+              }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0d9488', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Type Your Time
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  {/* Hour Control */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                    <IconButton
+                      onClick={() => {
+                        let h = parseInt(tempHour || "12");
+                        h = h >= 12 ? 1 : h + 1;
+                        setTempHour(String(h));
+                      }}
+                      size="small"
+                      sx={{ color: '#0d9488', p: 0.5 }}
+                    >
+                      <KeyboardArrowUp />
+                    </IconButton>
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={tempHour}
+                      onChange={(e) => {
+                        let v = e.target.value;
+                        if (v.length > 2) v = v.slice(0, 2);
+                        const n = parseInt(v);
+                        if (v === "" || (n >= 1 && n <= 12)) setTempHour(v);
+                      }}
+                      placeholder="12"
+                      style={{
+                        width: '60px',
+                        padding: '0.6rem',
+                        borderRadius: '10px',
+                        border: '2px solid #0d9488',
+                        background: 'white',
+                        fontSize: '1.4rem',
+                        fontWeight: 800,
+                        fontFamily: "'Montserrat', sans-serif",
+                        textAlign: 'center',
+                        outline: 'none',
+                      }}
+                    />
+                    <IconButton
+                      onClick={() => {
+                        let h = parseInt(tempHour || "1");
+                        h = h <= 1 ? 12 : h - 1;
+                        setTempHour(String(h));
+                      }}
+                      size="small"
+                      sx={{ color: '#0d9488', p: 0.5 }}
+                    >
+                      <KeyboardArrowDown />
+                    </IconButton>
+                  </div>
+
+                  <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0d9488', marginTop: '0px' }}>:</span>
+
+                  {/* Minute Control */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                    <IconButton
+                      onClick={() => {
+                        let m = parseInt(tempMin || "0");
+                        m = m >= 59 ? 0 : m + 1;
+                        setTempMin(String(m).padStart(2, '0'));
+                      }}
+                      size="small"
+                      sx={{ color: '#0d9488', p: 0.5 }}
+                    >
+                      <KeyboardArrowUp />
+                    </IconButton>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={tempMin}
+                      onChange={(e) => {
+                        let v = e.target.value;
+                        if (v.length > 2) v = v.slice(0, 2);
+                        const n = parseInt(v);
+                        if (v === "" || (n >= 0 && n <= 59)) setTempMin(v);
+                      }}
+                      placeholder="00"
+                      style={{
+                        width: '60px',
+                        padding: '0.6rem',
+                        borderRadius: '10px',
+                        border: '2px solid #0d9488',
+                        background: 'white',
+                        fontSize: '1.4rem',
+                        fontWeight: 800,
+                        fontFamily: "'Montserrat', sans-serif",
+                        textAlign: 'center',
+                        outline: 'none',
+                      }}
+                    />
+                    <IconButton
+                      onClick={() => {
+                        let m = parseInt(tempMin || "0");
+                        m = m <= 0 ? 59 : m - 1;
+                        setTempMin(String(m).padStart(2, '0'));
+                      }}
+                      size="small"
+                      sx={{ color: '#0d9488', p: 0.5 }}
+                    >
+                      <KeyboardArrowDown />
+                    </IconButton>
+                  </div>
+
+                  {/* AM/PM Control */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    marginLeft: '8px'
+                  }}>
+                    {['AM', 'PM'].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setTempAmPm(p)}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(13,148,136,0.2)',
+                          background: tempAmPm === p ? '#0d9488' : 'white',
+                          color: tempAmPm === p ? 'white' : '#0d9488',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          boxShadow: tempAmPm === p ? '0 4px 10px rgba(13,148,136,0.2)' : 'none'
+                        }}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: '0.5rem' }}>
                 <button
                   onClick={() => {
-                    if (tempDate && tempTime) {
-                      handleChange('dateTime', `${tempDate}T${tempTime}`);
+                    if (tempDate && tempHour && tempMin) {
+                      let hh = parseInt(tempHour);
+                      if (tempAmPm === 'PM' && hh < 12) hh += 12;
+                      if (tempAmPm === 'AM' && hh === 12) hh = 0;
+                      const formattedTime = `${String(hh).padStart(2, '0')}:${tempMin.padStart(2, '0')}`;
+                      handleChange('dateTime', `${tempDate}T${formattedTime}`);
                       setOpenDateTimePicker(false);
                     }
                   }}
-                  disabled={!tempTime}
+                  disabled={!tempHour || !tempMin}
                   style={{
-                    flex: 2,
-                    padding: '1.1rem',
-                    background: tempTime ? '#0d9488' : '#9ca3af',
+                    padding: '0.75rem 2.5rem',
+                    background: (tempHour && tempMin) ? '#0d9488' : '#9ca3af',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '14px',
-                    fontWeight: 600,
-                    fontSize: '1rem',
-                    cursor: tempTime ? 'pointer' : 'not-allowed',
-                    boxShadow: tempTime ? '0 8px 20px rgba(13,148,136,0.2)' : 'none'
+                    borderRadius: '16px',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    cursor: (tempHour && tempMin) ? 'pointer' : 'not-allowed',
+                    boxShadow: (tempHour && tempMin) ? '0 8px 16px rgba(13,148,136,0.15)' : 'none',
+                    transition: 'all 0.3s'
                   }}
                 >
-                  Set Time & Confirm
+                  OK
                 </button>
               </div>
             </div>
@@ -3277,6 +3511,15 @@ export default function HeroSection() {
 
       {/* KEYFRAMES */}
       <style>{`
+
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+          -webkit-appearance: none; 
+          margin: 0; 
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
 
         @keyframes kenBurns {
           0%   { transform: scale(1); }
