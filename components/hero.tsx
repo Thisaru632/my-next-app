@@ -669,7 +669,12 @@ export default function HeroSection() {
 
     const fetchRoute = async () => {
       try {
-        const url = `/api/google-distance?origin=${encodeURIComponent(formData.pickupLocation)}&destination=${encodeURIComponent(formData.dropoffLocation)}`;
+        const validStops = destinations.filter(d => d.trim() !== "");
+        const waypointsParam = validStops.length > 0
+          ? `&waypoints=${encodeURIComponent(validStops.join('|'))}`
+          : "";
+
+        const url = `/api/google-distance?origin=${encodeURIComponent(formData.pickupLocation)}&destination=${encodeURIComponent(formData.dropoffLocation)}${waypointsParam}`;
         const r = await fetch(url);
         if (!r.ok) throw new Error(`Google HTTP ${r.status}`);
         const data = await r.json();
@@ -698,7 +703,7 @@ export default function HeroSection() {
     fetchRoute();
 
     return () => { cancelled = true; };
-  }, [formData.pickupLocation, formData.dropoffLocation]);
+  }, [formData.pickupLocation, formData.dropoffLocation, destinations]);
 
   const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
   const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
