@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Button,
   List,
   ListItemButton,
   ListItemText,
@@ -42,10 +43,17 @@ import {
   ChevronRight,
   KeyboardArrowUp,
   KeyboardArrowDown,
+  Map as MapIcon,
 } from '@mui/icons-material';
+import MapPicker from './MapPicker';
 import Image from 'next/image';
+import AuthModal from './AuthModal';
+import RouteViewer from './RouteViewer';
 import { API_ENDPOINTS } from '@/config/api';
 import { useUser } from '@/context/UserContext';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Download } from 'lucide-react';
 interface PromoCode {
   _id: string;
   code: string;
@@ -202,6 +210,7 @@ function LocationInput({
   onBlurStyle,
   showMyLocation,
   onMyLocationUsed,
+  disabled,
 }: {
   value: string;
   onChange: (val: string) => void;
@@ -213,6 +222,7 @@ function LocationInput({
   onBlurStyle: React.CSSProperties;
   showMyLocation?: boolean;
   onMyLocationUsed?: () => void;
+  disabled?: boolean;
 }) {
   const [suggestions, setSuggestions] = useState<GooglePlaceSuggestion[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -223,6 +233,7 @@ function LocationInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const coordsSetRef = useRef(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   const handleMyLocation = () => {
     if (!navigator.geolocation) {
@@ -327,9 +338,23 @@ function LocationInput({
         onChange={handleInput}
         placeholder={placeholder}
         autoComplete="off"
-        style={{ ...inputStyle, ...activeStyle, width: '100%', boxSizing: 'border-box', paddingRight: coordsConfirmed ? '32px' : undefined }}
+        disabled={disabled}
+        style={{ 
+          ...inputStyle, 
+          ...activeStyle, 
+          width: '100%', 
+          boxSizing: 'border-box', 
+          paddingRight: (coordsConfirmed || loading) ? '60px' : '40px',
+          cursor: disabled ? 'not-allowed' : 'text',
+          opacity: disabled ? 0.8 : 1
+        }}
         onFocus={() => {
+          if (disabled) return;
           setActiveStyle(onFocusStyle);
+          setShowDropdown(true);
+        }}
+        onClick={() => {
+          if (disabled) return;
           setShowDropdown(true);
         }}
         onBlur={() => {
@@ -337,7 +362,7 @@ function LocationInput({
           setTimeout(() => setShowDropdown(false), 200);
         }}
       />
-      {showDropdown && (showMyLocation || (suggestions.length > 0)) && (
+      {showDropdown && (
         <ul style={{
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
           background: '#ffffff', border: '1.5px solid rgba(13,148,136,0.25)',
@@ -367,6 +392,26 @@ function LocationInput({
               Select my location
             </li>
           )}
+          <li
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setShowMapPicker(true);
+            }}
+            style={{
+              padding: '10px 14px', cursor: 'pointer', fontSize: '0.85rem',
+              fontFamily: "'Montserrat', sans-serif", color: '#0d9488', lineHeight: 1.4,
+              borderBottom: '2px solid rgba(13,148,136,0.1)',
+              display: 'flex', alignItems: 'center', gap: '8px',
+              fontWeight: 600,
+              background: 'rgba(13,148,136,0.04)',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(13,148,136,0.08)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(13,148,136,0.04)')}
+          >
+            <MapIcon style={{ fontSize: '18px' }} />
+            Select on map
+          </li>
           {suggestions.map((s) => (
             <li
               key={s.place_id}
@@ -387,52 +432,61 @@ function LocationInput({
           ))}
         </ul>
       )}
+      {!disabled && (
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMapPicker(true);
+          }}
+          size="small"
+          sx={{
+            position: 'absolute',
+            right: '8px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: '#0d9488',
+            opacity: 0.7,
+            '&:hover': { opacity: 1, color: '#3b82f6' },
+            zIndex: 10
+          }}
+          title="Select on map"
+        >
+          <MapIcon sx={{ fontSize: '20px' }} />
+        </IconButton>
+      )}
+
       {coordsConfirmed && (
         <div style={{
-          position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+          position: 'absolute', right: '35px', top: '50%', transform: 'translateY(-50%)',
           color: '#22c55e', fontSize: '14px', fontWeight: 700, lineHeight: 1,
           pointerEvents: 'none',
+          zIndex: 5
         }}>✓</div>
       )}
       {loading && (
         <div style={{
-          position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+          position: 'absolute', right: '35px', top: '50%', transform: 'translateY(-50%)',
           width: '14px', height: '14px', border: '2px solid rgba(13,148,136,0.3)',
           borderTop: '2px solid #0d9488', borderRadius: '50%',
           animation: 'loc-spin 0.7s linear infinite',
+          zIndex: 5
         }} />
       )}
-      {showDropdown && suggestions.length > 0 && (
-        <ul style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-          background: '#ffffff', border: '1.5px solid rgba(13,148,136,0.25)',
-          borderRadius: '10px', boxShadow: '0 8px 28px rgba(0,0,0,0.14)',
-          zIndex: 9999, margin: 0, padding: '4px 0', listStyle: 'none',
-          maxHeight: '210px', overflowY: 'auto',
-        }}>
-          {suggestions.map((s) => (
-            <li
-              key={s.place_id}
-              onMouseDown={() => handleSelect(s)}
-              style={{
-                padding: '9px 14px', cursor: 'pointer', fontSize: '0.78rem',
-                fontFamily: "'Montserrat', sans-serif", color: '#1a1a1a', lineHeight: 1.4,
-                borderBottom: '1px solid rgba(0,0,0,0.05)',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(13,148,136,0.08)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            >
-              <span style={{ color: '#0d9488', fontWeight: 600 }}>
-                {s.description}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+
       <style>{`
         @keyframes loc-spin { to { transform: translateY(-50%) rotate(360deg); } }
       `}</style>
+      <MapPicker 
+        open={showMapPicker}
+        onClose={() => setShowMapPicker(false)}
+        apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc"
+        onSelect={(addr, lat, lng) => {
+          onChange(addr);
+          onSelect?.(lat.toString(), lng.toString());
+          setCoordsConfirmed(true);
+          setShowDropdown(false);
+        }}
+      />
     </div>
   );
 }
@@ -594,7 +648,11 @@ export default function HeroSection() {
 
   const [requestSent, setRequestSent] = useState(false);
   const [showRemark, setShowRemark] = useState(false);
-  const [isMyLocationUsed, setIsMyLocationUsed] = useState(false);
+  const [openAuthModal, setOpenAuthModal] = useState(false);
+  const [showLoginAlert, setShowLoginAlert] = useState(false);
+  const [openRouteViewer, setOpenRouteViewer] = useState(false);
+  const [openPolicyDialog, setOpenPolicyDialog] = useState(false);
+
 
   // Intermediate destinations state
   const [destinations, setDestinations] = useState<string[]>([]);
@@ -607,6 +665,10 @@ export default function HeroSection() {
   const [tempHour, setTempHour] = useState("12");
   const [tempMin, setTempMin] = useState("00");
   const [tempAmPm, setTempAmPm] = useState("AM");
+
+  // Day Picker Modal State
+  const [openDayPicker, setOpenDayPicker] = useState(false);
+  const [tempDays, setTempDays] = useState(1);
 
   // Coordinate state for route calculation
   const [pickupCoords, setPickupCoords] = useState<LatLon | null>(null);
@@ -786,6 +848,11 @@ export default function HeroSection() {
     setFormData((prev) => {
       const updated = { ...prev, [field]: value };
 
+      // If Return trip, keep dropoff synced with pickup
+      if (field === 'pickupLocation' && prev.tripType === 'Return') {
+        updated.dropoffLocation = value;
+      }
+
       // Trigger promo popup removed from here, now triggered by dropoff selection
       if (!appliedPromo && !openPromoDialog) {
         // Triggers moved to specific selection handlers
@@ -864,6 +931,11 @@ export default function HeroSection() {
     }
   };
 
+  const handleViewDirections = () => {
+    if (!formData.pickupLocation || !formData.dropoffLocation) return;
+    setOpenRouteViewer(true);
+  };
+
   const handleAddPhone = () => {
     if (formData.additionalPhones.length >= 1) return;
     setFormData(prev => ({
@@ -918,12 +990,60 @@ export default function HeroSection() {
   };
 
   const handleTripTypeSelect = (tripTypeName: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      tripType: tripTypeName,
-      // If trip type is 'Drop', we default to 0 day
-      numberOfDays: tripTypeName === 'Drop' ? 0 : (prev.numberOfDays || ''),
-    }));
+    if (tripTypeName === 'Return') {
+      const currentPickup = formData.pickupLocation;
+      const currentDropoff = formData.dropoffLocation;
+      const currentDropoffCoords = dropoffCoords;
+
+      setFormData((prev) => ({
+        ...prev,
+        tripType: tripTypeName,
+        dropoffLocation: currentPickup || prev.dropoffLocation,
+        numberOfDays: prev.numberOfDays || '',
+      }));
+
+      if (currentPickup) {
+        setDropoffCoords(pickupCoords);
+      }
+
+      // Ensure at least one stop exists for Return trip
+      setDestinations(prev => {
+        // If we have a valid destination that isn't the pickup, move it to stops
+        if (currentDropoff && currentDropoff.trim() !== "" && currentDropoff !== currentPickup) {
+          if (prev[0] !== currentDropoff) {
+            setStopCoords(oldCoords => [currentDropoffCoords, ...oldCoords]);
+            return [currentDropoff, ...prev];
+          }
+          return prev;
+        }
+        
+        // If no stops exist yet (or we just cleared the destination), add an empty Stop 1
+        if (prev.length === 0) {
+          setStopCoords([null]);
+          return [''];
+        }
+        return prev;
+      });
+    } else {
+      // Switching from Return to Drop or others
+      if (formData.tripType === 'Return') {
+        setFormData((prev) => ({
+          ...prev,
+          tripType: tripTypeName,
+          dropoffLocation: '', // Clear dropoff
+          numberOfDays: tripTypeName === 'Drop' ? 0 : (prev.numberOfDays || ''),
+        }));
+        setDropoffCoords(null); // Clear dropoff coords
+        setDestinations([]); // Clear all stops
+        setStopCoords([]); // Clear stop coords
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          tripType: tripTypeName,
+          numberOfDays: tripTypeName === 'Drop' ? 0 : (prev.numberOfDays || ''),
+        }));
+      }
+    }
     setOpenTripTypeDialog(false);
   };
 
@@ -942,6 +1062,103 @@ export default function HeroSection() {
     }
 
     setOpenPersonalDialog(true);
+  };
+
+  const downloadTripSummary = () => {
+    const doc = new jsPDF();
+    const primaryColor: [number, number, number] = [13, 148, 136]; // #0d9488
+
+    // --- Header ---
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(0, 0, 210, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(24);
+    doc.text("SENU TOURS", 105, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Your Home, Your Journey, Your Hospitality Haven", 105, 30, { align: 'center' });
+
+    // --- Trip Title ---
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("Booking Quote Summary", 14, 55);
+    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setLineWidth(0.5);
+    doc.line(14, 60, 60, 60);
+
+    // --- Trip Details Table ---
+    const tableData = [
+      ["Vehicle Type", formData.vehicleType],
+      ["Vehicle Name", formData.vehicleName || "Not Selected"],
+      ["Trip Type", formData.tripType],
+      ["Pickup Date", formData.dateTime ? new Date(formData.dateTime).toLocaleDateString() : 'N/A'],
+      ["Pickup Time", formData.dateTime ? new Date(formData.dateTime).toLocaleTimeString() : 'N/A'],
+      ["Duration", formData.numberOfDays ? `${formData.numberOfDays} ${formData.numberOfDays === 1 ? 'Day' : 'Days'}` : '0 days'],
+      ["Pickup Location", formData.pickupLocation],
+      ["Drop-off Location", formData.dropoffLocation]
+    ];
+
+    if (destinations.length > 0) {
+      destinations.filter(d => d.trim() !== "").forEach((stop, i) => {
+        tableData.push([`Stop ${i + 1}`, stop]);
+      });
+    }
+
+    autoTable(doc, {
+      startY: 65,
+      head: [['Field', 'Details']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: primaryColor, textColor: 255 },
+      styles: { font: 'helvetica', fontSize: 10 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
+    });
+
+    // --- Pricing Section ---
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Estimated Price", 14, finalY);
+
+    const priceData = [
+      ["Base Price", `LKR ${rawTotalPrice.toLocaleString()}`]
+    ];
+
+    if (appliedPromo) {
+      const disc = appliedPromo.discountType === 'Percentage' ? `${appliedPromo.discountValue}%` : `LKR ${appliedPromo.discountValue.toLocaleString()}`;
+      priceData.push([`Promo Discount (${appliedPromo.code})`, `- ${disc}`]);
+    }
+
+    priceData.push(["Total Estimate", `LKR ${totalPrice.toLocaleString()}`]);
+
+    autoTable(doc, {
+      startY: finalY + 5,
+      body: priceData,
+      theme: 'plain',
+      styles: { fontSize: 11 },
+      columnStyles: { 
+        0: { fontStyle: 'bold', cellWidth: 80 },
+        1: { halign: 'right', textColor: primaryColor, fontStyle: 'bold' }
+      }
+    });
+
+    // --- Footer ---
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text("This is an estimated quote generated by Senu Tours website. Actual prices may vary.", 105, 285, { align: 'center' });
+      doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
+    }
+
+    doc.save(`Senu_Tours_Trip_Summary_${new Date().getTime()}.pdf`);
+    
+    // Also trigger the final reset
+    setOpenPersonalDialog(false);
+    setTimeout(() => setRequestSent(false), 500);
   };
 
   const handleSendRequest = async () => {
@@ -1013,7 +1230,7 @@ export default function HeroSection() {
   const currentCategoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles] || { models: [] };
 
   // --- Dynamic Pricing Logic from Rate Card ---
-  const distanceInKm = routeDistance ? ((routeDistance / 1000) * (formData.tripType === 'Return' ? 2 : 1)) : 0;
+  const distanceInKm = routeDistance ? (routeDistance / 1000) : 0;
 
   const matchedPackage = (() => {
     if (!formData.vehicleType || !formData.tripType) return null;
@@ -1500,8 +1717,21 @@ export default function HeroSection() {
                       <LocationInput
                         value={formData.pickupLocation}
                         onChange={(val) => handleChange('pickupLocation', val)}
-                        onSelect={(lat, lon) => { console.log('[Pickup] coords:', lat, lon); setPickupCoords({ lat, lon }); }}
-                        onManualType={() => { setPickupCoords(null); setRouteDistance(null); }}
+                        onSelect={(lat, lon) => { 
+                          console.log('[Pickup] coords:', lat, lon); 
+                          const coords = { lat, lon };
+                          setPickupCoords(coords); 
+                          if (formData.tripType === 'Return') {
+                            setDropoffCoords(coords);
+                          }
+                        }}
+                        onManualType={() => { 
+                          setPickupCoords(null); 
+                          if (formData.tripType === 'Return') {
+                            setDropoffCoords(null);
+                          }
+                          setRouteDistance(null); 
+                        }}
                         placeholder="Pickup location"
                         inputStyle={{
                           flex: 1,
@@ -1517,8 +1747,7 @@ export default function HeroSection() {
                         }}
                         onFocusStyle={{ background: "rgba(34,197,94,0.18)", borderColor: "#22c55e" }}
                         onBlurStyle={{ background: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.4)" }}
-                        showMyLocation={!isMyLocationUsed}
-                        onMyLocationUsed={() => setIsMyLocationUsed(true)}
+                        showMyLocation={true}
                       />
                       {/* RELOCATED SMALL ADD DESTINATION BUTTON INSIDE FIELD */}
                       <button
@@ -1599,8 +1828,7 @@ export default function HeroSection() {
                         }}
                         onFocusStyle={{ background: "rgba(13,148,136,0.15)", borderColor: "#0d9488" }}
                         onBlurStyle={{ background: "rgba(13,148,136,0.08)", borderColor: "rgba(13,148,136,0.3)" }}
-                        showMyLocation={!isMyLocationUsed}
-                        onMyLocationUsed={() => setIsMyLocationUsed(true)}
+                        showMyLocation={true}
                       />
                       <button
                         onClick={() => removeDestination(index)}
@@ -1652,7 +1880,7 @@ export default function HeroSection() {
                       <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "white" }} />
                     </div>
                     <LocationInput
-                      value={formData.dropoffLocation}
+                      value={formData.tripType === 'Return' ? 'Same as Pickup Location' : formData.dropoffLocation}
                       onChange={(val) => handleChange('dropoffLocation', val)}
                       onSelect={(lat, lon) => {
                         console.log('[Dropoff] coords:', lat, lon);
@@ -1660,22 +1888,23 @@ export default function HeroSection() {
                       }}
                       onManualType={() => { setDropoffCoords(null); setRouteDistance(null); }}
                       placeholder="Drop-off location"
+                      disabled={formData.tripType === 'Return'}
                       inputStyle={{
                         flex: 1,
                         padding: "0.6rem 0.85rem",
-                        background: "rgba(239,68,68,0.08)",
+                        background: formData.tripType === 'Return' ? "rgba(224,224,224,0.15)" : "rgba(239,68,68,0.08)",
                         backdropFilter: "blur(12px)",
-                        border: "1.5px solid rgba(239,68,68,0.35)",
+                        border: formData.tripType === 'Return' ? "1.5px solid rgba(0,0,0,0.1)" : "1.5px solid rgba(239,68,68,0.35)",
                         borderRadius: "8px",
-                        color: "#000000",
+                        color: formData.tripType === 'Return' ? "#666666" : "#000000",
                         fontFamily: "'Montserrat', sans-serif",
                         fontSize: "0.82rem",
                         outline: "none",
+                        fontWeight: formData.tripType === 'Return' ? 600 : 400,
                       }}
                       onFocusStyle={{ background: "rgba(239,68,68,0.15)", borderColor: "#ef4444" }}
-                      onBlurStyle={{ background: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.35)" }}
-                      showMyLocation={!isMyLocationUsed}
-                      onMyLocationUsed={() => setIsMyLocationUsed(true)}
+                      onBlurStyle={{ background: formData.tripType === 'Return' ? "rgba(224,224,224,0.15)" : "rgba(239,68,68,0.08)", borderColor: formData.tripType === 'Return' ? "rgba(0,0,0,0.1)" : "rgba(239,68,68,0.35)" }}
+                      showMyLocation={formData.tripType !== 'Return'}
                     />
                   </div>{/* end of dropoff row */}
 
@@ -1773,92 +2002,32 @@ export default function HeroSection() {
                   >
                     DAYS
                   </label>
-                  <div className="hidden sm:block">
-                    <input
-                      type="number"
-                      min={formData.tripType === 'Drop' ? "0" : "1"}
-                      disabled={formData.tripType === 'Drop'}
-                      value={formData.numberOfDays}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "") {
-                          handleChange('numberOfDays', "");
-                        } else {
-                          handleChange('numberOfDays', parseInt(val));
-                        }
-                      }}
-                      onFocus={(e) => {
-                        if (formData.tripType !== 'Drop') {
-                          e.currentTarget.style.background = "rgba(13,148,136,0.1)";
-                          e.currentTarget.style.borderColor = "#0d9488";
-                        }
-                        if (formData.numberOfDays === 0) {
-                          handleChange('numberOfDays', "");
-                        }
-                      }}
-                      onBlur={(e) => {
-                        if (formData.tripType !== 'Drop') {
-                          e.currentTarget.style.background = "rgba(255,255,255,0.16)";
-                          e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)";
-                        }
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "0.7rem 0.9rem",
-                        background: formData.tripType === 'Drop' ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.16)",
-                        backdropFilter: "blur(12px)",
-                        border: "1.5px solid rgba(255,255,255,0.45)",
-                        borderRadius: "10px",
-                        color: formData.tripType === 'Drop' ? "rgba(0,0,0,0.4)" : "#000000",
-                        fontFamily: "'Montserrat', sans-serif",
-                        fontSize: "0.85rem",
-                        outline: "none",
-                        cursor: formData.tripType === 'Drop' ? "not-allowed" : "text",
-                        opacity: formData.tripType === 'Drop' ? 0.6 : 1,
-                      }}
-                    />
-                  </div>
-
-                  <div className="block sm:hidden" style={{ position: 'relative' }}>
-                    <select
-                      disabled={formData.tripType === 'Drop'}
-                      value={formData.numberOfDays}
-                      onChange={(e) => handleChange('numberOfDays', parseInt(e.target.value))}
-                      style={{
-                        width: "100%",
-                        padding: "0.7rem 0.9rem",
-                        background: formData.tripType === 'Drop' ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.16)",
-                        backdropFilter: "blur(12px)",
-                        border: "1.5px solid rgba(255,255,255,0.45)",
-                        borderRadius: "10px",
-                        color: formData.tripType === 'Drop' ? "rgba(0,0,0,0.4)" : "#000000",
-                        fontFamily: "'Montserrat', sans-serif",
-                        fontSize: "0.88rem",
-                        outline: "none",
-                        appearance: "none",
-                        cursor: formData.tripType === 'Drop' ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      <option value="" disabled>Select Days</option>
-                      {formData.tripType === 'Drop' ? (
-                        <option value="0">0 Days</option>
-                      ) : (
-                        Array.from({ length: 30 }, (_, i) => i + 1).map(num => (
-                          <option key={num} value={num}>{num} {num === 1 ? 'Day' : 'Days'}</option>
-                        ))
-                      )}
-                    </select>
-                    <div style={{
-                      position: 'absolute',
-                      right: '10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      pointerEvents: 'none',
-                      color: '#0d9488',
-                      fontSize: '0.8rem'
-                    }}>
-                      ▼
-                    </div>
+                  <div 
+                    onClick={() => {
+                      if (formData.tripType !== 'Drop') {
+                        setTempDays(formData.numberOfDays || 1);
+                        setOpenDayPicker(true);
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "0.8rem 1rem",
+                      background: formData.tripType === 'Drop' ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.16)",
+                      backdropFilter: "blur(12px)",
+                      border: "1.5px solid rgba(255,255,255,0.45)",
+                      borderRadius: "10px",
+                      color: formData.tripType === 'Drop' ? "rgba(0,0,0,0.4)" : "#000000",
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontSize: "0.85rem",
+                      cursor: formData.tripType === 'Drop' ? "not-allowed" : "pointer",
+                      opacity: formData.tripType === 'Drop' ? 0.6 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      minHeight: '44px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {formData.tripType === 'Drop' ? '0 Days' : (formData.numberOfDays ? `${formData.numberOfDays} ${formData.numberOfDays === 1 ? 'Day' : 'Days'}` : 'Select Days')}
                   </div>
                 </div>
               </div>
@@ -1866,7 +2035,13 @@ export default function HeroSection() {
               <div style={{ display: "flex", justifyContent: "center", marginTop: "4px", marginBottom: "12px" }}>
                 <button
                   type="button"
-                  onClick={() => setOpenPromoDialog(true)}
+                  onClick={() => {
+                    if (!user) {
+                      setShowLoginAlert(true);
+                    } else {
+                      setOpenPromoDialog(true);
+                    }
+                  }}
                   style={{
                     background: "transparent",
                     border: "none",
@@ -1895,6 +2070,43 @@ export default function HeroSection() {
                   Add promo code
                 </button>
               </div>
+
+              {/* View Summary Button (Mobile Only) - Only visible when form is complete */}
+              {formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime && (
+                <div className="flex lg:hidden justify-center" style={{ marginBottom: '16px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('booking-summary-rate-area');
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                    style={{
+                      background: "rgba(13,148,136,0.1)",
+                      border: "1.5px solid rgba(13,148,136,0.5)",
+                      color: "#0d9488",
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      padding: "10px 24px",
+                      borderRadius: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      transition: "all 0.25s ease",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 13l5 5 5-5M7 6l5 5 5-5" />
+                    </svg>
+                    View Summary
+                  </button>
+                </div>
+              )}
 
 
 
@@ -2060,7 +2272,7 @@ export default function HeroSection() {
                       <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>📍</span>
                       <div style={{ flexGrow: 1 }}>
                         <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>
-                          Route Distance{formData.tripType === 'Return' ? ' (×2 return)' : ''}
+                          Route Distance
                         </div>
                         {routeLoading ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
@@ -2069,14 +2281,48 @@ export default function HeroSection() {
                           </div>
                         ) : (
                           <>
-                            <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.1rem', fontWeight: 700, color: '#111827' }}>
-                              {((routeDistance! / 1000) * (formData.tripType === 'Return' ? 2 : 1)).toFixed(1)} km
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.1rem', fontWeight: 700, color: '#111827' }}>
+                                {(routeDistance! / 1000).toFixed(1)} km
+                              </div>
+                              <button
+                                onClick={handleViewDirections}
+                                className="group flex items-center gap-1.5"
+                                style={{
+                                  padding: '4px 10px',
+                                  fontSize: '0.68rem',
+                                  background: 'rgba(13,148,136,0.08)',
+                                  border: '1.5px solid rgba(13,148,136,0.35)',
+                                  borderRadius: '8px',
+                                  color: '#0d9488',
+                                  cursor: 'pointer',
+                                  fontFamily: "'Montserrat', sans-serif",
+                                  fontWeight: 700,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em',
+                                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = '#0d9488';
+                                  e.currentTarget.style.color = '#fff';
+                                  e.currentTarget.style.transform = 'translateY(-1px)';
+                                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(13,148,136,0.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'rgba(13,148,136,0.08)';
+                                  e.currentTarget.style.color = '#0d9488';
+                                  e.currentTarget.style.transform = 'translateY(0)';
+                                  e.currentTarget.style.boxShadow = 'none';
+                                }}
+                              >
+                                <MapIcon sx={{ fontSize: '0.9rem' }} />
+                                View
+                              </button>
                             </div>
                             {routeDuration !== null && (
                               <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.75rem', color: '#4b5563', marginTop: '2px' }}>
                                 Estimated Drive: {(() => {
-                                  const mult = formData.tripType === 'Return' ? 2 : 1;
-                                  const d = routeDuration * mult;
+                                  const d = routeDuration;
                                   return d >= 3600
                                     ? `${Math.floor(d / 3600)}h ${Math.round((d % 3600) / 60)}m`
                                     : `${Math.round(d / 60)} min`;
@@ -2091,7 +2337,9 @@ export default function HeroSection() {
 
                   {/* Price Estimate (Highlighted) */}
                   {formData.pickupLocation && formData.dropoffLocation && (formData.vehicleType === 'SUV' || formData.tripType) && (
-                    <div style={{
+                    <div 
+                      id="booking-summary-rate-area"
+                      style={{
                       marginTop: '8px',
                       padding: '16px',
                       background: 'rgba(13,148,136,0.06)',
@@ -2197,6 +2445,30 @@ export default function HeroSection() {
                       )}
                     </div>
                   )}
+
+                  {/* Policy and Conditions Link */}
+                  <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+                    <button
+                      onClick={() => setOpenPolicyDialog(true)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#6b7280',
+                        fontSize: '0.72rem',
+                        fontFamily: "'Montserrat', sans-serif",
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        textUnderlineOffset: '3px',
+                        letterSpacing: '0.02em',
+                        transition: 'color 0.2s',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = '#0d9488'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = '#6b7280'}
+                    >
+                      Privacy Policies & Terms and Conditions
+                    </button>
+                  </div>
 
                   {/* CTA button (RELOCATED TO SUMMARY CARD) */}
                   <div style={{ marginTop: "1rem" }}>
@@ -2851,24 +3123,50 @@ export default function HeroSection() {
               </p>
 
               <button
-                onClick={() => {
-                  setOpenPersonalDialog(false);
-                  setTimeout(() => setRequestSent(false), 500);
-                }}
+                onClick={downloadTripSummary}
                 style={{
                   marginTop: '1rem',
-                  padding: '0.8rem 2rem',
+                  padding: '1rem 2rem',
                   background: '#0d9488',
                   color: '#fff',
                   border: 'none',
-                  borderRadius: '12px',
-                  fontWeight: 600,
+                  borderRadius: '16px',
+                  fontWeight: 700,
                   fontFamily: "'Montserrat', sans-serif",
                   cursor: 'pointer',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  boxShadow: '0 8px 24px rgba(13, 148, 136, 0.25)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 12px 32px rgba(13, 148, 136, 0.35)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 8px 24px rgba(13, 148, 136, 0.25)";
                 }}
               >
-                Close
+                <Download size={20} />
+                Download Trip Summary
+              </button>
+
+              <button
+                onClick={() => setOpenPolicyDialog(true)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '0.75rem',
+                  fontFamily: "'Montserrat', sans-serif",
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  marginTop: '0.5rem'
+                }}
+              >
+                View Policies & Conditions
               </button>
             </div>
           ) : (
@@ -3514,6 +3812,126 @@ export default function HeroSection() {
         </DialogContent>
       </Dialog>
 
+      {/* ─── DAY PICKER DIALOG ─── */}
+      <Dialog
+        open={openDayPicker}
+        onClose={() => setOpenDayPicker(false)}
+        PaperProps={{
+          sx: {
+            width: '95%',
+            maxWidth: 350,
+            borderRadius: '24px',
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.15)',
+            border: '1px solid rgba(13,148,136,0.1)',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <Box sx={{
+          p: 3,
+          background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%)',
+          borderBottom: '1px solid rgba(13,148,136,0.12)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Typography sx={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            color: '#111827'
+          }}>
+            Select Days
+          </Typography>
+          <IconButton onClick={() => setOpenDayPicker(false)}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        <DialogContent sx={{ p: 4, textAlign: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '20px',
+              background: 'rgba(13,148,136,0.05)',
+              padding: '1.5rem',
+              borderRadius: '20px',
+              border: '1px solid rgba(13,148,136,0.1)',
+              width: '100%'
+            }}>
+              <IconButton 
+                onClick={() => setTempDays(prev => Math.max(1, prev - 1))}
+                sx={{ 
+                  color: '#0d9488', 
+                  background: 'white', 
+                  '&:hover': { background: '#f0fdfa' },
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                }}
+              >
+                <RemoveCircle />
+              </IconButton>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span style={{ 
+                  fontSize: '2.5rem', 
+                  fontWeight: 800, 
+                  color: '#0d9488',
+                  fontFamily: "'Montserrat', sans-serif"
+                }}>
+                  {tempDays}
+                </span>
+                <span style={{ 
+                  fontSize: '0.8rem', 
+                  fontWeight: 600, 
+                  color: '#64748b',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em'
+                }}>
+                  {tempDays === 1 ? 'Day' : 'Days'}
+                </span>
+              </div>
+
+              <IconButton 
+                onClick={() => setTempDays(prev => Math.min(30, prev + 1))}
+                sx={{ 
+                  color: '#0d9488', 
+                  background: 'white', 
+                  '&:hover': { background: '#f0fdfa' },
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                }}
+              >
+                <AddCircle />
+              </IconButton>
+            </div>
+
+            <button
+              onClick={() => {
+                handleChange('numberOfDays', tempDays);
+                setOpenDayPicker(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '1.1rem',
+                background: '#0d9488',
+                color: 'white',
+                border: 'none',
+                borderRadius: '16px',
+                fontWeight: 600,
+                fontSize: '1rem',
+                cursor: 'pointer',
+                boxShadow: '0 8px 20px rgba(13,148,136,0.2)',
+                transition: 'all 0.3s'
+              }}
+            >
+              Confirm Selection
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* KEYFRAMES */}
       <style>{`
 
@@ -3573,6 +3991,212 @@ export default function HeroSection() {
           pointer-events: none;
         }
       `}</style>
+      {/* ─── LOGIN REQUIREMENT ALERT ─── */}
+      <Dialog
+        open={showLoginAlert}
+        onClose={() => setShowLoginAlert(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            padding: '10px',
+            textAlign: 'center',
+            maxWidth: '320px'
+          }
+        }}
+      >
+        <DialogContent>
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              borderRadius: '50%',
+              background: 'rgba(13,148,136,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <AccountCircle sx={{ color: '#0d9488', fontSize: '30px' }} />
+            </div>
+          </Box>
+          <Typography sx={{ mb: 2, fontWeight: 700, fontFamily: "'Montserrat', sans-serif", color: '#111827' }}>
+            Login Required
+          </Typography>
+          <Typography sx={{ mb: 3, color: '#6b7280', fontSize: '0.9rem', fontFamily: "'Montserrat', sans-serif", lineHeight: 1.5 }}>
+            Login to the Senu Tours to use promo code
+          </Typography>
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={() => {
+              setShowLoginAlert(false);
+              setOpenAuthModal(true);
+            }}
+            sx={{
+              bgcolor: '#0d9488',
+              borderRadius: '12px',
+              '&:hover': { bgcolor: '#0f766e' },
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: '0.95rem',
+              py: 1.2,
+              boxShadow: '0 4px 12px rgba(13,148,136,0.3)'
+            }}
+          >
+            OK
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── AUTH MODAL ─── */}
+      <AuthModal 
+        open={openAuthModal} 
+        onClose={() => setOpenAuthModal(false)} 
+      />
+
+      {/* ─── ROUTE VIEWER ─── */}
+      <RouteViewer
+        open={openRouteViewer}
+        onClose={() => setOpenRouteViewer(false)}
+        origin={formData.pickupLocation}
+        destination={formData.dropoffLocation}
+        waypoints={destinations}
+        apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc"
+      />
+
+      {/* ─── POLICY DIALOG ─── */}
+      <Dialog
+        open={openPolicyDialog}
+        onClose={() => setOpenPolicyDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '24px',
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.15)',
+            border: '1px solid rgba(13,148,136,0.1)',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: '1.75rem',
+          fontWeight: 700,
+          color: '#2D231B',
+          background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          pb: 2
+        }}>
+          Policies & Conditions
+          <IconButton
+            onClick={() => setOpenPolicyDialog(false)}
+            sx={{ color: '#9ca3af', '&:hover': { color: '#ef4444' } }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 4, mt: 1 }}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" sx={{ 
+              fontFamily: "'Montserrat', sans-serif", 
+              fontWeight: 700, 
+              color: '#0d9488', 
+              mb: 2, 
+              fontSize: '1.1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              Privacy Policy
+            </Typography>
+            <Typography sx={{ 
+              fontFamily: "'Montserrat', sans-serif", 
+              fontSize: '0.9rem', 
+              color: '#4b5563', 
+              lineHeight: 1.7 
+            }}>
+              At Senu Tours, we prioritize your privacy. The information we collect (name, email, phone number, and location) is used exclusively for facilitating your bookings and providing personalized travel recommendations. We implement industry-standard security measures to protect your personal data and do not share it with third parties unless required for service fulfillment.
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="h6" sx={{ 
+              fontFamily: "'Montserrat', sans-serif", 
+              fontWeight: 700, 
+              color: '#0d9488', 
+              mb: 2, 
+              fontSize: '1.1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              Terms & Conditions
+            </Typography>
+            <Box component="ul" sx={{ 
+              m: 0, 
+              p: 0, 
+              listStyle: 'none',
+              '& li': {
+                position: 'relative',
+                pl: 3,
+                mb: 1.5,
+                fontFamily: "'Montserrat', sans-serif",
+                fontSize: '0.88rem',
+                color: '#4b5563',
+                lineHeight: 1.6,
+                '&::before': {
+                  content: '"•"',
+                  position: 'absolute',
+                  left: 0,
+                  color: '#0d9488',
+                  fontWeight: 'bold'
+                }
+              }
+            }}>
+              <li>All bookings are subject to vehicle availability and confirmation by our team.</li>
+              <li>Calculated price estimates are based on standard routes; deviations may result in additional charges.</li>
+              <li>Wait time charges apply if the delay exceeds 30 minutes from the scheduled pickup time.</li>
+              <li>Cancellations made less than 2 hours before the scheduled pickup may incur a nominal fee.</li>
+              <li>Passengers must adhere to the specified luggage and seating capacity for each vehicle type.</li>
+            </Box>
+          </Box>
+        </DialogContent>
+        <Box sx={{ p: 3, pt: 1, textAlign: 'center', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+          <Button 
+            onClick={() => setOpenPolicyDialog(false)}
+            variant="contained"
+            sx={{
+              background: '#0d9488',
+              borderRadius: '12px',
+              px: 4,
+              py: 1.2,
+              fontFamily: "'Montserrat', sans-serif",
+              fontWeight: 700,
+              textTransform: 'none',
+              boxShadow: '0 4px 12px rgba(13,148,136,0.25)',
+              '&:hover': { background: '#0f766e', boxShadow: '0 6px 16px rgba(13,148,136,0.35)' }
+            }}
+          >
+            I Understand
+          </Button>
+        </Box>
+      </Dialog>
+
+
     </section >
   );
 }

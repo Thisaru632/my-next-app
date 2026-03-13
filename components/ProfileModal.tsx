@@ -161,7 +161,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
             PaperProps={{ sx: { borderRadius: '16px' } }}
         >
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 0 }}>
-                <Typography variant="h5" fontWeight="700" color="primary">My Profile</Typography>
+                <Typography variant="h5" component="span" fontWeight="700" color="primary">My Profile</Typography>
                 <IconButton onClick={onClose} size="small"><CloseIcon /></IconButton>
             </DialogTitle>
 
