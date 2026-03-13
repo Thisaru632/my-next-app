@@ -1290,12 +1290,21 @@ export default function HeroSection() {
       return a.hrs - b.hrs; // Priority: smaller hours among same KM
     });
 
-    // 4. If we have distance, find the package that covers it (next recent package)
+    // 4. If we have distance, find the base package
     if (routeDistance !== null) {
-      const coverMatch = sortedCards.find(card => card.km >= distanceInKm);
-      const bestMatch = coverMatch || sortedCards[sortedCards.length - 1];
-      console.log('[Pricing] Successfully matched rate card:', bestMatch);
-      return bestMatch;
+      // Pick the base package (the one with the highest KM limit that is still <= distance, or the first package)
+      // Find the highest KM limit that is still <= current distance
+      const possibleKms = sortedCards.filter(card => card.km <= distanceInKm).map(card => card.km);
+      const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
+      
+      // Since sortedCards is (KM asc, Hours asc), the first card matching maxKMBelow
+      // will automatically be the one with minimum hours.
+      const bestMatch = maxKMBelow !== null 
+        ? sortedCards.find(card => card.km === maxKMBelow) 
+        : sortedCards[0];
+
+      console.log('[Pricing] Successfully matched base package (Min Hours):', bestMatch);
+      return bestMatch || sortedCards[0];
     }
 
     // Default to first package if distance not yet available
@@ -1413,9 +1422,31 @@ export default function HeroSection() {
 
   // Final Price Selection
   // Use matched package rate if available, otherwise fall back to old logic
-  const basePriceBeforeAdjustment = (matchedPackage
-    ? matchedPackage.rateAmount
-    : (routeDistance !== null ? estimatedRoutePrice : (basePricePerDay * formData.numberOfDays)));
+  const basePriceBeforeAdjustment = (() => {
+    if (!matchedPackage) {
+      return (routeDistance !== null ? estimatedRoutePrice : (basePricePerDay * formData.numberOfDays));
+    }
+
+    let price = matchedPackage.rateAmount;
+
+    // Add extra KM if distance exceeds package limit (Universal logic)
+    if (distanceInKm > matchedPackage.km) {
+      const extraKm = Math.ceil(distanceInKm - matchedPackage.km);
+      price += extraKm * matchedPackage.extraKMRate;
+    }
+    
+    return price;
+  })();
+
+  const extraKmDetail = (() => {
+    if (!matchedPackage || distanceInKm <= matchedPackage.km) return null;
+    
+    const extraKm = Math.ceil(distanceInKm - matchedPackage.km);
+    return {
+      km: extraKm,
+      cost: extraKm * matchedPackage.extraKMRate
+    };
+  })();
 
   const displayPrice = basePriceBeforeAdjustment * adjustmentMultiplier;
 
@@ -2392,12 +2423,34 @@ export default function HeroSection() {
                               </span>
                             )}
                           </div>
-                          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#6b7280', marginTop: '4px' }}>
-                            {matchedPackage ? (
-                              formData.tripType === 'Drop'
-                                ? `*Price for ${matchedPackage?.km} km package. `
-                                : `*Price for ${matchedPackage?.km} km & ${matchedPackage?.hrs} hrs package. `
-                            ) : ''}*Actual price may vary based on route changes.
+
+                          {/* Extra KM Charge Breakdown (Internal) */}
+                          {extraKmDetail && (
+                            <div style={{
+                              marginTop: '4px',
+                              padding: '6px 10px',
+                              background: 'rgba(13,148,136,0.06)',
+                              borderRadius: '6px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}>
+                              <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#4b5563', fontWeight: 600 }}>
+                                Extra KM: {extraKmDetail.km} km @ LKR {matchedPackage?.extraKMRate}/km
+                              </span>
+                              <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 700 }}>
+                                + LKR {extraKmDetail.cost.toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#6b7280', marginTop: '4px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            {matchedPackage && formData.tripType !== 'Drop' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ fontSize: '0.85rem' }}>ℹ️</span>
+                                <span style={{ fontWeight: 600 }}>{matchedPackage.hrs} Free Hours.</span>
+                              </div>
+                            )}
+                            <span>*Actual price may vary based on route changes.</span>
                           </div>
                         </>
                       )}

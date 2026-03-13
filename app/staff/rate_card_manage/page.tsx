@@ -1111,7 +1111,7 @@ const RateCardManagePage = () => {
                     Expected CSV Headers
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                    Type, Vehicle, Days, KM, Hrs, Rate %, Rate, Extra KM, Ext Hrs... (Mapping handles variations like "Basic Rate" or "Amount")
+                    Type, Vehicle, Days, KM, Hrs, Rate %, Rate, Extra KM (or KM Rate/Price-KM), Ext Hrs (or Extra Hr/Price-Hr)... (Mapping handles variations like "Basic Rate" or "Amount")
                 </Typography>
             </Box>
 
