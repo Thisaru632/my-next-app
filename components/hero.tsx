@@ -546,7 +546,7 @@ const sampleVehicles = {
       { name: 'KDH Flat Roof', description: 'Classic style', maxPersons: 9, maxBags: 4 },
       { name: 'Mini Van', description: 'Compact & comfortable', maxPersons: 6, maxBags: 3 },
       { name: 'Dual AC Van', description: 'Dual climate control', maxPersons: 9, maxBags: 4 },
-      { name: 'Non-AC Van', description: 'Budget friendly', maxPersons: 14, maxBags: 4 },
+      { name: 'NON AC VAN', description: 'Budget friendly', maxPersons: 14, maxBags: 4 },
     ]
   },
   Bus: {
@@ -787,7 +787,7 @@ export default function HeroSection() {
       'Axio': 'Toyota Axio',
       'KDH Flat Roof': 'KDH Flat Roof  9 Seats',
       'Dual AC Van': 'Dual Ac 9 Seater',
-      'Non-AC Van': 'NON AC Van',
+      'NON AC VAN': 'NON AC Van',
       'AC 29 Seater': 'AC 29 Seater Bus',
       'Non-AC 29 Seater': 'Non AC 29 seater bus',
     };
