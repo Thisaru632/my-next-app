@@ -61,6 +61,8 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMenuClick, showMenuIcon }) => {
                 setNotificationCount(data.total);
             }
         } catch (e) {
+            // Silence "Failed to fetch" to avoid console noise when server is down
+            if (e instanceof TypeError && e.message === 'Failed to fetch') return;
             console.error('Error fetching notifications:', e);
         }
     };
@@ -74,6 +76,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMenuClick, showMenuIcon }) => {
                 setNotifications(data);
             }
         } catch (e) {
+            if (e instanceof TypeError && e.message === 'Failed to fetch') return;
             console.error('Error fetching notification list:', e);
         } finally {
             setNotifLoading(false);
@@ -85,15 +88,15 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMenuClick, showMenuIcon }) => {
         if (userStr) {
             try {
                 setUser(JSON.parse(userStr));
+                
+                // Only poll if authenticated
+                fetchNotifications();
+                const interval = setInterval(fetchNotifications, 30000);
+                return () => clearInterval(interval);
             } catch (e) {
                 console.error('Error parsing user:', e);
             }
         }
-
-        fetchNotifications();
-        // Poll for notifications every 30 seconds
-        const interval = setInterval(fetchNotifications, 30000);
-        return () => clearInterval(interval);
     }, []);
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {

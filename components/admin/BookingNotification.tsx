@@ -64,6 +64,8 @@ export default function BookingNotification() {
                     }
                 }
             } catch (error) {
+                // Silence "Failed to fetch" to avoid console noise when server is down
+                if (error instanceof TypeError && error.message === 'Failed to fetch') return;
                 console.error('Error checking for new bookings:', error);
             }
         };
