@@ -15,6 +15,8 @@ import {
   Box,
   Typography,
   CircularProgress,
+  Tooltip,
+  Zoom,
 } from '@mui/material';
 import {
   DirectionsBus,
@@ -54,6 +56,7 @@ import { useUser } from '@/context/UserContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download } from 'lucide-react';
+import { getHolidayName, isPoyaDay, isWeekend } from '@/config/holidays';
 interface PromoCode {
   _id: string;
   code: string;
@@ -125,38 +128,98 @@ function CustomCalendar({
       const isToday = new Date().toDateString() === current.toDateString();
       const isSelected = selectedDateObj && current.toDateString() === selectedDateObj.toDateString();
       const isDisabled = current < minDateObj;
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const holidayName = getHolidayName(dateStr);
+      const isPoya = isPoyaDay(dateStr);
+      const isHoliday = !!holidayName;
+      const isSatSun = isWeekend(current);
+
+      const dayLabel = holidayName || (isSatSun ? (current.getDay() === 0 ? 'Sunday' : 'Saturday') : '');
 
       days.push(
-        <button
-          key={d}
-          disabled={isDisabled}
-          onClick={() => {
-            const formatted = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            onSelect(formatted);
-          }}
-          style={{
-            width: '100%',
-            aspectRatio: '1/1',
-            borderRadius: '10px',
-            border: 'none',
-            outline: 'none',
-            background: isSelected ? '#0d9488' : isToday ? 'rgba(13,148,136,0.1)' : 'transparent',
-            color: isSelected ? 'white' : isDisabled ? '#d1d5db' : isToday ? '#0d9488' : '#374151',
-            fontWeight: isSelected || isToday ? 700 : 500,
-            fontSize: '0.8rem',
-            cursor: isDisabled ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            position: 'relative'
-          }}
+        <Tooltip 
+          key={d} 
+          title={dayLabel} 
+          arrow 
+          TransitionComponent={Zoom}
+          enterTouchDelay={0}
+          placement="top"
         >
-          {d}
-          {isToday && !isSelected && (
-            <div style={{ position: 'absolute', bottom: '10%', width: '4px', height: '4px', borderRadius: '50%', background: '#0d9488' }} />
-          )}
-        </button>
+          <button
+            disabled={isDisabled}
+            onClick={() => {
+              const formatted = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+              onSelect(formatted);
+            }}
+            style={{
+              width: '100%',
+              aspectRatio: '1/1',
+              borderRadius: '10px',
+              border: 'none',
+              outline: 'none',
+              background: isSelected 
+                ? '#0d9488' 
+                : isToday 
+                  ? 'rgba(13,148,136,0.1)' 
+                  : isPoya 
+                    ? 'rgba(234, 179, 8, 0.1)' 
+                    : isHoliday 
+                      ? 'rgba(239, 68, 68, 0.05)'
+                      : isSatSun 
+                        ? 'rgba(0,0,0,0.03)' 
+                        : 'transparent',
+              color: isSelected 
+                ? 'white' 
+                : isDisabled 
+                  ? '#d1d5db' 
+                  : isPoya 
+                    ? '#ca8a04' 
+                    : isHoliday 
+                      ? '#dc2626' 
+                      : isSatSun 
+                        ? '#6b7280' 
+                        : isToday 
+                          ? '#0d9488' 
+                          : '#374151',
+              fontWeight: isSelected || isToday || isPoya || isHoliday ? 700 : 500,
+              fontSize: '0.8rem',
+              cursor: isDisabled ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative'
+            }}
+          >
+            <span style={{ position: 'relative', zIndex: 1 }}>{d}</span>
+            
+            <div style={{ display: 'flex', gap: '2px', position: 'absolute', bottom: '15%' }}>
+              {isToday && !isSelected && (
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#0d9488' }} />
+              )}
+              {isPoya && !isSelected && (
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#eab308' }} />
+              )}
+              {isHoliday && !isPoya && !isSelected && (
+                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#ef4444' }} />
+              )}
+            </div>
+
+            {/* Special indicator for Poya and major holidays */}
+            {(isPoya || isHoliday) && !isSelected && (
+               <div style={{
+                 position: 'absolute',
+                 top: '4px',
+                 right: '4px',
+                 width: '5px',
+                 height: '5px',
+                 borderRadius: '50%',
+                 background: isPoya ? '#eab308' : '#ef4444'
+               }} />
+            )}
+          </button>
+        </Tooltip>
       );
     }
     return days;
@@ -186,6 +249,32 @@ function CustomCalendar({
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
         {renderDays()}
+      </div>
+
+      {/* Legend */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '12px', 
+        marginTop: '16px', 
+        paddingTop: '12px',
+        borderTop: '1px solid rgba(0,0,0,0.05)',
+        fontSize: '0.65rem', 
+        color: '#6b7280', 
+        flexWrap: 'wrap',
+        justifyContent: 'center'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#0d9488' }} /> Today
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#eab308' }} /> Poya
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} /> Holiday
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ width: '10px', height: '6px', background: 'rgba(0,0,0,0.05)', borderRadius: '2px' }} /> Weekend
+        </div>
       </div>
     </div>
   );
@@ -552,7 +641,7 @@ const sampleVehicles = {
   Bus: {
     models: [
       { name: 'AC 29 Seater', description: 'Air conditioned comfort', maxPersons: 29, maxBags: 8 },
-      { name: 'Non-AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 8 },
+      { name: 'Non AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 8 },
     ]
   },
   SUV: {
@@ -652,6 +741,8 @@ export default function HeroSection() {
   const [showLoginAlert, setShowLoginAlert] = useState(false);
   const [openRouteViewer, setOpenRouteViewer] = useState(false);
   const [openPolicyDialog, setOpenPolicyDialog] = useState(false);
+  const [submittedBookingData, setSubmittedBookingData] = useState<any>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
 
   // Intermediate destinations state
@@ -789,7 +880,7 @@ export default function HeroSection() {
       'Dual AC Van': 'Dual Ac 9 Seater',
       'NON AC VAN': 'NON AC Van',
       'AC 29 Seater': 'AC 29 Seater Bus',
-      'Non-AC 29 Seater': 'Non AC 29 seater bus',
+      'Non AC 29 Seater': 'Non AC 29 seater bus',
     };
     return mapping[modelName] || modelName;
   };
@@ -1064,6 +1155,27 @@ export default function HeroSection() {
     setOpenPersonalDialog(true);
   };
 
+  const handleClosePersonalDialog = () => {
+    // If request was already sent, just close and reset
+    if (requestSent) {
+      setOpenPersonalDialog(false);
+      setTimeout(() => {
+        setRequestSent(false);
+        setSubmittedBookingData(null);
+      }, 300);
+      return;
+    }
+
+    // Check if user has entered any info
+    const hasEnteredInfo = formData.name?.trim() || formData.telephone?.trim() || formData.email?.trim() || formData.remark?.trim() || formData.additionalPhones.some(p => p.trim());
+
+    if (hasEnteredInfo) {
+      setShowCloseConfirm(true);
+    } else {
+      setOpenPersonalDialog(false);
+    }
+  };
+
   const downloadTripSummary = () => {
     const doc = new jsPDF();
     const primaryColor: [number, number, number] = [13, 148, 136]; // #0d9488
@@ -1089,19 +1201,27 @@ export default function HeroSection() {
     doc.line(14, 60, 60, 60);
 
     // --- Trip Details Table ---
+    const data = submittedBookingData || {
+      formData,
+      destinations,
+      totalPrice,
+      rawTotalPrice,
+      appliedPromo
+    };
+
     const tableData = [
-      ["Vehicle Type", formData.vehicleType],
-      ["Vehicle Name", formData.vehicleName || "Not Selected"],
-      ["Trip Type", formData.tripType],
-      ["Pickup Date", formData.dateTime ? new Date(formData.dateTime).toLocaleDateString() : 'N/A'],
-      ["Pickup Time", formData.dateTime ? new Date(formData.dateTime).toLocaleTimeString() : 'N/A'],
-      ["Duration", formData.numberOfDays ? `${formData.numberOfDays} ${formData.numberOfDays === 1 ? 'Day' : 'Days'}` : '0 days'],
-      ["Pickup Location", formData.pickupLocation],
-      ["Drop-off Location", formData.dropoffLocation]
+      ["Vehicle Type", data.formData.vehicleType],
+      ["Vehicle Name", data.formData.vehicleName || "Not Selected"],
+      ["Trip Type", data.formData.tripType],
+      ["Pickup Date", data.formData.dateTime ? new Date(data.formData.dateTime).toLocaleDateString() : 'N/A'],
+      ["Pickup Time", data.formData.dateTime ? new Date(data.formData.dateTime).toLocaleTimeString() : 'N/A'],
+      ["Duration", data.formData.numberOfDays ? `${data.formData.numberOfDays} ${data.formData.numberOfDays === 1 ? 'Day' : 'Days'}` : '0 days'],
+      ["Pickup Location", data.formData.pickupLocation],
+      ["Drop-off Location", data.formData.dropoffLocation]
     ];
 
-    if (destinations.length > 0) {
-      destinations.filter(d => d.trim() !== "").forEach((stop, i) => {
+    if (data.destinations.length > 0) {
+      data.destinations.filter((d: string) => d.trim() !== "").forEach((stop: string, i: number) => {
         tableData.push([`Stop ${i + 1}`, stop]);
       });
     }
@@ -1123,15 +1243,15 @@ export default function HeroSection() {
     doc.text("Estimated Price", 14, finalY);
 
     const priceData = [
-      ["Base Price", `LKR ${rawTotalPrice.toLocaleString()}`]
+      ["Base Price", `LKR ${data.rawTotalPrice.toLocaleString()}`]
     ];
 
-    if (appliedPromo) {
-      const disc = appliedPromo.discountType === 'Percentage' ? `${appliedPromo.discountValue}%` : `LKR ${appliedPromo.discountValue.toLocaleString()}`;
-      priceData.push([`Promo Discount (${appliedPromo.code})`, `- ${disc}`]);
+    if (data.appliedPromo) {
+      const disc = data.appliedPromo.discountType === 'Percentage' ? `${data.appliedPromo.discountValue}%` : `LKR ${data.appliedPromo.discountValue.toLocaleString()}`;
+      priceData.push([`Promo Discount (${data.appliedPromo.code})`, `- ${disc}`]);
     }
 
-    priceData.push(["Total Estimate", `LKR ${totalPrice.toLocaleString()}`]);
+    priceData.push(["Total Estimate", `LKR ${data.totalPrice.toLocaleString()}`]);
 
     autoTable(doc, {
       startY: finalY + 5,
@@ -1157,8 +1277,7 @@ export default function HeroSection() {
     doc.save(`Senu_Tours_Trip_Summary_${new Date().getTime()}.pdf`);
     
     // Also trigger the final reset
-    setOpenPersonalDialog(false);
-    setTimeout(() => setRequestSent(false), 500);
+    handleClosePersonalDialog();
   };
 
   const handleSendRequest = async () => {
@@ -1182,6 +1301,15 @@ export default function HeroSection() {
       });
 
       if (response.ok) {
+        // Capture summary data BEFORE clearing form
+        setSubmittedBookingData({
+          formData: { ...formData },
+          destinations: [...destinations],
+          totalPrice,
+          rawTotalPrice,
+          appliedPromo
+        });
+
         setRequestSent(true);
         // setSnackbarMessage('Thank you for sending request. We will contact you shortly!');
         // setSnackbarSeverity('success');
@@ -3098,7 +3226,7 @@ export default function HeroSection() {
 
       <Dialog
         open={openPersonalDialog}
-        onClose={() => setOpenPersonalDialog(false)}
+        onClose={handleClosePersonalDialog}
         PaperProps={{
           sx: {
             width: '95%',
@@ -3125,7 +3253,7 @@ export default function HeroSection() {
         }}>
           Almost There
           <IconButton
-            onClick={() => setOpenPersonalDialog(false)}
+            onClick={handleClosePersonalDialog}
             sx={{ color: 'rgba(0,0,0,0.4)', '&:hover': { color: '#ef4444' } }}
           >
             <CloseIcon />
@@ -3653,6 +3781,25 @@ export default function HeroSection() {
                   // adding automatic transition for better UX.
                 }}
               />
+              {tempDate && getHolidayName(tempDate) && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '10px 14px',
+                  background: isPoyaDay(tempDate) ? 'rgba(234, 179, 8, 0.1)' : 'rgba(239, 68, 68, 0.08)',
+                  borderRadius: '12px',
+                  border: `1px solid ${isPoyaDay(tempDate) ? 'rgba(234, 179, 8, 0.3)' : 'rgba(239, 68, 68, 0.2)'}`,
+                  color: isPoyaDay(tempDate) ? '#854d0e' : '#991b1b',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontFamily: "'Montserrat', sans-serif"
+                }}>
+                  <span style={{ fontSize: '1.1rem' }}>{isPoyaDay(tempDate) ? '🌕' : '🗓️'}</span>
+                  <span>{getHolidayName(tempDate)}</span>
+                </div>
+              )}
               <button
                 onClick={() => {
                   if (tempDate) {
@@ -4245,6 +4392,93 @@ export default function HeroSection() {
             }}
           >
             I Understand
+          </Button>
+        </Box>
+      </Dialog>
+      
+      {/* ─── CLOSE CONFIRMATION DIALOG ─── */}
+      <Dialog
+        open={showCloseConfirm}
+        onClose={() => setShowCloseConfirm(false)}
+        PaperProps={{
+          sx: {
+            width: '90%',
+            maxWidth: 360,
+            borderRadius: '24px',
+            p: 1,
+            textAlign: 'center'
+          }
+        }}
+        BackdropProps={{ sx: { backdropFilter: 'blur(4px)', background: 'rgba(0,0,0,0.2)' } }}
+      >
+        <DialogContent sx={{ pt: 3, pb: 2 }}>
+          <div style={{
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            background: 'rgba(239, 68, 68, 0.1)',
+            color: '#ef4444',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 1.5rem',
+            fontSize: '2rem'
+          }}>
+            ⚠️
+          </div>
+          <Typography sx={{ 
+            fontFamily: "'Montserrat', sans-serif", 
+            fontWeight: 700, 
+            fontSize: '1.2rem', 
+            color: '#111827', 
+            mb: 1 
+          }}>
+            Are you sure?
+          </Typography>
+          <Typography sx={{ 
+            fontFamily: "'Montserrat', sans-serif", 
+            fontSize: '0.875rem', 
+            color: '#6b7280', 
+            lineHeight: 1.6 
+          }}>
+            Your entered contact information will be kept, but you will leave this step.
+          </Typography>
+        </DialogContent>
+        <Box sx={{ p: 2, display: 'flex', gap: 1.5 }}>
+          <Button 
+            fullWidth
+            onClick={() => setShowCloseConfirm(false)}
+            sx={{
+              borderRadius: '14px',
+              py: 1.2,
+              fontFamily: "'Montserrat', sans-serif",
+              fontWeight: 600,
+              color: '#6b7280',
+              textTransform: 'none',
+              '&:hover': { background: 'rgba(0,0,0,0.04)' }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            fullWidth
+            variant="contained"
+            onClick={() => {
+              setShowCloseConfirm(false);
+              setOpenPersonalDialog(false);
+            }}
+            sx={{
+              borderRadius: '14px',
+              py: 1.2,
+              background: '#ef4444',
+              fontFamily: "'Montserrat', sans-serif",
+              fontWeight: 700,
+              textTransform: 'none',
+              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)',
+              '&:hover': { background: '#dc2626', boxShadow: '0 6px 16px rgba(239, 68, 68, 0.3)' }
+            }}
+          >
+            Yes, Go Back
           </Button>
         </Box>
       </Dialog>
