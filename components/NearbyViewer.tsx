@@ -1,0 +1,328 @@
+"use client";
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { GoogleMap, useJsApiLoader, DirectionsRenderer, DirectionsService, Marker, InfoWindow } from '@react-google-maps/api';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Box,
+  Typography,
+  CircularProgress,
+  IconButton,
+  Button,
+  Chip,
+  Stack
+} from '@mui/material';
+import { 
+  Close as CloseIcon, 
+  Map as MapIcon, 
+  Place, 
+  TempleHindu, 
+  Pool, 
+  Info,
+  Star
+} from '@mui/icons-material';
+
+interface NearbyViewerProps {
+  open: boolean;
+  onClose: () => void;
+  origin: string;
+  destination: string;
+  waypoints?: string[];
+  apiKey: string;
+}
+
+const containerStyle = {
+  width: '100%',
+  height: '500px',
+  borderRadius: '8px',
+};
+
+const defaultCenter = {
+  lat: 7.8731, 
+  lng: 80.7718
+};
+
+const categories = [
+  { id: 'attraction', label: 'Attractions', icon: <Star fontSize="small" />, query: 'tourist attraction' },
+  { id: 'temple', label: 'Temples', icon: <TempleHindu fontSize="small" />, query: 'temple' },
+  { id: 'bathing', label: 'Bathing Places', icon: <Pool fontSize="small" />, query: 'waterfall bathing beach' },
+  { id: 'restaurant', label: 'Restaurants', icon: <Place fontSize="small" />, query: 'restaurant' },
+];
+
+const NearbyViewer: React.FC<NearbyViewerProps> = ({ 
+  open, 
+  onClose, 
+  origin, 
+  destination, 
+  waypoints = [], 
+  apiKey 
+}) => {
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: apiKey,
+    libraries: ['places']
+  });
+
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [response, setResponse] = useState<google.maps.DirectionsResult | null>(null);
+  const [places, setPlaces] = useState<google.maps.places.PlaceResult[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState(categories[0].id);
+  const [loading, setLoading] = useState(true);
+  const [fetchingPlaces, setFetchingPlaces] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState<google.maps.places.PlaceResult | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setResponse(null);
+      setPlaces([]);
+      setSelectedPlace(null);
+    }
+  }, [open]);
+
+  const directionsCallback = (
+    result: google.maps.DirectionsResult | null,
+    status: google.maps.DirectionsStatus
+  ) => {
+    if (result !== null && status === 'OK') {
+      setResponse(result);
+      setLoading(false);
+      // Search for places along the entire route
+      searchNearbyAlongRoute(result, selectedCategory);
+    }
+  };
+
+  const searchNearbyAlongRoute = useCallback((result: google.maps.DirectionsResult, categoryId: string) => {
+    if (!map) return;
+
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) return;
+
+    setFetchingPlaces(true);
+    setPlaces([]); // Clear old results
+    
+    const service = new google.maps.places.PlacesService(map);
+    const route = result.routes[0];
+    const path = route.overview_path;
+    
+    // De-duplication set
+    const seenPlaceIds = new Set<string>();
+    const allResults: google.maps.places.PlaceResult[] = [];
+
+    // Heuristic: Sample points along the overview_path.
+    // The overview_path is already simplified. We sample points roughly every ~10km 
+    // to cover the 4km radius buffer without excessive API calls.
+    const sampleRate = Math.max(1, Math.floor(path.length / 10)); // Sample ~10-15 points along the path
+    const pointsToSearch: google.maps.LatLng[] = [];
+
+    for (let i = 0; i < path.length; i += sampleRate) {
+        pointsToSearch.push(path[i]);
+    }
+    // Always include the destination
+    pointsToSearch.push(path[path.length - 1]);
+
+    let completedSearches = 0;
+
+    pointsToSearch.forEach((location) => {
+      const request: google.maps.places.PlaceSearchRequest = {
+        location: location,
+        radius: 4000, // 4km radius as requested
+        keyword: category.query
+      };
+
+      service.nearbySearch(request, (results, status) => {
+        completedSearches++;
+
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+          results.forEach(place => {
+            if (place.place_id && !seenPlaceIds.has(place.place_id)) {
+                seenPlaceIds.add(place.place_id);
+                allResults.push(place);
+            }
+          });
+        }
+
+        if (completedSearches === pointsToSearch.length) {
+            setPlaces(allResults);
+            setFetchingPlaces(false);
+        }
+      });
+    });
+  }, [map]);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    if (response) {
+      searchNearbyAlongRoute(response, categoryId);
+    }
+  };
+
+  return (
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="md" 
+      fullWidth 
+      PaperProps={{
+        sx: {
+          borderRadius: '24px',
+          overflow: 'hidden',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.2)'
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        gap: 1.5,
+        background: 'linear-gradient(135deg, #3b82f6 0%, #0d9488 100%)',
+        color: 'white',
+        py: 2,
+        px: 3
+      }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Place />
+            <Typography variant="h6" sx={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700 }}>
+              Nearby Attractions
+            </Typography>
+          </Box>
+          <IconButton onClick={onClose} size="small" sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5, '&::-webkit-scrollbar': { display: 'none' } }}>
+          {categories.map((cat) => (
+            <Chip
+              key={cat.id}
+              label={cat.label}
+              icon={cat.icon}
+              onClick={() => handleCategoryChange(cat.id)}
+              sx={{
+                bgcolor: selectedCategory === cat.id ? 'white' : 'rgba(255,255,255,0.15)',
+                color: selectedCategory === cat.id ? '#0d9488' : 'white',
+                fontWeight: 700,
+                fontFamily: "'Montserrat', sans-serif",
+                fontSize: '0.75rem',
+                '&:hover': { bgcolor: selectedCategory === cat.id ? 'white' : 'rgba(255,255,255,0.25)' },
+                '& .MuiChip-icon': { color: 'inherit' }
+              }}
+            />
+          ))}
+        </Stack>
+      </DialogTitle>
+      
+      <DialogContent sx={{ p: 0, position: 'relative', bgcolor: '#f8fafc' }}>
+        {isLoaded ? (
+          <Box sx={{ position: 'relative' }}>
+            <GoogleMap
+              mapContainerStyle={containerStyle}
+              center={defaultCenter}
+              zoom={13}
+              onLoad={setMap}
+              options={{
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false,
+              }}
+            >
+              {origin && destination && !response && (
+                <DirectionsService
+                  options={{
+                    origin: origin,
+                    destination: destination,
+                    waypoints: waypoints
+                      .filter(wp => wp.trim() !== '')
+                      .map(wp => ({ location: wp, stopover: true })),
+                    travelMode: google.maps.TravelMode.DRIVING
+                  }}
+                  callback={directionsCallback}
+                />
+              )}
+
+              {response && (
+                <DirectionsRenderer
+                  options={{
+                    directions: response,
+                    suppressMarkers: true,
+                    polylineOptions: {
+                      strokeColor: '#0d9488',
+                      strokeWeight: 4,
+                      strokeOpacity: 0.6
+                    }
+                  }}
+                />
+              )}
+
+              {/* Destination Marker */}
+              {response && (
+                <Marker 
+                   position={response.routes[0].legs[response.routes[0].legs.length - 1].end_location}
+                   icon={{
+                     url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                   }}
+                />
+              )}
+
+              {/* POI Markers */}
+              {places.map((place, idx) => (
+                <Marker
+                  key={`${place.place_id}-${idx}`}
+                  position={place.geometry?.location!}
+                  onClick={() => setSelectedPlace(place)}
+                  icon={{
+                    url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                  }}
+                />
+              ))}
+
+              {selectedPlace && (
+                <InfoWindow
+                  position={selectedPlace.geometry?.location!}
+                  onCloseClick={() => setSelectedPlace(null)}
+                >
+                  <Box sx={{ p: 1, maxWidth: 200 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>{selectedPlace.name}</Typography>
+                    <Typography variant="body2" sx={{ fontSize: '0.7rem', color: '#6b7280' }}>{selectedPlace.vicinity}</Typography>
+                    {selectedPlace.rating && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                        <Star sx={{ fontSize: 14, color: '#f59e0b' }} />
+                        <Typography variant="caption" sx={{ mt: 0.2 }}>{selectedPlace.rating}</Typography>
+                      </Box>
+                    )}
+                  </Box>
+                </InfoWindow>
+              )}
+            </GoogleMap>
+
+            {(loading || fetchingPlaces) && (
+              <Box sx={{ 
+                position: 'absolute', 
+                inset: 0, 
+                display: 'flex', 
+                flexDirection: 'column',
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                bgcolor: 'rgba(255,255,255,0.4)',
+                zIndex: 10
+              }}>
+                <CircularProgress size={30} sx={{ color: '#0d9488', mb: 1 }} />
+                <Typography variant="caption" sx={{ fontWeight: 700, color: '#0d9488' }}>
+                  {loading ? 'Routing...' : 'Finding Nearby Places...'}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '500px' }}>
+            <CircularProgress sx={{ color: '#0d9488' }} />
+          </Box>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default NearbyViewer;

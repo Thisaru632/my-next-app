@@ -121,20 +121,42 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
             </li>
           </ul>
 
-          {/* Mobile Hamburger */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className={`md:hidden focus:outline-none ${isLightHeader ? "text-gray-800" : "text-white"}`}
-            aria-label="Toggle menu"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {isOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
+          {/* Mobile Auth & Hamburger */}
+          <div className="flex items-center gap-2 md:hidden">
+            {user ? (
+              <div
+                className={`flex items-center justify-center w-10 h-10 rounded-full cursor-pointer ${isLightHeader ? "bg-green-50" : "bg-white/20"}`}
+                onClick={() => setProfileModalOpen(true)}
+              >
+                <AccountCircle className="text-green-600" style={{ fontSize: '32px' }} />
+              </div>
+            ) : (
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className={`px-4 py-2 rounded-full text-sm font-bold shadow-md transition-all active:scale-95 ${
+                  isLightHeader 
+                    ? "bg-green-600 text-white" 
+                    : "bg-green-600 text-white" /* Force green on mobile for better visibility */
+                }`}
+              >
+                Login
+              </button>
+            )}
+
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className={`p-2 rounded-md focus:outline-none ${isLightHeader ? "text-gray-800" : "text-white"}`}
+              aria-label="Toggle menu"
+            >
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -156,6 +178,46 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
               {link.label}
             </Link>
           ))}
+
+          {/* Mobile Auth Button */}
+          <div className={`mt-4 pt-4 border-t ${isLightHeader ? "border-gray-100" : "border-white/10"}`}>
+            {user ? (
+              <div className="flex flex-col gap-2">
+                <div
+                  className={`flex items-center gap-3 px-4 py-2 rounded-md cursor-pointer ${isLightHeader ? "hover:bg-green-50" : "hover:bg-green-500/10"}`}
+                  onClick={() => {
+                    setProfileModalOpen(true);
+                    setIsOpen(false);
+                  }}
+                >
+                  <AccountCircle className="text-green-600 w-5 h-5" />
+                  <span className={`text-sm font-semibold ${isLightHeader ? "text-gray-700" : "text-white"}`}>{user.name}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsOpen(false);
+                  }}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium text-red-500 ${isLightHeader ? "hover:bg-red-50" : "hover:bg-red-500/10"} transition-colors`}
+                >
+                  <Logout style={{ fontSize: '20px' }} />
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <div className="px-2">
+                <button
+                  onClick={() => {
+                    setAuthModalOpen(true);
+                    setIsOpen(false);
+                  }}
+                  className="w-full py-3 rounded-xl text-sm font-bold bg-green-600 text-white hover:bg-green-700 shadow-md transition-all active:scale-95"
+                >
+                  Login / Sign Up
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
       <AuthModal

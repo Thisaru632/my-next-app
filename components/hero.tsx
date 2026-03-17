@@ -51,6 +51,7 @@ import MapPicker from './MapPicker';
 import Image from 'next/image';
 import AuthModal from './AuthModal';
 import RouteViewer from './RouteViewer';
+import NearbyViewer from './NearbyViewer';
 import { API_ENDPOINTS } from '@/config/api';
 import { useUser } from '@/context/UserContext';
 import jsPDF from 'jspdf';
@@ -740,6 +741,7 @@ export default function HeroSection() {
   const [openAuthModal, setOpenAuthModal] = useState(false);
   const [showLoginAlert, setShowLoginAlert] = useState(false);
   const [openRouteViewer, setOpenRouteViewer] = useState(false);
+  const [openNearbyViewer, setOpenNearbyViewer] = useState(false);
   const [openPolicyDialog, setOpenPolicyDialog] = useState(false);
   const [submittedBookingData, setSubmittedBookingData] = useState<any>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
@@ -2476,6 +2478,43 @@ export default function HeroSection() {
                               >
                                 <MapIcon sx={{ fontSize: '0.9rem' }} />
                                 View
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  if (!formData.dropoffLocation) return;
+                                  setOpenNearbyViewer(true);
+                                }}
+                                className="group flex items-center gap-1.5"
+                                style={{
+                                  padding: '4px 10px',
+                                  fontSize: '0.68rem',
+                                  background: 'rgba(59,130,246,0.08)',
+                                  border: '1.5px solid rgba(59,130,246,0.35)',
+                                  borderRadius: '8px',
+                                  color: '#3b82f6',
+                                  cursor: 'pointer',
+                                  fontFamily: "'Montserrat', sans-serif",
+                                  fontWeight: 700,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em',
+                                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = '#3b82f6';
+                                  e.currentTarget.style.color = '#fff';
+                                  e.currentTarget.style.transform = 'translateY(-1px)';
+                                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'rgba(59,130,246,0.08)';
+                                  e.currentTarget.style.color = '#3b82f6';
+                                  e.currentTarget.style.transform = 'translateY(0)';
+                                  e.currentTarget.style.boxShadow = 'none';
+                                }}
+                              >
+                                <MyLocationIcon sx={{ fontSize: '0.9rem' }} />
+                                Nearby
                               </button>
                             </div>
                             {routeDuration !== null && (
@@ -4257,6 +4296,16 @@ export default function HeroSection() {
       <RouteViewer
         open={openRouteViewer}
         onClose={() => setOpenRouteViewer(false)}
+        origin={formData.pickupLocation}
+        destination={formData.dropoffLocation}
+        waypoints={destinations}
+        apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc"
+      />
+
+      {/* ─── NEARBY VIEWER ─── */}
+      <NearbyViewer
+        open={openNearbyViewer}
+        onClose={() => setOpenNearbyViewer(false)}
         origin={formData.pickupLocation}
         destination={formData.dropoffLocation}
         waypoints={destinations}
