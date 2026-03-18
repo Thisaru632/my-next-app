@@ -486,7 +486,7 @@ function LocationInput({
               onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(13,148,136,0.04)')}
             >
               <MyLocationIcon style={{ fontSize: '18px' }} />
-              Select my location
+              use current location
             </li>
           )}
           <li
@@ -712,6 +712,7 @@ export default function HeroSection() {
     remark: '',
     maxPersons: 0,
     maxBags: 0,
+    additionalHours: 0,
   });
 
   const { isLoaded } = useJsApiLoader({
@@ -1348,7 +1349,8 @@ export default function HeroSection() {
       ["Pickup Time", data.formData.dateTime ? new Date(data.formData.dateTime).toLocaleTimeString() : 'N/A'],
       ["Duration", data.formData.numberOfDays ? `${data.formData.numberOfDays} ${data.formData.numberOfDays === 1 ? 'Day' : 'Days'}` : '0 days'],
       ["Pickup Location", data.formData.pickupLocation],
-      ["Drop-off Location", data.formData.dropoffLocation]
+      ["Drop-off Location", data.formData.dropoffLocation],
+      ["Additional Hours", data.formData.additionalHours > 0 ? `${data.formData.additionalHours} Hours` : "None"]
     ];
 
     if (data.destinations.length > 0) {
@@ -1376,6 +1378,11 @@ export default function HeroSection() {
     const priceData = [
       ["Base Price", `LKR ${data.rawTotalPrice.toLocaleString()}`]
     ];
+
+    if (data.formData.additionalHours > 0) {
+      const hrRate = matchedPackage?.extraHrRate1 || 0;
+      priceData.push([`Additional Hours (${data.formData.additionalHours}h)`, `LKR ${(data.formData.additionalHours * hrRate).toLocaleString()}`]);
+    }
 
     if (data.appliedPromo) {
       const disc = data.appliedPromo.discountType === 'Percentage' ? `${data.appliedPromo.discountValue}%` : `LKR ${data.appliedPromo.discountValue.toLocaleString()}`;
@@ -1489,6 +1496,7 @@ export default function HeroSection() {
           remark: '',
           maxPersons: 0,
           maxBags: 0,
+          additionalHours: 0,
         });
         setAppliedPromo(null);
         setPromoCodeInput('');
@@ -1721,6 +1729,11 @@ export default function HeroSection() {
       const extraKm = Math.ceil(distanceInKm - matchedPackage.km);
       price += extraKm * matchedPackage.extraKMRate;
     }
+
+    // Add fixed additional hours requested by user
+    if (formData.additionalHours > 0) {
+      price += formData.additionalHours * (matchedPackage.extraHrRate1 || 0);
+    }
     
     return price;
   })();
@@ -1878,7 +1891,7 @@ export default function HeroSection() {
                     color: "#000000",
                   }}
                 >
-                  Request a Quote For Your Journey
+                  Get a fare estimate
                 </h3>
                 <p
                   className="hidden sm:block"
@@ -2058,7 +2071,7 @@ export default function HeroSection() {
                           }
                           setRouteDistance(null); 
                         }}
-                        placeholder="Pickup location"
+                        placeholder="From"
                         inputStyle={{
                           flex: 1,
                           padding: "0.6rem 0.85rem",
@@ -2206,14 +2219,14 @@ export default function HeroSection() {
                       <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "white" }} />
                     </div>
                     <LocationInput
-                      value={formData.tripType === 'Return' ? 'Same as Pickup Location' : formData.dropoffLocation}
+                      value={formData.tripType === 'Return' ? 'Same as From Location' : formData.dropoffLocation}
                       onChange={(val) => handleChange('dropoffLocation', val)}
                       onSelect={(lat, lon) => {
                         console.log('[Dropoff] coords:', lat, lon);
                         setDropoffCoords({ lat, lon });
                       }}
                       onManualType={() => { setDropoffCoords(null); setRouteDistance(null); }}
-                      placeholder="Drop-off location"
+                      placeholder="To"
                       disabled={formData.tripType === 'Return'}
                       inputStyle={{
                         flex: 1,
@@ -2484,19 +2497,7 @@ export default function HeroSection() {
                     </div>
                   )}
 
-                  {/* Duration (Number of Days) */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                    <span style={{ fontSize: '1.2rem', flexShrink: 0, marginTop: '2px' }}>📅</span>
-                    <div>
-                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '2px' }}>Duration</div>
-                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: '#111827' }}>
-                        {formData.tripType === 'Drop'
-                          ? '0 Waiting Time'
-                          : (matchedPackage ? `${matchedPackage?.hrs} Hours ` : `${formData.numberOfDays} ${formData.numberOfDays === 1 ? 'Day' : 'Days'} `) +
-                          `(${formData.numberOfDays === 1 ? 'for one day trip' : `for ${formData.numberOfDays} days`})`}
-                      </div>
-                    </div>
-                  </div>
+                  {/* Duration (Number of Days) - Removed at USER_REQUEST */}
 
                   {/* Vehicle */}
                   {formData.vehicleName && (
@@ -2582,10 +2583,75 @@ export default function HeroSection() {
                             <span style={{ fontWeight: 700 }}>LKR {matchedPackage?.extraKMRate || 0}</span>
                           </div>
                           {formData.tripType !== 'Drop' && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ color: '#4b5563' }}>Extra Hour Rate:</span>
-                              <span style={{ fontWeight: 700 }}>LKR {matchedPackage?.extraHrRate1 || 0}</span>
-                            </div>
+                            <>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#4b5563' }}>Extra Hour Rate:</span>
+                                <span style={{ fontWeight: 700 }}>LKR {matchedPackage?.extraHrRate1 || 0}</span>
+                              </div>
+                              <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                marginTop: '10px', 
+                                borderTop: '1px dashed rgba(13,148,136,0.2)', 
+                                paddingTop: '8px' 
+                              }}>
+                                <span style={{ color: '#0d9488', fontWeight: 700, fontSize: '0.7rem' }}>ADD ADDITIONAL HOURS:</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleChange('additionalHours', Math.max(0, (Number(formData.additionalHours) || 0) - 1))}
+                                    sx={{ 
+                                      padding: '2px',
+                                      border: '1.5px solid #0d9488', 
+                                      color: '#0d9488', 
+                                      opacity: (Number(formData.additionalHours) || 0) <= 0 ? 0.4 : 1,
+                                      '&:hover': { background: 'rgba(13,148,136,0.1)' }
+                                    }}
+                                    disabled={(Number(formData.additionalHours) || 0) <= 0}
+                                  >
+                                    <RemoveCircle sx={{ fontSize: '18px' }} />
+                                  </IconButton>
+                                  <input
+                                    type="number"
+                                    value={formData.additionalHours === 0 ? "" : formData.additionalHours}
+                                    onChange={(e) => {
+                                      const val = e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value) || 0);
+                                      handleChange('additionalHours', val);
+                                    }}
+                                    style={{
+                                      width: '40px',
+                                      height: '28px',
+                                      textAlign: 'center',
+                                      background: 'rgba(255, 255, 255, 0.9)',
+                                      border: '1.5px solid rgba(13,148,136,0.3)',
+                                      borderRadius: '6px',
+                                      fontFamily: "'Montserrat', sans-serif",
+                                      fontSize: '0.9rem',
+                                      fontWeight: 800,
+                                      color: '#0d9488',
+                                      outline: 'none',
+                                      MozAppearance: 'textfield',
+                                      transition: 'border-color 0.2s'
+                                    }}
+                                    onFocus={(e) => { e.target.style.borderColor = '#0d9488'; }}
+                                    onBlur={(e) => { e.target.style.borderColor = 'rgba(13,148,136,0.3)'; }}
+                                  />
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleChange('additionalHours', (Number(formData.additionalHours) || 0) + 1)}
+                                    sx={{ 
+                                      padding: '2px',
+                                      border: '1.5px solid #0d9488', 
+                                      color: '#0d9488',
+                                      '&:hover': { background: 'rgba(13,148,136,0.1)' }
+                                    }}
+                                  >
+                                    <AddCircle sx={{ fontSize: '18px' }} />
+                                  </IconButton>
+                                </div>
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
@@ -2704,6 +2770,20 @@ export default function HeroSection() {
                                 })()}
                               </div>
                             )}
+                            {matchedPackage && formData.tripType !== 'Drop' && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontSize: '0.8rem' }}>ℹ️</span>
+                                  <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#0d9488', fontWeight: 600 }}>{matchedPackage.hrs} Free Hours Included</span>
+                                </div>
+                                {formData.additionalHours > 0 && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ fontSize: '0.8rem' }}>➕</span>
+                                    <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#0d9488', fontWeight: 600 }}>{formData.additionalHours} Additional Hours Added</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
@@ -2809,12 +2889,6 @@ export default function HeroSection() {
                             </div>
                           )}
                           <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#6b7280', marginTop: '4px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                            {matchedPackage && formData.tripType !== 'Drop' && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ fontSize: '0.85rem' }}>ℹ️</span>
-                                <span style={{ fontWeight: 600 }}>{matchedPackage.hrs} Free Hours.</span>
-                              </div>
-                            )}
                             <span>*Actual price may vary based on route changes.</span>
                           </div>
                         </>
@@ -3609,26 +3683,26 @@ export default function HeroSection() {
               flexDirection: 'column',
               alignItems: 'center',
               textAlign: 'center',
-              padding: '2rem 1rem',
-              gap: '1.5rem'
+              padding: '1rem 0.75rem',
+              gap: '0.8rem'
             }}>
               <div style={{
-                width: '80px',
-                height: '80px',
+                width: '60px',
+                height: '60px',
                 borderRadius: '50%',
                 background: 'rgba(13, 148, 136, 0.1)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#0d9488',
-                marginBottom: '0.5rem'
+                marginBottom: '0.2rem'
               }}>
-                <CheckCircle style={{ fontSize: '3.5rem' }} />
+                <CheckCircle style={{ fontSize: '2.5rem' }} />
               </div>
 
               <h3 style={{
                 fontFamily: "'Cormorant Garamond', serif",
-                fontSize: '1.8rem',
+                fontSize: '1.6rem',
                 fontWeight: 700,
                 color: '#111827',
                 margin: 0
@@ -3638,9 +3712,9 @@ export default function HeroSection() {
 
               <p style={{
                 fontFamily: "'Montserrat', sans-serif",
-                fontSize: "0.95rem",
+                fontSize: "0.85rem",
                 color: "#4b5563",
-                lineHeight: 1.6,
+                lineHeight: 1.5,
                 margin: 0
               }}>
                 Your journey request has been sent successfully. We will contact you shortly to finalize your booking.
@@ -3654,10 +3728,10 @@ export default function HeroSection() {
                   border: '1.5px dashed #0d9488',
                   marginTop: '0.5rem'
                 }}>
-                  <div style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#6b7280', fontWeight: 600, textTransform: 'uppercase' }}>
                     Quotation Reference
                   </div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0d9488', fontFamily: "'Montserrat', sans-serif", letterSpacing: '2px' }}>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0d9488', fontFamily: "'Montserrat', sans-serif", letterSpacing: '1px' }}>
                     {bookingRefNo}
                   </div>
                 </div>
@@ -3666,8 +3740,8 @@ export default function HeroSection() {
               <button
                 onClick={downloadTripSummary}
                 style={{
-                  marginTop: '1rem',
-                  padding: '1rem 2rem',
+                  marginTop: '0.4rem',
+                  padding: '0.75rem 1.5rem',
                   background: '#0d9488',
                   color: '#fff',
                   border: 'none',
@@ -3699,8 +3773,8 @@ export default function HeroSection() {
               <button
                 onClick={() => setShowCallPopup(true)}
                 style={{
-                  marginTop: '0.5rem',
-                  padding: '1rem 2rem',
+                  marginTop: '0.2rem',
+                  padding: '0.75rem 1.5rem',
                   background: '#fff',
                   color: '#0d9488',
                   border: '2px solid #0d9488',
