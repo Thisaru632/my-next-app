@@ -1,0 +1,513 @@
+"use client";
+import { useState, useEffect, useCallback } from "react";
+import { useUser } from '@/context/UserContext';
+import { useJsApiLoader } from '@react-google-maps/api';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { API_ENDPOINTS } from '@/config/api';
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc";
+const LIBRARIES: ("places" | "geometry" | "drawing" | "visualization")[] = ["places", "geometry"];
+
+interface PromoCode {
+  _id: string; code: string; discountType: 'Percentage' | 'Fixed Amount';
+  discountValue: number; applicableVehicle: string; status: string;
+  validFrom: string | null; validTo: string | null;
+}
+
+export interface LatLon { lat: string; lon: string; }
+
+export interface RateCard {
+  _id: string; type: string; vehicle: string; days: number; km: number;
+  hrs: number; ratePercent: string; rateAmount: number; extraKMRate: number;
+  extraHrRate1: number; extraHrRate2: number; status: string;
+}
+
+export interface RateAdjustment {
+  _id: string; vehicle: string; type: string; percentage: number;
+  validFrom: string | null; validTo: string | null;
+}
+
+const sampleVehicles = {
+  Car: { models: [
+    { name: 'Alto', description: 'Compact & Efficient', maxPersons: 3, maxBags: 2 },
+    { name: 'Wagon R', description: 'Spacious Interior', maxPersons: 3, maxBags: 2 },
+    { name: 'Aqua', description: 'Hybrid Technology', maxPersons: 4, maxBags: 2 },
+    { name: 'Axio', description: 'Premium Comfort', maxPersons: 4, maxBags: 2 },
+  ]},
+  Van: { models: [
+    { name: 'KDH High Roof', description: 'Extra headroom', maxPersons: 14, maxBags: 5 },
+    { name: 'KDH Flat Roof', description: 'Classic style', maxPersons: 9, maxBags: 4 },
+    { name: 'Mini Van', description: 'Compact & comfortable', maxPersons: 6, maxBags: 3 },
+    { name: 'Dual AC Van', description: 'Dual climate control', maxPersons: 9, maxBags: 4 },
+    { name: 'NON AC VAN', description: 'Budget friendly', maxPersons: 14, maxBags: 4 },
+  ]},
+  Bus: { models: [
+    { name: 'AC 29 Seater', description: 'Air conditioned comfort', maxPersons: 29, maxBags: 8 },
+    { name: 'Non AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 8 },
+  ]},
+  SUV: { models: [
+    { name: 'Vezel', description: 'Modern Crossover', maxPersons: 4, maxBags: 3 },
+  ]},
+};
+
+export function useHeroBooking() {
+  const { user } = useUser();
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const PHONE_REGEX = /^(?:\+94|0)?[0-9]{9,10}$/;
+
+  const [formData, setFormData] = useState({
+    vehicleType: '', vehicleName: '', tripType: '', pickupLocation: '',
+    dropoffLocation: '', dateTime: '', numberOfDays: '' as any,
+    name: '', telephone: '', additionalPhones: [] as string[], email: '',
+    remark: '', maxPersons: 0, maxBags: 0, additionalHours: 0,
+  });
+
+  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LIBRARIES });
+  const [routeResponse, setRouteResponse] = useState<google.maps.DirectionsResult | null>(null);
+
+  useEffect(() => {
+    if (user) setFormData(prev => ({ ...prev, name: user.name, telephone: user.phone || '', email: user.email }));
+  }, [user]);
+
+  const [minDateTime, setMinDateTime] = useState("");
+  useEffect(() => {
+    const minDate = new Date(new Date().getTime() + (2 * 60 * 60 * 1000) - (new Date().getTimezoneOffset() * 60000));
+    setMinDateTime(minDate.toISOString().slice(0, 16));
+  }, []);
+
+  const [openPromoDialog, setOpenPromoDialog] = useState(false);
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
+  const [hasPromoOption, setHasPromoOption] = useState<boolean | null>(null);
+  const [isPromoLoading, setIsPromoLoading] = useState(false);
+
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [additionalPhoneErrors, setAdditionalPhoneErrors] = useState<string[]>([]);
+
+  const [requestSent, setRequestSent] = useState(false);
+  const [showRemark, setShowRemark] = useState(false);
+  const [openAuthModal, setOpenAuthModal] = useState(false);
+  const [showLoginAlert, setShowLoginAlert] = useState(false);
+  const [openRouteViewer, setOpenRouteViewer] = useState(false);
+  const [openNearbyViewer, setOpenNearbyViewer] = useState(false);
+  const [openPolicyDialog, setOpenPolicyDialog] = useState(false);
+  const [submittedBookingData, setSubmittedBookingData] = useState<any>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [destinations, setDestinations] = useState<string[]>([]);
+  const [openDateTimePicker, setOpenDateTimePicker] = useState(false);
+  const [pickerStep, setPickerStep] = useState(0);
+  const [tempDate, setTempDate] = useState("");
+  const [tempTime, setTempTime] = useState("");
+  const [tempHour, setTempHour] = useState("12");
+  const [tempMin, setTempMin] = useState("00");
+  const [tempAmPm, setTempAmPm] = useState("AM");
+  const [openDayPicker, setOpenDayPicker] = useState(false);
+  const [tempDays, setTempDays] = useState(1);
+  const [pickupCoords, setPickupCoords] = useState<LatLon | null>(null);
+  const [dropoffCoords, setDropoffCoords] = useState<LatLon | null>(null);
+  const [stopCoords, setStopCoords] = useState<(LatLon | null)[]>([]);
+  const [routeDistance, setRouteDistance] = useState<number | null>(null);
+  const [routeDuration, setRouteDuration] = useState<number | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [showDropHireSuggestion, setShowDropHireSuggestion] = useState(false);
+  const [acknowledgedDropHireSuggestion, setAcknowledgedDropHireSuggestion] = useState(false);
+  const [bookingRefNo, setBookingRefNo] = useState('');
+  const [showCallPopup, setShowCallPopup] = useState(false);
+  const [rateCards, setRateCards] = useState<RateCard[]>([]);
+  const [adjustments, setAdjustments] = useState<RateAdjustment[]>([]);
+  const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
+  const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
+  const [openPersonalDialog, setOpenPersonalDialog] = useState(false);
+  const [showExtraPrices, setShowExtraPrices] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('success');
+  const [openPhotosDialog, setOpenPhotosDialog] = useState(false);
+  const [photosVehicle, setPhotosVehicle] = useState('');
+
+  useEffect(() => {
+    const fetchRateData = async () => {
+      try {
+        const [rcRes, adjRes] = await Promise.all([
+          fetch(`${API_ENDPOINTS.RATE_CARDS}?status=Approved`),
+          fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`)
+        ]);
+        if (rcRes.ok) setRateCards(await rcRes.json());
+        if (adjRes.ok) setAdjustments(await adjRes.json());
+      } catch (error) { console.error('Error fetching rate data:', error); }
+    };
+    fetchRateData();
+  }, []);
+
+  const addDestination = () => { setDestinations(p => [...p, '']); setStopCoords(p => [...p, null]); };
+  const removeDestination = (i: number) => { setDestinations(p => p.filter((_, idx) => idx !== i)); setStopCoords(p => p.filter((_, idx) => idx !== i)); };
+  const updateDestination = (i: number, v: string) => { setDestinations(p => p.map((d, idx) => idx === i ? v : d)); setStopCoords(p => p.map((c, idx) => idx === i ? null : c)); };
+
+  /* Route calculation */
+  useEffect(() => {
+    const allStopsHaveCoords = destinations.every((d, i) => d.trim() === "" || stopCoords[i] !== null);
+    if (!isLoaded || !pickupCoords || !dropoffCoords || !allStopsHaveCoords) {
+      if (routeDistance !== null) { setRouteDistance(null); setRouteDuration(null); setRouteResponse(null); }
+      return;
+    }
+    let cancelled = false;
+    setRouteLoading(true);
+    const timer = setTimeout(() => {
+      const calculateRoute = async () => {
+        const directionsService = new google.maps.DirectionsService();
+        const origin = pickupCoords ? { lat: parseFloat(pickupCoords.lat), lng: parseFloat(pickupCoords.lon) } : formData.pickupLocation;
+        const destination = dropoffCoords ? { lat: parseFloat(dropoffCoords.lat), lng: parseFloat(dropoffCoords.lon) } : formData.dropoffLocation;
+        const validWaypoints = destinations.map((d, i) => {
+          if (stopCoords[i]) return { location: { lat: parseFloat(stopCoords[i]!.lat), lng: parseFloat(stopCoords[i]!.lon) }, stopover: true };
+          return d.trim() !== "" ? { location: d, stopover: true } : null;
+        }).filter(wp => wp !== null) as google.maps.DirectionsWaypoint[];
+        try {
+          const result = await directionsService.route({ origin, destination, waypoints: validWaypoints, travelMode: google.maps.TravelMode.DRIVING });
+          if (cancelled) return;
+          if (result.routes && result.routes[0]) {
+            const route = result.routes[0];
+            setRouteDistance(route.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0));
+            setRouteDuration(route.legs.reduce((acc, leg) => acc + (leg.duration?.value || 0), 0));
+            setRouteResponse(result);
+          }
+        } catch (err: any) {
+          if (!cancelled) {
+            setRouteDistance(null); setRouteDuration(null); setRouteResponse(null);
+            const isExpected = err.code === 'NOT_FOUND' || err.code === 'ZERO_RESULTS' || (err.message && (err.message.includes('NOT_FOUND') || err.message.includes('ZERO_RESULTS')));
+            if (!isExpected && err.code !== 'OVER_QUERY_LIMIT') console.error('[Route] Directions error:', err);
+          }
+        } finally { if (!cancelled) setRouteLoading(false); }
+      };
+      calculateRoute();
+    }, 1000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [formData.pickupLocation, formData.dropoffLocation, destinations, pickupCoords, dropoffCoords, stopCoords, isLoaded]);
+
+  const getVehicleFolderName = (modelName: string) => {
+    const mapping: { [key: string]: string } = { 'Aqua': 'Toyota Aqua', 'Axio': 'Toyota Axio', 'KDH Flat Roof': 'KDH Flat Roof  9 Seats', 'Dual AC Van': 'Dual Ac 9 Seater', 'NON AC VAN': 'NON AC Van', 'AC 29 Seater': 'AC 29 Seater Bus', 'Non AC 29 Seater': 'Non AC 29 seater bus' };
+    return mapping[modelName] || modelName;
+  };
+
+  const handleSnackbarClose = () => setSnackbarOpen(false);
+
+  const handleChange = (field: string, value: string | any) => {
+    if (field === 'dateTime' && value) {
+      const selectedTime = new Date(value).getTime();
+      const minLeadTime = new Date().getTime() + (2 * 60 * 60 * 1000);
+      if (selectedTime < minLeadTime) {
+        setSnackbarMessage('Bookings must be made at least 2 hours in advance.'); setSnackbarSeverity('warning'); setSnackbarOpen(true);
+        const minDate = new Date(minLeadTime - (new Date().getTimezoneOffset() * 60000));
+        value = minDate.toISOString().slice(0, 16);
+      }
+    }
+    if (field === 'email') setEmailError(value && !EMAIL_REGEX.test(value) ? 'Invalid email format' : '');
+    if (field === 'telephone') setPhoneError(value && !PHONE_REGEX.test(value) ? 'Invalid phone format (e.g. 07XXXXXXXX)' : '');
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      if (field === 'pickupLocation' && prev.tripType === 'Return') updated.dropoffLocation = value;
+      return updated;
+    });
+  };
+
+  const handlePromoSubmit = async () => {
+    if (!promoCodeInput.trim()) return;
+    setIsPromoLoading(true);
+    try {
+      const res = await fetch(API_ENDPOINTS.PROMO_CODES);
+      if (!res.ok) throw new Error('Failed to fetch promo codes');
+      const codes: PromoCode[] = await res.json();
+      const code = codes.find(c => c.code.toUpperCase() === promoCodeInput.trim().toUpperCase());
+      if (!code) { setSnackbarMessage('Invalid promo code.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+      if (code.status !== 'Active') { setSnackbarMessage('This promo code is no longer active.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+      const now = new Date();
+      const pFrom = code.validFrom ? new Date(code.validFrom) : null; if (pFrom) pFrom.setHours(0, 0, 0, 0);
+      const pTo = code.validTo ? new Date(code.validTo) : null; if (pTo) pTo.setHours(23, 59, 59, 999);
+      if (pFrom && pFrom > now) { setSnackbarMessage('This promo code is not yet valid.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+      if (pTo && pTo < now) { setSnackbarMessage('This promo code has expired.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+      const isApplicable = code.applicableVehicle === 'All' || code.applicableVehicle === formData.vehicleName || code.applicableVehicle === formData.vehicleType;
+      if (!isApplicable && formData.vehicleName && formData.vehicleType) { setSnackbarMessage(`This code is only valid for ${code.applicableVehicle}.`); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+      setAppliedPromo(code); setOpenPromoDialog(false);
+      const discText = code.discountType === 'Percentage' ? `${code.discountValue}%` : `LKR ${code.discountValue.toLocaleString()}`;
+      const successMsg = (!isApplicable && (!formData.vehicleName || !formData.vehicleType)) ? `Promo code for ${code.applicableVehicle} applied! Note: Discount will only count when you select this vehicle.` : `Promo code applied! ${discText} discount added.`;
+      setSnackbarMessage(successMsg); setSnackbarSeverity('success'); setSnackbarOpen(true);
+    } catch { setSnackbarMessage('Error validating promo code.'); setSnackbarSeverity('error'); setSnackbarOpen(true); }
+    finally { setIsPromoLoading(false); }
+  };
+
+  const handleViewDirections = () => { if (!pickupCoords || !dropoffCoords || !routeDistance) return; setOpenRouteViewer(true); };
+  const handleAddPhone = () => { if (formData.additionalPhones.length >= 1) return; setFormData(prev => ({ ...prev, additionalPhones: [...prev.additionalPhones, ''] })); };
+  const handleRemovePhone = (i: number) => { setFormData(prev => ({ ...prev, additionalPhones: prev.additionalPhones.filter((_, idx) => idx !== i) })); setAdditionalPhoneErrors(prev => prev.filter((_, idx) => idx !== i)); };
+  const updateAdditionalPhone = (i: number, value: string) => {
+    setAdditionalPhoneErrors(prev => { const newErrors = [...prev]; newErrors[i] = value && !PHONE_REGEX.test(value) ? 'Invalid phone format' : ''; return newErrors; });
+    setFormData(prev => { const newPhones = [...prev.additionalPhones]; newPhones[i] = value; return { ...prev, additionalPhones: newPhones }; });
+  };
+
+  const handleVehicleCardClick = (type: string) => { setSelectedCategory(type); setOpenVehicleDialog(true); };
+  const handleVehicleSelect = (modelName: string) => {
+    const categoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles];
+    const selectedModel = categoryVehicles.models.find(m => m.name === modelName);
+    setFormData(prev => ({ ...prev, vehicleType: selectedCategory, vehicleName: modelName, maxPersons: selectedModel?.maxPersons || 0, maxBags: selectedModel?.maxBags || 0 }));
+    if (appliedPromo && appliedPromo.applicableVehicle !== 'All' && appliedPromo.applicableVehicle !== modelName && appliedPromo.applicableVehicle !== selectedCategory) {
+      setAppliedPromo(null); setSnackbarMessage(`Promo code removed: only valid for ${appliedPromo.applicableVehicle}.`); setSnackbarSeverity('info'); setSnackbarOpen(true);
+    }
+    setOpenVehicleDialog(false); setOpenTripTypeDialog(true);
+  };
+
+  const handleTripTypeSelect = (tripTypeName: string) => {
+    if (tripTypeName === 'Return') {
+      const currentPickup = formData.pickupLocation;
+      const currentDropoff = formData.dropoffLocation;
+      const currentDropoffCoords = dropoffCoords;
+      setFormData(prev => ({ ...prev, tripType: tripTypeName, dropoffLocation: currentPickup || prev.dropoffLocation, numberOfDays: prev.numberOfDays || '' }));
+      if (currentPickup) setDropoffCoords(pickupCoords);
+      setDestinations(prev => {
+        if (currentDropoff && currentDropoff.trim() !== "" && currentDropoff !== currentPickup) {
+          if (prev[0] !== currentDropoff) { setStopCoords(old => [currentDropoffCoords, ...old]); return [currentDropoff, ...prev]; }
+          return prev;
+        }
+        if (prev.length === 0) { setStopCoords([null]); return ['']; }
+        return prev;
+      });
+    } else {
+      if (formData.tripType === 'Return') {
+        setFormData(prev => ({ ...prev, tripType: tripTypeName, dropoffLocation: '', numberOfDays: tripTypeName === 'Drop' ? 0 : (prev.numberOfDays || '') }));
+        setDropoffCoords(null); setDestinations([]); setStopCoords([]);
+      } else {
+        setFormData(prev => ({ ...prev, tripType: tripTypeName, numberOfDays: tripTypeName === 'Drop' ? 0 : (prev.numberOfDays || '') }));
+      }
+    }
+    setOpenTripTypeDialog(false);
+  };
+
+  const handleRequestBooking = () => {
+    if (!formData.vehicleName || !formData.tripType || !formData.pickupLocation || !formData.dropoffLocation || !formData.dateTime) {
+      setSnackbarMessage('Please fill all required fields before proceeding.'); setSnackbarSeverity('warning'); setSnackbarOpen(true); return;
+    }
+    if (formData.tripType !== 'Drop' && !formData.numberOfDays) {
+      setSnackbarMessage('Please select the number of days for your trip.'); setSnackbarSeverity('warning'); setSnackbarOpen(true); return;
+    }
+    if (routeLoading) { setSnackbarMessage('Please wait while we calculate the route distance...'); setSnackbarSeverity('info'); setSnackbarOpen(true); return; }
+    const selectedTime = new Date(formData.dateTime).getTime();
+    const minLeadTime = new Date().getTime() + (2 * 60 * 60 * 1000);
+    if (selectedTime < minLeadTime) { setSnackbarMessage('Sorry, your selected time is too soon. Please select a time at least 2 hours from now.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+    const distanceInKm = routeDistance ? (routeDistance / 1000) : 0;
+    const days = Number(formData.numberOfDays);
+    if (days > 1 && distanceInKm > 0 && distanceInKm < 100 && !acknowledgedDropHireSuggestion) { setShowDropHireSuggestion(true); return; }
+    setOpenPersonalDialog(true);
+  };
+
+  const handleClosePersonalDialog = () => {
+    if (requestSent) { setOpenPersonalDialog(false); setTimeout(() => { setRequestSent(false); setSubmittedBookingData(null); setBookingRefNo(''); }, 300); return; }
+    const hasEnteredInfo = formData.name?.trim() || formData.telephone?.trim() || formData.email?.trim() || formData.remark?.trim() || formData.additionalPhones.some(p => p.trim());
+    if (hasEnteredInfo) setShowCloseConfirm(true); else setOpenPersonalDialog(false);
+  };
+
+  // Pricing calculations
+  const distanceInKm = routeDistance ? (routeDistance / 1000) : 0;
+
+  const matchedPackage = (() => {
+    if (!formData.vehicleType || !formData.tripType) return null;
+    const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
+    const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+    const cleanFormVehType = formData.vehicleType.toLowerCase().replace(/\s+/g, '').trim();
+    const potentialCards = rateCards.filter(card => {
+      const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const vehicleMatch = cleanCardVeh === cleanFormVehName || cleanCardVeh === cleanFormVehType || cleanFormVehName.includes(cleanCardVeh) || cleanCardVeh.includes(cleanFormVehName);
+      const cleanCardType = card.type.toLowerCase().trim();
+      const cleanFormType = formData.tripType.toLowerCase().trim();
+      const typeMatch = cleanCardType === cleanFormType || (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) || (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
+      return vehicleMatch && typeMatch && Number(card.days) === targetDays && card.status === 'Approved';
+    });
+    if (potentialCards.length === 0) return null;
+    const specificMatches = potentialCards.filter(card => { const c = card.vehicle.toLowerCase().replace(/\s+/g, '').trim(); return c === cleanFormVehName || c.includes(cleanFormVehName) || cleanFormVehName.includes(c); });
+    const finalPotential = specificMatches.length > 0 ? specificMatches : potentialCards;
+    const sortedCards = finalPotential.sort((a, b) => a.km !== b.km ? a.km - b.km : a.hrs - b.hrs);
+    if (routeDistance !== null) {
+      const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
+      const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
+      const bestMatch = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : sortedCards[0];
+      return bestMatch || sortedCards[0];
+    }
+    return sortedCards[0];
+  })();
+
+  const minKmRequired = (() => {
+    if (!formData.vehicleType || !formData.tripType || rateCards.length === 0) return 0;
+    const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
+    const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+    const cleanFormVehType = formData.vehicleType.toLowerCase().replace(/\s+/g, '').trim();
+    const potentialCards = rateCards.filter(card => {
+      const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const vehicleMatch = cleanCardVeh === cleanFormVehName || cleanCardVeh === cleanFormVehType || cleanFormVehName.includes(cleanCardVeh) || cleanCardVeh.includes(cleanFormVehName);
+      const cleanCardType = card.type.toLowerCase().trim();
+      const cleanFormType = formData.tripType.toLowerCase().trim();
+      const typeMatch = cleanCardType === cleanFormType || (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) || (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
+      return vehicleMatch && typeMatch && Number(card.days) === targetDays && card.status === 'Approved';
+    });
+    if (potentialCards.length === 0) return 0;
+    const specificMatches = potentialCards.filter(card => { const c = card.vehicle.toLowerCase().replace(/\s+/g, '').trim(); return c === cleanFormVehName || c.includes(cleanFormVehName) || cleanFormVehName.includes(c); });
+    const finalPotential = specificMatches.length > 0 ? specificMatches : potentialCards;
+    return Math.min(...finalPotential.map(c => c.km));
+  })();
+
+  const activeAdjustment = (() => {
+    if (!formData.vehicleType || adjustments.length === 0) return null;
+    const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
+    const cleanFormVehType = formData.vehicleType.toLowerCase().trim();
+    const cleanFormType = formData.tripType.toLowerCase().trim();
+    const matches = adjustments.filter(adj => {
+      const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const vehicleMatch = cleanAdjVeh === 'all' || cleanAdjVeh === cleanFormVehName || cleanAdjVeh === cleanFormVehType || cleanFormVehName.includes(cleanAdjVeh) || cleanAdjVeh.includes(cleanFormVehName);
+      const cleanAdjType = adj.type.toLowerCase().trim();
+      const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
+      const tripDate = formData.dateTime ? new Date(formData.dateTime) : new Date();
+      const vFrom = adj.validFrom ? new Date(adj.validFrom) : null; if (vFrom) vFrom.setHours(0, 0, 0, 0);
+      const vTo = adj.validTo ? new Date(adj.validTo) : null; if (vTo) vTo.setHours(23, 59, 59, 999);
+      return vehicleMatch && typeMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
+    });
+    if (matches.length === 0) return null;
+    return matches.sort((a, b) => {
+      const aClean = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const bClean = b.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const aScore = aClean === cleanFormVehName ? 200 : aClean === cleanFormVehType ? 100 : aClean === 'all' ? 0 : 50;
+      const bScore = bClean === cleanFormVehName ? 200 : bClean === cleanFormVehType ? 100 : bClean === 'all' ? 0 : 50;
+      if (aScore !== bScore) return bScore - aScore;
+      return a.type.toLowerCase() === 'all' ? 1 : -1;
+    })[0];
+  })();
+
+  const adjustmentMultiplier = 1 + ((activeAdjustment?.percentage ?? 0) / 100);
+
+  const basePriceBeforeAdjustment = (() => {
+    const ratePerKm = formData.vehicleType === 'Car' ? 110 : formData.vehicleType === 'Van' ? 160 : formData.vehicleType === 'Bus' ? 450 : formData.vehicleType === 'SUV' ? 250 : 0;
+    const basePricePerDay = formData.vehicleType === 'Car' ? 15000 : formData.vehicleType === 'Van' ? 18000 : formData.vehicleType === 'Bus' ? 35000 : formData.vehicleType === 'SUV' ? 25000 : 0;
+    if (!matchedPackage) return routeDistance !== null ? distanceInKm * ratePerKm : basePricePerDay * formData.numberOfDays;
+    let price = matchedPackage.rateAmount;
+    if (distanceInKm > matchedPackage.km) price += Math.ceil(distanceInKm - matchedPackage.km) * matchedPackage.extraKMRate;
+    if (formData.additionalHours > 0) price += formData.additionalHours * (matchedPackage.extraHrRate1 || 0);
+    return price;
+  })();
+
+  const extraKmDetail = (() => {
+    if (!matchedPackage || distanceInKm <= matchedPackage.km) return null;
+    const extraKm = Math.ceil(distanceInKm - matchedPackage.km);
+    return { km: extraKm, cost: extraKm * matchedPackage.extraKMRate };
+  })();
+
+  const rawTotalPrice = Math.round(basePriceBeforeAdjustment * adjustmentMultiplier);
+
+  const discountAmount = (() => {
+    if (!appliedPromo) return 0;
+    const isApplicable = appliedPromo.applicableVehicle === 'All' || appliedPromo.applicableVehicle === formData.vehicleName || appliedPromo.applicableVehicle === formData.vehicleType;
+    if (!isApplicable) return 0;
+    return appliedPromo.discountType === 'Percentage' ? Math.round(rawTotalPrice * (appliedPromo.discountValue / 100)) : appliedPromo.discountValue;
+  })();
+
+  const nightSurcharge = (() => {
+    if (!formData.dateTime || !formData.vehicleType || distanceInKm >= 20 || distanceInKm <= 0) return 0;
+    const hour = new Date(formData.dateTime).getHours();
+    if (hour >= 0 && hour < 4) { if (formData.vehicleType === 'Car') return 500; if (formData.vehicleType === 'Van') return 1000; }
+    return 0;
+  })();
+
+  const totalPrice = Math.max(0, rawTotalPrice - discountAmount) + nightSurcharge;
+
+  const downloadTripSummary = () => {
+    const doc = new jsPDF();
+    const primaryColor: [number, number, number] = [13, 148, 136];
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(0, 0, 210, 40, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(24);
+    doc.text("SENU TOURS", 105, 20, { align: 'center' });
+    doc.setFontSize(10); doc.setFont("helvetica", "normal");
+    doc.text("Your Home, Your Journey, Your Hospitality Haven", 105, 30, { align: 'center' });
+    doc.setTextColor(0, 0, 0); doc.setFontSize(18); doc.setFont("helvetica", "bold");
+    doc.text("Booking Quote Summary", 14, 55);
+    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]); doc.setLineWidth(0.5); doc.line(14, 60, 60, 60);
+    const data = submittedBookingData || { formData, destinations, totalPrice, rawTotalPrice, appliedPromo };
+    const tableData = [
+      ["Vehicle Type", data.formData.vehicleType], ["Vehicle Name", data.formData.vehicleName || "Not Selected"],
+      ["Trip Type", data.formData.tripType], ["Reference No", data.bookingRefNo || "N/A"],
+      ["Pickup Date", data.formData.dateTime ? new Date(data.formData.dateTime).toLocaleDateString() : 'N/A'],
+      ["Pickup Time", data.formData.dateTime ? new Date(data.formData.dateTime).toLocaleTimeString() : 'N/A'],
+      ["Duration", data.formData.numberOfDays ? `${data.formData.numberOfDays} ${data.formData.numberOfDays === 1 ? 'Day' : 'Days'}` : '0 days'],
+      ["Pickup Location", data.formData.pickupLocation], ["Drop-off Location", data.formData.dropoffLocation],
+      ["Additional Hours", data.formData.additionalHours > 0 ? `${data.formData.additionalHours} Hours (LKR ${data.matchedPackage?.extraHrRate1 || matchedPackage?.extraHrRate1 || 0}/hr)` : "None"]
+    ];
+    if (data.destinations.length > 0) data.destinations.filter((d: string) => d.trim() !== "").forEach((stop: string, i: number) => tableData.push([`Stop ${i + 1}`, stop]));
+    autoTable(doc, { startY: 65, head: [['Field', 'Details']], body: tableData, theme: 'grid', headStyles: { fillColor: primaryColor, textColor: 255 }, styles: { font: 'helvetica', fontSize: 10 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } } });
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.text("Estimated Price", 14, finalY);
+    const priceData = [["Base Price", `LKR ${data.rawTotalPrice.toLocaleString()}`]];
+    if (data.formData.additionalHours > 0) { const hrRate = data.matchedPackage?.extraHrRate1 || matchedPackage?.extraHrRate1 || 0; priceData.push([`Additional Hours (${data.formData.additionalHours}h @ LKR ${hrRate}/hr)`, `LKR ${(data.formData.additionalHours * hrRate).toLocaleString()}`]); }
+    if (data.appliedPromo) { const disc = data.appliedPromo.discountType === 'Percentage' ? `${data.appliedPromo.discountValue}%` : `LKR ${data.appliedPromo.discountValue.toLocaleString()}`; priceData.push([`Promo Discount (${data.appliedPromo.code})`, `- ${disc}`]); }
+    if (data.nightSurcharge > 0) priceData.push([`Night Surcharge (12AM-4AM)`, `LKR ${data.nightSurcharge.toLocaleString()}`]);
+    priceData.push(["Total Estimate", `LKR ${data.totalPrice.toLocaleString()}`]);
+    autoTable(doc, { startY: finalY + 5, body: priceData, theme: 'plain', styles: { fontSize: 11 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 80 }, 1: { halign: 'right', textColor: primaryColor, fontStyle: 'bold' } } });
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150); doc.text("This is an estimated quote generated by Senu Tours website. Actual prices may vary.", 105, 285, { align: 'center' }); doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' }); }
+    doc.save(`Senu_Tours_Trip_Summary_${new Date().getTime()}.pdf`);
+    handleClosePersonalDialog();
+  };
+
+  const handleSendRequest = async () => {
+    const isEmailValid = !formData.email || EMAIL_REGEX.test(formData.email);
+    const isPhoneValid = !formData.telephone || PHONE_REGEX.test(formData.telephone);
+    if (!isEmailValid || !isPhoneValid || additionalPhoneErrors.some(e => e !== '')) { setSnackbarMessage('Please fix the errors in the form before submitting.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+    if (!formData.name || !formData.telephone || !formData.email) { setSnackbarMessage('Please fill in all required fields (Name, Telephone, Email).'); setSnackbarSeverity('warning'); setSnackbarOpen(true); return; }
+    try {
+      const payload = { ...formData, destinations: destinations.filter(d => d.trim() !== ''), matchedPackage, promoCode: appliedPromo?.code || '', discount: discountAmount };
+      const response = await fetch(API_ENDPOINTS.BOOKINGS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (response.ok) {
+        const result = await response.json();
+        setBookingRefNo(result.customId || result._id);
+        setSubmittedBookingData({ formData: { ...formData }, destinations: [...destinations], totalPrice, rawTotalPrice, appliedPromo, bookingRefNo: result.customId || result._id, nightSurcharge, matchedPackage });
+        setRequestSent(true);
+        setFormData({ vehicleType: '', vehicleName: '', tripType: '', pickupLocation: '', dropoffLocation: '', dateTime: '', numberOfDays: '' as any, name: '', telephone: '', additionalPhones: [], email: '', remark: '', maxPersons: 0, maxBags: 0, additionalHours: 0 });
+        setAppliedPromo(null); setPromoCodeInput(''); setHasPromoOption(null); setShowRemark(false);
+        setDestinations([]); setPickupCoords(null); setDropoffCoords(null); setStopCoords([]);
+        setRouteDistance(null); setRouteDuration(null);
+      } else {
+        const errorData = await response.json();
+        setSnackbarMessage(errorData.message || 'Failed to send booking request.'); setSnackbarSeverity('error'); setSnackbarOpen(true);
+      }
+    } catch { setSnackbarMessage('An error occurred. Please try again later.'); setSnackbarSeverity('error'); setSnackbarOpen(true); }
+  };
+
+  const currentCategoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles] || { models: [] };
+
+  return {
+    // State
+    formData, setFormData, routeResponse, minDateTime, openPromoDialog, setOpenPromoDialog,
+    promoCodeInput, setPromoCodeInput, appliedPromo, hasPromoOption, setHasPromoOption,
+    isPromoLoading, emailError, phoneError, additionalPhoneErrors, requestSent, showRemark,
+    setShowRemark, openAuthModal, setOpenAuthModal, showLoginAlert, setShowLoginAlert,
+    openRouteViewer, setOpenRouteViewer, openNearbyViewer, setOpenNearbyViewer,
+    openPolicyDialog, setOpenPolicyDialog, submittedBookingData, showCloseConfirm,
+    setShowCloseConfirm, destinations, openDateTimePicker, setOpenDateTimePicker,
+    pickerStep, setPickerStep, tempDate, setTempDate, tempTime, setTempTime,
+    tempHour, setTempHour, tempMin, setTempMin, tempAmPm, setTempAmPm,
+    openDayPicker, setOpenDayPicker, tempDays, setTempDays, pickupCoords,
+    setPickupCoords, dropoffCoords, setDropoffCoords, stopCoords, setStopCoords,
+    routeDistance, routeDuration, routeLoading, showDropHireSuggestion,
+    setShowDropHireSuggestion, acknowledgedDropHireSuggestion,
+    setAcknowledgedDropHireSuggestion, bookingRefNo, showCallPopup, setShowCallPopup,
+    openVehicleDialog, setOpenVehicleDialog, openTripTypeDialog, setOpenTripTypeDialog,
+    openPersonalDialog, setOpenPersonalDialog, showExtraPrices, selectedCategory,
+    snackbarOpen, snackbarMessage, snackbarSeverity, openPhotosDialog,
+    setOpenPhotosDialog, photosVehicle, setPhotosVehicle,
+    // Computed
+    distanceInKm, matchedPackage, minKmRequired, activeAdjustment, extraKmDetail,
+    rawTotalPrice, discountAmount, nightSurcharge, totalPrice, currentCategoryVehicles,
+    // Handlers
+    handleChange, handlePromoSubmit, handleViewDirections, handleAddPhone,
+    handleRemovePhone, updateAdditionalPhone, handleVehicleCardClick,
+    handleVehicleSelect, handleTripTypeSelect, handleRequestBooking,
+    handleClosePersonalDialog, downloadTripSummary, handleSendRequest,
+    handleSnackbarClose, addDestination, removeDestination, updateDestination,
+    getVehicleFolderName,
+  };
+}

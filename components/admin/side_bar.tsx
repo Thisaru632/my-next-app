@@ -25,6 +25,8 @@ import {
     ManageAccounts as ManageAccountsIcon,
     Payments as PaymentsIcon,
     LocalOffer as LocalOfferIcon,
+    MenuBook as MenuBookIcon,
+    FileUpload as FileUploadIcon,
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 import { API_ENDPOINTS } from '@/config/api';
@@ -55,6 +57,8 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'User Manage', icon: <ManageAccountsIcon />, path: '/staff/user_manage', key: 'userManagement' },
         { text: 'Rate Card Manage', icon: <PaymentsIcon />, path: '/staff/rate_card_manage', key: 'rateCardManage' },
         { text: 'Promo Code Manager', icon: <LocalOfferIcon />, path: '/staff/promo_code_manage', key: 'promoCodeManage' },
+        { text: 'Staff Guide', icon: <MenuBookIcon />, path: '/staff/staff-guide', key: 'dashboard' }, // Always allow if they have dashboard access
+        { text: 'Manage Guides', icon: <FileUploadIcon />, path: '/staff/staff-guide/manage', key: 'staffGuideManage' },
     ];
 
     const [allowedItems, setAllowedItems] = React.useState<MenuItem[]>([]);
