@@ -46,6 +46,8 @@ import {
   KeyboardArrowUp,
   KeyboardArrowDown,
   Map as MapIcon,
+  Call,
+  ContentCopy,
 } from '@mui/icons-material';
 import MapPicker from './MapPicker';
 import Image from 'next/image';
@@ -58,6 +60,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download } from 'lucide-react';
 import { getHolidayName, isPoyaDay, isWeekend } from '@/config/holidays';
+import { useJsApiLoader } from '@react-google-maps/api';
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc";
+const LIBRARIES: ("places" | "geometry" | "drawing" | "visualization")[] = ["places", "geometry"];
+
 interface PromoCode {
   _id: string;
   code: string;
@@ -396,7 +403,7 @@ function LocationInput({
     setCoordsConfirmed(false);
     onManualType?.();
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(val), 220);
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 450);
   };
 
   const handleSelect = async (suggestion: GooglePlaceSuggestion) => {
@@ -707,6 +714,14 @@ export default function HeroSection() {
     maxBags: 0,
   });
 
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: LIBRARIES
+  });
+
+  const [routeResponse, setRouteResponse] = useState<google.maps.DirectionsResult | null>(null);
+
   // Effect to pre-fill formData when user logs in
   useEffect(() => {
     if (user) {
@@ -735,6 +750,15 @@ export default function HeroSection() {
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
   const [hasPromoOption, setHasPromoOption] = useState<boolean | null>(null);
   const [isPromoLoading, setIsPromoLoading] = useState(false);
+
+  // Validation state
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [additionalPhoneErrors, setAdditionalPhoneErrors] = useState<string[]>([]);
+
+  // Validation regex
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const PHONE_REGEX = /^(?:\+94|0)?[0-9]{9,10}$/;
 
   const [requestSent, setRequestSent] = useState(false);
   const [showRemark, setShowRemark] = useState(false);
@@ -772,6 +796,10 @@ export default function HeroSection() {
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
   const [routeDuration, setRouteDuration] = useState<number | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
+  const [showDropHireSuggestion, setShowDropHireSuggestion] = useState(false);
+  const [acknowledgedDropHireSuggestion, setAcknowledgedDropHireSuggestion] = useState(false);
+  const [bookingRefNo, setBookingRefNo] = useState('');
+  const [showCallPopup, setShowCallPopup] = useState(false);
 
   // Rate Cards state
   const [rateCards, setRateCards] = useState<RateCard[]>([]);
@@ -813,52 +841,90 @@ export default function HeroSection() {
 
   /* ── Google Maps route calculation ── */
   useEffect(() => {
-    if (!formData.pickupLocation || !formData.dropoffLocation) {
-      setRouteDistance(null);
-      setRouteDuration(null);
+    // Only calculate if we have ALL coordinates (pickup, dropoff, and all stops) to ensure a reliable route 
+    // and avoid "NOT_FOUND" geocoding errors during typing.
+    const allStopsHaveCoords = destinations.every((d, i) => d.trim() === "" || (stopCoords[i] !== null));
+    
+    if (!isLoaded || !pickupCoords || !dropoffCoords || !allStopsHaveCoords) {
+      // If we previously had a route but coordinates were cleared, clear the route too
+      if (routeDistance !== null) {
+        setRouteDistance(null);
+        setRouteDuration(null);
+        setRouteResponse(null);
+      }
       return;
     }
 
     let cancelled = false;
     setRouteLoading(true);
 
-    const fetchRoute = async () => {
-      try {
-        const validStops = destinations.filter(d => d.trim() !== "");
-        const waypointsParam = validStops.length > 0
-          ? `&waypoints=${encodeURIComponent(validStops.join('|'))}`
-          : "";
+    const timer = setTimeout(() => {
+      const calculateRoute = async () => {
+        const directionsService = new google.maps.DirectionsService();
+        
+        // Prepare origin and destination - use coordinates if available, fallback to strings
+        const origin = pickupCoords ? { lat: parseFloat(pickupCoords.lat), lng: parseFloat(pickupCoords.lon) } : formData.pickupLocation;
+        const destination = dropoffCoords ? { lat: parseFloat(dropoffCoords.lat), lng: parseFloat(dropoffCoords.lon) } : formData.dropoffLocation;
+        
+        const validWaypoints = destinations
+          .map((d, i) => {
+            if (stopCoords[i]) {
+               return { location: { lat: parseFloat(stopCoords[i]!.lat), lng: parseFloat(stopCoords[i]!.lon) }, stopover: true };
+            }
+            return d.trim() !== "" ? { location: d, stopover: true } : null;
+          })
+          .filter(wp => wp !== null) as google.maps.DirectionsWaypoint[];
 
-        const url = `/api/google-distance?origin=${encodeURIComponent(formData.pickupLocation)}&destination=${encodeURIComponent(formData.dropoffLocation)}${waypointsParam}`;
-        const r = await fetch(url);
-        if (!r.ok) throw new Error(`Google HTTP ${r.status}`);
-        const data = await r.json();
+        try {
+          const result = await directionsService.route({
+            origin: origin,
+            destination: destination,
+            waypoints: validWaypoints,
+            travelMode: google.maps.TravelMode.DRIVING,
+          });
 
-        if (cancelled) return;
+          if (cancelled) return;
 
-        if (data.rows && data.rows[0]?.elements[0]?.status === "OK") {
-          const element = data.rows[0].elements[0];
-          setRouteDistance(element.distance.value); // metres
-          setRouteDuration(element.duration.value); // seconds
-        } else {
-          console.warn('[Route] Google returned no route status:', data.rows?.[0]?.elements?.[0]?.status);
-          setRouteDistance(null);
-          setRouteDuration(null);
+          if (result.routes && result.routes[0]) {
+            const route = result.routes[0];
+            const totalDistance = route.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0);
+            const totalDuration = route.legs.reduce((acc, leg) => acc + (leg.duration?.value || 0), 0);
+            
+            setRouteDistance(totalDistance);
+            setRouteDuration(totalDuration);
+            setRouteResponse(result);
+            console.log('[Route] Calculated:', (totalDistance/1000).toFixed(2), 'km');
+          }
+        } catch (err: any) {
+          if (!cancelled) {
+            setRouteDistance(null);
+            setRouteDuration(null);
+            setRouteResponse(null);
+            
+            const isExpectedError = err.code === 'NOT_FOUND' || (err.message && err.message.includes('NOT_FOUND')) || 
+                                   err.code === 'ZERO_RESULTS' || (err.message && err.message.includes('ZERO_RESULTS'));
+
+            if (isExpectedError) {
+              // Silence NOT_FOUND and ZERO_RESULTS as they are common during typing/state transitions
+            } else {
+              if (err.code !== 'OVER_QUERY_LIMIT') {
+                console.error('[Route] Directions error:', err);
+              }
+            }
+          }
+        } finally {
+          if (!cancelled) setRouteLoading(false);
         }
-      } catch (err) {
-        if (!cancelled) {
-          console.error('[Route] Google Distance error:', err);
-          setRouteDistance(null);
-        }
-      } finally {
-        if (!cancelled) setRouteLoading(false);
-      }
+      };
+
+      calculateRoute();
+    }, 1000); // 1s Debounce
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
-
-    fetchRoute();
-
-    return () => { cancelled = true; };
-  }, [formData.pickupLocation, formData.dropoffLocation, destinations]);
+  }, [formData.pickupLocation, formData.dropoffLocation, destinations, pickupCoords, dropoffCoords, stopCoords, isLoaded]);
 
   const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
   const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
@@ -935,6 +1001,22 @@ export default function HeroSection() {
         // Auto-set to minimum valid time
         const minDate = new Date(minLeadTime - (new Date().getTimezoneOffset() * 60000));
         value = minDate.toISOString().slice(0, 16);
+      }
+    }
+
+    // Real-time validation
+    if (field === 'email') {
+      if (value && !EMAIL_REGEX.test(value)) {
+        setEmailError('Invalid email format');
+      } else {
+        setEmailError('');
+      }
+    }
+    if (field === 'telephone') {
+      if (value && !PHONE_REGEX.test(value)) {
+        setPhoneError('Invalid phone format (e.g. 07XXXXXXXX)');
+      } else {
+        setPhoneError('');
       }
     }
 
@@ -1025,7 +1107,7 @@ export default function HeroSection() {
   };
 
   const handleViewDirections = () => {
-    if (!formData.pickupLocation || !formData.dropoffLocation) return;
+    if (!pickupCoords || !dropoffCoords || !routeDistance) return;
     setOpenRouteViewer(true);
   };
 
@@ -1042,9 +1124,21 @@ export default function HeroSection() {
       ...prev,
       additionalPhones: prev.additionalPhones.filter((_, i) => i !== index)
     }));
+    setAdditionalPhoneErrors(prev => prev.filter((_, i) => i !== index));
   };
 
   const updateAdditionalPhone = (index: number, value: string) => {
+    // Real-time validation
+    setAdditionalPhoneErrors((prev) => {
+      const newErrors = [...prev];
+      if (value && !PHONE_REGEX.test(value)) {
+        newErrors[index] = 'Invalid phone format';
+      } else {
+        newErrors[index] = '';
+      }
+      return newErrors;
+    });
+
     setFormData(prev => {
       const newPhones = [...prev.additionalPhones];
       newPhones[index] = value;
@@ -1141,8 +1235,27 @@ export default function HeroSection() {
   };
 
   const handleRequestBooking = () => {
+    // Basic validation
     if (!formData.vehicleName || !formData.tripType || !formData.pickupLocation || !formData.dropoffLocation || !formData.dateTime) {
-      alert('Please fill all required fields');
+      setSnackbarMessage('Please fill all required fields before proceeding.');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    // Days validation for multi-day trips
+    if (formData.tripType !== 'Drop' && !formData.numberOfDays) {
+      setSnackbarMessage('Please select the number of days for your trip.');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    // Wait for route loading if it's currently calculating
+    if (routeLoading) {
+      setSnackbarMessage('Please wait while we calculate the route distance...');
+      setSnackbarSeverity('info');
+      setSnackbarOpen(true);
       return;
     }
 
@@ -1150,7 +1263,21 @@ export default function HeroSection() {
     const selectedTime = new Date(formData.dateTime).getTime();
     const minLeadTime = new Date().getTime() + (2 * 60 * 60 * 1000);
     if (selectedTime < minLeadTime) {
-      alert('Sorry, your selected time is too soon. Please select a time at least 2 hours from now.');
+      setSnackbarMessage('Sorry, your selected time is too soon. Please select a time at least 2 hours from now.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    // Suggest separate drop hires for short multi-day trips
+    const distanceInKm = routeDistance ? (routeDistance / 1000) : 0;
+    const days = Number(formData.numberOfDays);
+
+    console.log('[BookingCheck] Days:', days, 'Distance:', distanceInKm, 'Acknowledged:', acknowledgedDropHireSuggestion);
+
+    // If trip is multi-day (>1) AND it's a short distance (<100km), show the suggestion once
+    if (days > 1 && distanceInKm > 0 && distanceInKm < 100 && !acknowledgedDropHireSuggestion) {
+      setShowDropHireSuggestion(true);
       return;
     }
 
@@ -1164,6 +1291,7 @@ export default function HeroSection() {
       setTimeout(() => {
         setRequestSent(false);
         setSubmittedBookingData(null);
+        setBookingRefNo('');
       }, 300);
       return;
     }
@@ -1215,6 +1343,7 @@ export default function HeroSection() {
       ["Vehicle Type", data.formData.vehicleType],
       ["Vehicle Name", data.formData.vehicleName || "Not Selected"],
       ["Trip Type", data.formData.tripType],
+      ["Reference No", data.bookingRefNo || "N/A"],
       ["Pickup Date", data.formData.dateTime ? new Date(data.formData.dateTime).toLocaleDateString() : 'N/A'],
       ["Pickup Time", data.formData.dateTime ? new Date(data.formData.dateTime).toLocaleTimeString() : 'N/A'],
       ["Duration", data.formData.numberOfDays ? `${data.formData.numberOfDays} ${data.formData.numberOfDays === 1 ? 'Day' : 'Days'}` : '0 days'],
@@ -1253,6 +1382,10 @@ export default function HeroSection() {
       priceData.push([`Promo Discount (${data.appliedPromo.code})`, `- ${disc}`]);
     }
 
+    if (data.nightSurcharge > 0) {
+      priceData.push([`Night Surcharge (12AM-4AM)`, `LKR ${data.nightSurcharge.toLocaleString()}`]);
+    }
+    
     priceData.push(["Total Estimate", `LKR ${data.totalPrice.toLocaleString()}`]);
 
     autoTable(doc, {
@@ -1283,6 +1416,25 @@ export default function HeroSection() {
   };
 
   const handleSendRequest = async () => {
+    // Final Validation check
+    const isEmailValid = !formData.email || EMAIL_REGEX.test(formData.email);
+    const isPhoneValid = !formData.telephone || PHONE_REGEX.test(formData.telephone);
+    const hasAddPhoneErrors = additionalPhoneErrors.some(err => err !== '');
+
+    if (!isEmailValid || !isPhoneValid || hasAddPhoneErrors) {
+      setSnackbarMessage('Please fix the errors in the form before submitting.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    if (!formData.name || !formData.telephone || !formData.email) {
+      setSnackbarMessage('Please fill in all required fields (Name, Telephone, Email).');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+
     try {
       const payload = {
         ...formData,
@@ -1303,13 +1455,18 @@ export default function HeroSection() {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        setBookingRefNo(result.customId || result._id);
+
         // Capture summary data BEFORE clearing form
         setSubmittedBookingData({
           formData: { ...formData },
           destinations: [...destinations],
           totalPrice,
           rawTotalPrice,
-          appliedPromo
+          appliedPromo,
+          bookingRefNo: result.customId || result._id,
+          nightSurcharge
         });
 
         setRequestSent(true);
@@ -1515,11 +1672,11 @@ export default function HeroSection() {
       const cleanAdjType = adj.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
 
-      // Date Validity Check
-      const now = new Date();
+      // Date Validity Check - Use trip date if selected, fallback to current time
+      const tripDate = formData.dateTime ? new Date(formData.dateTime) : new Date();
       const vFrom = adj.validFrom ? new Date(adj.validFrom) : null;
       const vTo = adj.validTo ? new Date(adj.validTo) : null;
-      const isDateValid = (!vFrom || now >= vFrom) && (!vTo || now <= vTo);
+      const isDateValid = (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
 
       return vehicleMatch && typeMatch && isDateValid;
     });
@@ -1531,12 +1688,12 @@ export default function HeroSection() {
     // Priority 2: Vehicle category (Car/Van/etc) match
     // Priority 3: 'All' match
     return matches.sort((a, b) => {
-      const aLow = a.vehicle.toLowerCase();
-      const bLow = b.vehicle.toLowerCase();
+      const aClean = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const bClean = b.vehicle.toLowerCase().replace(/\s+/g, '').trim();
 
-      // Exact name match score
-      const aScoreVeh = (aLow === cleanFormVehName) ? 200 : (aLow === cleanFormVehType ? 100 : (aLow === 'all' ? 0 : 50));
-      const bScoreVeh = (bLow === cleanFormVehName) ? 200 : (bLow === cleanFormVehType ? 100 : (bLow === 'all' ? 0 : 50));
+      // Priority Scoring
+      const aScoreVeh = (aClean === cleanFormVehName) ? 200 : (aClean === cleanFormVehType ? 100 : (aClean === 'all' ? 0 : 50));
+      const bScoreVeh = (bClean === cleanFormVehName) ? 200 : (bClean === cleanFormVehType ? 100 : (bClean === 'all' ? 0 : 50));
 
       if (aScoreVeh !== bScoreVeh) return bScoreVeh - aScoreVeh;
 
@@ -1584,20 +1741,28 @@ export default function HeroSection() {
 
   const discountAmount = (() => {
     if (!appliedPromo) return 0;
-
-    // Strict vehicle check
-    if (appliedPromo.applicableVehicle !== 'All' && appliedPromo.applicableVehicle !== formData.vehicleName) {
-      return 0;
-    }
-
+    if (appliedPromo.applicableVehicle !== 'All' && appliedPromo.applicableVehicle !== formData.vehicleName) return 0;
     if (appliedPromo.discountType === 'Percentage') {
       return Math.round(rawTotalPrice * (appliedPromo.discountValue / 100));
-    } else {
-      return appliedPromo.discountValue;
     }
+    return appliedPromo.discountValue;
   })();
 
-  const totalPrice = Math.max(0, rawTotalPrice - discountAmount);
+  const nightSurcharge = (() => {
+    if (!formData.dateTime || !formData.vehicleType || distanceInKm >= 20 || distanceInKm <= 0) return 0;
+    
+    // Parse time. hour 0 is 12AM midnight. hour 4 is 4AM.
+    const date = new Date(formData.dateTime);
+    const hour = date.getHours();
+    
+    if (hour >= 0 && hour < 4) {
+      if (formData.vehicleType === 'Car') return 500;
+      if (formData.vehicleType === 'Van') return 1000;
+    }
+    return 0;
+  })();
+
+  const totalPrice = Math.max(0, rawTotalPrice - discountAmount) + nightSurcharge;
 
   // -----------------------------------------------------------------------
   // Render
@@ -2444,10 +2609,11 @@ export default function HeroSection() {
                           <>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.1rem', fontWeight: 700, color: '#111827' }}>
-                                {(routeDistance! / 1000).toFixed(1)} km
+                                {routeDistance ? (routeDistance / 1000).toFixed(1) : '0.0'} km
                               </div>
                               <button
                                 onClick={handleViewDirections}
+                                disabled={!routeDistance}
                                 className="group flex items-center gap-1.5"
                                 style={{
                                   padding: '4px 10px',
@@ -2456,7 +2622,8 @@ export default function HeroSection() {
                                   border: '1.5px solid rgba(13,148,136,0.35)',
                                   borderRadius: '8px',
                                   color: '#0d9488',
-                                  cursor: 'pointer',
+                                  cursor: routeDistance ? 'pointer' : 'not-allowed',
+                                  opacity: routeDistance ? 1 : 0.4,
                                   fontFamily: "'Montserrat', sans-serif",
                                   fontWeight: 700,
                                   textTransform: 'uppercase',
@@ -2464,16 +2631,20 @@ export default function HeroSection() {
                                   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                                 }}
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = '#0d9488';
-                                  e.currentTarget.style.color = '#fff';
-                                  e.currentTarget.style.transform = 'translateY(-1px)';
-                                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(13,148,136,0.2)';
+                                  if (routeDistance) {
+                                    e.currentTarget.style.background = '#0d9488';
+                                    e.currentTarget.style.color = '#fff';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(13,148,136,0.2)';
+                                  }
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = 'rgba(13,148,136,0.08)';
-                                  e.currentTarget.style.color = '#0d9488';
-                                  e.currentTarget.style.transform = 'translateY(0)';
-                                  e.currentTarget.style.boxShadow = 'none';
+                                  if (routeDistance) {
+                                    e.currentTarget.style.background = 'rgba(13,148,136,0.08)';
+                                    e.currentTarget.style.color = '#0d9488';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }
                                 }}
                               >
                                 <MapIcon sx={{ fontSize: '0.9rem' }} />
@@ -2482,9 +2653,10 @@ export default function HeroSection() {
 
                               <button
                                 onClick={() => {
-                                  if (!formData.dropoffLocation) return;
+                                  if (!routeDistance) return;
                                   setOpenNearbyViewer(true);
                                 }}
+                                disabled={!routeDistance}
                                 className="group flex items-center gap-1.5"
                                 style={{
                                   padding: '4px 10px',
@@ -2493,7 +2665,8 @@ export default function HeroSection() {
                                   border: '1.5px solid rgba(59,130,246,0.35)',
                                   borderRadius: '8px',
                                   color: '#3b82f6',
-                                  cursor: 'pointer',
+                                  cursor: routeDistance ? 'pointer' : 'not-allowed',
+                                  opacity: routeDistance ? 1 : 0.4,
                                   fontFamily: "'Montserrat', sans-serif",
                                   fontWeight: 700,
                                   textTransform: 'uppercase',
@@ -2501,16 +2674,20 @@ export default function HeroSection() {
                                   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                                 }}
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = '#3b82f6';
-                                  e.currentTarget.style.color = '#fff';
-                                  e.currentTarget.style.transform = 'translateY(-1px)';
-                                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.2)';
+                                  if (routeDistance) {
+                                    e.currentTarget.style.background = '#3b82f6';
+                                    e.currentTarget.style.color = '#fff';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.2)';
+                                  }
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = 'rgba(59,130,246,0.08)';
-                                  e.currentTarget.style.color = '#3b82f6';
-                                  e.currentTarget.style.transform = 'translateY(0)';
-                                  e.currentTarget.style.boxShadow = 'none';
+                                  if (routeDistance) {
+                                    e.currentTarget.style.background = 'rgba(59,130,246,0.08)';
+                                    e.currentTarget.style.color = '#3b82f6';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }
                                 }}
                               >
                                 <MyLocationIcon sx={{ fontSize: '0.9rem' }} />
@@ -2562,7 +2739,7 @@ export default function HeroSection() {
                                   LKR {Math.round(basePriceBeforeAdjustment).toLocaleString()}
                                 </span>
                                 <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: '4px' }}>
-                                  {activeAdjustment.percentage}% Discount
+                                  {Math.abs(activeAdjustment.percentage)}% Seasonal Discount
                                 </span>
                               </div>
                             )}
@@ -2590,6 +2767,27 @@ export default function HeroSection() {
                               </span>
                             )}
                           </div>
+
+                          {/* Night Surcharge Breakdown */}
+                          {nightSurcharge > 0 && (
+                            <div style={{
+                              marginTop: '6px',
+                              padding: '6px 12px',
+                              background: 'rgba(59,130,246,0.06)',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(59,130,246,0.15)',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}>
+                              <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#1e40af', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                🌙 Night Surcharge (12AM - 4AM)
+                              </span>
+                              <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#1e40af', fontWeight: 800 }}>
+                                + LKR {nightSurcharge.toLocaleString()}
+                              </span>
+                            </div>
+                          )}
 
                           {/* Extra KM Charge Breakdown (Internal) */}
                           {extraKmDetail && (
@@ -2692,55 +2890,57 @@ export default function HeroSection() {
 
                   {/* CTA button (RELOCATED TO SUMMARY CARD) */}
                   <div style={{ marginTop: "1rem" }}>
-                    <button
-                      onClick={handleRequestBooking}
-                      disabled={!formData.vehicleName || !formData.tripType || !formData.pickupLocation || !formData.dropoffLocation || !formData.dateTime}
-                      className="inline-flex items-center justify-center text-white uppercase w-full"
-                      style={{
-                        fontFamily: "'Montserrat', sans-serif",
-                        fontWeight: 600,
-                        fontSize: "0.85rem",
-                        letterSpacing: "0.04em",
-                        border: "1.8px solid #0d9488",
-                        borderRadius: "12px",
-                        padding: "0.85rem 1.6rem",
-                        background: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
-                          ? "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)"
-                          : "rgba(13,148,136,0.35)",
-                        backdropFilter: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
-                          ? "none"
-                          : "blur(10px)",
-                        color: "#ffffff",
-                        transition: "all 0.3s ease",
-                        cursor: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
-                          ? "pointer"
-                          : "not-allowed",
-                        boxShadow: formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime
-                          ? "0 4px 14px 0 rgba(13,148,136,0.39)"
-                          : "none",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime) {
-                          const el = e.currentTarget;
-                          el.style.background = "linear-gradient(135deg, #0f766e 0%, #2563eb 100%)";
-                          el.style.transform = "translateY(-2px)";
-                          el.style.boxShadow = "0 10px 30px rgba(13,148,136,0.35)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime) {
-                          const el = e.currentTarget;
-                          el.style.background = "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)";
-                          el.style.transform = "translateY(0)";
-                          el.style.boxShadow = "0 4px 14px 0 rgba(13,148,136,0.39)";
-                        }
-                      }}
-                    >
-                      Request Booking
-                      <span className="ml-2 inline-block" style={{ transition: "transform 0.3s ease" }}>
-                        →
-                      </span>
-                    </button>
+                    {(() => {
+                      const isBasicInfoComplete = !!(formData.vehicleName && formData.tripType && formData.pickupLocation && formData.dropoffLocation && formData.dateTime);
+                      const isDaysSelected = formData.tripType === 'Drop' || !!formData.numberOfDays;
+                      const canSubmit = isBasicInfoComplete && isDaysSelected;
+                      
+                      return (
+                        <button
+                          onClick={handleRequestBooking}
+                          disabled={!canSubmit}
+                          className="inline-flex items-center justify-center text-white uppercase w-full"
+                          style={{
+                            fontFamily: "'Montserrat', sans-serif",
+                            fontWeight: 600,
+                            fontSize: "0.85rem",
+                            letterSpacing: "0.04em",
+                            border: "1.8px solid #0d9488",
+                            borderRadius: "12px",
+                            padding: "0.85rem 1.6rem",
+                            background: canSubmit
+                              ? "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)"
+                              : "rgba(13,148,136,0.35)",
+                            backdropFilter: canSubmit ? "none" : "blur(10px)",
+                            color: "#ffffff",
+                            transition: "all 0.3s ease",
+                            cursor: canSubmit ? "pointer" : "not-allowed",
+                            boxShadow: canSubmit ? "0 4px 14px 0 rgba(13,148,136,0.39)" : "none",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (canSubmit) {
+                              const el = e.currentTarget;
+                              el.style.background = "linear-gradient(135deg, #0f766e 0%, #2563eb 100%)";
+                              el.style.transform = "translateY(-2px)";
+                              el.style.boxShadow = "0 10px 30px rgba(13,148,136,0.35)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (canSubmit) {
+                              const el = e.currentTarget;
+                              el.style.background = "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)";
+                              el.style.transform = "translateY(0)";
+                              el.style.boxShadow = "0 4px 14px 0 rgba(13,148,136,0.39)";
+                            }
+                          }}
+                        >
+                          Request Booking
+                          <span className="ml-2 inline-block" style={{ transition: "transform 0.3s ease" }}>
+                            →
+                          </span>
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -2966,7 +3166,14 @@ export default function HeroSection() {
       {/* ─── TRIP TYPE DIALOG ─── */}
       <Dialog
         open={openTripTypeDialog}
-        onClose={() => setOpenTripTypeDialog(false)}
+        onClose={() => {
+          if (formData.tripType) setOpenTripTypeDialog(false);
+          else {
+            setSnackbarMessage('Please select a trip type to continue.');
+            setSnackbarSeverity('warning');
+            setSnackbarOpen(true);
+          }
+        }}
         PaperProps={{
           sx: {
             width: '95%',
@@ -3010,7 +3217,14 @@ export default function HeroSection() {
             </Typography>
           </Box>
           <IconButton
-            onClick={() => setOpenTripTypeDialog(false)}
+            onClick={() => {
+              if (formData.tripType) setOpenTripTypeDialog(false);
+              else {
+                setSnackbarMessage('Please select a trip type to continue.');
+                setSnackbarSeverity('warning');
+                setSnackbarOpen(true);
+              }
+            }}
             sx={{
               color: '#9ca3af',
               background: '#f8f9fa',
@@ -3263,6 +3477,96 @@ export default function HeroSection() {
         </div>
       </Dialog>
 
+      {/* ─── DROP HIRE SUGGESTION DIALOG ─── */}
+      <Dialog
+        open={showDropHireSuggestion}
+        onClose={() => setShowDropHireSuggestion(false)}
+        PaperProps={{
+          sx: {
+            width: '95%',
+            maxWidth: 450,
+            borderRadius: '24px',
+            p: 4,
+            textAlign: 'center',
+            background: '#ffffff',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.15)',
+            border: '1px solid rgba(13,148,136,0.1)'
+          }
+        }}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1.2rem' }}>💡</div>
+          <h3 style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: '1.8rem',
+            fontWeight: 700,
+            color: '#111827',
+            marginBottom: '1rem',
+            lineHeight: 1.2
+          }}>
+            Smart Choice Suggestion
+          </h3>
+          <div style={{
+            fontFamily: "'Montserrat', sans-serif",
+            fontSize: '0.95rem',
+            color: '#4b5563',
+            marginBottom: '2.5rem',
+            lineHeight: 1.6,
+            textAlign: 'center'
+          }}>
+            You have selected a multi-day trip for a short distance (under 100km). 
+            <br /><strong>Are you sure about this?</strong> 
+            <br /><br />
+            Since the distance is short, you can get <strong>two separate Drop hires</strong> for this low rate which might be more cost-effective than a Return rate with waiting charges.
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button
+              onClick={() => {
+                setShowDropHireSuggestion(false);
+                setOpenTripTypeDialog(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                borderRadius: '12px',
+                border: '1.5px solid #0d9488',
+                background: '#fff',
+                color: '#0d9488',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              Reconsider (Change Trip Type)
+            </button>
+            <button
+              onClick={() => {
+                setAcknowledgedDropHireSuggestion(true);
+                setShowDropHireSuggestion(false);
+                setOpenPersonalDialog(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '1rem',
+                borderRadius: '12px',
+                border: 'none',
+                background: '#0d9488',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: '0 4px 12px rgba(13,148,136,0.2)'
+              }}
+            >
+              Yes, I'm sure (Continue Booking)
+            </button>
+          </div>
+        </div>
+      </Dialog>
+
       <Dialog
         open={openPersonalDialog}
         onClose={handleClosePersonalDialog}
@@ -3334,13 +3638,30 @@ export default function HeroSection() {
 
               <p style={{
                 fontFamily: "'Montserrat', sans-serif",
-                fontSize: '0.95rem',
-                color: '#4b5563',
+                fontSize: "0.95rem",
+                color: "#4b5563",
                 lineHeight: 1.6,
                 margin: 0
               }}>
                 Your journey request has been sent successfully. We will contact you shortly to finalize your booking.
               </p>
+
+              {bookingRefNo && (
+                <div style={{
+                  background: 'rgba(13, 148, 136, 0.05)',
+                  padding: '12px 20px',
+                  borderRadius: '12px',
+                  border: '1.5px dashed #0d9488',
+                  marginTop: '0.5rem'
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
+                    Quotation Reference
+                  </div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0d9488', fontFamily: "'Montserrat', sans-serif", letterSpacing: '2px' }}>
+                    {bookingRefNo}
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={downloadTripSummary}
@@ -3357,8 +3678,10 @@ export default function HeroSection() {
                   transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '10px',
-                  boxShadow: '0 8px 24px rgba(13, 148, 136, 0.25)'
+                  boxShadow: '0 8px 24px rgba(13, 148, 136, 0.25)',
+                  width: '100%'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "translateY(-2px)";
@@ -3371,6 +3694,38 @@ export default function HeroSection() {
               >
                 <Download size={20} />
                 Download Trip Summary
+              </button>
+
+              <button
+                onClick={() => setShowCallPopup(true)}
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '1rem 2rem',
+                  background: '#fff',
+                  color: '#0d9488',
+                  border: '2px solid #0d9488',
+                  borderRadius: '16px',
+                  fontWeight: 700,
+                  fontFamily: "'Montserrat', sans-serif",
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  width: '100%'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(13, 148, 136, 0.05)';
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#fff';
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                <Call sx={{ fontSize: 20 }} />
+                Get a Call
               </button>
 
               <button
@@ -3451,6 +3806,11 @@ export default function HeroSection() {
                       e.target.style.boxShadow = 'none';
                     }}
                   />
+                  {phoneError && (
+                    <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: '4px', marginLeft: '4px', fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}>
+                      {phoneError}
+                    </div>
+                  )}
                   {formData.additionalPhones.length < 1 && (
                     <IconButton
                       onClick={handleAddPhone}
@@ -3508,6 +3868,11 @@ export default function HeroSection() {
                     >
                       <RemoveCircle />
                     </IconButton>
+                    {additionalPhoneErrors[idx] && (
+                      <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: '4px', marginLeft: '4px', fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}>
+                        {additionalPhoneErrors[idx]}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -3540,6 +3905,11 @@ export default function HeroSection() {
                     e.target.style.boxShadow = 'none';
                   }}
                 />
+                {emailError && (
+                  <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: '4px', marginLeft: '4px', fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}>
+                    {emailError}
+                  </div>
+                )}
               </div>
 
               {!showRemark ? (
@@ -3640,6 +4010,87 @@ export default function HeroSection() {
               </button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* CALL PICKUP POPUP */}
+      <Dialog
+        open={showCallPopup}
+        onClose={() => setShowCallPopup(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            width: '90%',
+            maxWidth: '320px',
+            p: 1
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          textAlign: 'center', 
+          fontFamily: "'Montserrat', sans-serif", 
+          fontWeight: 700,
+          fontSize: '1.1rem',
+          pb: 1
+        }}>
+          Contact Support
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', pb: 3 }}>
+          <Typography sx={{ 
+            fontFamily: "'Montserrat', sans-serif", 
+            fontSize: '1.4rem', 
+            fontWeight: 800, 
+            color: '#111827',
+            mb: 3
+          }}>
+            070 278 7787
+          </Typography>
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Button
+              fullWidth
+              variant="contained"
+              startIcon={<ContentCopy />}
+              onClick={() => {
+                navigator.clipboard.writeText('0702787787');
+                setSnackbarMessage('Phone number copied to clipboard!');
+                setSnackbarSeverity('success');
+                setSnackbarOpen(true);
+              }}
+              sx={{
+                bgcolor: '#f3f4f6',
+                color: '#4b5563',
+                textTransform: 'none',
+                fontWeight: 700,
+                borderRadius: '12px',
+                py: 1.2,
+                boxShadow: 'none',
+                '&:hover': { bgcolor: '#e5e7eb', boxShadow: 'none' }
+              }}
+            >
+              Copy Number
+            </Button>
+            
+            <Button
+              fullWidth
+              variant="contained"
+              startIcon={<Call />}
+              component="a"
+              href="tel:+94702787787"
+              sx={{
+                display: { xs: 'flex', sm: 'none' }, // Dial pad only on mobile View
+                bgcolor: '#0d9488',
+                color: '#fff',
+                textTransform: 'none',
+                fontWeight: 700,
+                borderRadius: '12px',
+                py: 1.2,
+                '&:hover': { bgcolor: '#0f766e' }
+              }}
+            >
+              Call Now
+            </Button>
+          </Box>
         </DialogContent>
       </Dialog>
 
@@ -4150,6 +4601,13 @@ export default function HeroSection() {
               onClick={() => {
                 handleChange('numberOfDays', tempDays);
                 setOpenDayPicker(false);
+                
+                // Immediate suggestion if distance is already known to be < 100km
+                const distanceInKm = routeDistance ? (routeDistance / 1000) : 0;
+                if (tempDays > 1 && distanceInKm > 0 && distanceInKm < 100 && !acknowledgedDropHireSuggestion) {
+                  // Small delay to let the DayPicker close animation finish for a smoother feel
+                  setTimeout(() => setShowDropHireSuggestion(true), 300);
+                }
               }}
               style={{
                 width: '100%',
@@ -4299,7 +4757,11 @@ export default function HeroSection() {
         origin={formData.pickupLocation}
         destination={formData.dropoffLocation}
         waypoints={destinations}
+        pickupCoords={pickupCoords}
+        dropoffCoords={dropoffCoords}
+        stopCoords={stopCoords}
         apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc"
+        initialResponse={routeResponse}
       />
 
       {/* ─── NEARBY VIEWER ─── */}
@@ -4309,7 +4771,11 @@ export default function HeroSection() {
         origin={formData.pickupLocation}
         destination={formData.dropoffLocation}
         waypoints={destinations}
+        pickupCoords={pickupCoords}
+        dropoffCoords={dropoffCoords}
+        stopCoords={stopCoords}
         apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc"
+        initialResponse={routeResponse}
       />
 
       {/* ─── POLICY DIALOG ─── */}

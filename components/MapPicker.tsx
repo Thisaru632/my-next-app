@@ -38,7 +38,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ open, onClose, onSelect, apiKey, 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: apiKey,
-    libraries: ['places']
+    libraries: ['places', 'geometry']
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);

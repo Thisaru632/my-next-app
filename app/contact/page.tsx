@@ -21,8 +21,30 @@ export default function ContactPage() {
   const [contactId, setContactId] = useState<string | null>(null);
   const [isPartialCaptured, setIsPartialCaptured] = useState(false);
 
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const PHONE_REGEX = /^(?:\+94|0)?[0-9]{9,10}$/;
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+
+    if (name === 'email') {
+      if (value && !EMAIL_REGEX.test(value)) {
+        setEmailError('Invalid email format');
+      } else {
+        setEmailError('');
+      }
+    }
+    if (name === 'phone') {
+      if (value && !PHONE_REGEX.test(value)) {
+        setPhoneError('Invalid phone format');
+      } else {
+        setPhoneError('');
+      }
+    }
+
     setFormData(prev => {
       const newData = {
         ...prev,
@@ -42,6 +64,8 @@ export default function ContactPage() {
   const handleEmailFocus = async () => {
     // Only capture if name and phone are provided and we haven't already captured for this session
     if (formData.name && formData.phone && !isPartialCaptured) {
+      if (phoneError) return; // Don't capture if phone is invalid
+
       try {
         const response = await fetch(API_ENDPOINTS.CONTACTS, {
           method: 'POST',
@@ -74,6 +98,12 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (emailError || phoneError) {
+      alert('Please fix the errors in the form before submitting.');
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitStatus('');
 
@@ -113,6 +143,8 @@ export default function ContactPage() {
         });
         setContactId(null);
         setIsPartialCaptured(false);
+        setEmailError('');
+        setPhoneError('');
 
         // Clear success message after 5 seconds
         setTimeout(() => setSubmitStatus(''), 5000);
@@ -275,6 +307,7 @@ export default function ContactPage() {
                     onChange={handleChange}
                     placeholder="+1 (555) 000-0000"
                   />
+                  {phoneError && <span className="error-text">{phoneError}</span>}
                 </div>
               </div>
 
@@ -291,6 +324,7 @@ export default function ContactPage() {
                     required
                     placeholder="john@example.com"
                   />
+                  {emailError && <span className="error-text">{emailError}</span>}
                 </div>
 
                 <div className="form-group">
@@ -601,6 +635,13 @@ export default function ContactPage() {
           padding: 40px;
           border-radius: 8px;
           box-shadow: 0 5px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        .error-text {
+          color: #ef4444;
+          font-size: 12px;
+          margin-top: 4px;
+          font-weight: 500;
         }
 
         .form-title {

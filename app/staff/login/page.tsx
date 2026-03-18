@@ -30,10 +30,21 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [emailError, setEmailError] = useState('');
     const [showSuccess, setShowSuccess] = useState(signupSuccess);
+
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (email && !EMAIL_REGEX.test(email)) {
+            setEmailError('Invalid email format');
+            return;
+        } else {
+            setEmailError('');
+        }
+
         setLoading(true);
         setError('');
 
@@ -149,6 +160,8 @@ export default function LoginPage() {
                                 margin="normal"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
+                                error={!!emailError}
+                                helperText={emailError}
                                 required
                                 InputProps={{
                                     startAdornment: (

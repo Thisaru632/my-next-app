@@ -38,21 +38,54 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
         phone: ''
     });
 
+    const [fieldErrors, setFieldErrors] = useState({
+        email: '',
+        phone: ''
+    });
+
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const PHONE_REGEX = /^(?:\+94|0)?[0-9]{9,10}$/;
+
     // When the dialog opens/closes, reset state if needed
     React.useEffect(() => {
         if (open) {
             setMode(initialMode);
             setError('');
             setFormData({ name: '', email: '', password: '', phone: '' });
+            setFieldErrors({ email: '', phone: '' });
         }
     }, [open, initialMode]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+
+        // Real-time validation
+        if (name === 'email') {
+            if (value && !EMAIL_REGEX.test(value)) {
+                setFieldErrors(prev => ({ ...prev, email: 'Invalid email format' }));
+            } else {
+                setFieldErrors(prev => ({ ...prev, email: '' }));
+            }
+        }
+        if (name === 'phone' && mode === 'signup') {
+            if (value && !PHONE_REGEX.test(value)) {
+                setFieldErrors(prev => ({ ...prev, phone: 'Invalid phone format' }));
+            } else {
+                setFieldErrors(prev => ({ ...prev, phone: '' }));
+            }
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Final validation
+        if (fieldErrors.email || (mode === 'signup' && fieldErrors.phone)) {
+            setError('Please fix the errors in the form.');
+            return;
+        }
+
         setLoading(true);
         setError('');
 
@@ -203,6 +236,8 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                                         margin="normal"
                                         value={formData.phone}
                                         onChange={handleChange}
+                                        error={!!fieldErrors.phone}
+                                        helperText={fieldErrors.phone}
                                         InputProps={{
                                             startAdornment: (
                                                 <InputAdornment position="start">
@@ -228,6 +263,8 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                             required
                             value={formData.email}
                             onChange={handleChange}
+                            error={!!fieldErrors.email}
+                            helperText={fieldErrors.email}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">

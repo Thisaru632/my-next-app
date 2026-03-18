@@ -30,7 +30,11 @@ interface NearbyViewerProps {
   origin: string;
   destination: string;
   waypoints?: string[];
+  pickupCoords?: { lat: string; lon: string } | null;
+  dropoffCoords?: { lat: string; lon: string } | null;
+  stopCoords?: (({ lat: string; lon: string } | null)[]) | null;
   apiKey: string;
+  initialResponse?: google.maps.DirectionsResult | null;
 }
 
 const containerStyle = {
@@ -57,12 +61,16 @@ const NearbyViewer: React.FC<NearbyViewerProps> = ({
   origin, 
   destination, 
   waypoints = [], 
-  apiKey 
+  pickupCoords,
+  dropoffCoords,
+  stopCoords,
+  apiKey,
+  initialResponse
 }) => {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: apiKey,
-    libraries: ['places']
+    libraries: ['places', 'geometry']
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -74,23 +82,44 @@ const NearbyViewer: React.FC<NearbyViewerProps> = ({
   const [selectedPlace, setSelectedPlace] = useState<google.maps.places.PlaceResult | null>(null);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      if (initialResponse) {
+        setResponse(initialResponse);
+        setLoading(false);
+        // Only trigger search if map is ready, otherwise map's onLoad handles it
+        if (map) searchNearbyAlongRoute(initialResponse, selectedCategory);
+      } else {
+        setLoading(true);
+      }
+    } else {
       setResponse(null);
       setPlaces([]);
       setSelectedPlace(null);
     }
-  }, [open]);
+  }, [open, initialResponse, map]);
+
+  useEffect(() => {
+    // Re-trigger search when category changes
+    if (open && response && map) {
+      searchNearbyAlongRoute(response, selectedCategory);
+    }
+  }, [selectedCategory, map]);
 
   const directionsCallback = (
     result: google.maps.DirectionsResult | null,
     status: google.maps.DirectionsStatus
   ) => {
-    if (result !== null && status === 'OK') {
+    if (status === 'OK' && result !== null) {
       setResponse(result);
-      setLoading(false);
       // Search for places along the entire route
       searchNearbyAlongRoute(result, selectedCategory);
+    } else {
+      // Silence expected typing errors
+      if (status !== 'NOT_FOUND' && status !== 'ZERO_RESULTS') {
+        console.error('[NearbyViewer] Directions error:', status);
+      }
     }
+    setLoading(false);
   };
 
   const searchNearbyAlongRoute = useCallback((result: google.maps.DirectionsResult, categoryId: string) => {
@@ -100,38 +129,36 @@ const NearbyViewer: React.FC<NearbyViewerProps> = ({
     if (!category) return;
 
     setFetchingPlaces(true);
-    setPlaces([]); // Clear old results
+    // Note: We don't clear places here so user sees old results until new ones load for a smoother feel
     
     const service = new google.maps.places.PlacesService(map);
     const route = result.routes[0];
     const path = route.overview_path;
     
-    // De-duplication set
     const seenPlaceIds = new Set<string>();
     const allResults: google.maps.places.PlaceResult[] = [];
 
-    // Heuristic: Sample points along the overview_path.
-    // The overview_path is already simplified. We sample points roughly every ~10km 
-    // to cover the 4km radius buffer without excessive API calls.
-    const sampleRate = Math.max(1, Math.floor(path.length / 10)); // Sample ~10-15 points along the path
+    // OPTIMIZATION: Reduce sampling points. 
+    // To cover a route with a 4km radius search, we only need a search point every ~7-8km.
+    // Instead of sampling 10-15 points, we'll calculate based on the total distance.
+    const pathLengthMeters = route.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0);
+    const numPoints = Math.max(3, Math.ceil(pathLengthMeters / 8000)); // One point every 8km
+    
     const pointsToSearch: google.maps.LatLng[] = [];
-
-    for (let i = 0; i < path.length; i += sampleRate) {
-        pointsToSearch.push(path[i]);
+    for (let i = 0; i < numPoints; i++) {
+        // Calculate the index in the path array corresponding to this fraction of the route
+        const index = Math.floor((i / (numPoints - 1)) * (path.length - 1));
+        pointsToSearch.push(path[index]);
     }
-    // Always include the destination
-    pointsToSearch.push(path[path.length - 1]);
 
     let completedSearches = 0;
 
     pointsToSearch.forEach((location) => {
-      const request: google.maps.places.PlaceSearchRequest = {
+      service.nearbySearch({
         location: location,
-        radius: 4000, // 4km radius as requested
+        radius: 4000, 
         keyword: category.query
-      };
-
-      service.nearbySearch(request, (results, status) => {
+      }, (results, status) => {
         completedSearches++;
 
         if (status === google.maps.places.PlacesServiceStatus.OK && results) {
@@ -153,9 +180,6 @@ const NearbyViewer: React.FC<NearbyViewerProps> = ({
 
   const handleCategoryChange = (categoryId: string) => {
     setSelectedCategory(categoryId);
-    if (response) {
-      searchNearbyAlongRoute(response, categoryId);
-    }
   };
 
   return (
@@ -228,14 +252,19 @@ const NearbyViewer: React.FC<NearbyViewerProps> = ({
                 fullscreenControl: false,
               }}
             >
-              {origin && destination && !response && (
+              {origin && destination && !response && !initialResponse && (
                 <DirectionsService
                   options={{
-                    origin: origin,
-                    destination: destination,
-                    waypoints: waypoints
+                    origin: pickupCoords ? { lat: parseFloat(pickupCoords.lat), lng: parseFloat(pickupCoords.lon) } : origin,
+                    destination: dropoffCoords ? { lat: parseFloat(dropoffCoords.lat), lng: parseFloat(dropoffCoords.lon) } : destination,
+                    waypoints: (waypoints || [])
                       .filter(wp => wp.trim() !== '')
-                      .map(wp => ({ location: wp, stopover: true })),
+                      .map((wp, i) => {
+                        if (stopCoords && stopCoords[i]) {
+                          return { location: { lat: parseFloat(stopCoords[i]!.lat), lng: parseFloat(stopCoords[i]!.lon) }, stopover: true };
+                        }
+                        return { location: wp, stopover: true };
+                      }),
                     travelMode: google.maps.TravelMode.DRIVING
                   }}
                   callback={directionsCallback}

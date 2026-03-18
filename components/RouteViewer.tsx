@@ -19,7 +19,11 @@ interface RouteViewerProps {
   origin: string;
   destination: string;
   waypoints?: string[];
+  pickupCoords?: { lat: string; lon: string } | null;
+  dropoffCoords?: { lat: string; lon: string } | null;
+  stopCoords?: (({ lat: string; lon: string } | null)[]) | null;
   apiKey: string;
+  initialResponse?: google.maps.DirectionsResult | null;
 }
 
 const containerStyle = {
@@ -39,12 +43,16 @@ const RouteViewer: React.FC<RouteViewerProps> = ({
   origin, 
   destination, 
   waypoints = [], 
-  apiKey 
+  pickupCoords,
+  dropoffCoords,
+  stopCoords,
+  apiKey,
+  initialResponse
 }) => {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: apiKey,
-    libraries: ['places']
+    libraries: ['places', 'geometry']
   });
 
   const [response, setResponse] = useState<google.maps.DirectionsResult | null>(null);
@@ -52,25 +60,39 @@ const RouteViewer: React.FC<RouteViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      if (initialResponse) {
+        setResponse(initialResponse);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    } else {
       setResponse(null);
       setError(null);
     }
-  }, [open]);
+  }, [open, initialResponse]);
 
   const directionsCallback = (
     result: google.maps.DirectionsResult | null,
     status: google.maps.DirectionsStatus
   ) => {
-    if (result !== null) {
-      if (status === 'OK') {
-        setResponse(result);
-        setLoading(false);
-      } else {
+    if (status === 'OK' && result !== null) {
+      setResponse(result);
+      setLoading(false);
+    } else {
+      // Silence expected typing errors, otherwise they clutter the console
+      if (status !== 'NOT_FOUND' && status !== 'ZERO_RESULTS') {
         console.error('Directions request failed with status:', status);
-        setError('Could not calculate route. Please check your locations.');
-        setLoading(false);
       }
+      
+      const msg = status === 'NOT_FOUND' 
+        ? 'One or more locations could not be found. Please check your addresses.' 
+        : status === 'ZERO_RESULTS'
+          ? 'No driving route exists between these locations.'
+          : 'Could not calculate route. Please check your locations.';
+      setError(msg);
+      setLoading(false);
     }
   };
 
@@ -121,14 +143,19 @@ const RouteViewer: React.FC<RouteViewerProps> = ({
                 fullscreenControl: false,
               }}
             >
-              {origin && destination && !response && (
+              {origin && destination && !response && !initialResponse && (
                 <DirectionsService
                   options={{
-                    origin: origin,
-                    destination: destination,
-                    waypoints: waypoints
+                    origin: pickupCoords ? { lat: parseFloat(pickupCoords.lat), lng: parseFloat(pickupCoords.lon) } : origin,
+                    destination: dropoffCoords ? { lat: parseFloat(dropoffCoords.lat), lng: parseFloat(dropoffCoords.lon) } : destination,
+                    waypoints: (waypoints || [])
                       .filter(wp => wp.trim() !== '')
-                      .map(wp => ({ location: wp, stopover: true })),
+                      .map((wp, i) => {
+                        if (stopCoords && stopCoords[i]) {
+                          return { location: { lat: parseFloat(stopCoords[i]!.lat), lng: parseFloat(stopCoords[i]!.lon) }, stopover: true };
+                        }
+                        return { location: wp, stopover: true };
+                      }),
                     travelMode: google.maps.TravelMode.DRIVING
                   }}
                   callback={directionsCallback}
