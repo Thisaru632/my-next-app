@@ -121,7 +121,7 @@ export default function StaffGuidePage() {
             ) : (
                 <Grid container spacing={3}>
                     {guides.map((guide) => (
-                        <Grid item xs={12} sm={6} md={4} key={guide._id}>
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }} key={guide._id}>
                             <Card sx={{ 
                                 height: '100%', 
                                 display: 'flex', 

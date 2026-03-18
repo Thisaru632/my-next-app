@@ -231,7 +231,7 @@ export default function ManageStaffGuidePage() {
                 <DialogTitle sx={{ fontWeight: 'bold' }}>Upload PDF Manual</DialogTitle>
                 <DialogContent>
                     <Grid container spacing={2} sx={{ mt: 1 }}>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField 
                                 fullWidth 
                                 label="Manual Title" 
@@ -240,7 +240,7 @@ export default function ManageStaffGuidePage() {
                                 placeholder="e.g. Driver's Etiquette Guide"
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField 
                                 fullWidth 
                                 label="Category" 
@@ -249,7 +249,7 @@ export default function ManageStaffGuidePage() {
                                 placeholder="e.g. Operations, Vehicles, Safety"
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField 
                                 fullWidth 
                                 label="Description" 
@@ -259,7 +259,7 @@ export default function ManageStaffGuidePage() {
                                 onChange={(e) => setNewGuide({...newGuide, description: e.target.value})}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Box 
                                 sx={{ 
                                     border: '2px dashed', 
