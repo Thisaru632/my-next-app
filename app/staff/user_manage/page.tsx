@@ -93,7 +93,7 @@ const initialCurrentUsers: CurrentUser[] = [
         status: 'active',
         joinedDate: '2024-01-15',
         avatar: 'SM',
-        permissions: { dashboard: true, leads: true, cms: true, userManagement: true, reports: true, rateCardManage: true, promoCodeManage: true },
+        permissions: { dashboard: true, leads: true, cms: true, userManagement: true, reports: true, rateCardManage: true, promoCodeManage: true, staffGuideManage: true },
     },
     {
         id: '2',
@@ -103,7 +103,7 @@ const initialCurrentUsers: CurrentUser[] = [
         status: 'active',
         joinedDate: '2024-03-22',
         avatar: 'JC',
-        permissions: { dashboard: true, leads: true, cms: true, userManagement: false, reports: false, rateCardManage: true, promoCodeManage: true },
+        permissions: { dashboard: true, leads: true, cms: true, userManagement: false, reports: false, rateCardManage: true, promoCodeManage: true, staffGuideManage: false },
     },
     {
         id: '3',
@@ -113,7 +113,7 @@ const initialCurrentUsers: CurrentUser[] = [
         status: 'inactive',
         joinedDate: '2024-05-10',
         avatar: 'PS',
-        permissions: { dashboard: true, leads: false, cms: false, userManagement: false, reports: false, rateCardManage: false, promoCodeManage: false },
+        permissions: { dashboard: true, leads: false, cms: false, userManagement: false, reports: false, rateCardManage: false, promoCodeManage: false, staffGuideManage: false },
     },
     {
         id: '4',
@@ -123,7 +123,7 @@ const initialCurrentUsers: CurrentUser[] = [
         status: 'active',
         joinedDate: '2024-07-01',
         avatar: 'TN',
-        permissions: { dashboard: true, leads: true, cms: false, userManagement: false, reports: true, rateCardManage: false, promoCodeManage: false },
+        permissions: { dashboard: true, leads: true, cms: false, userManagement: false, reports: true, rateCardManage: false, promoCodeManage: false, staffGuideManage: false },
     },
 ];
 
