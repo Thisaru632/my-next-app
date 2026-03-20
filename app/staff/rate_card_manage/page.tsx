@@ -16,15 +16,19 @@ import {
     Alert,
     IconButton,
     Divider,
-    Stack,
-    Tooltip,
-    Chip,
-    TablePagination,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogContentText,
-    DialogActions,
+  Stack,
+  FormControl,
+  InputLabel,
+  Tabs,
+  Tab,
+  Tooltip,
+  Chip,
+  TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
     CloudUpload as CloudUploadIcon,
@@ -38,6 +42,8 @@ import {
 } from '@mui/icons-material';
 
 import { API_ENDPOINTS } from '@/config/api';
+import PromoCodeManagePage from '../promo_code_manage/page';
+import ProvinceManagePage from '../province_manage/page';
 
 interface RateCardEntry {
     _id: string;
@@ -70,6 +76,7 @@ const RateCardManagePage = () => {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState(0);
 
     // Filtering states
     const [kmFilter, setKmFilter] = useState('');
@@ -426,55 +433,83 @@ const RateCardManagePage = () => {
 
     return (
         <Box sx={{ p: 0 }}>
-            {/* Page Header */}
+            {/* Unified Management Header with Tabs */}
             <Box
                 sx={{
-                    mb: 4,
-                    pb: 2,
-                    borderBottom: '2px solid',
-                    borderImage: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
-                    borderImageSlice: 1,
+                    mb: 3,
+                    pb: 1,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
                     display: 'flex',
+                    flexDirection: { xs: 'column', md: 'row' },
                     justifyContent: 'space-between',
-                    alignItems: 'center',
+                    alignItems: { xs: 'flex-start', md: 'center' },
+                    gap: 2
                 }}
             >
                 <Typography
                     variant="h4"
                     sx={{
                         fontWeight: 800,
-                        fontSize: { xs: '1.5rem', sm: '2rem' },
+                        fontSize: { xs: '1.5rem', sm: '1.8rem' },
                         background: 'linear-gradient(135deg, #1e293b 0%, #475569 100%)',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                         letterSpacing: '-0.02em',
                     }}
                 >
-                    Rate Card Manage
+                    Management Dashboard
                 </Typography>
 
-                <Stack direction="row" spacing={2}>
-                    <Button
-                        variant="outlined"
-                        startIcon={<RefreshIcon />}
-                        onClick={fetchRateCards}
-                        disabled={loading}
-                        sx={{ borderRadius: '10px', textTransform: 'none' }}
-                    >
-                        Refresh
-                    </Button>
-                    <Button
-                        variant="contained"
-                        color="error"
-                        startIcon={<DeleteIcon />}
-                        onClick={clearRateCard}
-                        disabled={loading || rateCards.length === 0}
-                        sx={{ borderRadius: '10px', textTransform: 'none', bgcolor: '#ef4444' }}
-                    >
-                        Clear All
-                    </Button>
-                </Stack>
+                <Tabs 
+                    value={activeTab} 
+                    onChange={(e, v) => setActiveTab(v)}
+                    sx={{
+                        '& .MuiTab-root': {
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            fontSize: '0.9rem',
+                            minWidth: { xs: 'auto', sm: 140 },
+                            px: 2,
+                            borderRadius: '12px 12px 0 0',
+                            transition: 'all 0.2s',
+                            '&.Mui-selected': {
+                                color: 'primary.main',
+                                bgcolor: 'rgba(59, 130, 246, 0.05)',
+                            }
+                        }
+                    }}
+                >
+                    <Tab label="Rate Card Manage" />
+                    <Tab label="Province Manage" />
+                    <Tab label="Promo Code Manage" />
+                    <Tab label="Bulk Price Adjustment" />
+                </Tabs>
             </Box>
+
+            {activeTab === 0 && (
+                <>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 3 }}>
+                        <Button
+                            variant="outlined"
+                            startIcon={<RefreshIcon />}
+                            onClick={fetchRateCards}
+                            disabled={loading}
+                            sx={{ borderRadius: '10px', textTransform: 'none' }}
+                        >
+                            Refresh
+                        </Button>
+                        <Button
+                            variant="contained"
+                            color="error"
+                            startIcon={<DeleteIcon />}
+                            onClick={clearRateCard}
+                            disabled={loading || rateCards.length === 0}
+                            sx={{ borderRadius: '10px', textTransform: 'none', bgcolor: '#ef4444' }}
+                        >
+                            Clear All
+                        </Button>
+                    </Box>
 
             {/* Global Settings & Info Section */}
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ mb: 4 }}>
@@ -809,8 +844,15 @@ const RateCardManagePage = () => {
                     </Button>
                 </Stack>
             </Paper>
+                </>
+            )}
 
-            {/* Quick Price Adjustment Section (Premium Style) */}
+            {activeTab === 1 && <ProvinceManagePage />}
+            {activeTab === 2 && <PromoCodeManagePage />}
+
+            {activeTab === 3 && (
+                <>
+                    {/* Quick Price Adjustment Section (Premium Style) */}
             <Paper
                 elevation={0}
                 sx={{
@@ -1093,11 +1135,14 @@ const RateCardManagePage = () => {
                             </TableBody>
                         </Table>
                     </Paper>
-                </Box>
+                    </Box>
+                )}
+                </>
             )}
 
-
-            {/* Messages */}
+            {activeTab === 0 && (
+                <>
+                    {/* Messages */}
             {error && (
                 <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => setError(null)}>
                     {error}
@@ -1438,6 +1483,8 @@ const RateCardManagePage = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
+                </>
+            )}
         </Box>
     );
 };
