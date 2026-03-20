@@ -10,7 +10,7 @@ interface TripSummaryCardProps {
 }
 
 export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
-  if (!h.formData.vehicleName && !h.formData.tripType && h.routeDistance === null && !h.routeLoading) {
+  if (!h.formData.pickupLocation) {
     return null;
   }
 
@@ -26,8 +26,8 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
             <span style={{ fontSize: '1.1rem', flexShrink: 0, marginTop: '2px' }}>🗺️</span>
             <div>
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#4b5563', fontWeight: 600, textTransform: 'uppercase', marginBottom: '1px' }}>Trip Type and Payment</div>
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.85rem', fontWeight: 600, color: '#111827' }}>{h.formData.tripType} — Cash</div>
+              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#4b5563', fontWeight: 600, textTransform: 'uppercase', marginBottom: '1px' }}>Trip Type</div>
+              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.85rem', fontWeight: 600, color: '#111827' }}>{h.formData.tripType}</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
@@ -111,7 +111,10 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
           <div id="booking-summary-rate-area" style={{ marginTop: '6px', padding: '12px', background: 'rgba(13,148,136,0.06)', borderRadius: '12px', border: '1px solid rgba(13,148,136,0.15)' }}>
             <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>{h.formData.vehicleType === 'SUV' ? 'Booking Request' : 'Total Estimate'}</div>
             {h.formData.vehicleType === 'SUV' ? (
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.2rem', fontWeight: 800, color: '#0d9488', margin: '4px 0' }}>Price on Request</div>
+              <div style={{ margin: '4px 0' }}>
+                <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.2rem', fontWeight: 800, color: '#0d9488' }}>Price on Request</div>
+                <div style={{ display: 'inline-block', padding: '1px 6px', background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.3)', borderRadius: '4px', fontSize: '0.55rem', fontWeight: 800, color: '#0d9488', marginTop: '2px', letterSpacing: '0.05em' }}>CASH</div>
+              </div>
             ) : (
               <>
                 {(h.activeAdjustment || h.provinceAdjustmentAmount !== 0) && (
@@ -148,11 +151,17 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: '4px' }}>{h.appliedPromo.discountType === 'Percentage' ? `-${h.appliedPromo.discountValue}%` : `- LKR ${h.appliedPromo.discountValue.toLocaleString()}`} OFF</span>
                     </div>
                     <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.35rem', fontWeight: 800, color: '#0d9488' }}>LKR {h.totalPrice.toLocaleString()}</span>
-                    <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#10b981', fontWeight: 600, marginTop: '1px' }}>Promo applied: {h.appliedPromo.code} (Saved LKR {h.discountAmount.toLocaleString()})</div>
+                    <div style={{ marginTop: '2px' }}>
+                      <div style={{ display: 'inline-block', padding: '1px 6px', background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.3)', borderRadius: '4px', fontSize: '0.55rem', fontWeight: 800, color: '#0d9488', letterSpacing: '0.05em' }}>CASH</div>
+                    </div>
+                    <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#10b981', fontWeight: 600, marginTop: '2px' }}>Promo applied: {h.appliedPromo.code} (Saved LKR {h.discountAmount.toLocaleString()})</div>
                   </div>
                 ) : (
                   <div style={{ marginTop: '6px' }}>
                      <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.3rem', fontWeight: 800, color: '#0d9488' }}>LKR {h.totalPrice.toLocaleString()}</span>
+                     <div style={{ marginTop: '2px' }}>
+                       <div style={{ display: 'inline-block', padding: '1px 6px', background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.3)', borderRadius: '4px', fontSize: '0.55rem', fontWeight: 800, color: '#0d9488', letterSpacing: '0.05em' }}>CASH</div>
+                     </div>
                   </div>
                 )}
                 {h.extraKmDetail && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra KM: {h.extraKmDetail.km} km @ LKR {h.matchedPackage?.extraKMRate}/km</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {h.extraKmDetail.cost.toLocaleString()}</span></div>}

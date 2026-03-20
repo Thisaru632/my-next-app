@@ -18,9 +18,10 @@ interface VehicleModelDialogProps {
   onSelect: (modelName: string) => void;
   vehiclePricesMap: Record<string, number>;
   vehicleDiscountsMap: Record<string, string | null>;
+  showPrices: boolean;
 }
 
-export const VehicleModelDialog: React.FC<VehicleModelDialogProps> = ({ open, onClose, vehicleType, vehicleName, models, onSelect, vehiclePricesMap, vehicleDiscountsMap }) => (
+export const VehicleModelDialog: React.FC<VehicleModelDialogProps> = ({ open, onClose, vehicleType, vehicleName, models, onSelect, vehiclePricesMap, vehicleDiscountsMap, showPrices }) => (
   <Dialog open={open} onClose={onClose}
     PaperProps={{ sx: { width: '95%', maxWidth: 480, m: 2, borderRadius: '24px', background: '#ffffff', border: '1px solid rgba(13,148,136,0.15)', boxShadow: '0 24px 64px rgba(0,0,0,0.12)', overflow: 'hidden' } }}
     BackdropProps={{ sx: { backdropFilter: 'blur(6px)', background: 'rgba(0,0,0,0.35)' } }}
@@ -46,20 +47,22 @@ export const VehicleModelDialog: React.FC<VehicleModelDialogProps> = ({ open, on
               <Box sx={{ mb: 1.5, color: isSelected ? '#0d9488' : '#94a3b8' }}><DirectionsCar sx={{ fontSize: 28 }} /></Box>
               <Typography sx={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.9rem', color: isSelected ? '#0d9488' : '#1e293b', mb: 0.4 }}>{model.name}</Typography>
               <Typography sx={{ fontSize: '0.68rem', color: '#64748b', fontFamily: "'Montserrat', sans-serif", mb: 1 }}>{model.description}</Typography>
-              <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ p: '4px 8px', borderRadius: '8px', background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.2)' }}>
-                  <Typography sx={{ fontSize: '0.72rem', color: '#0d9488', fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
-                    {vehiclePricesMap[model.name] > 0 ? `LKR ${vehiclePricesMap[model.name].toLocaleString()}` : 'Price on Request'}
-                  </Typography>
-                </Box>
-                {vehicleDiscountsMap[model.name] && (
-                  <Box sx={{ p: '2px 6px', borderRadius: '4px', background: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
-                    <Typography sx={{ fontSize: '0.6rem', color: '#fff', fontWeight: 900, fontFamily: "'Montserrat', sans-serif" }}>
-                      {vehicleDiscountsMap[model.name]} OFF
+              {showPrices && (
+                <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ p: '4px 8px', borderRadius: '8px', background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.2)' }}>
+                    <Typography sx={{ fontSize: '0.72rem', color: '#0d9488', fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
+                      {vehiclePricesMap[model.name] > 0 ? `LKR ${vehiclePricesMap[model.name].toLocaleString()}` : 'Price on Request'}
                     </Typography>
                   </Box>
-                )}
-              </Box>
+                  {vehicleDiscountsMap[model.name] && (
+                    <Box sx={{ p: '2px 6px', borderRadius: '4px', background: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
+                      <Typography sx={{ fontSize: '0.6rem', color: '#fff', fontWeight: 900, fontFamily: "'Montserrat', sans-serif" }}>
+                        {vehicleDiscountsMap[model.name]} OFF
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              )}
               <Box sx={{ display: 'flex', gap: 0.75 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, px: 0.75, py: 0.25, borderRadius: '8px', background: 'rgba(13,148,136,0.06)', border: '1px solid rgba(13,148,136,0.15)' }}>
                   <Group sx={{ fontSize: 11, color: '#0d9488' }} /><Typography sx={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 600 }}>{model.maxPersons}</Typography>
@@ -96,7 +99,7 @@ export const TripTypeDialog: React.FC<TripTypeDialogProps> = ({ open, onClose, t
     >
       <Box sx={{ px: 3, pt: 3, pb: 2, background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%)', borderBottom: '1px solid rgba(13,148,136,0.12)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography sx={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.75rem', fontWeight: 700, color: '#2D231B', letterSpacing: '-0.01em' }}>Trip Type and Payment Method</Typography>
+          <Typography sx={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '1.75rem', fontWeight: 700, color: '#2D231B', letterSpacing: '-0.01em' }}>Trip Type</Typography>
           <Typography sx={{ fontSize: '0.72rem', color: '#0d9488', fontFamily: "'Montserrat', sans-serif", letterSpacing: '0.1em', textTransform: 'uppercase', mt: 0.25, fontWeight: 700 }}>Choose your journey style</Typography>
         </Box>
         <IconButton onClick={handleClose} sx={{ color: '#9ca3af', background: '#f8f9fa', border: '1px solid #e9ecef', width: 36, height: 36, '&:hover': { color: '#ef4444', background: '#fff0f0', borderColor: '#fecaca' } }}>
@@ -116,7 +119,7 @@ export const TripTypeDialog: React.FC<TripTypeDialogProps> = ({ open, onClose, t
                   {type.icon}
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.98rem', color: isSelected ? '#0d9488' : '#1e293b', mb: 0.3 }}>{type.name} — Cash</Typography>
+                  <Typography sx={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.98rem', color: isSelected ? '#0d9488' : '#1e293b', mb: 0.3 }}>{type.name}</Typography>
                   <Typography sx={{ fontSize: '0.72rem', color: '#64748b', fontFamily: "'Montserrat', sans-serif" }}>{type.description}</Typography>
                 </Box>
                 {isSelected && <Box sx={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, background: '#0d9488', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle sx={{ fontSize: 16, color: '#fff' }} /></Box>}

@@ -849,7 +849,7 @@ export default function BookingForm() {
               {formData.tripType && (
                 <Chip
                   icon={<CheckCircle />}
-                  label={`${formData.tripType} Trip — Cash`}
+                  label={`${formData.tripType} Trip`}
                   onDelete={() => setOpenTripTypeDialog(true)}
                   sx={{
                     background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
