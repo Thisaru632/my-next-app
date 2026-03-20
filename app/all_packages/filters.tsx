@@ -55,6 +55,8 @@ import {
   ArrowForward,
 } from '@mui/icons-material';
 
+import { ProvinceBlockDialog } from '@/components/BookingDialogs';
+
 // Updated vehicle types with gradient backgrounds and better styling
 const vehicleTypes = [
   {
@@ -164,17 +166,36 @@ export default function BookingForm() {
   const [rateCards, setRateCards] = useState<RateCard[]>([]);
   const [adjustments, setAdjustments] = useState<RateAdjustment[]>([]);
   const [showExtraPrices, setShowExtraPrices] = useState(false);
+  const [nightSurchargeEnabled, setNightSurchargeEnabled] = useState(true);
+  const [blockedProvinces, setBlockedProvinces] = useState<string[]>([]);
+  const [provinceAdjustments, setProvinceAdjustments] = useState<Record<string, number>>({});
+  const [pickupProvince, setPickupProvince] = useState<string>('');
+  const [showProvinceBlockDialog, setShowProvinceBlockDialog] = useState(false);
+  const [blockedProvinceName, setBlockedProvinceName] = useState('');
 
   useEffect(() => {
     const fetchRateData = async () => {
       try {
-        const [rcRes, adjRes] = await Promise.all([
+        const [rcRes, adjRes, setRes] = await Promise.all([
           fetch(`${API_ENDPOINTS.RATE_CARDS}?status=Approved`),
-          fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`)
+          fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`),
+          fetch(`${API_ENDPOINTS.RATE_CARDS}/settings`)
         ]);
 
         if (rcRes.ok) setRateCards(await rcRes.json());
         if (adjRes.ok) setAdjustments(await adjRes.json());
+        if (setRes.ok) {
+          const settings = await setRes.json();
+          if (settings.nightSurchargeEnabled !== undefined) {
+            setNightSurchargeEnabled(settings.nightSurchargeEnabled);
+          }
+          if (settings.blockedProvinces !== undefined) {
+            setBlockedProvinces(settings.blockedProvinces);
+          }
+          if (settings.provinceAdjustments !== undefined) {
+            setProvinceAdjustments(settings.provinceAdjustments);
+          }
+        }
       } catch (error) {
         console.error('Error fetching rate data:', error);
       }
@@ -197,6 +218,41 @@ export default function BookingForm() {
     email: '',
     remark: '',
   });
+
+  // Geocoding logic for province detection
+  useEffect(() => {
+    if (!formData.pickupLocation) {
+        setPickupProvince('');
+        return;
+    }
+    const timer = setTimeout(async () => {
+        try {
+            const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(formData.pickupLocation)}&key=AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc`);
+            const data = await res.json();
+            if (data.results && data.results[0]) {
+                const provinceComp = data.results[0].address_components.find((c: any) =>
+                    c.types.includes('administrative_area_level_1')
+                );
+                if (provinceComp) {
+                    const provinceName = provinceComp.long_name.replace(' Province', '').trim();
+                    setPickupProvince(provinceName);
+                    if (blockedProvinces.includes(provinceName)) {
+                        setBlockedProvinceName(provinceName);
+                        setShowProvinceBlockDialog(true);
+                        setFormData(prev => ({ ...prev, pickupLocation: '' }));
+                    } else {
+                        setBlockedProvinceName('');
+                        setShowProvinceBlockDialog(false);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Geocoding error:', error);
+        }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [formData.pickupLocation, blockedProvinces]);
+
 
   const [openVehicleDialog, setOpenVehicleDialog] = useState(false);
   const [openTripTypeDialog, setOpenTripTypeDialog] = useState(false);
@@ -419,7 +475,19 @@ export default function BookingForm() {
     ? matchedPackage.rateAmount
     : (basePricePerDay * formData.numberOfDays);
 
-  const totalPrice = Math.round(basePriceBeforeAdjustment * adjustmentMultiplier);
+  const nightSurcharge = (() => {
+    if (!nightSurchargeEnabled || !formData.dateTime || !formData.vehicleType) return 0;
+    const hour = new Date(formData.dateTime).getHours();
+    if (hour >= 0 && hour < 4) {
+      if (formData.vehicleType === 'Car') return 500;
+      if (formData.vehicleType === 'Van') return 1000;
+    }
+    return 0;
+  })();
+
+  const provinceMultiplier = 1 + ((provinceAdjustments[pickupProvince] || 0) / 100);
+  const totalMultiplier = adjustmentMultiplier * provinceMultiplier;
+  const totalPrice = Math.round(basePriceBeforeAdjustment * totalMultiplier) + nightSurcharge;
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto', p: { xs: 2, md: 4 } }} suppressHydrationWarning>
@@ -503,6 +571,22 @@ export default function BookingForm() {
                   />
                 </Box>
               )}
+              {provinceAdjustments[pickupProvince] !== undefined && provinceAdjustments[pickupProvince] !== 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Chip
+                    label={`📍 ${pickupProvince} Province Adj. (${provinceAdjustments[pickupProvince] > 0 ? '+' : ''}${provinceAdjustments[pickupProvince]}%)`}
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      bgcolor: 'rgba(59, 130, 246, 0.1)',
+                      color: '#3b82f6',
+                      border: 'none'
+                    }}
+                  />
+                </Box>
+              )}
               <Chip
                 label={`Estimated: LKR ${totalPrice.toLocaleString()}`}
                 icon={<CreditCard />}
@@ -528,6 +612,27 @@ export default function BookingForm() {
                     : `*Price for ${matchedPackage.km} km & ${matchedPackage.hrs} hrs package. `
                 ) : ''}*Actual price may vary based on route changes.
               </Typography>
+
+              {nightSurcharge > 0 && (
+                <Box sx={{
+                  mt: 1,
+                  p: 1.5,
+                  borderRadius: '12px',
+                  bgcolor: 'rgba(59, 130, 246, 0.05)',
+                  border: '1px solid rgba(59, 130, 246, 0.1)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  width: '100%'
+                }}>
+                  <Typography variant="caption" sx={{ color: '#1e40af', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    🌙 Night Surcharge
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#1e40af', fontWeight: 800 }}>
+                    + LKR {nightSurcharge.toLocaleString()}
+                  </Typography>
+                </Box>
+              )}
 
               {matchedPackage && (
                 <Box sx={{ width: '100%', textAlign: 'right' }}>
@@ -1369,6 +1474,11 @@ export default function BookingForm() {
           </Stack>
         </DialogContent>
       </Dialog>
+      <ProvinceBlockDialog
+        open={showProvinceBlockDialog}
+        onClose={() => setShowProvinceBlockDialog(false)}
+        provinceName={blockedProvinceName}
+      />
     </Box>
   );
 }

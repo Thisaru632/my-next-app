@@ -16,7 +16,7 @@ import { PersonalDialog } from './PersonalDialog';
 import { VehiclePhotosDialog } from './VehiclePhotosDialog';
 import { DateTimePickerDialog } from './DateTimePickerDialog';
 import { DayPickerDialog } from './DayPickerDialog';
-import { VehicleModelDialog, TripTypeDialog, PromoDialog } from './BookingDialogs';
+import { VehicleModelDialog, TripTypeDialog, PromoDialog, ProvinceBlockDialog } from './BookingDialogs';
 import { CustomCalendar } from './CustomCalendar';
 import { useHeroBooking } from './useHeroBooking';
 import { BookingFormCard } from './BookingFormCard';
@@ -73,20 +73,22 @@ export default function HeroSection() {
       ))}
 
       {/* HERO CONTENT */}
-      <div className="relative flex-grow flex flex-col items-center justify-center px-4 pt-28 pb-40 text-center transition-opacity duration-500" style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}>
+      <div className="relative flex-grow flex flex-col items-center justify-center px-4 pt-16 pb-24 text-center transition-opacity duration-500" style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}>
         <div className="w-full max-w-4xl">
           {/* Headline */}
-          <div className="mb-2 sm:mb-4 px-2" style={{ animation: "fadeInUp 1s ease-out" }}>
-            <h1 className="text-white font-semibold tracking-tight mb-1 sm:mb-2" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.8rem, 6vw, 5rem)", lineHeight: 1, textShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>SENU TOURS</h1>
-            <p className="text-white uppercase leading-relaxed" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, letterSpacing: "0.05em", fontSize: "clamp(0.65rem, 2vw, 1rem)", textShadow: "0 2px 10px rgba(0,0,0,0.5)", opacity: 0.95 }}>
+          <div className="mb-1 sm:mb-2 px-2" style={{ animation: "fadeInUp 1s ease-out" }}>
+            <h1 className="text-white font-semibold tracking-tight mb-1" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.6rem, 5vw, 4.5rem)", lineHeight: 1, textShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>SENU TOURS</h1>
+            <p className="text-white uppercase leading-relaxed" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, letterSpacing: "0.05em", fontSize: "clamp(0.6rem, 1.8vw, 0.95rem)", textShadow: "0 2px 10px rgba(0,0,0,0.5)", opacity: 0.9 }}>
               Your Home, Your Journey, Your Hospitality Haven
             </p>
           </div>
 
           {/* Form and Summary */}
-          <div className="flex flex-col lg:flex-row justify-center items-start gap-6 mt-1 sm:mt-2 mb-2 sm:mb-4 w-full" style={{ animation: "fadeInUp 1s ease-out 0.3s both" }}>
+          <div className="flex flex-col lg:flex-row justify-center items-start gap-4 mt-1 sm:mt-2 mb-2 sm:mb-4 w-full" style={{ animation: "fadeInUp 1s ease-out 0.3s both" }}>
             <BookingFormCard booking={h} />
-            <TripSummaryCard booking={h} />
+            <div id="trip-summary-section" className="w-full lg:w-auto">
+              <TripSummaryCard booking={h} />
+            </div>
           </div>
         </div>
       </div>
@@ -108,9 +110,10 @@ export default function HeroSection() {
       </div>
 
       {/* DIALOGS */}
-      <VehicleModelDialog open={h.openVehicleDialog} onClose={() => h.setOpenVehicleDialog(false)} vehicleType={h.formData.vehicleType} vehicleName={h.formData.vehicleName} models={h.currentCategoryVehicles.models} onSelect={h.handleVehicleSelect} />
+      <VehicleModelDialog open={h.openVehicleDialog} onClose={() => h.setOpenVehicleDialog(false)} vehicleType={h.formData.vehicleType} vehicleName={h.formData.vehicleName} models={h.currentCategoryVehicles.models} onSelect={h.handleVehicleSelect} vehiclePricesMap={h.vehiclePricesMap} vehicleDiscountsMap={h.vehicleDiscountsMap} />
       <TripTypeDialog open={h.openTripTypeDialog} onClose={() => h.setOpenTripTypeDialog(false)} tripType={h.formData.tripType} tripTypes={tripTypes} onSelect={h.handleTripTypeSelect} onWarn={() => { }} />
       <PromoDialog open={h.openPromoDialog} onClose={() => h.setOpenPromoDialog(false)} hasPromoOption={h.hasPromoOption} setHasPromoOption={h.setHasPromoOption} promoCodeInput={h.promoCodeInput} setPromoCodeInput={h.setPromoCodeInput} isPromoLoading={h.isPromoLoading} onSubmit={h.handlePromoSubmit} />
+      <ProvinceBlockDialog open={h.showProvinceBlockDialog} onClose={() => h.setShowProvinceBlockDialog(false)} provinceName={h.blockedProvinceName} />
       <DropHireSuggestionDialog open={h.showDropHireSuggestion} onClose={() => h.setShowDropHireSuggestion(false)} onReconsider={() => { h.setShowDropHireSuggestion(false); h.setOpenTripTypeDialog(true); }} onConfirm={() => { h.setAcknowledgedDropHireSuggestion(true); h.setShowDropHireSuggestion(false); h.setOpenPersonalDialog(true); }} />
       <PersonalDialog open={h.openPersonalDialog} onClose={h.handleClosePersonalDialog} formData={h.formData} emailError={h.emailError} phoneError={h.phoneError} additionalPhoneErrors={h.additionalPhoneErrors} handleChange={h.handleChange} handleAddPhone={h.handleAddPhone} handleRemovePhone={h.handleRemovePhone} updateAdditionalPhone={h.updateAdditionalPhone} showRemark={h.showRemark} setShowRemark={h.setShowRemark} requestSent={h.requestSent} bookingRefNo={h.bookingRefNo} downloadTripSummary={h.downloadTripSummary} handleSendRequest={h.handleSendRequest} setShowCallPopup={h.setShowCallPopup} setOpenPolicyDialog={h.setOpenPolicyDialog} />
       <CallPopupDialog open={h.showCallPopup} onClose={() => h.setShowCallPopup(false)} onCopySuccess={() => { }} />

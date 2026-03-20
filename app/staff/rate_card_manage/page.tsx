@@ -34,7 +34,9 @@ import {
     CheckCircle as CheckCircleIcon,
     TrendingUp as TrendingUpIcon,
     Percent as PercentIcon,
+    Assessment as AssessmentIcon,
 } from '@mui/icons-material';
+
 import { API_ENDPOINTS } from '@/config/api';
 
 interface RateCardEntry {
@@ -96,6 +98,10 @@ const RateCardManagePage = () => {
     const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
     const [conflictMessage, setConflictMessage] = useState('');
     const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
+    
+    // Global Settings states
+    const [nightSurchargeEnabled, setNightSurchargeEnabled] = useState<boolean>(true);
+    const [updatingSettings, setUpdatingSettings] = useState(false);
 
     const fetchRateCards = async () => {
         setLoading(true);
@@ -128,6 +134,20 @@ const RateCardManagePage = () => {
         }
     };
 
+    const fetchGlobalSettings = async () => {
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/settings`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.nightSurchargeEnabled !== undefined) {
+                    setNightSurchargeEnabled(data.nightSurchargeEnabled);
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching settings:', err);
+        }
+    };
+
     useEffect(() => {
         const handler = setTimeout(() => {
             setSearchTerm(searchInput);
@@ -139,6 +159,7 @@ const RateCardManagePage = () => {
     useEffect(() => {
         fetchRateCards();
         fetchAdjustments();
+        fetchGlobalSettings();
     }, []);
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,6 +366,33 @@ const RateCardManagePage = () => {
         }
     };
 
+    const toggleNightSurcharge = async () => {
+        setUpdatingSettings(true);
+        const newValue = !nightSurchargeEnabled;
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    key: 'nightSurchargeEnabled',
+                    value: newValue,
+                    description: 'Whether to apply night surcharge (12AM - 4AM)'
+                }),
+            });
+
+            if (response.ok) {
+                setNightSurchargeEnabled(newValue);
+                setSuccess(`Night surcharge ${newValue ? 'activated' : 'deactivated'} successfully`);
+            } else {
+                setError('Failed to update settings');
+            }
+        } catch (err) {
+            setError('An error occurred while updating settings');
+        } finally {
+            setUpdatingSettings(false);
+        }
+    };
+
     const handleStatusUpdate = async (id: string, newStatus: string) => {
         setLoading(true);
         setError(null);
@@ -427,6 +475,84 @@ const RateCardManagePage = () => {
                     </Button>
                 </Stack>
             </Box>
+
+            {/* Global Settings & Info Section */}
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ mb: 4 }}>
+                <Paper
+                    sx={{
+                        p: 3,
+                        flex: 1,
+                        borderRadius: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        background: (theme) => theme.palette.mode === 'dark' 
+                            ? 'rgba(30, 41, 59, 0.5)' 
+                            : 'rgba(248, 250, 252, 0.5)',
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ 
+                            p: 1.5, 
+                            borderRadius: '12px', 
+                            bgcolor: nightSurchargeEnabled ? 'rgba(59, 130, 246, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                            color: nightSurchargeEnabled ? 'primary.main' : 'text.disabled'
+                        }}>
+                             <TrendingUpIcon />
+                        </Box>
+                        <Box>
+                            <Typography variant="h6" fontWeight="700">Night Surcharge</Typography>
+                            <Typography variant="body2" color="text.secondary">Apply extra charges during 12AM - 4AM</Typography>
+                        </Box>
+                    </Box>
+                    <Button
+                        variant={nightSurchargeEnabled ? "contained" : "outlined"}
+                        color={nightSurchargeEnabled ? "primary" : "inherit"}
+                        onClick={toggleNightSurcharge}
+                        disabled={updatingSettings}
+                        sx={{ 
+                            borderRadius: '12px', 
+                            textTransform: 'none',
+                            minWidth: '120px',
+                            fontWeight: 700,
+                            boxShadow: nightSurchargeEnabled ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none'
+                        }}
+                    >
+                        {updatingSettings ? <CircularProgress size={20} /> : (nightSurchargeEnabled ? 'Activate' : 'Deactivate')}
+                    </Button>
+                </Paper>
+
+                <Paper
+                    sx={{
+                        p: 3,
+                        flex: 1,
+                        borderRadius: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        background: (theme) => theme.palette.mode === 'dark' 
+                            ? 'rgba(30, 41, 59, 0.5)' 
+                            : 'rgba(248, 250, 252, 0.5)',
+                    }}
+                >
+                    <Box sx={{ 
+                        p: 1.5, 
+                        borderRadius: '12px', 
+                        bgcolor: 'rgba(16, 185, 129, 0.1)',
+                        color: '#10b981'
+                    }}>
+                         <CheckCircleIcon />
+                    </Box>
+                    <Box>
+                        <Typography variant="h6" fontWeight="700">Rate Card Status</Typography>
+                        <Typography variant="body2" color="text.secondary">{rateCards.length} packages currently approved</Typography>
+                    </Box>
+                </Paper>
+            </Stack>
 
             {/* Upload Section */}
             <Paper

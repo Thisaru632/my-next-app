@@ -16,9 +16,11 @@ interface VehicleModelDialogProps {
   vehicleName: string;
   models: VehicleModel[];
   onSelect: (modelName: string) => void;
+  vehiclePricesMap: Record<string, number>;
+  vehicleDiscountsMap: Record<string, string | null>;
 }
 
-export const VehicleModelDialog: React.FC<VehicleModelDialogProps> = ({ open, onClose, vehicleType, vehicleName, models, onSelect }) => (
+export const VehicleModelDialog: React.FC<VehicleModelDialogProps> = ({ open, onClose, vehicleType, vehicleName, models, onSelect, vehiclePricesMap, vehicleDiscountsMap }) => (
   <Dialog open={open} onClose={onClose}
     PaperProps={{ sx: { width: '95%', maxWidth: 480, m: 2, borderRadius: '24px', background: '#ffffff', border: '1px solid rgba(13,148,136,0.15)', boxShadow: '0 24px 64px rgba(0,0,0,0.12)', overflow: 'hidden' } }}
     BackdropProps={{ sx: { backdropFilter: 'blur(6px)', background: 'rgba(0,0,0,0.35)' } }}
@@ -43,7 +45,21 @@ export const VehicleModelDialog: React.FC<VehicleModelDialogProps> = ({ open, on
               {isSelected && <Box sx={{ position: 'absolute', top: 10, right: 10, width: 20, height: 20, borderRadius: '50%', background: '#0d9488', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle sx={{ fontSize: 14, color: '#fff' }} /></Box>}
               <Box sx={{ mb: 1.5, color: isSelected ? '#0d9488' : '#94a3b8' }}><DirectionsCar sx={{ fontSize: 28 }} /></Box>
               <Typography sx={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.9rem', color: isSelected ? '#0d9488' : '#1e293b', mb: 0.4 }}>{model.name}</Typography>
-              <Typography sx={{ fontSize: '0.68rem', color: '#64748b', fontFamily: "'Montserrat', sans-serif", mb: 1.5 }}>{model.description}</Typography>
+              <Typography sx={{ fontSize: '0.68rem', color: '#64748b', fontFamily: "'Montserrat', sans-serif", mb: 1 }}>{model.description}</Typography>
+              <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ p: '4px 8px', borderRadius: '8px', background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.2)' }}>
+                  <Typography sx={{ fontSize: '0.72rem', color: '#0d9488', fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
+                    {vehiclePricesMap[model.name] > 0 ? `LKR ${vehiclePricesMap[model.name].toLocaleString()}` : 'Price on Request'}
+                  </Typography>
+                </Box>
+                {vehicleDiscountsMap[model.name] && (
+                  <Box sx={{ p: '2px 6px', borderRadius: '4px', background: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: '#fff', fontWeight: 900, fontFamily: "'Montserrat', sans-serif" }}>
+                      {vehicleDiscountsMap[model.name]} OFF
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
               <Box sx={{ display: 'flex', gap: 0.75 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, px: 0.75, py: 0.25, borderRadius: '8px', background: 'rgba(13,148,136,0.06)', border: '1px solid rgba(13,148,136,0.15)' }}>
                   <Group sx={{ fontSize: 11, color: '#0d9488' }} /><Typography sx={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 600 }}>{model.maxPersons}</Typography>
@@ -153,5 +169,101 @@ export const PromoDialog: React.FC<PromoDialogProps> = ({ open, onClose, hasProm
         </div>
       )}
     </div>
+  </Dialog>
+);
+
+interface ProvinceBlockDialogProps {
+  open: boolean;
+  onClose: () => void;
+  provinceName: string;
+}
+
+export const ProvinceBlockDialog: React.FC<ProvinceBlockDialogProps> = ({ open, onClose, provinceName }) => (
+  <Dialog 
+    open={open} 
+    onClose={onClose}
+    PaperProps={{ 
+      sx: { 
+        width: '95%', 
+        maxWidth: 420, 
+        borderRadius: '28px', 
+        p: 0, 
+        textAlign: 'center', 
+        overflow: 'hidden',
+        boxShadow: '0 32px 64px -12px rgba(0,0,0,0.14)',
+        border: '1px solid rgba(239, 68, 68, 0.1)'
+      } 
+    }}
+  >
+    <Box sx={{ 
+      p: 4, 
+      background: 'linear-gradient(180deg, #fff5f5 0%, #ffffff 100%)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center'
+    }}>
+      <Box sx={{ 
+        width: 80, 
+        height: 80, 
+        borderRadius: '50%', 
+        bgcolor: 'rgba(239, 68, 68, 0.1)', 
+        color: '#ef4444', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        mb: 3,
+        animation: 'pulse 2s infinite'
+      }}>
+        <CloseIcon sx={{ fontSize: 40 }} />
+      </Box>
+      
+      <Typography variant="h5" sx={{ 
+        fontFamily: "'Cormorant Garamond', serif", 
+        fontWeight: 800, 
+        color: '#1e293b', 
+        mb: 1.5,
+        lineHeight: 1.2
+      }}>
+        High Demand in {provinceName} Province
+      </Typography>
+      
+      <Typography variant="body2" sx={{ 
+        fontFamily: "'Montserrat', sans-serif", 
+        color: '#64748b', 
+        mb: 4, 
+        lineHeight: 1.6,
+        px: 2
+      }}>
+        Sorry, you cannot select a pickup from this province at the moment because there are <strong>low availability of vehicles</strong> in this location.
+      </Typography>
+      
+      <button 
+        onClick={onClose}
+        style={{ 
+          width: '100%',
+          padding: '1rem', 
+          borderRadius: '16px', 
+          border: 'none', 
+          background: '#1e293b', 
+          color: '#fff', 
+          fontWeight: 700, 
+          fontSize: '0.95rem', 
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          boxShadow: '0 10px 20px -5px rgba(30, 41, 59, 0.3)'
+        }}
+        onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+        onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        Understood
+      </button>
+    </Box>
+    <style>{`
+      @keyframes pulse {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+      }
+    `}</style>
   </Dialog>
 );

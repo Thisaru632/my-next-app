@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from '@/context/UserContext';
 import { useJsApiLoader } from '@react-google-maps/api';
 import jsPDF from 'jspdf';
@@ -57,7 +57,7 @@ export function useHeroBooking() {
   const PHONE_REGEX = /^(?:\+94|0)?[0-9]{9,10}$/;
 
   const [formData, setFormData] = useState({
-    vehicleType: '', vehicleName: '', tripType: '', pickupLocation: '',
+    vehicleType: '', vehicleName: '', tripType: 'Drop', pickupLocation: '',
     dropoffLocation: '', dateTime: '', numberOfDays: '' as any,
     name: '', telephone: '', additionalPhones: [] as string[], email: '',
     remark: '', maxPersons: 0, maxBags: 0, additionalHours: 0,
@@ -127,16 +127,35 @@ export function useHeroBooking() {
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('success');
   const [openPhotosDialog, setOpenPhotosDialog] = useState(false);
   const [photosVehicle, setPhotosVehicle] = useState('');
+  const [nightSurchargeEnabled, setNightSurchargeEnabled] = useState(true);
+  const [blockedProvinces, setBlockedProvinces] = useState<string[]>([]);
+  const [provinceAdjustments, setProvinceAdjustments] = useState<Record<string, number>>({});
+  const [pickupProvince, setPickupProvince] = useState<string>('');
+  const [showProvinceBlockDialog, setShowProvinceBlockDialog] = useState(false);
+  const [blockedProvinceName, setBlockedProvinceName] = useState('');
 
   useEffect(() => {
     const fetchRateData = async () => {
       try {
-        const [rcRes, adjRes] = await Promise.all([
+        const [rcRes, adjRes, setRes] = await Promise.all([
           fetch(`${API_ENDPOINTS.RATE_CARDS}?status=Approved`),
-          fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`)
+          fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`),
+          fetch(`${API_ENDPOINTS.RATE_CARDS}/settings`)
         ]);
         if (rcRes.ok) setRateCards(await rcRes.json());
         if (adjRes.ok) setAdjustments(await adjRes.json());
+        if (setRes.ok) {
+          const settings = await setRes.json();
+          if (settings.nightSurchargeEnabled !== undefined) {
+            setNightSurchargeEnabled(settings.nightSurchargeEnabled);
+          }
+          if (settings.blockedProvinces !== undefined) {
+            setBlockedProvinces(settings.blockedProvinces);
+          }
+          if (settings.provinceAdjustments !== undefined) {
+            setProvinceAdjustments(settings.provinceAdjustments);
+          }
+        }
       } catch (error) { console.error('Error fetching rate data:', error); }
     };
     fetchRateData();
@@ -253,7 +272,7 @@ export function useHeroBooking() {
     if (appliedPromo && appliedPromo.applicableVehicle !== 'All' && appliedPromo.applicableVehicle !== modelName && appliedPromo.applicableVehicle !== selectedCategory) {
       setAppliedPromo(null); setSnackbarMessage(`Promo code removed: only valid for ${appliedPromo.applicableVehicle}.`); setSnackbarSeverity('info'); setSnackbarOpen(true);
     }
-    setOpenVehicleDialog(false); setOpenTripTypeDialog(true);
+    setOpenVehicleDialog(false);
   };
 
   const handleTripTypeSelect = (tripTypeName: string) => {
@@ -294,6 +313,10 @@ export function useHeroBooking() {
     const minLeadTime = new Date().getTime() + (2 * 60 * 60 * 1000);
     if (selectedTime < minLeadTime) { setSnackbarMessage('Sorry, your selected time is too soon. Please select a time at least 2 hours from now.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
     const distanceInKm = routeDistance ? (routeDistance / 1000) : 0;
+    if (blockedProvinceName) {
+      setShowProvinceBlockDialog(true);
+      return;
+    }
     const days = Number(formData.numberOfDays);
     if (days > 1 && distanceInKm > 0 && distanceInKm < 100 && !acknowledgedDropHireSuggestion) { setShowDropHireSuggestion(true); return; }
     setOpenPersonalDialog(true);
@@ -353,6 +376,32 @@ export function useHeroBooking() {
     return Math.min(...finalPotential.map(c => c.km));
   })();
 
+  useEffect(() => {
+    if (!pickupCoords || typeof google === 'undefined') return;
+
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location: { lat: parseFloat(pickupCoords.lat), lng: parseFloat(pickupCoords.lon) } }, (results, status) => {
+      if (status === 'OK' && results?.[0]) {
+        const provinceComp = results[0].address_components.find(c =>
+          c.types.includes('administrative_area_level_1')
+        );
+        if (provinceComp) {
+          const provinceName = provinceComp.long_name.replace(' Province', '').trim();
+          setPickupProvince(provinceName);
+          if (blockedProvinces.includes(provinceName)) {
+            setBlockedProvinceName(provinceName);
+            setShowProvinceBlockDialog(true);
+            setFormData(prev => ({ ...prev, pickupLocation: '' }));
+            setPickupCoords(null);
+          } else {
+            setBlockedProvinceName('');
+            setShowProvinceBlockDialog(false);
+          }
+        }
+      }
+    });
+  }, [pickupCoords, blockedProvinces, isLoaded]);
+
   const activeAdjustment = (() => {
     if (!formData.vehicleType || adjustments.length === 0) return null;
     const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
@@ -379,7 +428,8 @@ export function useHeroBooking() {
     })[0];
   })();
 
-  const adjustmentMultiplier = 1 + ((activeAdjustment?.percentage ?? 0) / 100);
+  const provinceMultiplier = 1 + ((provinceAdjustments[pickupProvince] || 0) / 100);
+  const adjustmentMultiplier = (1 + ((activeAdjustment?.percentage ?? 0) / 100)) * provinceMultiplier;
 
   const basePriceBeforeAdjustment = (() => {
     const ratePerKm = formData.vehicleType === 'Car' ? 110 : formData.vehicleType === 'Van' ? 160 : formData.vehicleType === 'Bus' ? 450 : formData.vehicleType === 'SUV' ? 250 : 0;
@@ -397,23 +447,145 @@ export function useHeroBooking() {
     return { km: extraKm, cost: extraKm * matchedPackage.extraKMRate };
   })();
 
+  const provinceAdjustmentAmount = Math.round(basePriceBeforeAdjustment * (provinceMultiplier - 1));
   const rawTotalPrice = Math.round(basePriceBeforeAdjustment * adjustmentMultiplier);
 
   const discountAmount = (() => {
     if (!appliedPromo) return 0;
-    const isApplicable = appliedPromo.applicableVehicle === 'All' || appliedPromo.applicableVehicle === formData.vehicleName || appliedPromo.applicableVehicle === formData.vehicleType;
+    const cleanApp = appliedPromo.applicableVehicle.toLowerCase().trim();
+    const isApplicable = cleanApp === 'all' || cleanApp === formData.vehicleName.toLowerCase().trim() || cleanApp === formData.vehicleType.toLowerCase().trim();
     if (!isApplicable) return 0;
     return appliedPromo.discountType === 'Percentage' ? Math.round(rawTotalPrice * (appliedPromo.discountValue / 100)) : appliedPromo.discountValue;
   })();
 
   const nightSurcharge = (() => {
-    if (!formData.dateTime || !formData.vehicleType || distanceInKm >= 20 || distanceInKm <= 0) return 0;
+    if (!nightSurchargeEnabled || !formData.dateTime || !formData.vehicleType) return 0;
     const hour = new Date(formData.dateTime).getHours();
     if (hour >= 0 && hour < 4) { if (formData.vehicleType === 'Car') return 500; if (formData.vehicleType === 'Van') return 1000; }
     return 0;
   })();
 
   const totalPrice = Math.max(0, rawTotalPrice - discountAmount) + nightSurcharge;
+
+  const getPriceForVehicle = useCallback((vName: string, vType: string) => {
+    if (!vType) return 0;
+    const cleanVName = vName ? vName.toLowerCase().replace(/\s+/g, '').trim() : '';
+    const cleanVType = vType.toLowerCase().trim();
+    const cleanFormType = formData.tripType.toLowerCase().trim();
+    const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
+
+    // 1. Find Matched Package (Mirroring main logic)
+    const potentialCards = rateCards.filter(card => {
+      const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const vehicleMatch = cleanCardVeh === cleanVName || cleanCardVeh === cleanVType || cleanVName.includes(cleanCardVeh) || cleanCardVeh.includes(cleanVName);
+      const cleanCardType = card.type.toLowerCase().trim();
+      const typeMatch = cleanCardType === cleanFormType || (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) || (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
+      return vehicleMatch && typeMatch && Number(card.days) === targetDays && card.status === 'Approved';
+    });
+    
+    let matchedPkg = null;
+    if (potentialCards.length > 0) {
+      const specificMatches = potentialCards.filter(card => { const c = card.vehicle.toLowerCase().replace(/\s+/g, '').trim(); return c === cleanVName || c.includes(cleanVName) || cleanVName.includes(c); });
+      const finalPotential = specificMatches.length > 0 ? specificMatches : potentialCards;
+      const sortedCards = finalPotential.sort((a, b) => a.km !== b.km ? a.km - b.km : a.hrs - b.hrs);
+      if (routeDistance !== null) {
+        const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
+        const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
+        matchedPkg = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : sortedCards[0];
+      } else {
+        matchedPkg = sortedCards[0];
+      }
+    }
+
+    // 2. Base Price before adjustments
+    const ratePerKm = vType === 'Car' ? 110 : vType === 'Van' ? 160 : vType === 'Bus' ? 450 : vType === 'SUV' ? 250 : 0;
+    const basePricePerDay = vType === 'Car' ? 15000 : vType === 'Van' ? 18000 : vType === 'Bus' ? 35000 : vType === 'SUV' ? 25000 : 0;
+    
+    let basePrice = 0;
+    if (!matchedPkg) {
+      basePrice = routeDistance !== null ? distanceInKm * ratePerKm : basePricePerDay * targetDays;
+    } else {
+      basePrice = matchedPkg.rateAmount;
+      if (distanceInKm > matchedPkg.km) basePrice += Math.ceil(distanceInKm - matchedPkg.km) * matchedPkg.extraKMRate;
+      if (formData.additionalHours > 0) basePrice += formData.additionalHours * (matchedPkg.extraHrRate1 || 0);
+    }
+
+    // 3. Seasonal Adjustment Multiplier
+    const adj = adjustments.filter(a => {
+      const cleanAdjVeh = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const vehicleMatch = cleanAdjVeh === 'all' || cleanAdjVeh === cleanVName || cleanAdjVeh === cleanVType || cleanVName.includes(cleanAdjVeh) || cleanAdjVeh.includes(cleanVName);
+      const cleanAdjType = a.type.toLowerCase().trim();
+      const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
+      const tripDate = formData.dateTime ? new Date(formData.dateTime) : new Date();
+      const vFrom = a.validFrom ? new Date(a.validFrom) : null; if (vFrom) vFrom.setHours(0, 0, 0, 0);
+      const vTo = a.validTo ? new Date(a.validTo) : null; if (vTo) vTo.setHours(23, 59, 59, 999);
+      return vehicleMatch && typeMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
+    }).sort((a, b) => {
+      const aClean = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const bClean = b.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const aScore = aClean === cleanVName ? 200 : aClean === cleanVType ? 100 : aClean === 'all' ? 0 : 50;
+      const bScore = bClean === cleanVName ? 200 : bClean === cleanVType ? 100 : bClean === 'all' ? 0 : 50;
+      if (aScore !== bScore) return bScore - aScore;
+      return a.type.toLowerCase() === 'all' ? 1 : -1;
+    })[0];
+
+    const provMultiplier = 1 + ((provinceAdjustments[pickupProvince] || 0) / 100);
+    const adjMultiplier = (1 + ((adj?.percentage ?? 0) / 100)) * provMultiplier;
+
+    const rawTotal = Math.round(basePrice * adjMultiplier);
+
+    // 4. Promo Discount
+    let discAmount = 0;
+    if (appliedPromo) {
+      const cleanApplicable = appliedPromo.applicableVehicle.toLowerCase().trim();
+      const isApplicable = cleanApplicable === 'all' || cleanApplicable === vName.toLowerCase().trim() || cleanApplicable === vType.toLowerCase().trim();
+      if (isApplicable) {
+        discAmount = appliedPromo.discountType === 'Percentage' ? Math.round(rawTotal * (appliedPromo.discountValue / 100)) : appliedPromo.discountValue;
+      }
+    }
+
+    // 5. Night Surcharge
+    let nightSur = 0;
+    if (nightSurchargeEnabled && formData.dateTime) {
+      const hour = new Date(formData.dateTime).getHours();
+      if (hour >= 0 && hour < 4) { if (vType === 'Car') nightSur = 500; else if (vType === 'Van') nightSur = 1000; }
+    }
+
+    return Math.max(0, rawTotal - discAmount) + nightSur;
+  }, [formData.tripType, formData.dateTime, formData.numberOfDays, formData.additionalHours, rateCards, adjustments, provinceAdjustments, pickupProvince, distanceInKm, routeDistance, nightSurchargeEnabled, appliedPromo]);
+
+  const vehiclePricesMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (!rateCards.length) return map;
+    Object.entries(sampleVehicles).forEach(([catName, cat]) => {
+      cat.models.forEach(m => {
+        map[m.name] = getPriceForVehicle(m.name, catName);
+      });
+    });
+    return map;
+  }, [getPriceForVehicle, rateCards.length]);
+
+  const getMinPriceForCategory = (catName: string) => {
+    const prices = sampleVehicles[catName as keyof typeof sampleVehicles]?.models.map(m => vehiclePricesMap[m.name]).filter(p => p > 0) || [];
+    return prices.length > 0 ? Math.min(...prices) : 0;
+  };
+
+  const vehicleDiscountsMap = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    if (!appliedPromo) return map;
+    const cleanApp = appliedPromo.applicableVehicle.toLowerCase().trim();
+    Object.entries(sampleVehicles).forEach(([catName, cat]) => {
+      cat.models.forEach(m => {
+        const isApp = cleanApp === 'all' || cleanApp === m.name.toLowerCase().trim() || cleanApp === catName.toLowerCase().trim();
+        if (isApp) {
+          map[m.name] = appliedPromo.discountType === 'Percentage' ? `-${appliedPromo.discountValue}%` : `-LKR ${appliedPromo.discountValue.toLocaleString()}`;
+        } else {
+          map[m.name] = null;
+        }
+      });
+    });
+    return map;
+  }, [appliedPromo]);
 
   const downloadTripSummary = () => {
     const doc = new jsPDF();
@@ -444,6 +616,8 @@ export function useHeroBooking() {
     const priceData = [["Base Price", `LKR ${data.rawTotalPrice.toLocaleString()}`]];
     if (data.formData.additionalHours > 0) { const hrRate = data.matchedPackage?.extraHrRate1 || matchedPackage?.extraHrRate1 || 0; priceData.push([`Additional Hours (${data.formData.additionalHours}h @ LKR ${hrRate}/hr)`, `LKR ${(data.formData.additionalHours * hrRate).toLocaleString()}`]); }
     if (data.appliedPromo) { const disc = data.appliedPromo.discountType === 'Percentage' ? `${data.appliedPromo.discountValue}%` : `LKR ${data.appliedPromo.discountValue.toLocaleString()}`; priceData.push([`Promo Discount (${data.appliedPromo.code})`, `- ${disc}`]); }
+    if (data.provinceAdjustmentAmount > 0) { priceData.push([`${data.pickupProvince} Province Adj. (+${provinceAdjustments[data.pickupProvince] || 0}%)`, `+ LKR ${data.provinceAdjustmentAmount.toLocaleString()}`]); }
+    else if (data.provinceAdjustmentAmount < 0) { priceData.push([`${data.pickupProvince} Province Adj. (${provinceAdjustments[data.pickupProvince] || 0}%)`, `- LKR ${Math.abs(data.provinceAdjustmentAmount).toLocaleString()}`]); }
     if (data.nightSurcharge > 0) priceData.push([`Night Surcharge (12AM-4AM)`, `LKR ${data.nightSurcharge.toLocaleString()}`]);
     priceData.push(["Total Estimate", `LKR ${data.totalPrice.toLocaleString()}`]);
     autoTable(doc, { startY: finalY + 5, body: priceData, theme: 'plain', styles: { fontSize: 11 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 80 }, 1: { halign: 'right', textColor: primaryColor, fontStyle: 'bold' } } });
@@ -496,13 +670,17 @@ export function useHeroBooking() {
     setShowDropHireSuggestion, acknowledgedDropHireSuggestion,
     setAcknowledgedDropHireSuggestion, bookingRefNo, showCallPopup, setShowCallPopup,
     openVehicleDialog, setOpenVehicleDialog, openTripTypeDialog, setOpenTripTypeDialog,
-    openPersonalDialog, setOpenPersonalDialog, showExtraPrices, selectedCategory,
-    snackbarOpen, snackbarMessage, snackbarSeverity, openPhotosDialog,
-    setOpenPhotosDialog, photosVehicle, setPhotosVehicle,
+    openPersonalDialog, setOpenPersonalDialog, showExtraPrices,
+    setSnackbarOpen, setSnackbarMessage, setSnackbarSeverity,
+    snackbarOpen, snackbarMessage, snackbarSeverity,
+    openPhotosDialog, setOpenPhotosDialog, photosVehicle, setPhotosVehicle,
+    showProvinceBlockDialog, setShowProvinceBlockDialog, blockedProvinceName,
+    provinceAdjustments, pickupProvince,
     // Computed
     distanceInKm, matchedPackage, minKmRequired, activeAdjustment, extraKmDetail,
+    provinceAdjustmentAmount, basePriceBeforeAdjustment, getPriceForVehicle, vehiclePricesMap, getMinPriceForCategory,
+    vehicleDiscountsMap,
     rawTotalPrice, discountAmount, nightSurcharge, totalPrice, currentCategoryVehicles,
-    // Handlers
     handleChange, handlePromoSubmit, handleViewDirections, handleAddPhone,
     handleRemovePhone, updateAdditionalPhone, handleVehicleCardClick,
     handleVehicleSelect, handleTripTypeSelect, handleRequestBooking,
