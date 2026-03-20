@@ -88,7 +88,7 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
               ) : (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1rem', fontWeight: 700, color: '#111827' }}>{h.routeDistance ? (h.routeDistance / 1000).toFixed(1) : '0.0'} km</div>
+                    <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1rem', fontWeight: 700, color: '#111827' }}>{h.routeDistance ? Math.ceil(h.routeDistance / 1000) : '0'} km</div>
                     <button onClick={h.handleViewDirections} disabled={!h.routeDistance} style={{ padding: '3px 8px', fontSize: '0.65rem', background: 'rgba(13,148,136,0.08)', border: '1.5px solid rgba(13,148,136,0.35)', borderRadius: '6px', color: '#0d9488', cursor: h.routeDistance ? 'pointer' : 'not-allowed', opacity: h.routeDistance ? 1 : 0.4, fontWeight: 700 }}>
                       <MapIcon sx={{ fontSize: '0.85rem' }} /> View
                     </button>

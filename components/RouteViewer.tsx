@@ -9,9 +9,10 @@ import {
   Box,
   Typography,
   CircularProgress,
-  IconButton
+  IconButton,
+  Button
 } from '@mui/material';
-import { Close as CloseIcon, Map as MapIcon } from '@mui/icons-material';
+import { Close as CloseIcon, Map as MapIcon, ContentCopy as ContentCopyIcon } from '@mui/icons-material';
 
 interface RouteViewerProps {
   open: boolean;
@@ -58,6 +59,7 @@ const RouteViewer: React.FC<RouteViewerProps> = ({
   const [response, setResponse] = useState<google.maps.DirectionsResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -93,6 +95,16 @@ const RouteViewer: React.FC<RouteViewerProps> = ({
           : 'Could not calculate route. Please check your locations.';
       setError(msg);
       setLoading(false);
+    }
+  };
+
+  const handleCopyPickupCode = () => {
+    if (response) {
+      const loc = response.routes[0].legs[0].start_location;
+      const code = `${loc.lat().toFixed(6)},${loc.lng().toFixed(6)}`;
+      navigator.clipboard.writeText(code);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
     }
   };
 
@@ -272,6 +284,29 @@ const RouteViewer: React.FC<RouteViewerProps> = ({
                     <Typography variant="body1" sx={{ fontWeight: 700, color: '#111827' }}>
                       {Math.ceil(response.routes[0].legs.reduce((acc, leg) => acc + (leg.duration?.value || 0), 0) / 60)} mins
                     </Typography>
+                  </Box>
+                  <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      size="small"
+                      startIcon={<ContentCopyIcon sx={{ fontSize: '1rem !important' }} />}
+                      onClick={handleCopyPickupCode}
+                      sx={{
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        borderRadius: '8px',
+                        textTransform: 'uppercase',
+                        borderColor: copySuccess ? '#22c55e' : 'primary.main',
+                        color: copySuccess ? '#22c55e' : 'primary.main',
+                        '&:hover': {
+                          borderColor: copySuccess ? '#16a34a' : 'primary.dark',
+                          bgcolor: 'transparent'
+                        }
+                      }}
+                    >
+                      {copySuccess ? 'Copied Lat/Lng!' : 'Copy Pickup Code'}
+                    </Button>
                   </Box>
                 </Box>
               </Box>

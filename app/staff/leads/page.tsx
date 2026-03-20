@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useThemeContext } from '@/context/ThemeContext';
+import RouteViewer from '@/components/RouteViewer';
 import { useTheme } from '@mui/material/styles';
 import {
   Box,
@@ -53,6 +54,7 @@ import {
   Send as SendIcon,
   AssignmentInd as AssignmentIcon,
   TableChart as TableChartIcon,
+  Map as MapIcon,
 } from '@mui/icons-material';
 
 // Types
@@ -143,6 +145,8 @@ const LeadInfoPage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<number>(0);
+  const [viewMapLead, setViewMapLead] = useState<Lead | null>(null);
+  const [openRouteViewer, setOpenRouteViewer] = useState(false);
   const [staffRemark, setStaffRemark] = useState<string>('');
 
   useEffect(() => {
@@ -451,6 +455,11 @@ const LeadInfoPage: React.FC = () => {
         setShowMessage(true);
       }, 300);
     }
+  };
+
+  const handleViewLeadDirections = (lead: Lead) => {
+    setViewMapLead(lead);
+    setOpenRouteViewer(true);
   };
 
   // Handle dialog close
@@ -1401,10 +1410,34 @@ const LeadInfoPage: React.FC = () => {
               {/* Route Section — only for booking leads */}
               {selectedLead.source !== 'Contact Us' && (
                 <Box sx={{ mt: 2, p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.25 }}>
-                    <LocationOnIcon sx={{ color: '#0ea5e9', fontSize: 16 }} />
-                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Route</Typography>
-                  </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <LocationOnIcon sx={{ color: '#0ea5e9', fontSize: 16 }} />
+                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Route</Typography>
+                      </Box>
+                      <Button 
+                        size="small" 
+                        onClick={() => handleViewLeadDirections(selectedLead)}
+                        startIcon={<MapIcon sx={{ fontSize: 16 }} />}
+                        sx={{
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          color: '#0ea5e9',
+                          textTransform: 'uppercase',
+                          background: 'rgba(14, 165, 233, 0.08)',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(14,165,233,0.3)',
+                          px: 1.5,
+                          py: 0.5,
+                          '&:hover': {
+                            background: '#0ea5e9',
+                            color: '#ffffff',
+                          }
+                        }}
+                      >
+                        View Map
+                      </Button>
+                    </Box>
 
                   {/* Horizontal left-to-right timeline */}
                   <Box sx={{ overflowX: 'auto', pb: 0.5 }}>
@@ -1792,6 +1825,21 @@ const LeadInfoPage: React.FC = () => {
           </Box>
         </DialogActions>
       </Dialog>
+
+      {/* Internal Route Viewer */}
+      {openRouteViewer && viewMapLead && (
+        <RouteViewer
+          open={openRouteViewer}
+          onClose={() => {
+            setOpenRouteViewer(false);
+            setViewMapLead(null);
+          }}
+          origin={viewMapLead.fromLocation}
+          destination={viewMapLead.toLocation}
+          waypoints={viewMapLead.destinations}
+          apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc"
+        />
+      )}
     </Box >
   );
 };

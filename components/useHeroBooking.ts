@@ -29,26 +29,34 @@ export interface RateAdjustment {
 }
 
 const sampleVehicles = {
-  Car: { models: [
-    { name: 'Alto', description: 'Compact & Efficient', maxPersons: 3, maxBags: 2 },
-    { name: 'Wagon R', description: 'Spacious Interior', maxPersons: 3, maxBags: 2 },
-    { name: 'Aqua', description: 'Hybrid Technology', maxPersons: 4, maxBags: 2 },
-    { name: 'Axio', description: 'Premium Comfort', maxPersons: 4, maxBags: 2 },
-  ]},
-  Van: { models: [
-    { name: 'KDH High Roof', description: 'Extra headroom', maxPersons: 14, maxBags: 5 },
-    { name: 'KDH Flat Roof', description: 'Classic style', maxPersons: 9, maxBags: 4 },
-    { name: 'Mini Van', description: 'Compact & comfortable', maxPersons: 6, maxBags: 3 },
-    { name: 'Dual AC Van', description: 'Dual climate control', maxPersons: 9, maxBags: 4 },
-    { name: 'NON AC VAN', description: 'Budget friendly', maxPersons: 14, maxBags: 4 },
-  ]},
-  Bus: { models: [
-    { name: 'AC 29 Seater', description: 'Air conditioned comfort', maxPersons: 29, maxBags: 8 },
-    { name: 'Non AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 8 },
-  ]},
-  SUV: { models: [
-    { name: 'Vezel', description: 'Modern Crossover', maxPersons: 4, maxBags: 3 },
-  ]},
+  Car: {
+    models: [
+      { name: 'Alto', description: 'Compact & Efficient', maxPersons: 3, maxBags: 2 },
+      { name: 'Wagon R', description: 'Spacious Interior', maxPersons: 3, maxBags: 2 },
+      { name: 'Aqua', description: 'Hybrid Technology', maxPersons: 4, maxBags: 2 },
+      { name: 'Axio', description: 'Premium Comfort', maxPersons: 4, maxBags: 2 },
+    ]
+  },
+  Van: {
+    models: [
+      { name: 'KDH High Roof', description: 'Extra headroom', maxPersons: 14, maxBags: 5 },
+      { name: 'KDH Flat Roof', description: 'Classic style', maxPersons: 9, maxBags: 4 },
+      { name: 'Mini Van', description: 'Compact & comfortable', maxPersons: 6, maxBags: 3 },
+      { name: 'Dual AC Van', description: 'Dual climate control', maxPersons: 9, maxBags: 4 },
+      { name: 'NON AC VAN', description: 'Budget friendly', maxPersons: 14, maxBags: 4 },
+    ]
+  },
+  Bus: {
+    models: [
+      { name: 'AC 29 Seater', description: 'Air conditioned comfort', maxPersons: 29, maxBags: 8 },
+      { name: 'Non AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 8 },
+    ]
+  },
+  SUV: {
+    models: [
+      { name: 'Vezel', description: 'Modern Crossover', maxPersons: 4, maxBags: 3 },
+    ]
+  },
 };
 
 export function useHeroBooking() {
@@ -482,7 +490,7 @@ export function useHeroBooking() {
       const typeMatch = cleanCardType === cleanFormType || (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) || (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
       return vehicleMatch && typeMatch && Number(card.days) === targetDays && card.status === 'Approved';
     });
-    
+
     let matchedPkg = null;
     if (potentialCards.length > 0) {
       const specificMatches = potentialCards.filter(card => { const c = card.vehicle.toLowerCase().replace(/\s+/g, '').trim(); return c === cleanVName || c.includes(cleanVName) || cleanVName.includes(c); });
@@ -500,7 +508,7 @@ export function useHeroBooking() {
     // 2. Base Price before adjustments
     const ratePerKm = vType === 'Car' ? 110 : vType === 'Van' ? 160 : vType === 'Bus' ? 450 : vType === 'SUV' ? 250 : 0;
     const basePricePerDay = vType === 'Car' ? 15000 : vType === 'Van' ? 18000 : vType === 'Bus' ? 35000 : vType === 'SUV' ? 25000 : 0;
-    
+
     let basePrice = 0;
     if (!matchedPkg) {
       basePrice = routeDistance !== null ? distanceInKm * ratePerKm : basePricePerDay * targetDays;
