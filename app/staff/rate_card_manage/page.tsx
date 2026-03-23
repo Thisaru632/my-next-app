@@ -1645,7 +1645,7 @@ const RateCardManagePage = () => {
                             </Typography>
                             
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
                                     <select
                                         value={nsVehicle}
@@ -1667,7 +1667,7 @@ const RateCardManagePage = () => {
                                     </select>
                                 </Grid>
                                 
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Trip Type</Typography>
                                     <select
                                         value={nsType}
@@ -1688,7 +1688,7 @@ const RateCardManagePage = () => {
                                     </select>
                                 </Grid>
 
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>MIN KM</Typography>
                                     <TextField
                                         fullWidth
@@ -1700,7 +1700,7 @@ const RateCardManagePage = () => {
                                     />
                                 </Grid>
 
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>MAX KM</Typography>
                                     <TextField
                                         fullWidth
@@ -1712,7 +1712,7 @@ const RateCardManagePage = () => {
                                     />
                                 </Grid>
 
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Start Time</Typography>
                                     <TextField
                                         fullWidth
@@ -1724,7 +1724,7 @@ const RateCardManagePage = () => {
                                     />
                                 </Grid>
 
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>End Time</Typography>
                                     <TextField
                                         fullWidth
@@ -1736,7 +1736,7 @@ const RateCardManagePage = () => {
                                     />
                                 </Grid>
 
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Amount (LKR)</Typography>
                                     <TextField
                                         fullWidth
@@ -1749,7 +1749,7 @@ const RateCardManagePage = () => {
                                     />
                                 </Grid>
 
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <Button
                                         fullWidth
                                         variant="contained"

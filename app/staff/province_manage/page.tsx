@@ -216,6 +216,7 @@ const ProvinceManagePage = () => {
                 setClassifiedAreas(newAreas);
                 setSuccess(`Area classified as ${type} saved successfully`);
                 setNewArea(null);
+                setDrawingPoints([]);
             } else {
                 setError('Failed to save area classification');
             }
@@ -454,6 +455,7 @@ const ProvinceManagePage = () => {
                                                 finishManualDrawing();
                                             } else {
                                                 setIsDrawingMode(true);
+                                                if (!newArea) setDrawingPoints([]);
                                                 setNewArea(null);
                                             }
                                         }}

@@ -914,7 +914,7 @@ export function useHeroBooking() {
     handleChange, handlePromoSubmit, handleViewDirections, handleAddPhone,
     handleRemovePhone, updateAdditionalPhone, handleVehicleCardClick,
     handleVehicleSelect, handleTripTypeSelect, handleRequestBooking,
-    handleClosePersonalDialog, downloadTripSummary, handleSendRequest,
+    handleClosePersonalDialog, handleConfirmClose, downloadTripSummary, handleSendRequest,
     handleSnackbarClose, addDestination, removeDestination, updateDestination,
     getVehicleFolderName,
   };
