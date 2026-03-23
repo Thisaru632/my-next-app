@@ -455,7 +455,7 @@ const ProvinceManagePage = () => {
                                                 finishManualDrawing();
                                             } else {
                                                 setIsDrawingMode(true);
-                                                if (!newArea) setDrawingPoints([]);
+                                                setDrawingPoints([]);
                                                 setNewArea(null);
                                             }
                                         }}
@@ -704,7 +704,10 @@ const ProvinceManagePage = () => {
                                     
                                     <Box sx={{ textAlign: 'center' }}>
                                         <Button 
-                                            onClick={() => setNewArea(null)} 
+                                            onClick={() => {
+                                                setNewArea(null);
+                                                setDrawingPoints([]);
+                                            }} 
                                             color="inherit" 
                                             size="small" 
                                             sx={{ textTransform: 'none', fontWeight: 600, opacity: 0.7 }}
@@ -888,6 +891,7 @@ const ProvinceManagePage = () => {
                                         finishManualDrawing();
                                     } else {
                                         setIsDrawingMode(true);
+                                        setDrawingPoints([]);
                                         setNewArea(null);
                                     }
                                 }}
@@ -1127,7 +1131,10 @@ const ProvinceManagePage = () => {
                             
                             <Box sx={{ textAlign: 'center' }}>
                                 <Button 
-                                    onClick={() => setNewArea(null)} 
+                                    onClick={() => {
+                                        setNewArea(null);
+                                        setDrawingPoints([]);
+                                    }} 
                                     color="inherit" 
                                     size="small" 
                                     sx={{ textTransform: 'none', fontWeight: 600, opacity: 0.7 }}
