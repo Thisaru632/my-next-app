@@ -113,16 +113,16 @@ export default function HeroSection() {
       <VehicleModelDialog 
         open={h.openVehicleDialog} 
         onClose={() => h.setOpenVehicleDialog(false)} 
-        vehicleType={h.formData.vehicleType} 
+        vehicleType={h.selectedCategory} 
         vehicleName={h.formData.vehicleName} 
         models={h.currentCategoryVehicles.models} 
         onSelect={h.handleVehicleSelect} 
         vehiclePricesMap={h.vehiclePricesMap} 
         vehicleDiscountsMap={h.vehicleDiscountsMap}
-        showPrices={h.formData.tripType === 'Drop' 
+        showPrices={h.selectedCategory !== 'SUV' && (h.formData.tripType === 'Drop' 
           ? !!(h.formData.pickupLocation && h.formData.dropoffLocation) 
           : !!(h.formData.pickupLocation && h.destinations[0])
-        }
+        )}
       />
       <TripTypeDialog open={h.openTripTypeDialog} onClose={() => h.setOpenTripTypeDialog(false)} tripType={h.formData.tripType} tripTypes={tripTypes} onSelect={h.handleTripTypeSelect} onWarn={() => { }} />
       <PromoDialog open={h.openPromoDialog} onClose={() => h.setOpenPromoDialog(false)} hasPromoOption={h.hasPromoOption} setHasPromoOption={h.setHasPromoOption} promoCodeInput={h.promoCodeInput} setPromoCodeInput={h.setPromoCodeInput} isPromoLoading={h.isPromoLoading} onSubmit={h.handlePromoSubmit} />
@@ -134,7 +134,13 @@ export default function HeroSection() {
       <DateTimePickerDialog open={h.openDateTimePicker} onClose={() => h.setOpenDateTimePicker(false)} pickerStep={h.pickerStep} setPickerStep={h.setPickerStep} tempDate={h.tempDate} setTempDate={h.setTempDate} tempHour={h.tempHour} setTempHour={h.setTempHour} tempMin={h.tempMin} setTempMin={h.setTempMin} tempAmPm={h.tempAmPm} setTempAmPm={h.setTempAmPm} minDateTime={h.minDateTime} handleChange={h.handleChange} CalendarComponent={CustomCalendar} />
       <DayPickerDialog open={h.openDayPicker} onClose={() => h.setOpenDayPicker(false)} tempDays={h.tempDays} setTempDays={h.setTempDays} handleChange={h.handleChange} routeDistance={h.routeDistance} acknowledgedDropHireSuggestion={h.acknowledgedDropHireSuggestion} setShowDropHireSuggestion={h.setShowDropHireSuggestion} />
       <PolicyDialog open={h.openPolicyDialog} onClose={() => h.setOpenPolicyDialog(false)} />
-      <CloseConfirmDialog open={h.showCloseConfirm} onClose={() => h.setShowCloseConfirm(false)} onConfirm={() => { h.setShowCloseConfirm(false); h.setOpenPersonalDialog(false); }} />
+      <CloseConfirmDialog 
+        open={h.showCloseConfirm} 
+        onClose={() => h.setShowCloseConfirm(false)} 
+        onConfirm={h.handleConfirmClose}
+        title={h.requestSent ? "Wait! Close Summary?" : "Are you sure?"}
+        message={h.requestSent ? "Have you downloaded your summary? You will lose this message if you leave." : "Your entered contact information will be kept, but you will leave this step."}
+      />
       <LoginRequiredDialog open={h.showLoginAlert} onClose={() => h.setShowLoginAlert(false)} onConfirm={() => { h.setShowLoginAlert(false); h.setOpenAuthModal(true); }} />
       {h.openRouteViewer && <RouteViewer open={h.openRouteViewer} onClose={() => h.setOpenRouteViewer(false)} origin={h.formData.pickupLocation} destination={h.formData.dropoffLocation} waypoints={h.destinations} pickupCoords={h.pickupCoords} dropoffCoords={h.dropoffCoords} stopCoords={h.stopCoords} apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc" initialResponse={h.routeResponse} />}
       {h.openNearbyViewer && <NearbyViewer open={h.openNearbyViewer} onClose={() => h.setOpenNearbyViewer(false)} origin={h.formData.pickupLocation} destination={h.formData.dropoffLocation} waypoints={h.destinations} pickupCoords={h.pickupCoords} dropoffCoords={h.dropoffCoords} stopCoords={h.stopCoords} apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc" initialResponse={h.routeResponse} />}

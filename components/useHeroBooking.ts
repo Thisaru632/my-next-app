@@ -141,17 +141,27 @@ export function useHeroBooking() {
   const [pickupProvince, setPickupProvince] = useState<string>('');
   const [showProvinceBlockDialog, setShowProvinceBlockDialog] = useState(false);
   const [blockedProvinceName, setBlockedProvinceName] = useState('');
+  const [summaryDownloaded, setSummaryDownloaded] = useState(false);
+  const [nsRules, setNsRules] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchRateData = async () => {
       try {
-        const [rcRes, adjRes, setRes] = await Promise.all([
+        const [rcRes, adjRes, setRes, nsRes] = await Promise.all([
           fetch(`${API_ENDPOINTS.RATE_CARDS}?status=Approved`),
           fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`),
-          fetch(`${API_ENDPOINTS.RATE_CARDS}/settings`)
+          fetch(`${API_ENDPOINTS.RATE_CARDS}/settings`),
+          fetch(`${API_ENDPOINTS.RATE_CARDS}/night-surcharge`)
         ]);
         if (rcRes.ok) setRateCards(await rcRes.json());
         if (adjRes.ok) setAdjustments(await adjRes.json());
+        if (nsRes.ok) {
+          const rules = await nsRes.json();
+          console.log('[DEBUG-NS] Fetched rules:', rules);
+          setNsRules(rules);
+        } else {
+          console.error('[DEBUG-NS] Failed to fetch rules:', nsRes.status);
+        }
         if (setRes.ok) {
           const settings = await setRes.json();
           if (settings.nightSurchargeEnabled !== undefined) {
@@ -331,9 +341,29 @@ export function useHeroBooking() {
   };
 
   const handleClosePersonalDialog = () => {
-    if (requestSent) { setOpenPersonalDialog(false); setTimeout(() => { setRequestSent(false); setSubmittedBookingData(null); setBookingRefNo(''); }, 300); return; }
+    if (requestSent) { 
+      if (summaryDownloaded) {
+        handleConfirmClose();
+        return;
+      }
+      setShowCloseConfirm(true); 
+      return; 
+    }
     const hasEnteredInfo = formData.name?.trim() || formData.telephone?.trim() || formData.email?.trim() || formData.remark?.trim() || formData.additionalPhones.some(p => p.trim());
     if (hasEnteredInfo) setShowCloseConfirm(true); else setOpenPersonalDialog(false);
+  };
+
+  const handleConfirmClose = () => {
+    setShowCloseConfirm(false); 
+    setOpenPersonalDialog(false);
+    if (requestSent) {
+      setTimeout(() => {
+        setRequestSent(false);
+        setSubmittedBookingData(null);
+        setBookingRefNo('');
+        setSummaryDownloaded(false);
+      }, 300);
+    }
   };
 
   // Pricing calculations
@@ -410,6 +440,75 @@ export function useHeroBooking() {
     });
   }, [pickupCoords, blockedProvinces, isLoaded]);
 
+  const calculateNightSurchargeAmount = useCallback((dateTime: string, vType: string, vName: string, distance: number, tripType: string) => {
+    if (!dateTime || !vType || nsRules.length === 0) return 0;
+    
+    const date = new Date(dateTime);
+    const hour = date.getHours();
+    const min = date.getMinutes();
+    const currentTimeInMin = (hour * 60) + min;
+
+    const parseTimeToMin = (timeStr: string) => {
+      const [h, m] = timeStr.split(':').map(Number);
+      return (h * 60) + (m || 0);
+    };
+
+    const cleanVType = vType.toLowerCase().trim();
+    const cleanVName = vName ? vName.toLowerCase().replace(/\s+/g, '').trim() : '';
+    const cleanTripType = tripType.toLowerCase().trim();
+
+    // Filter rules that match vehicle and trip type
+    const applicableRules = nsRules.filter(rule => {
+      if (rule.status === 'Inactive') return false;
+      const ruleVeh = rule.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const vehMatch = ruleVeh === 'all' || 
+                       ruleVeh === cleanVType || 
+                       ruleVeh === cleanVName || 
+                       ruleVeh.includes(cleanVName) || 
+                       cleanVName.includes(ruleVeh);
+      
+      const ruleType = rule.type.toLowerCase().trim();
+      const typeMatch = ruleType === 'all' || ruleType === cleanTripType;
+      
+      const kmMatch = distance >= rule.minKm && distance <= rule.maxKm;
+
+      // Time match (handling overnight windows like 22:00 to 04:00)
+      const startMin = parseTimeToMin(rule.startTime);
+      const endMin = parseTimeToMin(rule.endTime);
+      let timeMatch = false;
+
+      if (startMin <= endMin) {
+        timeMatch = currentTimeInMin >= startMin && currentTimeInMin <= endMin;
+      } else {
+        // Overnight window (e.g., 22:00 to 02:00)
+        timeMatch = currentTimeInMin >= startMin || currentTimeInMin <= endMin;
+      }
+
+      return vehMatch && typeMatch && kmMatch && timeMatch;
+    });
+
+    console.log('[DEBUG-NS] Rules evaluation:', {
+      vType, vName, distance, tripType, currentTime: `${hour}:${min}`,
+      matchedRulesCount: applicableRules.length,
+      rules: applicableRules
+    });
+
+    if (applicableRules.length === 0) return 0;
+
+    // Pick the most specific or highest amount
+    // Specificity: Name > Type > All
+    const sorted = applicableRules.sort((a, b) => {
+      const aVeh = a.vehicle.toLowerCase().trim();
+      const bVeh = b.vehicle.toLowerCase().trim();
+      const aScore = aVeh === cleanVName ? 100 : aVeh === cleanVType ? 50 : 0;
+      const bScore = bVeh === cleanVName ? 100 : bVeh === cleanVType ? 50 : 0;
+      if (aScore !== bScore) return bScore - aScore;
+      return b.amount - a.amount; // Tie-break with higher amount
+    });
+
+    return sorted[0].amount;
+  }, [nightSurchargeEnabled, nsRules]);
+
   const activeAdjustment = (() => {
     if (!formData.vehicleType || adjustments.length === 0) return null;
     const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
@@ -466,12 +565,7 @@ export function useHeroBooking() {
     return appliedPromo.discountType === 'Percentage' ? Math.round(rawTotalPrice * (appliedPromo.discountValue / 100)) : appliedPromo.discountValue;
   })();
 
-  const nightSurcharge = (() => {
-    if (!nightSurchargeEnabled || !formData.dateTime || !formData.vehicleType) return 0;
-    const hour = new Date(formData.dateTime).getHours();
-    if (hour >= 0 && hour < 4) { if (formData.vehicleType === 'Car') return 500; if (formData.vehicleType === 'Van') return 1000; }
-    return 0;
-  })();
+  const nightSurcharge = calculateNightSurchargeAmount(formData.dateTime, formData.vehicleType, formData.vehicleName, distanceInKm, formData.tripType);
 
   const totalPrice = Math.max(0, rawTotalPrice - discountAmount) + nightSurcharge;
 
@@ -552,12 +646,7 @@ export function useHeroBooking() {
       }
     }
 
-    // 5. Night Surcharge
-    let nightSur = 0;
-    if (nightSurchargeEnabled && formData.dateTime) {
-      const hour = new Date(formData.dateTime).getHours();
-      if (hour >= 0 && hour < 4) { if (vType === 'Car') nightSur = 500; else if (vType === 'Van') nightSur = 1000; }
-    }
+    const nightSur = calculateNightSurchargeAmount(formData.dateTime, vType, vName, distanceInKm, formData.tripType);
 
     return Math.max(0, rawTotal - discAmount) + nightSur;
   }, [formData.tripType, formData.dateTime, formData.numberOfDays, formData.additionalHours, rateCards, adjustments, provinceAdjustments, pickupProvince, distanceInKm, routeDistance, nightSurchargeEnabled, appliedPromo]);
@@ -687,7 +776,7 @@ export function useHeroBooking() {
 
     // INCLUSIONS
     addSectionHeader("INCLUSIONS");
-    addRow("Package Rate", `Rs. ${data.rawTotalPrice?.toLocaleString() || 0}`);
+    addRow("Package Rate", data.formData.vehicleType === 'SUV' ? "Price on Request" : `Rs. ${data.rawTotalPrice?.toLocaleString() || 0}`);
     const currentRouteDistance = data.routeDistance !== undefined ? data.routeDistance : routeDistance;
     const currentDistanceInKm = currentRouteDistance ? (currentRouteDistance / 1000) : 0;
     const extraKm = Math.max(0, Math.ceil(currentDistanceInKm - (matchedPkg?.km || 0)));
@@ -696,13 +785,16 @@ export function useHeroBooking() {
     addRow("Package Inclusions", `${totalKm} KMs and ${totalHrs} Hrs`);
     addRow("Miscellaneous Items", "");
     addRow("Miscellaneous Rate", "");
-    addRow("TOTAL", `Rs. ${data.totalPrice?.toLocaleString() || 0}`, true);
+    addRow("TOTAL", data.formData.vehicleType === 'SUV' ? "Price on Request" : `Rs. ${data.totalPrice?.toLocaleString() || 0}`, true);
     currentY += 5;
 
     // EXTRAS
     addSectionHeader("EXTRAS");
     addRow("Per Extra KM", (matchedPkg?.extraKMRate || 0).toString());
     addRow("Per Extra Hour", (matchedPkg?.extraHrRate1 || 0).toString());
+    if (data.nightSurcharge > 0) {
+      addRow("Night Surcharge", `Rs. ${data.nightSurcharge.toLocaleString()}`);
+    }
     currentY += 15;
 
     // Footer
@@ -755,7 +847,7 @@ export function useHeroBooking() {
     doc.text(" to confirm the booking.", 14 + textWidth + refWidth, currentY);
 
     doc.save(`Senu_Tours_Trip_Summary_${new Date().getTime()}.pdf`);
-    handleClosePersonalDialog();
+    setSummaryDownloaded(true);
   };
 
   const handleSendRequest = async () => {
@@ -764,7 +856,14 @@ export function useHeroBooking() {
     if (!isEmailValid || !isPhoneValid || additionalPhoneErrors.some(e => e !== '')) { setSnackbarMessage('Please fix the errors in the form before submitting.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
     if (!formData.name || !formData.telephone || !formData.email) { setSnackbarMessage('Please fill in all required fields (Name, Telephone, Email).'); setSnackbarSeverity('warning'); setSnackbarOpen(true); return; }
     try {
-      const payload = { ...formData, destinations: destinations.filter(d => d.trim() !== ''), matchedPackage, promoCode: appliedPromo?.code || '', discount: discountAmount };
+      const payload = { 
+        ...formData, 
+        destinations: destinations.filter(d => d.trim() !== ''), 
+        matchedPackage, 
+        promoCode: appliedPromo?.code || '', 
+        discount: discountAmount,
+        nightSurcharge: nightSurcharge
+      };
       const response = await fetch(API_ENDPOINTS.BOOKINGS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (response.ok) {
         const result = await response.json();
@@ -800,7 +899,7 @@ export function useHeroBooking() {
     routeDistance, routeDuration, routeLoading, showDropHireSuggestion,
     setShowDropHireSuggestion, acknowledgedDropHireSuggestion,
     setAcknowledgedDropHireSuggestion, bookingRefNo, showCallPopup, setShowCallPopup,
-    openVehicleDialog, setOpenVehicleDialog, openTripTypeDialog, setOpenTripTypeDialog,
+    openVehicleDialog, setOpenVehicleDialog, selectedCategory, openTripTypeDialog, setOpenTripTypeDialog,
     openPersonalDialog, setOpenPersonalDialog, showExtraPrices,
     setSnackbarOpen, setSnackbarMessage, setSnackbarSeverity,
     snackbarOpen, snackbarMessage, snackbarSeverity,

@@ -11,9 +11,11 @@ interface CloseConfirmDialogProps {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  title?: string;
+  message?: string;
 }
 
-export const CloseConfirmDialog: React.FC<CloseConfirmDialogProps> = ({ open, onClose, onConfirm }) => {
+export const CloseConfirmDialog: React.FC<CloseConfirmDialogProps> = ({ open, onClose, onConfirm, title, message }) => {
   return (
     <Dialog
       open={open}
@@ -51,7 +53,7 @@ export const CloseConfirmDialog: React.FC<CloseConfirmDialogProps> = ({ open, on
           color: '#111827', 
           mb: 1 
         }}>
-          Are you sure?
+          {title || "Are you sure?"}
         </Typography>
         <Typography sx={{ 
           fontFamily: "'Montserrat', sans-serif", 
@@ -59,7 +61,7 @@ export const CloseConfirmDialog: React.FC<CloseConfirmDialogProps> = ({ open, on
           color: '#6b7280', 
           lineHeight: 1.6 
         }}>
-          Your entered contact information will be kept, but you will leave this step.
+          {message || "Your entered contact information will be kept, but you will leave this step."}
         </Typography>
       </DialogContent>
       <Box sx={{ p: 2, display: 'flex', gap: 1.5 }}>

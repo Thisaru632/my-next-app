@@ -178,6 +178,7 @@ export function BookingFormCard({ booking: h }: BookingFormCardProps) {
         </div>
       </div>
 
+
       {/* Mobile View Summary Button */}
       <div className="lg:hidden mt-4" style={{ textAlign: "center" }}>
         <button 

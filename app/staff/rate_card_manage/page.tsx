@@ -28,7 +28,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions,
+    DialogActions,
+    Grid,
+    TextField,
+    InputAdornment,
 } from '@mui/material';
 import {
     CloudUpload as CloudUploadIcon,
@@ -70,6 +73,19 @@ interface RateAdjustment {
     lastUpdated: string;
 }
 
+interface NightSurchargeRule {
+    _id: string;
+    vehicle: string;
+    type: string;
+    minKm: number;
+    maxKm: number;
+    startTime: string;
+    endTime: string;
+    amount: number;
+    status: 'Active' | 'Inactive';
+    lastUpdated: string;
+}
+
 const RateCardManagePage = () => {
     const [rateCards, setRateCards] = useState<RateCardEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -106,9 +122,20 @@ const RateCardManagePage = () => {
     const [conflictMessage, setConflictMessage] = useState('');
     const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
     
-    // Global Settings states
     const [nightSurchargeEnabled, setNightSurchargeEnabled] = useState<boolean>(true);
+    const [nightSurchargeCar, setNightSurchargeCar] = useState<number>(500);
+    const [nightSurchargeVan, setNightSurchargeVan] = useState<number>(1000);
     const [updatingSettings, setUpdatingSettings] = useState(false);
+
+    // Night surcharge rules state
+    const [nsRules, setNsRules] = useState<NightSurchargeRule[]>([]);
+    const [nsAmount, setNsAmount] = useState<string>('');
+    const [nsMinKm, setNsMinKm] = useState<string>('0');
+    const [nsMaxKm, setNsMaxKm] = useState<string>('99999');
+    const [nsStartTime, setNsStartTime] = useState<string>('00:00');
+    const [nsEndTime, setNsEndTime] = useState<string>('04:00');
+    const [nsVehicle, setNsVehicle] = useState<string>('All');
+    const [nsType, setNsType] = useState<string>('All');
 
     const fetchRateCards = async () => {
         setLoading(true);
@@ -141,6 +168,18 @@ const RateCardManagePage = () => {
         }
     };
 
+    const fetchNsRules = async () => {
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/night-surcharge`);
+            if (response.ok) {
+                const data = await response.json();
+                setNsRules(data);
+            }
+        } catch (err) {
+            console.error('Error fetching NS rules:', err);
+        }
+    };
+
     const fetchGlobalSettings = async () => {
         try {
             const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/settings`);
@@ -148,6 +187,12 @@ const RateCardManagePage = () => {
                 const data = await response.json();
                 if (data.nightSurchargeEnabled !== undefined) {
                     setNightSurchargeEnabled(data.nightSurchargeEnabled);
+                }
+                if (data.nightSurchargeCar !== undefined) {
+                    setNightSurchargeCar(data.nightSurchargeCar);
+                }
+                if (data.nightSurchargeVan !== undefined) {
+                    setNightSurchargeVan(data.nightSurchargeVan);
                 }
             }
         } catch (err) {
@@ -166,8 +211,93 @@ const RateCardManagePage = () => {
     useEffect(() => {
         fetchRateCards();
         fetchAdjustments();
+        fetchNsRules();
         fetchGlobalSettings();
     }, []);
+
+    const handleAddNsRule = async () => {
+        if (!nsAmount || isNaN(parseFloat(nsAmount))) {
+            setError('Please enter a valid amount');
+            return;
+        }
+
+        setUpdatingSettings(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/night-surcharge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    vehicle: nsVehicle,
+                    type: nsType,
+                    minKm: parseInt(nsMinKm),
+                    maxKm: parseInt(nsMaxKm),
+                    startTime: nsStartTime,
+                    endTime: nsEndTime,
+                    amount: parseFloat(nsAmount)
+                }),
+            });
+
+            if (response.ok) {
+                setSuccess('Night surcharge rule added successfully');
+                setNsAmount('');
+                fetchNsRules();
+            } else {
+                const errData = await response.json();
+                setError(errData.message || 'Failed to add rule');
+            }
+        } catch (err) {
+            setError('An error occurred');
+        } finally {
+            setUpdatingSettings(false);
+        }
+    };
+
+    const handleRemoveNsRule = async (id: string) => {
+        if (!confirm('Are you sure you want to remove this rule?')) return;
+
+        setUpdatingSettings(true);
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/night-surcharge/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                setSuccess('Rule removed successfully');
+                fetchNsRules();
+            } else {
+                setError('Failed to remove rule');
+            }
+        } catch (err) {
+            setError('An error occurred');
+        } finally {
+            setUpdatingSettings(false);
+        }
+    };
+
+    const handleUpdateNsStatus = async (id: string, newStatus: 'Active' | 'Inactive') => {
+        setUpdatingSettings(true);
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/night-surcharge/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
+
+            if (response.ok) {
+                setSuccess(`Rule marked as ${newStatus}`);
+                fetchNsRules();
+            } else {
+                setError('Failed to update status');
+            }
+        } catch (err) {
+            setError('An error occurred');
+        } finally {
+            setUpdatingSettings(false);
+        }
+    };
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -373,6 +503,35 @@ const RateCardManagePage = () => {
         }
     };
 
+    const updateNightSurchargeAmount = async (vehicle: string, amount: number) => {
+        setUpdatingSettings(true);
+        const key = vehicle === 'Car' ? 'nightSurchargeCar' : 'nightSurchargeVan';
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    key: key,
+                    value: amount,
+                    description: `Night surcharge amount for ${vehicle}`
+                }),
+            });
+
+            if (response.ok) {
+                if (vehicle === 'Car') setNightSurchargeCar(amount);
+                else setNightSurchargeVan(amount);
+                setSuccess(`${vehicle} night surcharge updated`);
+            } else {
+                setError('Failed to update amount');
+            }
+        } catch (err) {
+            setError('An error occurred');
+        } finally {
+            setUpdatingSettings(false);
+            setTimeout(() => setSuccess(null), 3000);
+        }
+    };
+
     const toggleNightSurcharge = async () => {
         setUpdatingSettings(true);
         const newValue = !nightSurchargeEnabled;
@@ -484,8 +643,183 @@ const RateCardManagePage = () => {
                     <Tab label="Province Manage" />
                     <Tab label="Promo Code Manage" />
                     <Tab label="Bulk Price Adjustment" />
+                    <Tab label="Night Surcharge" />
                 </Tabs>
             </Box>
+            
+            {/* Filter Section (Shared between Tab 0 and Tab 3) */}
+            {(activeTab === 0 || activeTab === 3) && (
+                <Paper sx={{
+                    p: 2,
+                    mb: 3,
+                    borderRadius: '16px',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    backgroundImage: 'none'
+                }}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+                        <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: '200px' } }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Search</Typography>
+                            <input
+                                placeholder="Search vehicle or type..."
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px 14px',
+                                    borderRadius: '10px',
+                                    border: '1px solid var(--border-color, #cbd5e1)',
+                                    marginTop: '4px',
+                                    outline: 'none',
+                                    background: 'transparent',
+                                    color: 'inherit',
+                                    fontSize: '0.9rem',
+                                    fontFamily: 'inherit'
+                                }}
+                            />
+                        </Box>
+
+                        <Box sx={{ minWidth: '150px' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
+                            <select
+                                value={vehicleFilter}
+                                onChange={(e) => {
+                                    setVehicleFilter(e.target.value);
+                                    setPage(0);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px 14px',
+                                    borderRadius: '10px',
+                                    border: '1px solid var(--border-color, #cbd5e1)',
+                                    marginTop: '4px',
+                                    outline: 'none',
+                                    background: 'transparent',
+                                    color: 'inherit',
+                                    fontSize: '0.9rem',
+                                    cursor: 'pointer',
+                                    fontFamily: 'inherit'
+                                }}
+                            >
+                                <option value="All" style={{ background: '#fff', color: '#000' }}>All Vehicles</option>
+                                {uniqueVehicles.map(v => <option key={v} value={v} style={{ background: '#fff', color: '#000' }}>{v}</option>)}
+                            </select>
+                        </Box>
+
+                        <Box sx={{ minWidth: '150px' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Type</Typography>
+                            <select
+                                value={typeFilter}
+                                onChange={(e) => {
+                                    setTypeFilter(e.target.value);
+                                    setPage(0);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px 14px',
+                                    borderRadius: '10px',
+                                    border: '1px solid var(--border-color, #cbd5e1)',
+                                    marginTop: '4px',
+                                    outline: 'none',
+                                    background: 'transparent',
+                                    color: 'inherit',
+                                    fontSize: '0.9rem',
+                                    cursor: 'pointer',
+                                    fontFamily: 'inherit'
+                                }}
+                            >
+                                <option value="All" style={{ background: '#fff', color: '#000' }}>All Types</option>
+                                {uniqueTypes.map(t => <option key={t} value={t} style={{ background: '#fff', color: '#000' }}>{t}</option>)}
+                            </select>
+                        </Box>
+
+                        <Box sx={{ minWidth: '100px' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Days</Typography>
+                            <select
+                                value={daysFilter}
+                                onChange={(e) => {
+                                    setDaysFilter(e.target.value);
+                                    setPage(0);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px 14px',
+                                    borderRadius: '10px',
+                                    border: '1px solid var(--border-color, #cbd5e1)',
+                                    marginTop: '4px',
+                                    outline: 'none',
+                                    background: 'transparent',
+                                    color: 'inherit',
+                                    fontSize: '0.9rem',
+                                    cursor: 'pointer',
+                                    fontFamily: 'inherit'
+                                }}
+                            >
+                                <option value="All" style={{ background: '#fff', color: '#000' }}>All Days</option>
+                                {uniqueDays.map(d => <option key={d} value={d} style={{ background: '#fff', color: '#000' }}>{d}</option>)}
+                            </select>
+                        </Box>
+
+                        <Box sx={{ minWidth: '100px' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Hours</Typography>
+                            <select
+                                value={hrsFilter}
+                                onChange={(e) => {
+                                    setHrsFilter(e.target.value);
+                                    setPage(0);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px 14px',
+                                    borderRadius: '10px',
+                                    border: '1px solid var(--border-color, #cbd5e1)',
+                                    marginTop: '4px',
+                                    outline: 'none',
+                                    background: 'transparent',
+                                    color: 'inherit',
+                                    fontSize: '0.9rem',
+                                    cursor: 'pointer',
+                                    fontFamily: 'inherit'
+                                }}
+                            >
+                                <option value="All" style={{ background: '#fff', color: '#000' }}>All Hours</option>
+                                {uniqueHrs.map(h => <option key={h} value={h} style={{ background: '#fff', color: '#000' }}>{h}</option>)}
+                            </select>
+                        </Box>
+
+                        <Box sx={{ minWidth: '100px' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>KM Limit</Typography>
+                            <input
+                                type="text"
+                                placeholder="e.g. 100"
+                                value={kmFilter}
+                                onChange={(e) => setKmFilter(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px 14px',
+                                    borderRadius: '10px',
+                                    border: '1px solid var(--border-color, #cbd5e1)',
+                                    marginTop: '4px',
+                                    outline: 'none',
+                                    background: 'transparent',
+                                    color: 'inherit',
+                                    fontSize: '0.9rem',
+                                    fontFamily: 'inherit'
+                                }}
+                            />
+                        </Box>
+
+                        <Button
+                            size="small"
+                            onClick={resetFilters}
+                            sx={{ mt: { xs: 0, md: 2.5 }, textTransform: 'none', fontWeight: 600, color: 'text.disabled' }}
+                        >
+                            Reset
+                        </Button>
+                    </Stack>
+                </Paper>
+            )}
 
             {activeTab === 0 && (
                 <>
@@ -511,83 +845,37 @@ const RateCardManagePage = () => {
                         </Button>
                     </Box>
 
-            {/* Global Settings & Info Section */}
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ mb: 4 }}>
-                <Paper
-                    sx={{
-                        p: 3,
-                        flex: 1,
-                        borderRadius: '20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        background: (theme) => theme.palette.mode === 'dark' 
-                            ? 'rgba(30, 41, 59, 0.5)' 
-                            : 'rgba(248, 250, 252, 0.5)',
-                    }}
-                >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Box sx={{ 
-                            p: 1.5, 
-                            borderRadius: '12px', 
-                            bgcolor: nightSurchargeEnabled ? 'rgba(59, 130, 246, 0.1)' : 'rgba(148, 163, 184, 0.1)',
-                            color: nightSurchargeEnabled ? 'primary.main' : 'text.disabled'
-                        }}>
-                             <TrendingUpIcon />
-                        </Box>
-                        <Box>
-                            <Typography variant="h6" fontWeight="700">Night Surcharge</Typography>
-                            <Typography variant="body2" color="text.secondary">Apply extra charges during 12AM - 4AM</Typography>
-                        </Box>
-                    </Box>
-                    <Button
-                        variant={nightSurchargeEnabled ? "contained" : "outlined"}
-                        color={nightSurchargeEnabled ? "primary" : "inherit"}
-                        onClick={toggleNightSurcharge}
-                        disabled={updatingSettings}
-                        sx={{ 
-                            borderRadius: '12px', 
-                            textTransform: 'none',
-                            minWidth: '120px',
-                            fontWeight: 700,
-                            boxShadow: nightSurchargeEnabled ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none'
-                        }}
-                    >
-                        {updatingSettings ? <CircularProgress size={20} /> : (nightSurchargeEnabled ? 'Activate' : 'Deactivate')}
-                    </Button>
-                </Paper>
 
-                <Paper
-                    sx={{
-                        p: 3,
-                        flex: 1,
-                        borderRadius: '20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        background: (theme) => theme.palette.mode === 'dark' 
-                            ? 'rgba(30, 41, 59, 0.5)' 
-                            : 'rgba(248, 250, 252, 0.5)',
-                    }}
-                >
-                    <Box sx={{ 
-                        p: 1.5, 
-                        borderRadius: '12px', 
-                        bgcolor: 'rgba(16, 185, 129, 0.1)',
-                        color: '#10b981'
-                    }}>
-                         <CheckCircleIcon />
-                    </Box>
-                    <Box>
-                        <Typography variant="h6" fontWeight="700">Rate Card Status</Typography>
-                        <Typography variant="body2" color="text.secondary">{rateCards.length} packages currently approved</Typography>
-                    </Box>
-                </Paper>
-            </Stack>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ mb: 4 }}>
+                        <Paper
+                            sx={{
+                                p: 3,
+                                flex: 1,
+                                borderRadius: '20px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                background: (theme) => theme.palette.mode === 'dark' 
+                                    ? 'rgba(30, 41, 59, 0.5)' 
+                                    : 'rgba(248, 250, 252, 0.5)',
+                            }}
+                        >
+                            <Box sx={{ 
+                                p: 1.5, 
+                                borderRadius: '12px', 
+                                bgcolor: 'rgba(16, 185, 129, 0.1)',
+                                color: '#10b981'
+                            }}>
+                                <CheckCircleIcon />
+                            </Box>
+                            <Box>
+                                <Typography variant="h6" fontWeight="700">Rate Card Status</Typography>
+                                <Typography variant="body2" color="text.secondary">{rateCards.length} packages currently approved</Typography>
+                            </Box>
+                        </Paper>
+                    </Stack>
 
             {/* Upload Section */}
             <Paper
@@ -671,178 +959,6 @@ const RateCardManagePage = () => {
                         {uploading ? 'Uploading...' : 'Select CSV File'}
                     </Button>
                 </label>
-            </Paper>
-
-            {/* Filter Section (Moved up to define scope for both view and bulk adjustment) */}
-            <Paper sx={{
-                p: 2,
-                mb: 3,
-                borderRadius: '16px',
-                border: '1px solid',
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
-                backgroundImage: 'none'
-            }}>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
-                    <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: '200px' } }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Search</Typography>
-                        <input
-                            placeholder="Search vehicle or type..."
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid var(--border-color, #cbd5e1)',
-                                marginTop: '4px',
-                                outline: 'none',
-                                background: 'transparent',
-                                color: 'inherit',
-                                fontSize: '0.9rem',
-                                fontFamily: 'inherit'
-                            }}
-                        />
-                    </Box>
-
-                    <Box sx={{ minWidth: '150px' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
-                        <select
-                            value={vehicleFilter}
-                            onChange={(e) => {
-                                setVehicleFilter(e.target.value);
-                                setPage(0);
-                            }}
-                            style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid var(--border-color, #cbd5e1)',
-                                marginTop: '4px',
-                                outline: 'none',
-                                background: 'transparent',
-                                color: 'inherit',
-                                fontSize: '0.9rem',
-                                cursor: 'pointer',
-                                fontFamily: 'inherit'
-                            }}
-                        >
-                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Vehicles</option>
-                            {uniqueVehicles.map(v => <option key={v} value={v} style={{ background: '#fff', color: '#000' }}>{v}</option>)}
-                        </select>
-                    </Box>
-
-                    <Box sx={{ minWidth: '150px' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Type</Typography>
-                        <select
-                            value={typeFilter}
-                            onChange={(e) => {
-                                setTypeFilter(e.target.value);
-                                setPage(0);
-                            }}
-                            style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid var(--border-color, #cbd5e1)',
-                                marginTop: '4px',
-                                outline: 'none',
-                                background: 'transparent',
-                                color: 'inherit',
-                                fontSize: '0.9rem',
-                                cursor: 'pointer',
-                                fontFamily: 'inherit'
-                            }}
-                        >
-                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Types</option>
-                            {uniqueTypes.map(t => <option key={t} value={t} style={{ background: '#fff', color: '#000' }}>{t}</option>)}
-                        </select>
-                    </Box>
-
-                    <Box sx={{ minWidth: '100px' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Days</Typography>
-                        <select
-                            value={daysFilter}
-                            onChange={(e) => {
-                                setDaysFilter(e.target.value);
-                                setPage(0);
-                            }}
-                            style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid var(--border-color, #cbd5e1)',
-                                marginTop: '4px',
-                                outline: 'none',
-                                background: 'transparent',
-                                color: 'inherit',
-                                fontSize: '0.9rem',
-                                cursor: 'pointer',
-                                fontFamily: 'inherit'
-                            }}
-                        >
-                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Days</option>
-                            {uniqueDays.map(d => <option key={d} value={d} style={{ background: '#fff', color: '#000' }}>{d}</option>)}
-                        </select>
-                    </Box>
-
-                    <Box sx={{ minWidth: '100px' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Hours</Typography>
-                        <select
-                            value={hrsFilter}
-                            onChange={(e) => {
-                                setHrsFilter(e.target.value);
-                                setPage(0);
-                            }}
-                            style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid var(--border-color, #cbd5e1)',
-                                marginTop: '4px',
-                                outline: 'none',
-                                background: 'transparent',
-                                color: 'inherit',
-                                fontSize: '0.9rem',
-                                cursor: 'pointer',
-                                fontFamily: 'inherit'
-                            }}
-                        >
-                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Hours</option>
-                            {uniqueHrs.map(h => <option key={h} value={h} style={{ background: '#fff', color: '#000' }}>{h}</option>)}
-                        </select>
-                    </Box>
-
-                    <Box sx={{ minWidth: '100px' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>KM Limit</Typography>
-                        <input
-                            type="text"
-                            placeholder="e.g. 100"
-                            value={kmFilter}
-                            onChange={(e) => setKmFilter(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid var(--border-color, #cbd5e1)',
-                                marginTop: '4px',
-                                outline: 'none',
-                                background: 'transparent',
-                                color: 'inherit',
-                                fontSize: '0.9rem',
-                                fontFamily: 'inherit'
-                            }}
-                        />
-                    </Box>
-
-                    <Button
-                        size="small"
-                        onClick={resetFilters}
-                        sx={{ mt: { xs: 0, md: 2.5 }, textTransform: 'none', fontWeight: 600, color: 'text.disabled' }}
-                    >
-                        Reset
-                    </Button>
-                </Stack>
             </Paper>
                 </>
             )}
@@ -1484,6 +1600,249 @@ const RateCardManagePage = () => {
                 </DialogActions>
             </Dialog>
                 </>
+            )}
+
+            {activeTab === 4 && (
+                <Box sx={{ p: 4 }}>
+                    <Paper
+                        elevation={0}
+                        sx={{
+                            p: 4,
+                            borderRadius: '24px',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            background: (theme) => theme.palette.mode === 'dark' 
+                                ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.4) 100%)' 
+                                : 'linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%)',
+                            width: '100%',
+                        }}
+                    >
+                        {/* Header Section */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 4 }}>
+                            <Box sx={{ 
+                                p: 2, 
+                                borderRadius: '16px', 
+                                bgcolor: nightSurchargeEnabled ? 'rgba(59, 130, 246, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                                color: nightSurchargeEnabled ? 'primary.main' : 'text.disabled',
+                                display: 'flex'
+                            }}>
+                                <AssessmentIcon sx={{ fontSize: '2rem' }} />
+                            </Box>
+                            <Box sx={{ flexGrow: 1 }}>
+                                <Typography variant="h5" fontWeight="800">Night Surcharge Manager</Typography>
+                                <Typography variant="body1" color="text.secondary">
+                                    Configure additional fixed charges for specific time windows and trip parameters
+                                </Typography>
+                            </Box>
+                        </Box>
+
+                        <Divider sx={{ mb: 4 }} />
+
+                        {/* Add Rule Form */}
+                        <Box sx={{ mb: 6, p: 3, borderRadius: '20px', bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid', borderColor: 'divider' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 3, color: 'primary.main', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Add New Surcharge Rule
+                            </Typography>
+                            
+                            <Grid container spacing={3}>
+                                <Grid item xs={12} sm={3}>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
+                                    <select
+                                        value={nsVehicle}
+                                        onChange={(e) => setNsVehicle(e.target.value)}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px 14px',
+                                            borderRadius: '12px',
+                                            border: '1px solid var(--border-color, #cbd5e1)',
+                                            marginTop: '4px',
+                                            outline: 'none',
+                                            background: 'background.paper',
+                                            fontSize: '0.9rem',
+                                            fontFamily: 'inherit'
+                                        }}
+                                    >
+                                        <option value="All">All Vehicles</option>
+                                        {uniqueVehicles.map(v => <option key={v} value={v}>{v}</option>)}
+                                    </select>
+                                </Grid>
+                                
+                                <Grid item xs={12} sm={3}>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Trip Type</Typography>
+                                    <select
+                                        value={nsType}
+                                        onChange={(e) => setNsType(e.target.value)}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px 14px',
+                                            borderRadius: '12px',
+                                            border: '1px solid var(--border-color, #cbd5e1)',
+                                            marginTop: '4px',
+                                            outline: 'none',
+                                            fontSize: '0.9rem',
+                                            fontFamily: 'inherit'
+                                        }}
+                                    >
+                                        <option value="All">All Types</option>
+                                        {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </Grid>
+
+                                <Grid item xs={12} sm={3}>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>MIN KM</Typography>
+                                    <TextField
+                                        fullWidth
+                                        type="number"
+                                        size="small"
+                                        value={nsMinKm}
+                                        onChange={(e) => setNsMinKm(e.target.value)}
+                                        sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'background.paper' } }}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={3}>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>MAX KM</Typography>
+                                    <TextField
+                                        fullWidth
+                                        type="number"
+                                        size="small"
+                                        value={nsMaxKm}
+                                        onChange={(e) => setNsMaxKm(e.target.value)}
+                                        sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'background.paper' } }}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={3}>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Start Time</Typography>
+                                    <TextField
+                                        fullWidth
+                                        type="time"
+                                        size="small"
+                                        value={nsStartTime}
+                                        onChange={(e) => setNsStartTime(e.target.value)}
+                                        sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'background.paper' } }}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={3}>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>End Time</Typography>
+                                    <TextField
+                                        fullWidth
+                                        type="time"
+                                        size="small"
+                                        value={nsEndTime}
+                                        onChange={(e) => setNsEndTime(e.target.value)}
+                                        sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'background.paper' } }}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={3}>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Amount (LKR)</Typography>
+                                    <TextField
+                                        fullWidth
+                                        type="number"
+                                        size="small"
+                                        value={nsAmount}
+                                        onChange={(e) => setNsAmount(e.target.value)}
+                                        InputProps={{ startAdornment: <InputAdornment position="start">Rs</InputAdornment> }}
+                                        sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: 'background.paper' } }}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={3}>
+                                    <Button
+                                        fullWidth
+                                        variant="contained"
+                                        onClick={handleAddNsRule}
+                                        disabled={updatingSettings}
+                                        sx={{ mt: 2.8, borderRadius: '12px', textTransform: 'none', fontWeight: 700, height: '40px' }}
+                                    >
+                                        Add Rule
+                                    </Button>
+                                </Grid>
+                            </Grid>
+                        </Box>
+
+                        {/* Active Rules Table */}
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2, color: 'text.secondary', textTransform: 'uppercase' }}>
+                            Active Surcharge Rules
+                        </Typography>
+                        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '16px', overflow: 'hidden' }}>
+                            <Table size="small">
+                                <TableHead sx={{ bgcolor: 'rgba(59, 130, 246, 0.05)' }}>
+                                    <TableRow>
+                                        <TableCell sx={{ fontWeight: 700 }}>Vehicle</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>KM Range</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Time Window</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Amount</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 700 }}>Status</TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {nsRules.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.disabled' }}>
+                                                No specific rules added yet.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        nsRules.map((rule) => (
+                                            <TableRow key={rule._id}>
+                                                <TableCell><Chip label={rule.vehicle} size="small" variant="outlined" /></TableCell>
+                                                <TableCell><Chip label={rule.type} size="small" variant="outlined" /></TableCell>
+                                                <TableCell>{rule.minKm} - {rule.maxKm} KM</TableCell>
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <Chip label={rule.startTime} size="small" color="primary" />
+                                                        <Typography variant="caption">to</Typography>
+                                                        <Chip label={rule.endTime} size="small" color="primary" />
+                                                    </Box>
+                                                </TableCell>
+                                                <TableCell sx={{ fontWeight: 700 }}>Rs. {rule.amount.toLocaleString()}</TableCell>
+                                                <TableCell align="center">
+                                                    <Chip 
+                                                        label={rule.status || 'Active'} 
+                                                        size="small" 
+                                                        color={(rule.status === 'Inactive') ? 'default' : 'success'}
+                                                        sx={{ fontWeight: 700 }}
+                                                    />
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                                        <Button
+                                                            size="small"
+                                                            variant="outlined"
+                                                            color={rule.status === 'Inactive' ? 'success' : 'warning'}
+                                                            onClick={() => handleUpdateNsStatus(rule._id, rule.status === 'Inactive' ? 'Active' : 'Inactive')}
+                                                            sx={{ borderRadius: '8px', minWidth: '80px', py: 0, textTransform: 'capitalize', fontWeight: 600 }}
+                                                        >
+                                                            {rule.status === 'Inactive' ? 'Activate' : 'Deactivate'}
+                                                        </Button>
+                                                        <IconButton 
+                                                            onClick={() => handleRemoveNsRule(rule._id)} 
+                                                            size="small" 
+                                                            sx={{ color: 'error.main', '&:hover': { bgcolor: 'error.lighter' } }}
+                                                        >
+                                                            <DeleteIcon sx={{ fontSize: '1.2rem' }} />
+                                                        </IconButton>
+                                                    </Box>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+
+                        <Alert severity="info" sx={{ mt: 4, borderRadius: '16px' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                Rules are applied based on the trip's pickup time and distance. Multiple rules can overlap, and the most specific one or last updated one might apply depending on logic.
+                            </Typography>
+                        </Alert>
+                    </Paper>
+                </Box>
             )}
         </Box>
     );

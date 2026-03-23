@@ -58,10 +58,15 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
             <div style={{ width: '100%' }}>
               <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Package Allowances</div>
               <div style={{ padding: '8px', background: 'rgba(255,255,255,0.7)', borderRadius: '8px', border: '1px solid rgba(13,148,136,0.2)', fontSize: '0.68rem', color: '#111827', fontFamily: "'Montserrat', sans-serif" }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}><span style={{ color: '#4b5563' }}>Extra KM Rate:</span><span style={{ fontWeight: 700 }}>LKR {h.matchedPackage?.extraKMRate || 0}</span></div>
-                {h.formData.tripType !== 'Drop' && (
+                {h.formData.vehicleType !== 'SUV' && (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4b5563' }}>Extra Hour Rate:</span><span style={{ fontWeight: 700 }}>LKR {h.matchedPackage?.extraHrRate1 || 0}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}><span style={{ color: '#4b5563' }}>Extra KM Rate:</span><span style={{ fontWeight: 700 }}>LKR {h.matchedPackage?.extraKMRate || 0}</span></div>
+                    {h.formData.tripType !== 'Drop' && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4b5563' }}>Extra Hour Rate:</span><span style={{ fontWeight: 700 }}>LKR {h.matchedPackage?.extraHrRate1 || 0}</span></div>
+                    )}
+                  </>
+                )}
+                {h.formData.tripType !== 'Drop' && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px dashed rgba(13,148,136,0.2)', paddingTop: '6px' }}>
                       <span style={{ color: '#0d9488', fontWeight: 700, fontSize: '0.65rem' }}>ADD EXTRA HOURS:</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -70,7 +75,6 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                         <IconButton size="small" onClick={() => h.handleChange('additionalHours', (Number(h.formData.additionalHours) || 0) + 1)} sx={{ padding: '1px', border: '1.2px solid #0d9488', color: '#0d9488' }}><AddCircle sx={{ fontSize: '16px' }} /></IconButton>
                       </div>
                     </div>
-                  </>
                 )}
               </div>
             </div>
@@ -110,40 +114,8 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
         {h.formData.pickupLocation && h.formData.dropoffLocation && (h.formData.vehicleType === 'SUV' || h.formData.tripType) && (
           <div id="booking-summary-rate-area" style={{ marginTop: '6px', padding: '12px', background: 'rgba(13,148,136,0.06)', borderRadius: '12px', border: '1px solid rgba(13,148,136,0.15)' }}>
             <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>{h.formData.vehicleType === 'SUV' ? 'Booking Request' : 'Total Estimate'}</div>
-            {h.formData.vehicleType === 'SUV' ? (
-              <div style={{ margin: '4px 0' }}>
-                <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.2rem', fontWeight: 800, color: '#0d9488' }}>Price on Request</div>
-                <div style={{ display: 'inline-block', padding: '1px 6px', background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.3)', borderRadius: '4px', fontSize: '0.55rem', fontWeight: 800, color: '#0d9488', marginTop: '2px', letterSpacing: '0.05em' }}>CASH</div>
-              </div>
-            ) : (
+            {h.formData.vehicleType !== 'SUV' && (
               <>
-                {(h.activeAdjustment || h.provinceAdjustmentAmount !== 0) && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px dashed rgba(0,0,0,0.05)' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 600 }}>Standard Rate:</span>
-                    <span style={{ fontSize: '0.8rem', color: '#6b7280', fontWeight: 700 }}>LKR {h.basePriceBeforeAdjustment.toLocaleString()}</span>
-                  </div>
-                )}
-                {h.activeAdjustment && h.activeAdjustment.percentage !== 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', background: h.activeAdjustment.percentage < 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)', padding: '6px 10px', borderRadius: '6px' }}>
-                    <span style={{ fontSize: '0.65rem', color: h.activeAdjustment.percentage < 0 ? '#10b981' : '#ef4444', fontWeight: 700 }}>
-                      🏷️ Seasonal {h.activeAdjustment.percentage < 0 ? 'Discount' : 'Adjustment'} ({h.activeAdjustment.percentage}%)
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: h.activeAdjustment.percentage < 0 ? '#10b981' : '#ef4444', fontWeight: 800 }}>
-                      {h.activeAdjustment.percentage > 0 ? '+' : ''} LKR {Math.round(h.basePriceBeforeAdjustment * (h.activeAdjustment.percentage / 100)).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                {h.provinceAdjustmentAmount !== 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', background: 'rgba(59, 130, 246, 0.06)', padding: '6px 10px', borderRadius: '6px' }}>
-                    <span style={{ fontSize: '0.65rem', color: '#1e40af', fontWeight: 700 }}>
-                      📍 {h.pickupProvince} Province Adj. ({h.provinceAdjustmentAmount > 0 ? '+' : ''}{h.provinceAdjustments[h.pickupProvince] || 0}%)
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: '#1e40af', fontWeight: 800 }}>
-                      {h.provinceAdjustmentAmount > 0 ? '+' : ''} LKR {h.provinceAdjustmentAmount.toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                {h.nightSurcharge > 0 && <div style={{ marginTop: '6px', padding: '6px 12px', background: 'rgba(59,130,246,0.06)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.15)', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.68rem', color: '#1e40af', fontWeight: 700 }}>🌙 Night Surcharge (12AM - 4AM)</span><span style={{ fontSize: '0.72rem', color: '#1e40af', fontWeight: 800 }}>+ LKR {h.nightSurcharge.toLocaleString()}</span></div>}
                 {h.appliedPromo ? (
                   <div style={{ marginTop: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -152,7 +124,7 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                     </div>
                     <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.35rem', fontWeight: 800, color: '#0d9488' }}>LKR {h.totalPrice.toLocaleString()}</span>
                     <div style={{ marginTop: '2px' }}>
-                      <div style={{ display: 'inline-block', padding: '1px 6px', background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.3)', borderRadius: '4px', fontSize: '0.55rem', fontWeight: 800, color: '#0d9488', letterSpacing: '0.05em' }}>CASH</div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '1px 8px', background: '#ef4444', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em', boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)' }}>💵 CASH</div>
                     </div>
                     <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#10b981', fontWeight: 600, marginTop: '2px' }}>Promo applied: {h.appliedPromo.code} (Saved LKR {h.discountAmount.toLocaleString()})</div>
                   </div>
@@ -160,12 +132,13 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                   <div style={{ marginTop: '6px' }}>
                      <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.3rem', fontWeight: 800, color: '#0d9488' }}>LKR {h.totalPrice.toLocaleString()}</span>
                      <div style={{ marginTop: '2px' }}>
-                       <div style={{ display: 'inline-block', padding: '1px 6px', background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.3)', borderRadius: '4px', fontSize: '0.55rem', fontWeight: 800, color: '#0d9488', letterSpacing: '0.05em' }}>CASH</div>
+                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '1px 8px', background: '#ef4444', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em', boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)' }}>💵 CASH</div>
                      </div>
                   </div>
                 )}
                 {h.extraKmDetail && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra KM: {h.extraKmDetail.km} km @ LKR {h.matchedPackage?.extraKMRate}/km</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {h.extraKmDetail.cost.toLocaleString()}</span></div>}
                 {Number(h.formData.additionalHours) > 0 && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra Hours: {h.formData.additionalHours}h @ LKR {h.matchedPackage?.extraHrRate1}/h</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {(h.formData.additionalHours * (h.matchedPackage?.extraHrRate1 || 0)).toLocaleString()}</span></div>}
+                {h.nightSurcharge > 0 && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(59,130,246,0.08)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', border: '1px solid rgba(59,130,246,0.2)' }}><span style={{ fontSize: '0.6rem', color: '#3b82f6', fontWeight: 700 }}>🌙 NIGHT SURCHARGE:</span><span style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 800 }}>+ LKR {h.nightSurcharge.toLocaleString()}</span></div>}
                 <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', marginTop: '3px' }}>*Actual price may vary based on route changes.</div>
                 {h.routeDistance !== null && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>

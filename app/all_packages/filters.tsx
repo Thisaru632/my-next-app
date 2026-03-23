@@ -549,7 +549,7 @@ export default function BookingForm() {
             </Typography>
           </Box>
 
-          {totalPrice > 0 && (
+          {(totalPrice > 0 || selectedCategory === 'SUV') && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
               {/* Only show breakdown for DISCOUNTS (negative percentage) */}
               {activeAdjustment && activeAdjustment.percentage < 0 && (
@@ -588,7 +588,7 @@ export default function BookingForm() {
                 </Box>
               )}
               <Chip
-                label={`Estimated: LKR ${totalPrice.toLocaleString()}`}
+                label={selectedCategory === 'SUV' ? "Price on Request" : `Estimated: LKR ${totalPrice.toLocaleString()}`}
                 icon={<CreditCard />}
                 sx={{
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -613,7 +613,7 @@ export default function BookingForm() {
                 ) : ''}*Actual price may vary based on route changes.
               </Typography>
 
-              {nightSurcharge > 0 && (
+              {(nightSurcharge > 0 && selectedCategory !== 'SUV') && (
                 <Box sx={{
                   mt: 1,
                   p: 1.5,
@@ -634,7 +634,7 @@ export default function BookingForm() {
                 </Box>
               )}
 
-              {matchedPackage && (
+              {(matchedPackage && selectedCategory !== 'SUV') && (
                 <Box sx={{ width: '100%', textAlign: 'right' }}>
                   <Button
                     variant="text"

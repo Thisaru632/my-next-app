@@ -1,6 +1,6 @@
 import React from 'react';
 import { Dialog, DialogContent, Box, Typography, IconButton, CircularProgress } from '@mui/material';
-import { Close as CloseIcon, CheckCircle, DirectionsCar, Group, Work, TrendingFlat, Loop } from '@mui/icons-material';
+import { Close as CloseIcon, CheckCircle, DirectionsCar, Group, Work, TrendingFlat, Loop, AirportShuttle, DirectionsBus } from '@mui/icons-material';
 
 interface VehicleModel {
   name: string;
@@ -39,15 +39,22 @@ export const VehicleModelDialog: React.FC<VehicleModelDialogProps> = ({ open, on
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
         {models.map((model) => {
           const isSelected = vehicleName === model.name;
+          const VehicleIcon = () => {
+            if (vehicleType === 'Van') return <AirportShuttle sx={{ fontSize: 28 }} />;
+            if (vehicleType === 'Bus') return <DirectionsBus sx={{ fontSize: 28 }} />;
+            if (vehicleType === 'SUV') return <DirectionsCar sx={{ fontSize: 28 }} />;
+            return <DirectionsCar sx={{ fontSize: 28 }} />;
+          };
+          
           return (
             <Box key={model.name} onClick={() => onSelect(model.name)}
               sx={{ position: 'relative', p: 2, borderRadius: '16px', border: '1.5px solid', borderColor: isSelected ? '#c9a96e' : '#e9ecef', background: isSelected ? 'linear-gradient(135deg, #fffbf0 0%, #fff8e6 100%)' : '#ffffff', cursor: 'pointer', transition: 'all 0.22s ease', boxShadow: isSelected ? '0 4px 16px rgba(13,148,136,0.15)' : '0 1px 4px rgba(0,0,0,0.05)', '&:hover': { borderColor: '#0d9488', background: 'rgba(13,148,136,0.02)', transform: 'translateY(-3px)', boxShadow: '0 8px 24px rgba(13,148,136,0.12)' } }}
             >
               {isSelected && <Box sx={{ position: 'absolute', top: 10, right: 10, width: 20, height: 20, borderRadius: '50%', background: '#0d9488', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle sx={{ fontSize: 14, color: '#fff' }} /></Box>}
-              <Box sx={{ mb: 1.5, color: isSelected ? '#0d9488' : '#94a3b8' }}><DirectionsCar sx={{ fontSize: 28 }} /></Box>
+              <Box sx={{ mb: 1.5, color: isSelected ? '#0d9488' : '#94a3b8' }}><VehicleIcon /></Box>
               <Typography sx={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 700, fontSize: '0.9rem', color: isSelected ? '#0d9488' : '#1e293b', mb: 0.4 }}>{model.name}</Typography>
               <Typography sx={{ fontSize: '0.68rem', color: '#64748b', fontFamily: "'Montserrat', sans-serif", mb: 1 }}>{model.description}</Typography>
-              {showPrices && (
+              {(showPrices && vehicleType !== 'SUV') && (
                 <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Box sx={{ p: '4px 8px', borderRadius: '8px', background: 'rgba(13,148,136,0.1)', border: '1px solid rgba(13,148,136,0.2)' }}>
                     <Typography sx={{ fontSize: '0.72rem', color: '#0d9488', fontWeight: 800, fontFamily: "'Montserrat', sans-serif" }}>
