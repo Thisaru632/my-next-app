@@ -138,6 +138,18 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                 )}
                 {h.extraKmDetail && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra KM: {h.extraKmDetail.km} km @ LKR {h.matchedPackage?.extraKMRate}/km</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {h.extraKmDetail.cost.toLocaleString()}</span></div>}
                 {Number(h.formData.additionalHours) > 0 && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra Hours: {h.formData.additionalHours}h @ LKR {h.matchedPackage?.extraHrRate1}/h</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {(h.formData.additionalHours * (h.matchedPackage?.extraHrRate1 || 0)).toLocaleString()}</span></div>}
+                {h.seasonalAdjustmentAmount !== 0 && (
+                  <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(59, 130, 246, 0.08)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                    <span style={{ fontSize: '0.6rem', color: '#3b82f6', fontWeight: 700 }}>{h.activeAdjustment?.vehicle === 'all' ? 'SEASONAL' : 'VEHICLE'} ADJUST ({h.activeAdjustment?.percentage || 0}%):</span>
+                    <span style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 800 }}>{h.seasonalAdjustmentAmount > 0 ? '+' : ''} LKR {h.seasonalAdjustmentAmount.toLocaleString()}</span>
+                  </div>
+                )}
+                {h.provinceAdjustmentAmount !== 0 && (
+                  <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.08)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', border: '1px solid rgba(13,148,136,0.2)' }}>
+                    <span style={{ fontSize: '0.6rem', color: '#0d9488', fontWeight: 700 }}>PROVINCE ADJUST ({h.pickupProvince}):</span>
+                    <span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 800 }}>{h.provinceAdjustmentAmount > 0 ? '+' : ''} LKR {h.provinceAdjustmentAmount.toLocaleString()}</span>
+                  </div>
+                )}
                 {h.nightSurcharge > 0 && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(59,130,246,0.08)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', border: '1px solid rgba(59,130,246,0.2)' }}><span style={{ fontSize: '0.6rem', color: '#3b82f6', fontWeight: 700 }}>🌙 NIGHT SURCHARGE:</span><span style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 800 }}>+ LKR {h.nightSurcharge.toLocaleString()}</span></div>}
                 <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', marginTop: '3px' }}>*Actual price may vary based on route changes.</div>
                 {h.routeDistance !== null && (

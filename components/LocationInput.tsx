@@ -11,7 +11,7 @@ interface GooglePlaceSuggestion {
 
 export function LocationInput({
   value, onChange, onSelect, onManualType, placeholder,
-  inputStyle, onFocusStyle, onBlurStyle, showMyLocation, onMyLocationUsed, disabled,
+  inputStyle, onFocusStyle, onBlurStyle, showMyLocation, onMyLocationUsed, disabled, showMapIcon = true,
 }: {
   value: string;
   onChange: (val: string) => void;
@@ -24,6 +24,7 @@ export function LocationInput({
   showMyLocation?: boolean;
   onMyLocationUsed?: () => void;
   disabled?: boolean;
+  showMapIcon?: boolean;
 }) {
   const [suggestions, setSuggestions] = useState<GooglePlaceSuggestion[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -165,7 +166,7 @@ export function LocationInput({
           ))}
         </ul>
       )}
-      {!disabled && (
+      {!disabled && showMapIcon && (
         <IconButton onClick={(e) => { e.stopPropagation(); setShowMapPicker(true); }} size="small"
           sx={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', opacity: 0.7, '&:hover': { opacity: 1, color: '#3b82f6' }, zIndex: 10 }} title="Select on map">
           <MapIcon sx={{ fontSize: '20px' }} />

@@ -101,6 +101,7 @@ export function BookingFormCard({ booking: h }: BookingFormCardProps) {
                 onFocusStyle={{ background: "rgba(34,197,94,0.18)", border: "1.5px solid #22c55e" }}
                 onBlurStyle={{ background: "rgba(34,197,94,0.1)", border: "1.5px solid rgba(34,197,94,0.4)" }}
                 showMyLocation={true}
+                showMapIcon={false}
               />
               <button onClick={h.addDestination} title="Add Stop" style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', width: '22px', height: '22px', borderRadius: '6px', background: 'rgba(13,148,136,1)', border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700, zIndex: 10, transition: 'all 0.2s ease', padding: 0, lineHeight: 1 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = '#0f766e'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#0d9488'; }}>+</button>

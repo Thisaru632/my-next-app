@@ -60,6 +60,7 @@ interface RateCardEntry {
     extraKMRate: number;
     extraHrRate1: number;
     extraHrRate2: number;
+    category?: string;
     status: string;
 }
 
@@ -100,6 +101,7 @@ const RateCardManagePage = () => {
     const [typeFilter, setTypeFilter] = useState('All'); // Assuming these exist elsewhere
     const [daysFilter, setDaysFilter] = useState('All');
     const [hrsFilter, setHrsFilter] = useState('All');
+    const [categoryFilter, setCategoryFilter] = useState('All');
     const [searchTerm, setSearchTerm] = useState(''); // State for debounced search term
 
     // Pagination states
@@ -366,16 +368,19 @@ const RateCardManagePage = () => {
     const filteredRateCards = useMemo(() => {
         return rateCards.filter(card => {
             const matchesSearch = card.vehicle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                card.type.toLowerCase().includes(searchTerm.toLowerCase());
+                card.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (card.category && card.category.toLowerCase().includes(searchTerm.toLowerCase()));
             const matchesVehicle = vehicleFilter === 'All' || card.vehicle === vehicleFilter;
             const matchesType = typeFilter === 'All' || card.type === typeFilter;
             const matchesDays = daysFilter === 'All' || card.days.toString() === daysFilter;
             const matchesHrs = hrsFilter === 'All' || card.hrs.toString() === hrsFilter;
             const matchesKm = kmFilter === '' || card.km.toString().includes(kmFilter);
+            const matchesCategory = categoryFilter === 'All' || card.category === categoryFilter;
 
-            return matchesSearch && matchesVehicle && matchesType && matchesDays && matchesHrs && matchesKm;
+            const isPromotion = card.category?.toLowerCase() === 'promotion' || card.category?.toLowerCase() === 'promotion ';
+            return matchesSearch && matchesVehicle && matchesType && matchesDays && matchesHrs && matchesKm && matchesCategory && !isPromotion;
         });
-    }, [rateCards, searchTerm, vehicleFilter, typeFilter, daysFilter, hrsFilter, kmFilter]);
+    }, [rateCards, searchTerm, vehicleFilter, typeFilter, daysFilter, hrsFilter, kmFilter, categoryFilter]);
 
     // Paginated data
     const paginatedRateCards = useMemo(() => {
@@ -387,6 +392,7 @@ const RateCardManagePage = () => {
     const uniqueTypes = Array.from(new Set(rateCards.map(c => c.type))).sort();
     const uniqueDays = Array.from(new Set(rateCards.map(c => c.days.toString()))).sort((a, b) => parseInt(a) - parseInt(b));
     const uniqueHrs = Array.from(new Set(rateCards.map(c => c.hrs.toString()))).sort((a, b) => parseInt(a) - parseInt(b));
+    const uniqueCategories = Array.from(new Set(rateCards.map(c => c.category).filter(Boolean) as string[])).sort();
 
     const resetFilters = () => {
         setSearchInput('');
@@ -395,6 +401,7 @@ const RateCardManagePage = () => {
         setTypeFilter('All');
         setDaysFilter('All');
         setHrsFilter('All');
+        setCategoryFilter('All');
         setKmFilter('');
         setPage(0);
     };
@@ -647,179 +654,6 @@ const RateCardManagePage = () => {
                 </Tabs>
             </Box>
             
-            {/* Filter Section (Shared between Tab 0 and Tab 3) */}
-            {(activeTab === 0 || activeTab === 3) && (
-                <Paper sx={{
-                    p: 2,
-                    mb: 3,
-                    borderRadius: '16px',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                    backgroundImage: 'none'
-                }}>
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
-                        <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: '200px' } }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Search</Typography>
-                            <input
-                                placeholder="Search vehicle or type..."
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    padding: '10px 14px',
-                                    borderRadius: '10px',
-                                    border: '1px solid var(--border-color, #cbd5e1)',
-                                    marginTop: '4px',
-                                    outline: 'none',
-                                    background: 'transparent',
-                                    color: 'inherit',
-                                    fontSize: '0.9rem',
-                                    fontFamily: 'inherit'
-                                }}
-                            />
-                        </Box>
-
-                        <Box sx={{ minWidth: '150px' }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
-                            <select
-                                value={vehicleFilter}
-                                onChange={(e) => {
-                                    setVehicleFilter(e.target.value);
-                                    setPage(0);
-                                }}
-                                style={{
-                                    width: '100%',
-                                    padding: '10px 14px',
-                                    borderRadius: '10px',
-                                    border: '1px solid var(--border-color, #cbd5e1)',
-                                    marginTop: '4px',
-                                    outline: 'none',
-                                    background: 'transparent',
-                                    color: 'inherit',
-                                    fontSize: '0.9rem',
-                                    cursor: 'pointer',
-                                    fontFamily: 'inherit'
-                                }}
-                            >
-                                <option value="All" style={{ background: '#fff', color: '#000' }}>All Vehicles</option>
-                                {uniqueVehicles.map(v => <option key={v} value={v} style={{ background: '#fff', color: '#000' }}>{v}</option>)}
-                            </select>
-                        </Box>
-
-                        <Box sx={{ minWidth: '150px' }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Type</Typography>
-                            <select
-                                value={typeFilter}
-                                onChange={(e) => {
-                                    setTypeFilter(e.target.value);
-                                    setPage(0);
-                                }}
-                                style={{
-                                    width: '100%',
-                                    padding: '10px 14px',
-                                    borderRadius: '10px',
-                                    border: '1px solid var(--border-color, #cbd5e1)',
-                                    marginTop: '4px',
-                                    outline: 'none',
-                                    background: 'transparent',
-                                    color: 'inherit',
-                                    fontSize: '0.9rem',
-                                    cursor: 'pointer',
-                                    fontFamily: 'inherit'
-                                }}
-                            >
-                                <option value="All" style={{ background: '#fff', color: '#000' }}>All Types</option>
-                                {uniqueTypes.map(t => <option key={t} value={t} style={{ background: '#fff', color: '#000' }}>{t}</option>)}
-                            </select>
-                        </Box>
-
-                        <Box sx={{ minWidth: '100px' }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Days</Typography>
-                            <select
-                                value={daysFilter}
-                                onChange={(e) => {
-                                    setDaysFilter(e.target.value);
-                                    setPage(0);
-                                }}
-                                style={{
-                                    width: '100%',
-                                    padding: '10px 14px',
-                                    borderRadius: '10px',
-                                    border: '1px solid var(--border-color, #cbd5e1)',
-                                    marginTop: '4px',
-                                    outline: 'none',
-                                    background: 'transparent',
-                                    color: 'inherit',
-                                    fontSize: '0.9rem',
-                                    cursor: 'pointer',
-                                    fontFamily: 'inherit'
-                                }}
-                            >
-                                <option value="All" style={{ background: '#fff', color: '#000' }}>All Days</option>
-                                {uniqueDays.map(d => <option key={d} value={d} style={{ background: '#fff', color: '#000' }}>{d}</option>)}
-                            </select>
-                        </Box>
-
-                        <Box sx={{ minWidth: '100px' }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Hours</Typography>
-                            <select
-                                value={hrsFilter}
-                                onChange={(e) => {
-                                    setHrsFilter(e.target.value);
-                                    setPage(0);
-                                }}
-                                style={{
-                                    width: '100%',
-                                    padding: '10px 14px',
-                                    borderRadius: '10px',
-                                    border: '1px solid var(--border-color, #cbd5e1)',
-                                    marginTop: '4px',
-                                    outline: 'none',
-                                    background: 'transparent',
-                                    color: 'inherit',
-                                    fontSize: '0.9rem',
-                                    cursor: 'pointer',
-                                    fontFamily: 'inherit'
-                                }}
-                            >
-                                <option value="All" style={{ background: '#fff', color: '#000' }}>All Hours</option>
-                                {uniqueHrs.map(h => <option key={h} value={h} style={{ background: '#fff', color: '#000' }}>{h}</option>)}
-                            </select>
-                        </Box>
-
-                        <Box sx={{ minWidth: '100px' }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>KM Limit</Typography>
-                            <input
-                                type="text"
-                                placeholder="e.g. 100"
-                                value={kmFilter}
-                                onChange={(e) => setKmFilter(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    padding: '10px 14px',
-                                    borderRadius: '10px',
-                                    border: '1px solid var(--border-color, #cbd5e1)',
-                                    marginTop: '4px',
-                                    outline: 'none',
-                                    background: 'transparent',
-                                    color: 'inherit',
-                                    fontSize: '0.9rem',
-                                    fontFamily: 'inherit'
-                                }}
-                            />
-                        </Box>
-
-                        <Button
-                            size="small"
-                            onClick={resetFilters}
-                            sx={{ mt: { xs: 0, md: 2.5 }, textTransform: 'none', fontWeight: 600, color: 'text.disabled' }}
-                        >
-                            Reset
-                        </Button>
-                    </Stack>
-                </Paper>
-            )}
 
             {activeTab === 0 && (
                 <>
@@ -960,6 +794,351 @@ const RateCardManagePage = () => {
                     </Button>
                 </label>
             </Paper>
+
+            {/* Filter Section (Moved under Upload Section) */}
+            <Paper sx={{
+                p: 2,
+                mb: 3,
+                borderRadius: '16px',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                backgroundImage: 'none'
+            }}>
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+                    <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: '200px' } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Search</Typography>
+                        <input
+                            placeholder="Search vehicle or type..."
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                fontFamily: 'inherit'
+                            }}
+                        />
+                    </Box>
+
+                    <Box sx={{ minWidth: '150px' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Category</Typography>
+                        <select
+                            value={categoryFilter}
+                            onChange={(e) => {
+                                setCategoryFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit'
+                            }}
+                        >
+                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Categories</option>
+                            {uniqueCategories.map(c => <option key={c} value={c} style={{ background: '#fff', color: '#000' }}>{c}</option>)}
+                        </select>
+                    </Box>
+
+                    <Box sx={{ minWidth: '150px' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
+                        <select
+                            value={vehicleFilter}
+                            onChange={(e) => {
+                                setVehicleFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit'
+                            }}
+                        >
+                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Vehicles</option>
+                            {uniqueVehicles.map(v => <option key={v} value={v} style={{ background: '#fff', color: '#000' }}>{v}</option>)}
+                        </select>
+                    </Box>
+
+                    <Box sx={{ minWidth: '150px' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Type</Typography>
+                        <select
+                            value={typeFilter}
+                            onChange={(e) => {
+                                setTypeFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit'
+                            }}
+                        >
+                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Types</option>
+                            {uniqueTypes.map(t => <option key={t} value={t} style={{ background: '#fff', color: '#000' }}>{t}</option>)}
+                        </select>
+                    </Box>
+
+                    <Box sx={{ minWidth: '100px' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Days</Typography>
+                        <select
+                            value={daysFilter}
+                            onChange={(e) => {
+                                setDaysFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit'
+                            }}
+                        >
+                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Days</option>
+                            {uniqueDays.map(d => <option key={d} value={d} style={{ background: '#fff', color: '#000' }}>{d}</option>)}
+                        </select>
+                    </Box>
+
+                    <Box sx={{ minWidth: '100px' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Hours</Typography>
+                        <select
+                            value={hrsFilter}
+                            onChange={(e) => {
+                                setHrsFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit'
+                            }}
+                        >
+                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Hours</option>
+                            {uniqueHrs.map(h => <option key={h} value={h} style={{ background: '#fff', color: '#000' }}>{h}</option>)}
+                        </select>
+                    </Box>
+
+                    <Box sx={{ minWidth: '100px' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>KM Limit</Typography>
+                        <input
+                            type="text"
+                            placeholder="e.g. 100"
+                            value={kmFilter}
+                            onChange={(e) => setKmFilter(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                fontFamily: 'inherit'
+                            }}
+                        />
+                    </Box>
+
+                    <Button
+                        size="small"
+                        onClick={resetFilters}
+                        sx={{ mt: { xs: 0, md: 2.5 }, textTransform: 'none', fontWeight: 600, color: 'text.disabled' }}
+                    >
+                        Reset
+                    </Button>
+                </Stack>
+            </Paper>
+
+                    {/* Messages */}
+            {error && (
+                <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => setError(null)}>
+                    {error}
+                </Alert>
+            )}
+            {success && (
+                <Alert severity="success" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => setSuccess(null)}>
+                    {success}
+                </Alert>
+            )}
+
+            {/* Data Table */}
+            <Paper
+                sx={{
+                    borderRadius: '20px',
+                    overflow: 'hidden',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.08)',
+                }}
+            >
+                <TableContainer sx={{ maxHeight: 600 }}>
+                    <Table stickyHeader size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Type</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Category</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Vehicle</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Days</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>KM</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Hrs</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}></TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Rate</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Ext KM</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Ext Hrs</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Ext Hr 2</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Status</TableCell>
+                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Action</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {loading ? (
+                                <TableRow>
+                                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
+                                        <CircularProgress size={40} />
+                                        <Typography sx={{ mt: 2, color: 'text.secondary' }}>Loading rate card data...</Typography>
+                                    </TableCell>
+                                </TableRow>
+                            ) : paginatedRateCards.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
+                                        <TableChartIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+                                        <Typography color="text.secondary">No matching rate cards found with current filters.</Typography>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                paginatedRateCards.map((row) => (
+                                    <TableRow
+                                        key={row._id}
+                                        sx={{ '&:hover': { bgcolor: 'action.hover' }, transition: 'background 0.2s' }}
+                                    >
+                                        <TableCell>{row.type}</TableCell>
+                                        <TableCell sx={{ fontWeight: 600, color: 'primary.main' }}>{row.category || '-'}</TableCell>
+                                        <TableCell sx={{ fontWeight: 600 }}>{row.vehicle}</TableCell>
+                                        <TableCell>{row.days}</TableCell>
+                                        <TableCell>{row.km}</TableCell>
+                                        <TableCell>{row.hrs}</TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={row.ratePercent}
+                                                size="small"
+                                                sx={{ fontWeight: 600, bgcolor: 'rgba(59, 130, 246, 0.1)', color: 'primary.main' }}
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 700, color: '#0d9488' }}>
+                                            {row.rateAmount.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell>{row.extraKMRate}</TableCell>
+                                        <TableCell>{row.extraHrRate1}</TableCell>
+                                        <TableCell>{row.extraHrRate2}</TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={row.status || 'Approved'}
+                                                size="small"
+                                                color={
+                                                    row.status === 'Approved' ? 'success' :
+                                                        row.status === 'Rejected' ? 'error' : 'warning'
+                                                }
+                                                sx={{ fontWeight: 700, borderRadius: '6px' }}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                                {row.status !== 'Approved' && (
+                                                    <Button
+                                                        size="small"
+                                                        variant="contained"
+                                                        color="success"
+                                                        onClick={() => handleStatusUpdate(row._id, 'Approved')}
+                                                        sx={{ py: 0, minWidth: '70px', textTransform: 'none', fontSize: '0.75rem', borderRadius: '6px', bgcolor: '#10b981' }}
+                                                    >
+                                                        Approve
+                                                    </Button>
+                                                )}
+                                                {row.status !== 'Rejected' && (
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        color="error"
+                                                        onClick={() => handleStatusUpdate(row._id, 'Rejected')}
+                                                        sx={{ py: 0, minWidth: '70px', textTransform: 'none', fontSize: '0.75rem', borderRadius: '6px' }}
+                                                    >
+                                                        Reject
+                                                    </Button>
+                                                )}
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                <TablePagination
+                    rowsPerPageOptions={[25, 50, 100, 200]}
+                    component="div"
+                    count={filteredRateCards.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+                />
+            </Paper>
+
+            {/* Hint for CSV format */}
+            <Box sx={{ mt: 3, p: 2, borderRadius: '12px', bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid divider' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 700, textTransform: 'uppercase' }}>
+                    Expected CSV Headers
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                    Category, Type, Vehicle, Days, KM, Hrs, Rate %, Rate, Extra KM (or KM Rate/Price-KM), Ext Hrs (or Extra Hr/Price-Hr)... (Mapping handles variations like "Basic Rate" or "Amount")
+                </Typography>
+            </Box>
                 </>
             )}
 
@@ -968,6 +1147,204 @@ const RateCardManagePage = () => {
 
             {activeTab === 3 && (
                 <>
+                    {/* Filter Section (Specific to Bulk Adjustment) */}
+                    <Paper sx={{
+                        p: 2,
+                        mb: 3,
+                        borderRadius: '16px',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        backgroundImage: 'none'
+                    }}>
+                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+                            <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: '200px' } }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Search</Typography>
+                                <input
+                                    placeholder="Search vehicle or type..."
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        border: '1px solid var(--border-color, #cbd5e1)',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit'
+                                    }}
+                                />
+                            </Box>
+
+                            <Box sx={{ minWidth: '150px' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Category</Typography>
+                                <select
+                                    value={categoryFilter}
+                                    onChange={(e) => {
+                                        setCategoryFilter(e.target.value);
+                                        setPage(0);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        border: '1px solid var(--border-color, #cbd5e1)',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: '0.9rem',
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    <option value="All" style={{ background: '#fff', color: '#000' }}>All Categories</option>
+                                    {uniqueCategories.map(c => <option key={c} value={c} style={{ background: '#fff', color: '#000' }}>{c}</option>)}
+                                </select>
+                            </Box>
+
+                            <Box sx={{ minWidth: '150px' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
+                                <select
+                                    value={vehicleFilter}
+                                    onChange={(e) => {
+                                        setVehicleFilter(e.target.value);
+                                        setPage(0);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        border: '1px solid var(--border-color, #cbd5e1)',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: '0.9rem',
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    <option value="All" style={{ background: '#fff', color: '#000' }}>All Vehicles</option>
+                                    {uniqueVehicles.map(v => <option key={v} value={v} style={{ background: '#fff', color: '#000' }}>{v}</option>)}
+                                </select>
+                            </Box>
+
+                            <Box sx={{ minWidth: '150px' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Type</Typography>
+                                <select
+                                    value={typeFilter}
+                                    onChange={(e) => {
+                                        setTypeFilter(e.target.value);
+                                        setPage(0);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        border: '1px solid var(--border-color, #cbd5e1)',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: '0.9rem',
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    <option value="All" style={{ background: '#fff', color: '#000' }}>All Types</option>
+                                    {uniqueTypes.map(t => <option key={t} value={t} style={{ background: '#fff', color: '#000' }}>{t}</option>)}
+                                </select>
+                            </Box>
+
+                            <Box sx={{ minWidth: '100px' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Days</Typography>
+                                <select
+                                    value={daysFilter}
+                                    onChange={(e) => {
+                                        setDaysFilter(e.target.value);
+                                        setPage(0);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        border: '1px solid var(--border-color, #cbd5e1)',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: '0.9rem',
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    <option value="All" style={{ background: '#fff', color: '#000' }}>All Days</option>
+                                    {uniqueDays.map(d => <option key={d} value={d} style={{ background: '#fff', color: '#000' }}>{d}</option>)}
+                                </select>
+                            </Box>
+
+                            <Box sx={{ minWidth: '100px' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Hours</Typography>
+                                <select
+                                    value={hrsFilter}
+                                    onChange={(e) => {
+                                        setHrsFilter(e.target.value);
+                                        setPage(0);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        border: '1px solid var(--border-color, #cbd5e1)',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: '0.9rem',
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    <option value="All" style={{ background: '#fff', color: '#000' }}>All Hours</option>
+                                    {uniqueHrs.map(h => <option key={h} value={h} style={{ background: '#fff', color: '#000' }}>{h}</option>)}
+                                </select>
+                            </Box>
+
+                            <Box sx={{ minWidth: '100px' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>KM Limit</Typography>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. 100"
+                                    value={kmFilter}
+                                    onChange={(e) => setKmFilter(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        border: '1px solid var(--border-color, #cbd5e1)',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit'
+                                    }}
+                                />
+                            </Box>
+
+                            <Button
+                                size="small"
+                                onClick={resetFilters}
+                                sx={{ mt: { xs: 0, md: 2.5 }, textTransform: 'none', fontWeight: 600, color: 'text.disabled' }}
+                            >
+                                Reset
+                            </Button>
+                        </Stack>
+                    </Paper>
                     {/* Quick Price Adjustment Section (Premium Style) */}
             <Paper
                 elevation={0}
@@ -1253,154 +1630,6 @@ const RateCardManagePage = () => {
                     </Paper>
                     </Box>
                 )}
-                </>
-            )}
-
-            {activeTab === 0 && (
-                <>
-                    {/* Messages */}
-            {error && (
-                <Alert severity="error" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => setError(null)}>
-                    {error}
-                </Alert>
-            )}
-            {success && (
-                <Alert severity="success" sx={{ mb: 3, borderRadius: '12px' }} onClose={() => setSuccess(null)}>
-                    {success}
-                </Alert>
-            )}
-
-            {/* Data Table */}
-            <Paper
-                sx={{
-                    borderRadius: '20px',
-                    overflow: 'hidden',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    boxShadow: '0 10px 40px -10px rgba(0, 0, 0, 0.08)',
-                }}
-            >
-                <TableContainer sx={{ maxHeight: 600 }}>
-                    <Table stickyHeader size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Type</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Vehicle</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Days</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>KM</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Hrs</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}></TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Rate</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Ext KM</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Ext Hrs</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Ext Hr 2</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Status</TableCell>
-                                <TableCell sx={{ fontWeight: 700, bgcolor: 'background.default', color: 'text.secondary', borderBottom: '1px solid', borderColor: 'divider' }}>Action</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {loading ? (
-                                <TableRow>
-                                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
-                                        <CircularProgress size={40} />
-                                        <Typography sx={{ mt: 2, color: 'text.secondary' }}>Loading rate card data...</Typography>
-                                    </TableCell>
-                                </TableRow>
-                            ) : paginatedRateCards.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={12} align="center" sx={{ py: 8 }}>
-                                        <TableChartIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-                                        <Typography color="text.secondary">No matching rate cards found with current filters.</Typography>
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                paginatedRateCards.map((row) => (
-                                    <TableRow
-                                        key={row._id}
-                                        sx={{ '&:hover': { bgcolor: 'action.hover' }, transition: 'background 0.2s' }}
-                                    >
-                                        <TableCell>{row.type}</TableCell>
-                                        <TableCell sx={{ fontWeight: 600 }}>{row.vehicle}</TableCell>
-                                        <TableCell>{row.days}</TableCell>
-                                        <TableCell>{row.km}</TableCell>
-                                        <TableCell>{row.hrs}</TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={row.ratePercent}
-                                                size="small"
-                                                sx={{ fontWeight: 600, bgcolor: 'rgba(59, 130, 246, 0.1)', color: 'primary.main' }}
-                                            />
-                                        </TableCell>
-                                        <TableCell sx={{ fontWeight: 700, color: '#0d9488' }}>
-                                            {row.rateAmount.toLocaleString()}
-                                        </TableCell>
-                                        <TableCell>{row.extraKMRate}</TableCell>
-                                        <TableCell>{row.extraHrRate1}</TableCell>
-                                        <TableCell>{row.extraHrRate2}</TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={row.status || 'Approved'}
-                                                size="small"
-                                                color={
-                                                    row.status === 'Approved' ? 'success' :
-                                                        row.status === 'Rejected' ? 'error' : 'warning'
-                                                }
-                                                sx={{ fontWeight: 700, borderRadius: '6px' }}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                                {row.status !== 'Approved' && (
-                                                    <Button
-                                                        size="small"
-                                                        variant="contained"
-                                                        color="success"
-                                                        onClick={() => handleStatusUpdate(row._id, 'Approved')}
-                                                        sx={{ py: 0, minWidth: '70px', textTransform: 'none', fontSize: '0.75rem', borderRadius: '6px', bgcolor: '#10b981' }}
-                                                    >
-                                                        Approve
-                                                    </Button>
-                                                )}
-                                                {row.status !== 'Rejected' && (
-                                                    <Button
-                                                        size="small"
-                                                        variant="outlined"
-                                                        color="error"
-                                                        onClick={() => handleStatusUpdate(row._id, 'Rejected')}
-                                                        sx={{ py: 0, minWidth: '70px', textTransform: 'none', fontSize: '0.75rem', borderRadius: '6px' }}
-                                                    >
-                                                        Reject
-                                                    </Button>
-                                                )}
-                                            </Box>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-                <TablePagination
-                    rowsPerPageOptions={[25, 50, 100, 200]}
-                    component="div"
-                    count={filteredRateCards.length}
-                    rowsPerPage={rowsPerPage}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    sx={{ borderTop: '1px solid', borderColor: 'divider' }}
-                />
-            </Paper>
-
-            {/* Hint for CSV format */}
-            <Box sx={{ mt: 3, p: 2, borderRadius: '12px', bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid divider' }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 700, textTransform: 'uppercase' }}>
-                    Expected CSV Headers
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                    Type, Vehicle, Days, KM, Hrs, Rate %, Rate, Extra KM (or KM Rate/Price-KM), Ext Hrs (or Extra Hr/Price-Hr)... (Mapping handles variations like "Basic Rate" or "Amount")
-                </Typography>
-            </Box>
 
             {/* Confirmation Dialog */}
             <Dialog
@@ -1408,37 +1637,45 @@ const RateCardManagePage = () => {
                 onClose={() => setOpenConfirmDialog(false)}
                 PaperProps={{
                     sx: {
-                        borderRadius: '20px',
-                        p: 1,
-                        minWidth: '400px',
-                        background: 'background.paper',
+                        borderRadius: '24px',
+                        p: 1.5,
+                        minWidth: { xs: '95vw', sm: '480px' },
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                         backgroundImage: 'none'
                     }
                 }}
             >
-                <DialogTitle sx={{ fontWeight: 800, fontSize: '1.4rem', color: 'text.primary', pb: 1 }}>
+                <DialogTitle sx={{ fontWeight: 800, fontSize: '1.6rem', color: '#1e293b', pb: 1 }}>
                     Confirm Price Adjustment
                 </DialogTitle>
                 <DialogContent>
-                    <DialogContentText sx={{ color: 'text.secondary', fontSize: '1rem', mb: 2 }}>
-                        Are you sure you want to apply a persistent <strong>{adjustValue}%</strong> adjustment for current filters?
+                    <DialogContentText sx={{ color: '#64748b', fontSize: '1.05rem', mb: 3, lineHeight: 1.5 }}>
+                        Are you sure you want to apply a persistent <strong style={{ color: '#0f172a' }}>{adjustValue}%</strong> adjustment for current filters?
                     </DialogContentText>
 
-                    <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider' }}>
-                        <Stack spacing={1}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Typography variant="body2" sx={{ color: 'text.secondary' }}>Target Vehicle:</Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>{vehicleFilter}</Typography>
+                    <Box sx={{ 
+                        p: 2.5, 
+                        borderRadius: '20px', 
+                        bgcolor: 'rgba(248, 250, 252, 0.8)', 
+                        border: '1px solid', 
+                        borderColor: '#e2e8f0',
+                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+                    }}>
+                        <Stack spacing={1.5}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>Target Vehicle:</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 800, color: '#1e293b' }}>{vehicleFilter === 'All' ? 'All Vehicles' : vehicleFilter}</Typography>
                             </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Typography variant="body2" sx={{ color: 'text.secondary' }}>Trip Category:</Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>{typeFilter}</Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>Trip Category:</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 800, color: '#1e293b' }}>{typeFilter === 'All' ? 'All Types' : typeFilter}</Typography>
                             </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Typography variant="body2" sx={{ color: 'text.secondary' }}>Percentage:</Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>Percentage:</Typography>
                                 <Typography variant="body2" sx={{
-                                    fontWeight: 800,
-                                    color: parseFloat(adjustValue) >= 0 ? '#10b981' : '#ef4444'
+                                    fontWeight: 900,
+                                    fontSize: '1.1rem',
+                                    color: parseFloat(adjustValue) >= 0 ? '#059669' : '#dc2626'
                                 }}>
                                     {parseFloat(adjustValue) >= 0 ? `+${adjustValue}%` : `${adjustValue}%`}
                                 </Typography>
@@ -1446,59 +1683,71 @@ const RateCardManagePage = () => {
                         </Stack>
                     </Box>
 
-                    <Box sx={{ mt: 3 }}>
-                        <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 700, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                            📅 Set Validity Period (Optional)
+                    <Box sx={{ mt: 4 }}>
+                        <Typography variant="body2" sx={{ mb: 2, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <span style={{ fontSize: '1.2rem' }}>🗓️</span> Set Validity Period (Optional)
                         </Typography>
                         <Stack direction="row" spacing={2}>
                             <Box sx={{ flex: 1 }}>
-                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>From Date</Typography>
+                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, display: 'block', mb: 0.75, ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>From Date</Typography>
                                 <input
                                     type="date"
                                     value={validFrom}
                                     onChange={(e) => setValidFrom(e.target.value)}
                                     style={{
                                         width: '100%',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        border: '1px solid #cbd5e1',
-                                        fontSize: '0.9rem',
+                                        padding: '12px 14px',
+                                        borderRadius: '12px',
+                                        border: '1.5px solid #e2e8f0',
+                                        fontSize: '0.95rem',
+                                        fontWeight: 600,
                                         fontFamily: 'inherit',
-                                        outline: 'none'
+                                        outline: 'none',
+                                        backgroundColor: '#fff',
+                                        color: '#1e293b'
                                     }}
                                 />
                             </Box>
                             <Box sx={{ flex: 1 }}>
-                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>To Date</Typography>
+                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, display: 'block', mb: 0.75, ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>To Date</Typography>
                                 <input
                                     type="date"
                                     value={validTo}
                                     onChange={(e) => setValidTo(e.target.value)}
                                     style={{
                                         width: '100%',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        border: '1px solid #cbd5e1',
-                                        fontSize: '0.9rem',
+                                        padding: '12px 14px',
+                                        borderRadius: '12px',
+                                        border: '1.5px solid #e2e8f0',
+                                        fontSize: '0.95rem',
+                                        fontWeight: 600,
                                         fontFamily: 'inherit',
-                                        outline: 'none'
+                                        outline: 'none',
+                                        backgroundColor: '#fff',
+                                        color: '#1e293b'
                                     }}
                                 />
                             </Box>
                         </Stack>
-                        <Typography variant="caption" sx={{ color: 'text.disabled', mt: 1, display: 'block' }}>
+                        <Typography variant="caption" sx={{ color: '#94a3b8', mt: 1.5, display: 'block', fontStyle: 'italic' }}>
                             Leave blank to apply the rule permanently.
                         </Typography>
                     </Box>
 
-                    <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'text.disabled', fontStyle: 'italic' }}>
+                    <Typography variant="caption" sx={{ display: 'block', mt: 3, color: '#94a3b8', fontStyle: 'italic', borderTop: '1px solid', borderColor: '#f1f5f9', pt: 2 }}>
                         * This will be applied dynamically to the customer trip summary.
                     </Typography>
                 </DialogContent>
-                <DialogActions sx={{ p: 2, gap: 1 }}>
+                <DialogActions sx={{ p: 3, pt: 1, gap: 1.5 }}>
                     <Button
                         onClick={() => setOpenConfirmDialog(false)}
-                        sx={{ color: 'text.secondary', textTransform: 'none', fontWeight: 600 }}
+                        sx={{ 
+                            color: '#64748b', 
+                            textTransform: 'none', 
+                            fontWeight: 700, 
+                            fontSize: '0.95rem',
+                            '&:hover': { bgcolor: '#f1f5f9', color: '#1e293b' }
+                        }}
                     >
                         Cancel
                     </Button>
@@ -1508,11 +1757,17 @@ const RateCardManagePage = () => {
                         sx={{
                             background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
                             color: 'white !important',
-                            borderRadius: '10px',
-                            px: 3,
+                            borderRadius: '12px',
+                            px: 4,
+                            py: 1.5,
                             textTransform: 'none',
-                            fontWeight: 700,
-                            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.2)'
+                            fontWeight: 800,
+                            fontSize: '0.95rem',
+                            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.3)',
+                            '&:hover': {
+                                boxShadow: '0 6px 20px rgba(13, 148, 136, 0.4)',
+                                transform: 'translateY(-1px)'
+                            }
                         }}
                     >
                         Confirm & Apply
@@ -1526,81 +1781,109 @@ const RateCardManagePage = () => {
                 onClose={() => setConflictDialogOpen(false)}
                 PaperProps={{
                     sx: {
-                        borderRadius: '20px',
-                        p: 1,
-                        minWidth: '400px',
+                        borderRadius: '24px',
+                        p: 1.5,
+                        minWidth: { xs: '95vw', sm: '480px' },
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                     }
                 }}
             >
-                <DialogTitle sx={{ fontWeight: 800, color: 'warning.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TrendingUpIcon /> Conflict Detected
+                <DialogTitle sx={{ fontWeight: 800, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 1.5, fontSize: '1.4rem' }}>
+                    <TrendingUpIcon sx={{ fontSize: '1.8rem' }} /> Conflict Detected
                 </DialogTitle>
                 <DialogContent>
-                    <DialogContentText sx={{ color: 'text.primary', mb: 2 }}>
+                    <DialogContentText sx={{ color: '#1e293b', fontWeight: 600, fontSize: '1.05rem', mb: 2 }}>
                         {conflictMessage}
                     </DialogContentText>
-                    <Typography variant="body2" color="text.secondary">
-                        Adding a broader "All" type rate will replace your more specific rates for this vehicle.
+                    <Typography variant="body2" sx={{ color: '#64748b', mb: 3, lineHeight: 1.5 }}>
+                        Adding a broader <strong style={{color: '#1e293b'}}>"All"</strong> type rate will replace your more specific rates for this vehicle. This action ensures price consistency within categories.
                     </Typography>
 
-                    <Box sx={{ mt: 3 }}>
-                        <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 700, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1 }}>
-                            📅 Set Validity Period (Optional)
+                    <Box sx={{ mt: 2, pt: 3, borderTop: '1px solid', borderColor: '#f1f5f9' }}>
+                        <Typography variant="body2" sx={{ mb: 2, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <span style={{ fontSize: '1.2rem' }}>🗓️</span> Set Validity Period (Optional)
                         </Typography>
                         <Stack direction="row" spacing={2}>
                             <Box sx={{ flex: 1 }}>
-                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>From Date</Typography>
+                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, display: 'block', mb: 0.75, ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>From Date</Typography>
                                 <input
                                     type="date"
                                     value={validFrom}
                                     onChange={(e) => setValidFrom(e.target.value)}
                                     style={{
                                         width: '100%',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        border: '1px solid #cbd5e1',
-                                        fontSize: '0.9rem',
+                                        padding: '12px 14px',
+                                        borderRadius: '12px',
+                                        border: '1.5px solid #e2e8f0',
+                                        fontSize: '0.95rem',
+                                        fontWeight: 600,
                                         fontFamily: 'inherit',
-                                        outline: 'none'
+                                        outline: 'none',
+                                        backgroundColor: '#fff',
+                                        color: '#1e293b'
                                     }}
                                 />
                             </Box>
                             <Box sx={{ flex: 1 }}>
-                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 0.5 }}>To Date</Typography>
+                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, display: 'block', mb: 0.75, ml: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>To Date</Typography>
                                 <input
                                     type="date"
                                     value={validTo}
                                     onChange={(e) => setValidTo(e.target.value)}
                                     style={{
                                         width: '100%',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        border: '1px solid #cbd5e1',
-                                        fontSize: '0.9rem',
+                                        padding: '12px 14px',
+                                        borderRadius: '12px',
+                                        border: '1.5px solid #e2e8f0',
+                                        fontSize: '0.95rem',
+                                        fontWeight: 600,
                                         fontFamily: 'inherit',
-                                        outline: 'none'
+                                        outline: 'none',
+                                        backgroundColor: '#fff',
+                                        color: '#1e293b'
                                     }}
                                 />
                             </Box>
                         </Stack>
                     </Box>
                 </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    <Button onClick={() => setConflictDialogOpen(false)} sx={{ textTransform: 'none' }}>
+                <DialogActions sx={{ p: 3, gap: 1 }}>
+                    <Button 
+                        onClick={() => setConflictDialogOpen(false)} 
+                        sx={{ 
+                            color: '#64748b', 
+                            textTransform: 'none', 
+                            fontWeight: 700,
+                            '&:hover': { bgcolor: '#f1f5f9' }
+                        }}
+                    >
                         Cancel
                     </Button>
                     <Button
                         onClick={handleConfirmAdjust}
                         variant="contained"
-                        color="warning"
-                        sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700 }}
+                        sx={{ 
+                            borderRadius: '12px', 
+                            textTransform: 'none', 
+                            fontWeight: 800, 
+                            bgcolor: '#f59e0b',
+                            px: 3,
+                            py: 1.2,
+                            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.25)',
+                            '&:hover': {
+                                bgcolor: '#d97706',
+                                boxShadow: '0 6px 20px rgba(245, 158, 11, 0.35)',
+                                transform: 'translateY(-1px)'
+                            }
+                        }}
                     >
-                        Remove Previously Added & Apply New
+                        Resolve & Apply New
                     </Button>
                 </DialogActions>
             </Dialog>
                 </>
             )}
+
 
             {activeTab === 4 && (
                 <Box sx={{ p: 4 }}>
