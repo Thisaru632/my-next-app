@@ -56,6 +56,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Lead Info', icon: <PeopleIcon />, path: '/staff/leads', key: 'leads' },
         { text: 'CMS', icon: <ArticleIcon />, path: '/staff/cms', key: 'cms' },
         { text: 'User Manage', icon: <ManageAccountsIcon />, path: '/staff/user_manage', key: 'userManagement' },
+        { text: 'Web Users', icon: <PeopleIcon />, path: '/staff/web_users', key: 'userManagement' }, // Share permission with user management
         { text: 'Rate Card Manage', icon: <PaymentsIcon />, path: '/staff/rate_card_manage', key: 'rateCardManage' },
         { text: 'Staff Guide', icon: <MenuBookIcon />, path: '/staff/staff-guide', key: 'dashboard' }, // Always allow if they have dashboard access
         { text: 'Manage Guides', icon: <FileUploadIcon />, path: '/staff/staff-guide/manage', key: 'staffGuideManage' },

@@ -513,9 +513,10 @@ const ProvinceManagePage = () => {
                                     >
                                         {/* SINGLE Drawing manager for freehand marking */}
                                         <DrawingManager
+                                            drawingMode={null}
                                             onPolygonComplete={handlePolygonComplete}
                                             options={{
-                                                drawingControl: !isDrawingMode,
+                                                drawingControl: false,
                                                 drawingControlOptions: {
                                                     position: google.maps.ControlPosition.TOP_CENTER,
                                                     drawingModes: [google.maps.drawing.OverlayType.POLYGON]
@@ -647,25 +648,32 @@ const ProvinceManagePage = () => {
                                 </Box>
                             )}
 
-                            {/* Classification Controls (Appear below map when a shape is drawn) */}
-                            {newArea && (
-                                <Box sx={{ 
-                                    mt: 3, 
-                                    p: 3, 
-                                    border: '1px solid', 
-                                    borderColor: 'primary.main',
-                                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.05)' : 'rgba(241, 245, 249, 0.5)',
-                                    borderRadius: '24px',
-                                    animation: 'fadeInUp 0.3s ease-out'
-                                }}>
-                                    <Typography variant="h6" sx={{ fontWeight: 800, mb: 1, textAlign: 'center', color: 'primary.main' }}>
-                                        Classify Custom Area
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
-                                        Pin this area as a Mountain region or a Plain region.
+                            {/* Classification Popup (appears after drawing an area) */}
+                            <Dialog
+                                open={!!newArea}
+                                onClose={() => {
+                                    setNewArea(null);
+                                    setDrawingPoints([]);
+                                }}
+                                PaperProps={{
+                                    sx: {
+                                        borderRadius: '24px',
+                                        maxWidth: '450px',
+                                        width: '100%',
+                                        p: 1,
+                                        boxShadow: '0 24px 48px rgba(0,0,0,0.15)'
+                                    }
+                                }}
+                            >
+                                <DialogTitle sx={{ fontWeight: 800, textAlign: 'center', pb: 0, pt: 3 }}>
+                                    Classify Custom Area
+                                </DialogTitle>
+                                <DialogContent sx={{ textAlign: 'center', pt: 1 }}>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                        Pin this newly marked region as a Mountain terrain or a Plain terrain.
                                     </Typography>
 
-                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ maxWidth: 600, mx: 'auto', mb: 2 }}>
+                                    <Stack direction="column" spacing={2} sx={{ mb: 1 }}>
                                         <Button
                                             variant="outlined"
                                             fullWidth
@@ -701,22 +709,20 @@ const ProvinceManagePage = () => {
                                             Plain Area
                                         </Button>
                                     </Stack>
-                                    
-                                    <Box sx={{ textAlign: 'center' }}>
-                                        <Button 
-                                            onClick={() => {
-                                                setNewArea(null);
-                                                setDrawingPoints([]);
-                                            }} 
-                                            color="inherit" 
-                                            size="small" 
-                                            sx={{ textTransform: 'none', fontWeight: 600, opacity: 0.7 }}
-                                        >
-                                            Cancel & Discard
-                                        </Button>
-                                    </Box>
-                                </Box>
-                            )}
+                                </DialogContent>
+                                <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
+                                    <Button 
+                                        onClick={() => {
+                                            setNewArea(null);
+                                            setDrawingPoints([]);
+                                        }} 
+                                        color="inherit" 
+                                        sx={{ textTransform: 'none', fontWeight: 600, opacity: 0.6 }}
+                                    >
+                                        Discard Drawing
+                                    </Button>
+                                </DialogActions>
+                            </Dialog>
 
                             {/* Active Areas List */}
                             {classifiedAreas.length > 0 && (
@@ -941,9 +947,10 @@ const ProvinceManagePage = () => {
                             }}
                         >
                             <DrawingManager
+                                drawingMode={null}
                                 onPolygonComplete={handlePolygonComplete}
                                 options={{
-                                    drawingControl: !isDrawingMode,
+                                    drawingControl: false,
                                     drawingControlOptions: {
                                         position: google.maps.ControlPosition.TOP_CENTER,
                                         drawingModes: [google.maps.drawing.OverlayType.POLYGON]
@@ -1069,81 +1076,6 @@ const ProvinceManagePage = () => {
                         </GoogleMap>
                     )}
 
-                    {/* Classification Controls Overlay in Full Screen */}
-                    {newArea && (
-                        <Box sx={{ 
-                            position: 'absolute',
-                            bottom: 40,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: '90%',
-                            maxWidth: 600,
-                            p: 3, 
-                            border: '1px solid', 
-                            borderColor: 'primary.main',
-                            bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                            borderRadius: '24px',
-                            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                            zIndex: 1000,
-                            backdropFilter: 'blur(10px)',
-                            animation: 'fadeInUp 0.3s ease-out'
-                        }}>
-                            <Typography variant="h6" sx={{ fontWeight: 800, mb: 1, textAlign: 'center', color: 'primary.main' }}>
-                                Classify Custom Area
-                            </Typography>
-                            
-                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
-                                <Button
-                                    variant="outlined"
-                                    fullWidth
-                                    startIcon={<TerrainIcon />}
-                                    onClick={() => saveClassifiedArea('Mountain')}
-                                    sx={{ 
-                                        py: 1.5, 
-                                        borderRadius: '16px', 
-                                        border: '2px solid',
-                                        borderColor: 'rgba(139, 92, 246, 0.2)',
-                                        color: '#8b5cf6',
-                                        fontWeight: 800,
-                                        '&:hover': { borderColor: '#8b5cf6', bgcolor: 'rgba(139, 92, 246, 0.05)' }
-                                    }}
-                                >
-                                    Mountain Area
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    fullWidth
-                                    startIcon={<ForestIcon />}
-                                    onClick={() => saveClassifiedArea('Plain')}
-                                    sx={{ 
-                                        py: 1.5, 
-                                        borderRadius: '16px', 
-                                        border: '2px solid',
-                                        borderColor: 'rgba(34, 197, 94, 0.2)',
-                                        color: '#22c55e',
-                                        fontWeight: 800,
-                                        '&:hover': { borderColor: '#22c55e', bgcolor: 'rgba(34, 197, 94, 0.05)' }
-                                    }}
-                                >
-                                    Plain Area
-                                </Button>
-                            </Stack>
-                            
-                            <Box sx={{ textAlign: 'center' }}>
-                                <Button 
-                                    onClick={() => {
-                                        setNewArea(null);
-                                        setDrawingPoints([]);
-                                    }} 
-                                    color="inherit" 
-                                    size="small" 
-                                    sx={{ textTransform: 'none', fontWeight: 600, opacity: 0.7 }}
-                                >
-                                    Cancel & Discard
-                                </Button>
-                            </Box>
-                        </Box>
-                    )}
                 </Box>
             </Dialog>
         </React.Fragment>
