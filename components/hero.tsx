@@ -121,7 +121,7 @@ export default function HeroSection() {
         vehicleDiscountsMap={h.vehicleDiscountsMap}
         showPrices={h.selectedCategory !== 'SUV' && (h.formData.tripType === 'Drop' 
           ? !!(h.formData.pickupLocation && h.formData.dropoffLocation) 
-          : !!(h.formData.pickupLocation && h.destinations[0])
+          : !!(h.formData.pickupLocation && h.formData.destinations[0])
         )}
       />
       <TripTypeDialog open={h.openTripTypeDialog} onClose={() => h.setOpenTripTypeDialog(false)} tripType={h.formData.tripType} tripTypes={tripTypes} onSelect={h.handleTripTypeSelect} onWarn={() => { }} />
@@ -142,8 +142,8 @@ export default function HeroSection() {
         message={h.requestSent ? "Have you downloaded your summary? You will lose this message if you leave." : "Your entered contact information will be kept, but you will leave this step."}
       />
       <LoginRequiredDialog open={h.showLoginAlert} onClose={() => h.setShowLoginAlert(false)} onConfirm={() => { h.setShowLoginAlert(false); h.setOpenAuthModal(true); }} />
-      {h.openRouteViewer && <RouteViewer open={h.openRouteViewer} onClose={() => h.setOpenRouteViewer(false)} origin={h.formData.pickupLocation} destination={h.formData.dropoffLocation} waypoints={h.destinations} pickupCoords={h.pickupCoords} dropoffCoords={h.dropoffCoords} stopCoords={h.stopCoords} apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc" initialResponse={h.routeResponse} />}
-      {h.openNearbyViewer && <NearbyViewer open={h.openNearbyViewer} onClose={() => h.setOpenNearbyViewer(false)} origin={h.formData.pickupLocation} destination={h.formData.dropoffLocation} waypoints={h.destinations} pickupCoords={h.pickupCoords} dropoffCoords={h.dropoffCoords} stopCoords={h.stopCoords} apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc" initialResponse={h.routeResponse} />}
+      {h.openRouteViewer && <RouteViewer open={h.openRouteViewer} onClose={() => h.setOpenRouteViewer(false)} origin={h.formData.pickupLocation} destination={h.formData.dropoffLocation} waypoints={h.formData.destinations.map(d => d.address)} pickupCoords={h.pickupCoords} dropoffCoords={h.dropoffCoords} stopCoords={h.formData.destinations.map(d => h.stopCoords[d.id] || null)} apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc" initialResponse={h.routeResponse} />}
+      {h.openNearbyViewer && <NearbyViewer open={h.openNearbyViewer} onClose={() => h.setOpenNearbyViewer(false)} origin={h.formData.pickupLocation} destination={h.formData.dropoffLocation} waypoints={h.formData.destinations.map(d => d.address)} pickupCoords={h.pickupCoords} dropoffCoords={h.dropoffCoords} stopCoords={h.formData.destinations.map(d => h.stopCoords[d.id] || null)} apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc" initialResponse={h.routeResponse} />}
       {h.openAuthModal && <AuthModal open={h.openAuthModal} onClose={() => h.setOpenAuthModal(false)} />}
 
       <Snackbar open={h.snackbarOpen} autoHideDuration={6000} onClose={h.handleSnackbarClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>

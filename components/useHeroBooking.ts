@@ -71,6 +71,7 @@ export function useHeroBooking() {
     dropoffLocation: '', dateTime: '', numberOfDays: '' as any,
     name: '', telephone: '', additionalPhones: [] as string[], email: '',
     remark: '', maxPersons: 0, maxBags: 0, additionalHours: 0,
+    destinations: [] as { id: string; address: string }[],
   });
 
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LIBRARIES });
@@ -105,7 +106,6 @@ export function useHeroBooking() {
   const [openPolicyDialog, setOpenPolicyDialog] = useState(false);
   const [submittedBookingData, setSubmittedBookingData] = useState<any>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
-  const [destinations, setDestinations] = useState<string[]>([]);
   const [openDateTimePicker, setOpenDateTimePicker] = useState(false);
   const [pickerStep, setPickerStep] = useState(0);
   const [tempDate, setTempDate] = useState("");
@@ -117,7 +117,7 @@ export function useHeroBooking() {
   const [tempDays, setTempDays] = useState(1);
   const [pickupCoords, setPickupCoords] = useState<LatLon | null>(null);
   const [dropoffCoords, setDropoffCoords] = useState<LatLon | null>(null);
-  const [stopCoords, setStopCoords] = useState<(LatLon | null)[]>([]);
+  const [stopCoords, setStopCoords] = useState<{ [key: string]: LatLon | null }>({});
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
   const [routeDuration, setRouteDuration] = useState<number | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
@@ -185,13 +185,25 @@ export function useHeroBooking() {
     fetchRateData();
   }, []);
 
-  const addDestination = () => { setDestinations(p => [...p, '']); setStopCoords(p => [...p, null]); };
-  const removeDestination = (i: number) => { setDestinations(p => p.filter((_, idx) => idx !== i)); setStopCoords(p => p.filter((_, idx) => idx !== i)); };
-  const updateDestination = (i: number, v: string) => { setDestinations(p => p.map((d, idx) => idx === i ? v : d)); setStopCoords(p => p.map((c, idx) => idx === i ? null : c)); };
+  const addDestination = useCallback(() => { 
+    const id = Math.random().toString(36).substr(2, 9);
+    setFormData(p => ({ ...p, destinations: [...p.destinations, { id, address: '' }] })); 
+    setStopCoords(p => ({ ...p, [id]: null })); 
+  }, []);
+
+  const removeDestination = useCallback((id: string) => { 
+    setFormData(p => ({ ...p, destinations: p.destinations.filter(d => d.id !== id) })); 
+    setStopCoords(p => { const n = { ...p }; delete n[id]; return n; }); 
+  }, []);
+
+  const updateDestination = useCallback((id: string, v: string) => { 
+    setFormData(p => ({ ...p, destinations: p.destinations.map(d => d.id === id ? { ...d, address: v } : d) })); 
+    setStopCoords(p => ({ ...p, [id]: null })); 
+  }, []);
 
   /* Route calculation */
   useEffect(() => {
-    const allStopsHaveCoords = destinations.every((d, i) => d.trim() === "" || stopCoords[i] !== null);
+    const allStopsHaveCoords = formData.destinations.every(d => d.address.trim() === "" || stopCoords[d.id]);
     if (!isLoaded || !pickupCoords || !dropoffCoords || !allStopsHaveCoords) {
       if (routeDistance !== null) { setRouteDistance(null); setRouteDuration(null); setRouteResponse(null); }
       return;
@@ -203,9 +215,9 @@ export function useHeroBooking() {
         const directionsService = new google.maps.DirectionsService();
         const origin = pickupCoords ? { lat: parseFloat(pickupCoords.lat), lng: parseFloat(pickupCoords.lon) } : formData.pickupLocation;
         const destination = dropoffCoords ? { lat: parseFloat(dropoffCoords.lat), lng: parseFloat(dropoffCoords.lon) } : formData.dropoffLocation;
-        const validWaypoints = destinations.map((d, i) => {
-          if (stopCoords[i]) return { location: { lat: parseFloat(stopCoords[i]!.lat), lng: parseFloat(stopCoords[i]!.lon) }, stopover: true };
-          return d.trim() !== "" ? { location: d, stopover: true } : null;
+        const validWaypoints = formData.destinations.map(d => {
+          if (stopCoords[d.id]) return { location: { lat: parseFloat(stopCoords[d.id]!.lat), lng: parseFloat(stopCoords[d.id]!.lon) }, stopover: true };
+          return d.address.trim() !== "" ? { location: d.address, stopover: true } : null;
         }).filter(wp => wp !== null) as google.maps.DirectionsWaypoint[];
         try {
           const result = await directionsService.route({ origin, destination, waypoints: validWaypoints, travelMode: google.maps.TravelMode.DRIVING });
@@ -227,7 +239,7 @@ export function useHeroBooking() {
       calculateRoute();
     }, 1000);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [formData.pickupLocation, formData.dropoffLocation, destinations, pickupCoords, dropoffCoords, stopCoords, isLoaded]);
+  }, [formData.pickupLocation, formData.dropoffLocation, formData.destinations, pickupCoords, dropoffCoords, stopCoords, isLoaded]);
   
   const routeCrossesMountain = useMemo(() => {
     if (!routeResponse || !classifiedAreas.length || typeof google === 'undefined' || !google.maps.geometry) return false;
@@ -309,10 +321,9 @@ export function useHeroBooking() {
       if (pFrom && pFrom > now) { setSnackbarMessage('This promo code is not yet valid.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       if (pTo && pTo < now) { setSnackbarMessage('This promo code has expired.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       const isApplicable = code.applicableVehicle === 'All' || code.applicableVehicle === formData.vehicleName || code.applicableVehicle === formData.vehicleType;
-      if (!isApplicable && formData.vehicleName && formData.vehicleType) { setSnackbarMessage(`This code is only valid for ${code.applicableVehicle}.`); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       setAppliedPromo(code); setOpenPromoDialog(false);
       const discText = code.discountType === 'Percentage' ? `${code.discountValue}%` : `LKR ${code.discountValue.toLocaleString()}`;
-      const successMsg = (!isApplicable && (!formData.vehicleName || !formData.vehicleType)) ? `Promo code for ${code.applicableVehicle} applied! Note: Discount will only count when you select this vehicle.` : `Promo code applied! ${discText} discount added.`;
+      const successMsg = isApplicable ? `Promo code applied! ${discText} discount added.` : `Promo code for ${code.applicableVehicle} applied! Note: Discount will count only when you select this vehicle.`;
       setSnackbarMessage(successMsg); setSnackbarSeverity('success'); setSnackbarOpen(true);
     } catch { setSnackbarMessage('Error validating promo code.'); setSnackbarSeverity('error'); setSnackbarOpen(true); }
     finally { setIsPromoLoading(false); }
@@ -331,9 +342,6 @@ export function useHeroBooking() {
     const categoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles];
     const selectedModel = categoryVehicles.models.find(m => m.name === modelName);
     setFormData(prev => ({ ...prev, vehicleType: selectedCategory, vehicleName: modelName, maxPersons: selectedModel?.maxPersons || 0, maxBags: selectedModel?.maxBags || 0 }));
-    if (appliedPromo && appliedPromo.applicableVehicle !== 'All' && appliedPromo.applicableVehicle !== modelName && appliedPromo.applicableVehicle !== selectedCategory) {
-      setAppliedPromo(null); setSnackbarMessage(`Promo code removed: only valid for ${appliedPromo.applicableVehicle}.`); setSnackbarSeverity('info'); setSnackbarOpen(true);
-    }
     setOpenVehicleDialog(false);
   };
 
@@ -342,20 +350,32 @@ export function useHeroBooking() {
       const currentPickup = formData.pickupLocation;
       const currentDropoff = formData.dropoffLocation;
       const currentDropoffCoords = dropoffCoords;
-      setFormData(prev => ({ ...prev, tripType: tripTypeName, dropoffLocation: currentPickup || prev.dropoffLocation, numberOfDays: prev.numberOfDays || '' }));
+      const destId = Math.random().toString(36).substr(2, 9);
+      setFormData(prev => ({ 
+        ...prev, 
+        tripType: tripTypeName, 
+        dropoffLocation: currentPickup || prev.dropoffLocation, 
+        numberOfDays: prev.numberOfDays || '',
+        destinations: (() => {
+          if (currentDropoff && currentDropoff.trim() !== "" && currentDropoff !== currentPickup) {
+            if (!prev.destinations[0] || prev.destinations[0].address !== currentDropoff) {
+              setStopCoords(old => ({ ...old, [destId]: currentDropoffCoords }));
+              return [{ id: destId, address: currentDropoff }, ...prev.destinations];
+            }
+            return prev.destinations;
+          }
+          if (prev.destinations.length === 0) {
+            setStopCoords(old => ({ ...old, [destId]: null }));
+            return [{ id: destId, address: '' }];
+          }
+          return prev.destinations;
+        })()
+      }));
       if (currentPickup) setDropoffCoords(pickupCoords);
-      setDestinations(prev => {
-        if (currentDropoff && currentDropoff.trim() !== "" && currentDropoff !== currentPickup) {
-          if (prev[0] !== currentDropoff) { setStopCoords(old => [currentDropoffCoords, ...old]); return [currentDropoff, ...prev]; }
-          return prev;
-        }
-        if (prev.length === 0) { setStopCoords([null]); return ['']; }
-        return prev;
-      });
     } else {
       if (formData.tripType === 'Return') {
-        setFormData(prev => ({ ...prev, tripType: tripTypeName, dropoffLocation: '', numberOfDays: tripTypeName === 'Drop' ? 0 : (prev.numberOfDays || '') }));
-        setDropoffCoords(null); setDestinations([]); setStopCoords([]);
+        setFormData(prev => ({ ...prev, tripType: tripTypeName, dropoffLocation: '', numberOfDays: tripTypeName === 'Drop' ? 0 : (prev.numberOfDays || ''), destinations: [] }));
+        setDropoffCoords(null); setStopCoords({});
       } else {
         setFormData(prev => ({ ...prev, tripType: tripTypeName, numberOfDays: tripTypeName === 'Drop' ? 0 : (prev.numberOfDays || '') }));
       }
@@ -411,7 +431,7 @@ export function useHeroBooking() {
   };
 
   // Pricing calculations
-  const distanceInKm = routeDistance ? (routeDistance / 1000) : 0;
+  const distanceInKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
 
   const matchedPackage = (() => {
     if (!formData.vehicleType || !formData.tripType) return null;
@@ -835,7 +855,7 @@ export function useHeroBooking() {
   const downloadTripSummary = () => {
     const doc = new jsPDF();
     const primaryColor: [number, number, number] = [13, 148, 136];
-    const data = submittedBookingData || { formData, destinations, totalPrice, rawTotalPrice, appliedPromo, matchedPackage, nightSurcharge, bookingRefNo };
+    const data = submittedBookingData || { formData, totalPrice, rawTotalPrice, appliedPromo, matchedPackage, nightSurcharge, bookingRefNo };
     const matchedPkg = data.matchedPackage || matchedPackage;
 
     const darkGreen: [number, number, number] = [6, 78, 59];
@@ -1012,7 +1032,7 @@ export function useHeroBooking() {
     try {
       const payload = { 
         ...formData, 
-        destinations: destinations.filter(d => d.trim() !== ''), 
+        destinations: formData.destinations.map(d => d.address).filter(addr => addr.trim() !== ''), 
         matchedPackage, 
         promoCode: appliedPromo?.code || '', 
         discount: discountAmount,
@@ -1021,12 +1041,11 @@ export function useHeroBooking() {
       const response = await fetch(API_ENDPOINTS.BOOKINGS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (response.ok) {
         const result = await response.json();
-        setBookingRefNo(result.customId || result._id);
-        setSubmittedBookingData({ formData: { ...formData }, destinations: [...destinations], totalPrice, rawTotalPrice, basePriceBeforeAdjustment, provinceAdjustmentAmount, seasonalAdjustmentAmount, appliedPromo, bookingRefNo: result.customId || result._id, nightSurcharge, matchedPackage, routeDistance });
+        setSubmittedBookingData({ formData: { ...formData }, totalPrice, rawTotalPrice, basePriceBeforeAdjustment, provinceAdjustmentAmount, seasonalAdjustmentAmount, appliedPromo, bookingRefNo: result.customId || result._id, nightSurcharge, matchedPackage, routeDistance });
         setRequestSent(true);
-        setFormData({ vehicleType: '', vehicleName: '', tripType: '', pickupLocation: '', dropoffLocation: '', dateTime: '', numberOfDays: '' as any, name: '', telephone: '', additionalPhones: [], email: '', remark: '', maxPersons: 0, maxBags: 0, additionalHours: 0 });
+        setFormData({ vehicleType: '', vehicleName: '', tripType: '', pickupLocation: '', dropoffLocation: '', dateTime: '', numberOfDays: '' as any, name: '', telephone: '', additionalPhones: [], email: '', remark: '', maxPersons: 0, maxBags: 0, additionalHours: 0, destinations: [] });
         setAppliedPromo(null); setPromoCodeInput(''); setHasPromoOption(null); setShowRemark(false);
-        setDestinations([]); setPickupCoords(null); setDropoffCoords(null); setStopCoords([]);
+        setPickupCoords(null); setDropoffCoords(null); setStopCoords({});
         setRouteDistance(null); setRouteDuration(null);
       } else {
         const errorData = await response.json();
@@ -1045,7 +1064,7 @@ export function useHeroBooking() {
     setShowRemark, openAuthModal, setOpenAuthModal, showLoginAlert, setShowLoginAlert,
     openRouteViewer, setOpenRouteViewer, openNearbyViewer, setOpenNearbyViewer,
     openPolicyDialog, setOpenPolicyDialog, submittedBookingData, showCloseConfirm,
-    setShowCloseConfirm, destinations, openDateTimePicker, setOpenDateTimePicker,
+    setShowCloseConfirm, openDateTimePicker, setOpenDateTimePicker,
     pickerStep, setPickerStep, tempDate, setTempDate, tempTime, setTempTime,
     tempHour, setTempHour, tempMin, setTempMin, tempAmPm, setTempAmPm,
     openDayPicker, setOpenDayPicker, tempDays, setTempDays, pickupCoords,

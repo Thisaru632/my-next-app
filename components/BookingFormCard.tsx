@@ -108,13 +108,15 @@ export function BookingFormCard({ booking: h }: BookingFormCardProps) {
             </div>
           </div>
           {/* Stops */}
-          {h.destinations.map((dest, index) => (
-            <div key={index} style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.4rem", position: "relative", zIndex: 40 - index }}>
+          {h.formData.destinations.map((destObj, index) => (
+            <div key={destObj.id} style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.4rem", position: "relative", zIndex: 40 - index }}>
               <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#0d9488", border: "2px solid rgba(255,255,255,0.8)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem", color: "white", fontWeight: 700 }}>{index + 1}</div>
-              <LocationInput value={dest} onChange={(val) => h.updateDestination(index, val)} onSelect={(lat, lon) => h.setStopCoords((prev) => prev.map((c, i) => i === index ? { lat, lon } : c))} placeholder={`Stop ${index + 1}`}
+              <LocationInput value={destObj.address} onChange={(val) => h.updateDestination(destObj.id, val)} onSelect={(lat, lon) => h.setStopCoords((prev) => ({ ...prev, [destObj.id]: { lat, lon } }))} placeholder={`Stop ${index + 1}`}
                 inputStyle={{ flex: 1, padding: "0.5rem 0.75rem", background: "rgba(13,148,136,0.08)", backdropFilter: "blur(12px)", border: "1.5px solid rgba(13,148,136,0.3)", borderRadius: "8px", color: "#000000", fontFamily: "'Montserrat', sans-serif", fontSize: "0.8rem", outline: "none" }}
                 onFocusStyle={{ background: "rgba(13,148,136,0.15)", border: "1.5px solid #0d9488" }} onBlurStyle={{ background: "rgba(13,148,136,0.08)", border: "1.5px solid rgba(13,148,136,0.3)" }} showMyLocation={true} />
-              <button onClick={() => h.removeDestination(index)} style={{ flexShrink: 0, width: "22px", height: "22px", borderRadius: "50%", border: "1.5px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.1)", color: "#ef4444", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", fontWeight: 700 }}>✕</button>
+              {!(h.formData.tripType === 'Return' && index === 0) && (
+                <button onClick={(e) => { e.stopPropagation(); h.removeDestination(destObj.id); }} style={{ flexShrink: 0, width: "22px", height: "22px", borderRadius: "50%", border: "1.5px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.1)", color: "#ef4444", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", fontWeight: 700 }}>✕</button>
+              )}
             </div>
           ))}
           {/* Dropoff */}
