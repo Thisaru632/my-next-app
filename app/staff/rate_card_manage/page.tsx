@@ -598,12 +598,12 @@ const RateCardManagePage = () => {
         try {
             const body = {
                 adjustmentType: editingAdjustment.adjustmentType,
-                percentage: parseFloat(editingAdjustment.percentage?.toString()) || 0,
-                fixedAmount: parseFloat(editingAdjustment.fixedAmount?.toString()) || 0,
+                percentage: parseFloat(editingAdjustment.percentage?.toString() || '0'),
+                fixedAmount: parseFloat(editingAdjustment.fixedAmount?.toString() || '0'),
                 vehicle: editingAdjustment.vehicle,
                 type: editingAdjustment.type,
-                minKm: editingAdjustment.minKm === undefined ? 0 : parseInt(editingAdjustment.minKm.toString()),
-                maxKm: editingAdjustment.maxKm === undefined ? 99999 : parseInt(editingAdjustment.maxKm.toString()),
+                minKm: editingAdjustment.minKm !== undefined ? parseInt(editingAdjustment.minKm.toString()) : 0,
+                maxKm: editingAdjustment.maxKm !== undefined ? parseInt(editingAdjustment.maxKm.toString()) : 99999,
                 validFrom: editingAdjustment.validFrom,
                 validTo: editingAdjustment.validTo
             };
