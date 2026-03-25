@@ -48,6 +48,8 @@ const sampleVehicles = {
   },
   Bus: {
     models: [
+      { name: 'AC 32 Seater', description: 'Premium air conditioned bus', maxPersons: 32, maxBags: 10 },
+      { name: 'Non AC 32 Seater', description: 'Spacious economical bus', maxPersons: 32, maxBags: 10 },
       { name: 'AC 29 Seater', description: 'Air conditioned comfort', maxPersons: 29, maxBags: 8 },
       { name: 'Non AC 29 Seater', description: 'Economical choice', maxPersons: 29, maxBags: 8 },
     ]
@@ -266,7 +268,7 @@ export function useHeroBooking() {
   }, [routeDistance, routeCrossesMountain, formData.vehicleType]);
 
   const getVehicleFolderName = (modelName: string) => {
-    const mapping: { [key: string]: string } = { 'Aqua': 'Toyota Aqua', 'Axio': 'Toyota Axio', 'KDH Flat Roof': 'KDH Flat Roof  9 Seats', 'Dual AC Van': 'Dual Ac 9 Seater', 'NON AC VAN': 'NON AC Van', 'AC 29 Seater': 'AC 29 Seater Bus', 'Non AC 29 Seater': 'Non AC 29 seater bus' };
+    const mapping: { [key: string]: string } = { 'Aqua': 'Toyota Aqua', 'Axio': 'Toyota Axio', 'KDH Flat Roof': 'KDH Flat Roof  9 Seats', 'Dual AC Van': 'Dual Ac 9 Seater', 'NON AC VAN': 'NON AC Van', 'AC 29 Seater': 'AC 29 Seater Bus', 'Non AC 29 Seater': 'Non AC 29 seater bus', 'AC 32 Seater': 'AC 32 Seater Bus', 'Non AC 32 Seater': 'Non AC 32 seater bus' };
     return mapping[modelName] || modelName;
   };
 
@@ -417,8 +419,30 @@ export function useHeroBooking() {
     const cleanFormVehName = formData.vehicleName.toLowerCase().replace(/\s+/g, '').trim();
     const cleanFormVehType = formData.vehicleType.toLowerCase().replace(/\s+/g, '').trim();
     const potentialCards = rateCards.filter(card => {
-      const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const vehicleMatch = cleanCardVeh === cleanFormVehName || cleanCardVeh === cleanFormVehType || cleanFormVehName.includes(cleanCardVeh) || cleanCardVeh.includes(cleanFormVehName);
+      const simplify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanCardVehSimplified = simplify(card.vehicle);
+      const cleanFormVehNameSimplified = simplify(formData.vehicleName);
+      const cleanFormVehTypeSimplified = simplify(formData.vehicleType);
+      
+      const vehicleMatch = (() => {
+        const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 0);
+        const cardWords = words(card.vehicle);
+        const formWords = words(formData.vehicleName);
+        const typeWords = words(formData.vehicleType);
+
+        if (cleanCardVehSimplified === cleanFormVehTypeSimplified) return true;
+        if (cleanCardVehSimplified === cleanFormVehNameSimplified) return true;
+
+        const cardHasNon = cleanCardVehSimplified.includes('non');
+        const formHasNon = cleanFormVehNameSimplified.includes('non');
+        if (cardHasNon !== formHasNon && (cleanCardVehSimplified.includes('ac') || cleanFormVehNameSimplified.includes('ac'))) return false;
+
+        // Check if all form words are in card name or vice versa
+        const allFormInCard = formWords.every(w => cardWords.includes(w));
+        const allCardInForm = cardWords.every(w => formWords.includes(w));
+        
+        return allFormInCard || allCardInForm || cleanFormVehNameSimplified.includes(cleanCardVehSimplified) || cleanCardVehSimplified.includes(cleanFormVehNameSimplified);
+      })();
       const cleanCardType = card.type.toLowerCase().trim();
       const cleanFormType = formData.tripType.toLowerCase().trim();
       const typeMatch = cleanCardType === cleanFormType || (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) || (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
@@ -430,7 +454,25 @@ export function useHeroBooking() {
       return vehicleMatch && typeMatch && Number(card.days) === targetDays && card.status === 'Approved' && catMatch;
     });
     if (potentialCards.length === 0) return null;
-    const specificMatches = potentialCards.filter(card => { const c = card.vehicle.toLowerCase().replace(/\s+/g, '').trim(); return c === cleanFormVehName || c.includes(cleanFormVehName) || cleanFormVehName.includes(c); });
+        const simplify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 0);
+    const specificMatches = potentialCards.filter(card => { 
+      const c = simplify(card.vehicle);
+      const vNameSimplified = simplify(formData.vehicleName);
+      if (c === vNameSimplified) return true;
+      
+      const cardHasNon = c.includes('non');
+      const formHasNon = vNameSimplified.includes('non');
+      if (cardHasNon !== formHasNon && (c.includes('ac') || vNameSimplified.includes('ac'))) return false;
+
+      const cardWords = words(card.vehicle);
+      const formWords = words(formData.vehicleName);
+      const allFormInCard = formWords.every(w => cardWords.includes(w));
+      const allCardInForm = cardWords.every(w => formWords.includes(w));
+
+      return allFormInCard || allCardInForm || c.includes(vNameSimplified) || vNameSimplified.includes(c); 
+    });
+
     const finalPotential = specificMatches.length > 0 ? specificMatches : potentialCards;
     const sortedCards = finalPotential.sort((a, b) => a.km !== b.km ? a.km - b.km : a.hrs - b.hrs);
     if (routeDistance !== null) {
@@ -639,9 +681,30 @@ export function useHeroBooking() {
     })();
 
     // 1. Find Matched Package (Mirroring main logic)
+    const simplify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
     const potentialCards = rateCards.filter(card => {
-      const cleanCardVeh = card.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const vehicleMatch = cleanCardVeh === cleanVName || cleanCardVeh === cleanVType || cleanVName.includes(cleanCardVeh) || cleanCardVeh.includes(cleanVName);
+      const cleanCardVeh = simplify(card.vehicle);
+      const cleanVNameSimplified = simplify(vName);
+      const cleanVTypeSimplified = simplify(vType);
+      
+      const vehicleMatch = (() => {
+        const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 0);
+        const cardWords = words(card.vehicle);
+        const vNameWords = words(vName);
+        const vTypeWords = words(vType);
+
+        if (cleanCardVeh === cleanVNameSimplified || cleanCardVeh === cleanVTypeSimplified) return true;
+        
+        const cardHasNon = cleanCardVeh.includes('non');
+        const formHasNon = cleanVNameSimplified.includes('non');
+        if (cardHasNon !== formHasNon && (cleanCardVeh.includes('ac') || cleanVNameSimplified.includes('ac'))) return false;
+
+        const allVNameInCard = vNameWords.every(w => cardWords.includes(w));
+        const allCardInVName = cardWords.every(w => vNameWords.includes(w));
+
+        return allVNameInCard || allCardInVName || cleanVNameSimplified.includes(cleanCardVeh) || cleanCardVeh.includes(cleanVNameSimplified);
+      })();
+                           
       const cleanCardType = card.type.toLowerCase().trim();
       const typeMatch = cleanCardType === cleanFormType || (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) || (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
       
@@ -654,7 +717,24 @@ export function useHeroBooking() {
 
     let matchedPkg = null;
     if (potentialCards.length > 0) {
-      const specificMatches = potentialCards.filter(card => { const c = card.vehicle.toLowerCase().replace(/\s+/g, '').trim(); return c === cleanVName || c.includes(cleanVName) || cleanVName.includes(c); });
+      const simplify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 0);
+      const specificMatches = potentialCards.filter(card => { 
+        const c = simplify(card.vehicle);
+        const vNameSimplified = simplify(vName);
+        if (c === vNameSimplified) return true;
+
+        const cardHasNon = c.includes('non');
+        const formHasNon = vNameSimplified.includes('non');
+        if (cardHasNon !== formHasNon && (c.includes('ac') || vNameSimplified.includes('ac'))) return false;
+
+        const cardWords = words(card.vehicle);
+        const vNameWords = words(vName);
+        const allVNameInCard = vNameWords.every(w => cardWords.includes(w));
+        const allCardInVName = cardWords.every(w => vNameWords.includes(w));
+
+        return allVNameInCard || allCardInVName || c.includes(vNameSimplified) || vNameSimplified.includes(c); 
+      });
       const finalPotential = specificMatches.length > 0 ? specificMatches : potentialCards;
       const sortedCards = finalPotential.sort((a, b) => a.km !== b.km ? a.km - b.km : a.hrs - b.hrs);
       if (routeDistance !== null) {
