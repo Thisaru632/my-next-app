@@ -36,6 +36,7 @@ import {
 import {
     CloudUpload as CloudUploadIcon,
     Delete as DeleteIcon,
+    Edit as EditIcon,
     Refresh as RefreshIcon,
     TableChart as TableChartIcon,
     CheckCircle as CheckCircleIcon,
@@ -69,6 +70,10 @@ interface RateAdjustment {
     vehicle: string;
     type: string;
     percentage: number;
+    fixedAmount?: number;
+    adjustmentType?: 'percentage' | 'fixed';
+    minKm?: number;
+    maxKm?: number;
     validFrom: string | null;
     validTo: string | null;
     lastUpdated: string;
@@ -114,15 +119,22 @@ const RateCardManagePage = () => {
     // Adjustment states
     const [adjustments, setAdjustments] = useState<RateAdjustment[]>([]);
     const [adjustValue, setAdjustValue] = useState<string>('');
+    const [adjustmentType, setAdjustmentType] = useState<'percentage' | 'fixed'>('percentage');
     const [adjusting, setAdjusting] = useState(false);
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
     const [validFrom, setValidFrom] = useState<string>('');
     const [validTo, setValidTo] = useState<string>('');
+    const [adjustMinKm, setAdjustMinKm] = useState<string>('0');
+    const [adjustMaxKm, setAdjustMaxKm] = useState<string>('0');
 
     // Conflict states
     const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
     const [conflictMessage, setConflictMessage] = useState('');
     const [idsToDelete, setIdsToDelete] = useState<string[]>([]);
+
+    // Adjustment Edit states
+    const [editingAdjustment, setEditingAdjustment] = useState<RateAdjustment | null>(null);
+    const [isAdjustmentEditDialogOpen, setIsAdjustmentEditDialogOpen] = useState(false);
     
     const [nightSurchargeEnabled, setNightSurchargeEnabled] = useState<boolean>(true);
     const [nightSurchargeCar, setNightSurchargeCar] = useState<number>(500);
@@ -133,11 +145,15 @@ const RateCardManagePage = () => {
     const [nsRules, setNsRules] = useState<NightSurchargeRule[]>([]);
     const [nsAmount, setNsAmount] = useState<string>('');
     const [nsMinKm, setNsMinKm] = useState<string>('0');
-    const [nsMaxKm, setNsMaxKm] = useState<string>('99999');
+    const [nsMaxKm, setNsMaxKm] = useState<string>('0');
     const [nsStartTime, setNsStartTime] = useState<string>('00:00');
     const [nsEndTime, setNsEndTime] = useState<string>('04:00');
     const [nsVehicle, setNsVehicle] = useState<string>('All');
     const [nsType, setNsType] = useState<string>('All');
+    
+    // NS Edit states
+    const [editingNsRule, setEditingNsRule] = useState<NightSurchargeRule | null>(null);
+    const [isNsEditDialogOpen, setIsNsEditDialogOpen] = useState(false);
 
     const fetchRateCards = async () => {
         setLoading(true);
@@ -293,6 +309,52 @@ const RateCardManagePage = () => {
                 fetchNsRules();
             } else {
                 setError('Failed to update status');
+            }
+        } catch (err) {
+            setError('An error occurred');
+        } finally {
+            setUpdatingSettings(false);
+        }
+    };
+
+    const handleOpenNsEdit = (rule: NightSurchargeRule) => {
+        setEditingNsRule({ ...rule });
+        setIsNsEditDialogOpen(true);
+    };
+
+    const handleUpdateNsRule = async () => {
+        if (!editingNsRule) return;
+        setUpdatingSettings(true);
+        setError(null);
+        setSuccess(null);
+
+        // Sanitize numbers to ensure they aren't NaN
+        const cleanPayload = {
+            vehicle: editingNsRule.vehicle,
+            type: editingNsRule.type,
+            minKm: isNaN(editingNsRule.minKm) ? 0 : editingNsRule.minKm,
+            maxKm: isNaN(editingNsRule.maxKm) ? 99999 : editingNsRule.maxKm,
+            startTime: editingNsRule.startTime,
+            endTime: editingNsRule.endTime,
+            amount: isNaN(editingNsRule.amount) ? 0 : editingNsRule.amount,
+            status: editingNsRule.status
+        };
+
+        try {
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/night-surcharge/${editingNsRule._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cleanPayload),
+            });
+
+            if (response.ok) {
+                setSuccess('Night surcharge rule updated successfully');
+                setIsNsEditDialogOpen(false);
+                setEditingNsRule(null);
+                fetchNsRules();
+            } else {
+                const errData = await response.json();
+                setError(errData.message || 'Failed to update rule');
             }
         } catch (err) {
             setError('An error occurred');
@@ -457,17 +519,22 @@ const RateCardManagePage = () => {
                 ));
                 setIdsToDelete([]); // Clear after deletion
             }
+            const bodyPayload = {
+                vehicle: vehicleFilter,
+                type: typeFilter,
+                adjustmentType: adjustmentType,
+                percentage: adjustmentType === 'percentage' ? parseFloat(adjustValue) : 0,
+                fixedAmount: adjustmentType === 'fixed' ? parseFloat(adjustValue) : 0,
+                minKm: adjustMinKm === '' ? 0 : parseInt(adjustMinKm),
+                maxKm: adjustMaxKm === '' ? 99999 : parseInt(adjustMaxKm),
+                validFrom: validFrom || null,
+                validTo: validTo || null
+            };
 
             const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    percentage: parseFloat(adjustValue),
-                    vehicle: vehicleFilter,
-                    type: typeFilter,
-                    validFrom: validFrom || null,
-                    validTo: validTo || null
-                }),
+                body: JSON.stringify(bodyPayload),
             });
 
             if (response.ok) {
@@ -489,7 +556,7 @@ const RateCardManagePage = () => {
     };
 
     const handleResetAdjustment = async (id: string) => {
-        if (!confirm('Are you sure you want to reset this adjustment to 0%?')) return;
+        if (!confirm('Are you sure you want to reset this adjustment rule?')) return;
 
         setLoading(true);
         try {
@@ -507,6 +574,59 @@ const RateCardManagePage = () => {
             setError('An error occurred while resetting');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleOpenAdjustmentEdit = (adj: RateAdjustment) => {
+        // Prepare string dates for <input type="date">
+        setEditingAdjustment({ 
+            ...adj,
+            minKm: adj.minKm ?? 0,
+            maxKm: adj.maxKm ?? 99999,
+            validFrom: adj.validFrom ? new Date(adj.validFrom).toISOString().split('T')[0] : null,
+            validTo: adj.validTo ? new Date(adj.validTo).toISOString().split('T')[0] : null
+        });
+        setIsAdjustmentEditDialogOpen(true);
+    };
+
+    const handleUpdateAdjustment = async () => {
+        if (!editingAdjustment) return;
+        setAdjusting(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const body = {
+                adjustmentType: editingAdjustment.adjustmentType,
+                percentage: parseFloat(editingAdjustment.percentage?.toString()) || 0,
+                fixedAmount: parseFloat(editingAdjustment.fixedAmount?.toString()) || 0,
+                vehicle: editingAdjustment.vehicle,
+                type: editingAdjustment.type,
+                minKm: editingAdjustment.minKm === undefined ? 0 : parseInt(editingAdjustment.minKm.toString()),
+                maxKm: editingAdjustment.maxKm === undefined ? 99999 : parseInt(editingAdjustment.maxKm.toString()),
+                validFrom: editingAdjustment.validFrom,
+                validTo: editingAdjustment.validTo
+            };
+
+            const response = await fetch(`${API_ENDPOINTS.RATE_CARDS}/adjust/${editingAdjustment._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+
+            if (response.ok) {
+                setSuccess('Adjustment rule updated successfully');
+                setIsAdjustmentEditDialogOpen(false);
+                setEditingAdjustment(null);
+                fetchAdjustments();
+            } else {
+                const errData = await response.json();
+                setError(errData.message || 'Failed to update adjustment');
+            }
+        } catch (err) {
+            setError('An error occurred');
+        } finally {
+            setAdjusting(false);
         }
     };
 
@@ -962,27 +1082,6 @@ const RateCardManagePage = () => {
                         </select>
                     </Box>
 
-                    <Box sx={{ minWidth: '100px' }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>KM Limit</Typography>
-                        <input
-                            type="text"
-                            placeholder="e.g. 100"
-                            value={kmFilter}
-                            onChange={(e) => setKmFilter(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid var(--border-color, #cbd5e1)',
-                                marginTop: '4px',
-                                outline: 'none',
-                                background: 'transparent',
-                                color: 'inherit',
-                                fontSize: '0.9rem',
-                                fontFamily: 'inherit'
-                            }}
-                        />
-                    </Box>
 
                     <Button
                         size="small"
@@ -1314,27 +1413,6 @@ const RateCardManagePage = () => {
                                 </select>
                             </Box>
 
-                            <Box sx={{ minWidth: '100px' }}>
-                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>KM Limit</Typography>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. 100"
-                                    value={kmFilter}
-                                    onChange={(e) => setKmFilter(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px 14px',
-                                        borderRadius: '10px',
-                                        border: '1px solid var(--border-color, #cbd5e1)',
-                                        marginTop: '4px',
-                                        outline: 'none',
-                                        background: 'transparent',
-                                        color: 'inherit',
-                                        fontSize: '0.9rem',
-                                        fontFamily: 'inherit'
-                                    }}
-                                />
-                            </Box>
 
                             <Button
                                 size="small"
@@ -1407,20 +1485,74 @@ const RateCardManagePage = () => {
                         borderColor: 'divider',
                         width: { xs: '100%', md: 'auto' }
                     }}>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                            <Box sx={{ position: 'relative', width: '160px' }}>
-                                <PercentIcon sx={{
-                                    position: 'absolute',
-                                    left: '12px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    fontSize: '1.2rem',
-                                    color: '#0d9488',
-                                    pointerEvents: 'none',
-                                }} />
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="flex-end">
+                            {/* Toggle between % and Rs */}
+                            <Box>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', display: 'block', mb: 0.5 }}>Type</Typography>
+                                <Box sx={{ display: 'flex', bgcolor: 'rgba(0,0,0,0.03)', p: 0.5, borderRadius: '14px', mr: 1 }}>
+                                <Button 
+                                    size="small"
+                                    onClick={() => setAdjustmentType('percentage')}
+                                    sx={{ 
+                                        borderRadius: '10px', 
+                                        px: 2,
+                                        minWidth: '60px',
+                                        textTransform: 'none',
+                                        fontWeight: 700,
+                                        bgcolor: adjustmentType === 'percentage' ? '#0d9488' : 'transparent',
+                                        color: adjustmentType === 'percentage' ? '#fff !important' : 'text.secondary',
+                                        '&:hover': { bgcolor: adjustmentType === 'percentage' ? '#0d9488' : 'rgba(0,0,0,0.05)' }
+                                    }}
+                                >
+                                    %
+                                </Button>
+                                <Button 
+                                    size="small"
+                                    onClick={() => setAdjustmentType('fixed')}
+                                    sx={{ 
+                                        borderRadius: '10px', 
+                                        px: 2,
+                                        minWidth: '60px',
+                                        textTransform: 'none',
+                                        fontWeight: 700,
+                                        bgcolor: adjustmentType === 'fixed' ? '#0d9488' : 'transparent',
+                                        color: adjustmentType === 'fixed' ? '#fff !important' : 'text.secondary',
+                                        '&:hover': { bgcolor: adjustmentType === 'fixed' ? '#0d9488' : 'rgba(0,0,0,0.05)' }
+                                    }}
+                                >
+                                    Rs
+                                </Button>
+                            </Box>
+                        </Box>
+
+                        <Box sx={{ position: 'relative', width: '200px' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', display: 'block', mb: 0.5 }}>Value</Typography>
+                            <Box sx={{ position: 'relative' }}>
+                                {adjustmentType === 'percentage' ? (
+                                    <PercentIcon sx={{
+                                        position: 'absolute',
+                                        left: '12px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        fontSize: '1.2rem',
+                                        color: '#0d9488',
+                                        pointerEvents: 'none',
+                                    }} />
+                                ) : (
+                                    <Typography sx={{
+                                        position: 'absolute',
+                                        left: '12px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 800,
+                                        color: '#0d9488',
+                                        pointerEvents: 'none',
+                                    }}>Rs</Typography>
+                                )}
                                 <input
                                     type="text"
-                                    placeholder="e.g. 10 or -5"
+                                    placeholder={adjustmentType === 'percentage' ? "e.g. 10 or -5" : "e.g. 500 or -200"}
                                     value={adjustValue}
                                     onChange={(e) => {
                                         const val = e.target.value;
@@ -1432,7 +1564,7 @@ const RateCardManagePage = () => {
                                         width: '100%',
                                         padding: '12px 14px 12px 38px',
                                         borderRadius: '12px',
-                                        border: '1.5px solid var(--border-color, #cbd5e1)',
+                                        border: '1.5px solid #cbd5e1',
                                         background: 'transparent',
                                         color: 'inherit',
                                         fontWeight: 700,
@@ -1442,6 +1574,49 @@ const RateCardManagePage = () => {
                                     }}
                                 />
                             </Box>
+                        </Box>
+
+                        <Box sx={{ width: '130px' }}>
+                           <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', display: 'block', mb: 0.5 }}>Min KM</Typography>
+                           <input
+                               id="adjust-min-km-input"
+                               type="number"
+                               value={adjustMinKm}
+                               onChange={(e) => setAdjustMinKm(e.target.value)}
+                               style={{
+                                   width: '100%',
+                                   padding: '10px 14px',
+                                   borderRadius: '12px',
+                                   border: '1.5px solid #cbd5e1',
+                                   background: 'transparent',
+                                   fontWeight: 700,
+                                   fontSize: '0.95rem',
+                                   fontFamily: 'inherit',
+                                   outline: 'none'
+                               }}
+                           />
+                       </Box>
+
+                            <Box sx={{ width: '130px' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', display: 'block', mb: 0.5 }}>Max KM</Typography>
+                                <input
+                                    type="number"
+                                    value={adjustMaxKm}
+                                    onChange={(e) => setAdjustMaxKm(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '12px',
+                                        border: '1.5px solid #cbd5e1',
+                                        background: 'transparent',
+                                        fontWeight: 700,
+                                        fontSize: '0.95rem',
+                                        fontFamily: 'inherit',
+                                        outline: 'none'
+                                    }}
+                                />
+                            </Box>
+
                             <Button
                                 variant="contained"
                                 onClick={handleBulkAdjust}
@@ -1484,7 +1659,9 @@ const RateCardManagePage = () => {
                             Preview:
                         </Typography>
                         <Typography variant="body2" sx={{ color: '#4b5563', lineHeight: 1.4 }}>
-                            Applying a persistent <strong style={{ color: '#0d9488' }}>{adjustValue}%</strong> adjustment for <strong style={{ color: '#1e293b' }}>{vehicleFilter}</strong> vehicles ({typeFilter}).
+                            Applying a persistent <strong style={{ color: '#0d9488' }}>
+                                {adjustmentType === 'percentage' ? `${adjustValue}%` : `Rs. ${adjustValue}`}
+                            </strong> adjustment for <strong style={{ color: '#1e293b' }}>{vehicleFilter}</strong> vehicles ({typeFilter}).
                         </Typography>
                     </Box>
                 )}
@@ -1518,6 +1695,7 @@ const RateCardManagePage = () => {
                                 <TableRow>
                                     <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Target Vehicle</TableCell>
                                     <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trip Category</TableCell>
+                                    <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>KM Range</TableCell>
                                     <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price Change</TableCell>
                                     <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Validity Period</TableCell>
                                     <TableCell sx={{ fontWeight: 700, px: 3, py: 2.5, color: 'text.secondary', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Last Modified</TableCell>
@@ -1556,21 +1734,36 @@ const RateCardManagePage = () => {
                                             />
                                         </TableCell>
                                         <TableCell sx={{ px: 3, py: 2 }}>
-                                            <Box sx={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                px: 2,
-                                                py: 1,
-                                                borderRadius: '12px',
-                                                bgcolor: adj.percentage >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                                color: adj.percentage >= 0 ? '#10b981' : '#ef4444',
-                                                border: '1px solid',
-                                                borderColor: adj.percentage >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'
-                                            }}>
-                                                <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>
-                                                    {adj.percentage >= 0 ? `+${adj.percentage}%` : `${adj.percentage}%`}
-                                                </Typography>
-                                            </Box>
+                                            <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', color: 'text.secondary' }}>
+                                                {adj.minKm ?? 0} - {adj.maxKm ?? 0} KM
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell sx={{ px: 3, py: 2 }}>
+                                            {(() => {
+                                                const isPercentage = !adj.adjustmentType || adj.adjustmentType === 'percentage';
+                                                const isPositive = isPercentage ? adj.percentage >= 0 : (adj.fixedAmount || 0) >= 0;
+                                                const valText = isPercentage 
+                                                    ? (adj.percentage >= 0 ? `+${adj.percentage}%` : `${adj.percentage}%`)
+                                                    : ((adj.fixedAmount || 0) >= 0 ? `+Rs. ${adj.fixedAmount || 0}` : `-Rs. ${Math.abs(adj.fixedAmount || 0)}`);
+
+                                                return (
+                                                    <Box sx={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        px: 2,
+                                                        py: 1,
+                                                        borderRadius: '12px',
+                                                        bgcolor: isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                                        color: isPositive ? '#10b981' : '#ef4444',
+                                                        border: '1px solid',
+                                                        borderColor: isPositive ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'
+                                                    }}>
+                                                        <Typography sx={{ fontWeight: 800, fontSize: '1rem' }}>
+                                                            {valText}
+                                                        </Typography>
+                                                    </Box>
+                                                );
+                                            })()}
                                         </TableCell>
                                         <TableCell sx={{ px: 3, py: 2 }}>
                                             <Typography component="div" variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -1598,30 +1791,39 @@ const RateCardManagePage = () => {
                                             </Typography>
                                         </TableCell>
                                         <TableCell align="right" sx={{ px: 3, py: 2 }}>
-                                            <Button
-                                                size="small"
-                                                variant="contained"
-                                                onClick={() => handleResetAdjustment(adj._id)}
-                                                sx={{
-                                                    textTransform: 'none',
-                                                    borderRadius: '10px',
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: 700,
-                                                    bgcolor: 'background.paper',
-                                                    color: '#ef4444',
-                                                    border: '1px solid',
-                                                    borderColor: 'divider',
-                                                    boxShadow: 'none',
-                                                    '&:hover': {
-                                                        bgcolor: 'error.light',
-                                                        color: '#fff',
-                                                        boxShadow: '0 4px 10px rgba(239, 68, 68, 0.1)',
-                                                        border: '1px solid transparent'
-                                                    }
-                                                }}
-                                            >
-                                                Reset to 0%
-                                            </Button>
+                                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                <IconButton 
+                                                    size="small" 
+                                                    onClick={() => handleOpenAdjustmentEdit(adj)}
+                                                    sx={{ color: 'primary.main', border: '1px solid', borderColor: 'divider', borderRadius: '10px' }}
+                                                >
+                                                    <EditIcon sx={{ fontSize: '1.1rem' }} />
+                                                </IconButton>
+                                                <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    onClick={() => handleResetAdjustment(adj._id)}
+                                                    sx={{
+                                                        textTransform: 'none',
+                                                        borderRadius: '10px',
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: 700,
+                                                        bgcolor: 'background.paper',
+                                                        color: '#ef4444',
+                                                        border: '1px solid',
+                                                        borderColor: 'divider',
+                                                        boxShadow: 'none',
+                                                        '&:hover': {
+                                                            bgcolor: 'error.light',
+                                                            color: '#fff',
+                                                            boxShadow: '0 4px 10px rgba(239, 68, 68, 0.1)',
+                                                            border: '1px solid transparent'
+                                                        }
+                                                    }}
+                                                >
+                                                    Reset
+                                                </Button>
+                                            </Stack>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -1650,7 +1852,7 @@ const RateCardManagePage = () => {
                 </DialogTitle>
                 <DialogContent>
                     <DialogContentText sx={{ color: '#64748b', fontSize: '1.05rem', mb: 3, lineHeight: 1.5 }}>
-                        Are you sure you want to apply a persistent <strong style={{ color: '#0f172a' }}>{adjustValue}%</strong> adjustment for current filters?
+                        Are you sure you want to apply a persistent <strong style={{ color: '#0f172a' }}>{adjustmentType === 'percentage' ? `${adjustValue}%` : `Rs. ${adjustValue}`}</strong> adjustment for current filters?
                     </DialogContentText>
 
                     <Box sx={{ 
@@ -1671,13 +1873,16 @@ const RateCardManagePage = () => {
                                 <Typography variant="body2" sx={{ fontWeight: 800, color: '#1e293b' }}>{typeFilter === 'All' ? 'All Types' : typeFilter}</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>Percentage:</Typography>
+                                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>{adjustmentType === 'percentage' ? 'Percentage:' : 'Fixed Amount:'}</Typography>
                                 <Typography variant="body2" sx={{
                                     fontWeight: 900,
                                     fontSize: '1.1rem',
                                     color: parseFloat(adjustValue) >= 0 ? '#059669' : '#dc2626'
                                 }}>
-                                    {parseFloat(adjustValue) >= 0 ? `+${adjustValue}%` : `${adjustValue}%`}
+                                    {adjustmentType === 'percentage' 
+                                        ? (parseFloat(adjustValue) >= 0 ? `+${adjustValue}%` : `${adjustValue}%`)
+                                        : (parseFloat(adjustValue) >= 0 ? `+Rs. ${adjustValue}` : `-Rs. ${Math.abs(parseFloat(adjustValue))}`)
+                                    }
                                 </Typography>
                             </Box>
                         </Stack>
@@ -2110,6 +2315,13 @@ const RateCardManagePage = () => {
                                                         >
                                                             <DeleteIcon sx={{ fontSize: '1.2rem' }} />
                                                         </IconButton>
+                                                        <IconButton 
+                                                            onClick={() => handleOpenNsEdit(rule)} 
+                                                            size="small" 
+                                                            sx={{ color: 'primary.main', '&:hover': { bgcolor: 'primary.lighter' } }}
+                                                        >
+                                                            <EditIcon sx={{ fontSize: '1.2rem' }} />
+                                                        </IconButton>
                                                     </Box>
                                                 </TableCell>
                                             </TableRow>
@@ -2127,6 +2339,313 @@ const RateCardManagePage = () => {
                     </Paper>
                 </Box>
             )}
+
+            {/* NS Rule Edit Dialog */}
+            <Dialog 
+                open={isNsEditDialogOpen} 
+                onClose={() => setIsNsEditDialogOpen(false)}
+                PaperProps={{ sx: { borderRadius: '24px', p: 1, minWidth: { xs: '95vw', sm: '500px' } } }}
+            >
+                <DialogTitle sx={{ fontWeight: 800 }}>Edit Surcharge Rule</DialogTitle>
+                <DialogContent>
+                    {editingNsRule && (
+                        <Grid container spacing={3} sx={{ mt: 0.5 }}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>Vehicle</Typography>
+                                <select
+                                    value={editingNsRule.vehicle}
+                                    onChange={(e) => setEditingNsRule({ ...editingNsRule, vehicle: e.target.value })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 14px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #cbd5e1',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    <option value="All">All Vehicles</option>
+                                    {uniqueVehicles.map(v => <option key={v} value={v}>{v}</option>)}
+                                </select>
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>Trip Type</Typography>
+                                <select
+                                    value={editingNsRule.type}
+                                    onChange={(e) => setEditingNsRule({ ...editingNsRule, type: e.target.value })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 14px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #cbd5e1',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    <option value="All">All Types</option>
+                                    {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>MIN KM</Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    size="small"
+                                    value={isNaN(editingNsRule.minKm) ? '' : editingNsRule.minKm}
+                                    onChange={(e) => setEditingNsRule({ ...editingNsRule, minKm: parseInt(e.target.value) })}
+                                    sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>MAX KM</Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    size="small"
+                                    value={isNaN(editingNsRule.maxKm) ? '' : editingNsRule.maxKm}
+                                    onChange={(e) => setEditingNsRule({ ...editingNsRule, maxKm: parseInt(e.target.value) })}
+                                    sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>Start Time</Typography>
+                                <TextField
+                                    fullWidth
+                                    type="time"
+                                    size="small"
+                                    value={editingNsRule.startTime}
+                                    onChange={(e) => setEditingNsRule({ ...editingNsRule, startTime: e.target.value })}
+                                    sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>End Time</Typography>
+                                <TextField
+                                    fullWidth
+                                    type="time"
+                                    size="small"
+                                    value={editingNsRule.endTime}
+                                    onChange={(e) => setEditingNsRule({ ...editingNsRule, endTime: e.target.value })}
+                                    sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 12 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>Amount (LKR)</Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    size="small"
+                                    value={isNaN(editingNsRule.amount) ? '' : editingNsRule.amount}
+                                    onChange={(e) => setEditingNsRule({ ...editingNsRule, amount: parseFloat(e.target.value) })}
+                                    InputProps={{ startAdornment: <InputAdornment position="start">Rs</InputAdornment> }}
+                                    sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                />
+                            </Grid>
+                        </Grid>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 3 }}>
+                    <Button onClick={() => setIsNsEditDialogOpen(false)} sx={{ fontWeight: 700, textTransform: 'none' }}>Cancel</Button>
+                    <Button 
+                        variant="contained" 
+                        onClick={handleUpdateNsRule} 
+                        disabled={updatingSettings}
+                        sx={{ borderRadius: '12px', fontWeight: 800, textTransform: 'none', px: 3 }}
+                    >
+                        Save Changes
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Price Adjustment Edit Dialog */}
+            <Dialog 
+                open={isAdjustmentEditDialogOpen} 
+                onClose={() => setIsAdjustmentEditDialogOpen(false)}
+                PaperProps={{ sx: { borderRadius: '24px', p: 1, minWidth: { xs: '95vw', sm: '500px' } } }}
+            >
+                <DialogTitle sx={{ fontWeight: 800 }}>Edit Price Adjustment</DialogTitle>
+                <DialogContent>
+                    {editingAdjustment && (
+                        <Grid container spacing={3} sx={{ mt: 0.5 }}>
+                            <Grid size={{ xs: 12, sm: 12 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>Adjustment Type</Typography>
+                                <Box sx={{ display: 'flex', bgcolor: 'rgba(0,0,0,0.03)', p: 0.5, borderRadius: '14px', mt: 1 }}>
+                                    <Button 
+                                        fullWidth
+                                        onClick={() => setEditingAdjustment({...editingAdjustment, adjustmentType: 'percentage'})}
+                                        sx={{ 
+                                            borderRadius: '10px', 
+                                            textTransform: 'none',
+                                            fontWeight: 700,
+                                            bgcolor: editingAdjustment.adjustmentType === 'percentage' ? '#0d9488' : 'transparent',
+                                            color: editingAdjustment.adjustmentType === 'percentage' ? '#fff !important' : 'text.secondary',
+                                        }}
+                                    >
+                                        Percentage (%)
+                                    </Button>
+                                    <Button 
+                                        fullWidth
+                                        onClick={() => setEditingAdjustment({...editingAdjustment, adjustmentType: 'fixed'})}
+                                        sx={{ 
+                                            borderRadius: '10px', 
+                                            textTransform: 'none',
+                                            fontWeight: 700,
+                                            bgcolor: editingAdjustment.adjustmentType === 'fixed' ? '#0d9488' : 'transparent',
+                                            color: editingAdjustment.adjustmentType === 'fixed' ? '#fff !important' : 'text.secondary',
+                                        }}
+                                    >
+                                        Fixed Amount (Rs)
+                                    </Button>
+                                </Box>
+                            </Grid>
+
+                            <Grid size={{ xs: 12, sm: 12 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>
+                                    {editingAdjustment.adjustmentType === 'percentage' ? 'Percentage' : 'Amount (LKR)'}
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    size="small"
+                                    value={editingAdjustment.adjustmentType === 'percentage' ? editingAdjustment.percentage : (editingAdjustment.fixedAmount || 0)}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value) || 0;
+                                        if (editingAdjustment.adjustmentType === 'percentage') {
+                                            setEditingAdjustment({...editingAdjustment, percentage: val});
+                                        } else {
+                                            setEditingAdjustment({...editingAdjustment, fixedAmount: val});
+                                        }
+                                    }}
+                                    InputProps={{ 
+                                        startAdornment: <InputAdornment position="start">
+                                            {editingAdjustment.adjustmentType === 'percentage' ? '%' : 'Rs'}
+                                        </InputAdornment> 
+                                    }}
+                                    sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                />
+                            </Grid>
+
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>Vehicle</Typography>
+                                <select
+                                    value={editingAdjustment.vehicle}
+                                    onChange={(e) => setEditingAdjustment({ ...editingAdjustment, vehicle: e.target.value })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 14px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #cbd5e1',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    <option value="All">All Vehicles</option>
+                                    {uniqueVehicles.map(v => <option key={v} value={v}>{v}</option>)}
+                                </select>
+                            </Grid>
+
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>Trip Type</Typography>
+                                <select
+                                    value={editingAdjustment.type}
+                                    onChange={(e) => setEditingAdjustment({ ...editingAdjustment, type: e.target.value })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 14px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #cbd5e1',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit'
+                                    }}
+                                >
+                                    <option value="All">All Types</option>
+                                    {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </Grid>
+
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>Min KM</Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    size="small"
+                                    value={editingAdjustment.minKm}
+                                    onChange={(e) => setEditingAdjustment({ ...editingAdjustment, minKm: parseInt(e.target.value) || 0 })}
+                                    sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                />
+                            </Grid>
+
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary' }}>Max KM</Typography>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    size="small"
+                                    value={editingAdjustment.maxKm}
+                                    onChange={(e) => setEditingAdjustment({ ...editingAdjustment, maxKm: parseInt(e.target.value) || 0 })}
+                                    sx={{ mt: 0.5, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                />
+                            </Grid>
+
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', display: 'block' }}>From Date</Typography>
+                                <input
+                                    type="date"
+                                    value={editingAdjustment.validFrom || ''}
+                                    onChange={(e) => setEditingAdjustment({ ...editingAdjustment, validFrom: e.target.value || null })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 12px',
+                                        borderRadius: '12px',
+                                        border: '1.5px solid #e2e8f0',
+                                        marginTop: '4px',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit'
+                                    }}
+                                />
+                            </Grid>
+
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', display: 'block' }}>To Date</Typography>
+                                <input
+                                    type="date"
+                                    value={editingAdjustment.validTo || ''}
+                                    onChange={(e) => setEditingAdjustment({ ...editingAdjustment, validTo: e.target.value || null })}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 12px',
+                                        borderRadius: '12px',
+                                        border: '1.5px solid #e2e8f0',
+                                        marginTop: '4px',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit'
+                                    }}
+                                />
+                            </Grid>
+                        </Grid>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 3 }}>
+                    <Button onClick={() => setIsAdjustmentEditDialogOpen(false)} sx={{ fontWeight: 700, textTransform: 'none' }}>Cancel</Button>
+                    <Button 
+                        variant="contained" 
+                        onClick={handleUpdateAdjustment} 
+                        disabled={adjusting}
+                        sx={{ background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)', borderRadius: '12px', fontWeight: 800, textTransform: 'none', px: 3 }}
+                    >
+                        Save Changes
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

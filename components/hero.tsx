@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Snackbar, Alert } from '@mui/material';
 import { TrendingFlat, Loop } from '@mui/icons-material';
 import Image from 'next/image';
@@ -54,6 +54,47 @@ export default function HeroSection() {
     const id = setInterval(next, INTERVAL_MS);
     return () => clearInterval(id);
   }, [paused, next, imagesLoaded]);
+
+  const lastDirtyRef = useRef(false);
+
+  // Prevent accidental navigation if form is dirty
+  useEffect(() => {
+      if (!h.isFormDirty) {
+          lastDirtyRef.current = false;
+          return;
+      }
+
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+          e.preventDefault();
+          e.returnValue = "You have unsaved changes in your booking. Are you sure you want to leave?";
+          return e.returnValue;
+      };
+
+      const handlePopState = (e: PopStateEvent) => {
+          if (h.isFormDirty) {
+              const confirmLeave = window.confirm("You have entered booking details. Are you sure you want to go back?");
+              if (!confirmLeave) {
+                  // Re-push current state to stay on page
+                  window.history.pushState(null, "", window.location.pathname);
+              }
+          }
+      };
+
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      
+      // Push initial state to let us catch the NEXT back button press ONLY ONCE
+      if (!lastDirtyRef.current) {
+          window.history.pushState(null, "", window.location.pathname);
+          lastDirtyRef.current = true;
+      }
+      
+      window.addEventListener("popstate", handlePopState);
+
+      return () => {
+          window.removeEventListener("beforeunload", handleBeforeUnload);
+          window.removeEventListener("popstate", handlePopState);
+      };
+  }, [h.isFormDirty]);
 
   const goTo = (i: number) => { setCurrent(i); setKenKey((k) => k + 1); };
 

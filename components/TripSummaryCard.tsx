@@ -116,7 +116,7 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
             <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>{h.formData.vehicleType === 'SUV' ? 'Booking Request' : 'Total Estimate'}</div>
             {h.formData.vehicleType !== 'SUV' && (
               <>
-                {h.appliedPromo ? (
+                {h.appliedPromo && h.discountAmount > 0 ? (
                   <div style={{ marginTop: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.85rem', fontWeight: 600, color: '#6b7280', textDecoration: 'line-through' }}>LKR {h.rawTotalPrice.toLocaleString()}</span>
@@ -134,6 +134,11 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                      <div style={{ marginTop: '2px' }}>
                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '1px 8px', background: '#ef4444', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em', boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)' }}>💵 CASH</div>
                      </div>
+                     {h.appliedPromo && (
+                       <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', fontWeight: 600, marginTop: '4px' }}>
+                         Promo "{h.appliedPromo.code}" is valid only for {h.appliedPromo.applicableVehicle === 'All' ? 'any vehicle' : h.appliedPromo.applicableVehicle}.
+                       </div>
+                     )}
                   </div>
                 )}
                 {h.extraKmDetail && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra KM: {h.extraKmDetail.km} km @ LKR {h.matchedPackage?.extraKMRate}/km</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {h.extraKmDetail.cost.toLocaleString()}</span></div>}

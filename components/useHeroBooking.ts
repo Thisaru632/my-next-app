@@ -25,6 +25,9 @@ export interface RateCard {
 
 export interface RateAdjustment {
   _id: string; vehicle: string; type: string; percentage: number;
+  fixedAmount?: number; adjustmentType?: 'percentage' | 'fixed';
+  minKm?: number;
+  maxKm?: number;
   validFrom: string | null; validTo: string | null;
 }
 
@@ -320,7 +323,8 @@ export function useHeroBooking() {
       const pTo = code.validTo ? new Date(code.validTo) : null; if (pTo) pTo.setHours(23, 59, 59, 999);
       if (pFrom && pFrom > now) { setSnackbarMessage('This promo code is not yet valid.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       if (pTo && pTo < now) { setSnackbarMessage('This promo code has expired.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
-      const isApplicable = code.applicableVehicle === 'All' || code.applicableVehicle === formData.vehicleName || code.applicableVehicle === formData.vehicleType;
+      const cleanApp = code.applicableVehicle.toLowerCase().trim();
+      const isApplicable = cleanApp === 'all' || cleanApp === formData.vehicleName.toLowerCase().trim() || cleanApp === formData.vehicleType.toLowerCase().trim();
       setAppliedPromo(code); setOpenPromoDialog(false);
       const discText = code.discountType === 'Percentage' ? `${code.discountValue}%` : `LKR ${code.discountValue.toLocaleString()}`;
       const successMsg = isApplicable ? `Promo code applied! ${discText} discount added.` : `Promo code for ${code.applicableVehicle} applied! Note: Discount will count only when you select this vehicle.`;
@@ -633,10 +637,11 @@ export function useHeroBooking() {
       const vehicleMatch = cleanAdjVeh === 'all' || cleanAdjVeh === cleanFormVehName || cleanAdjVeh === cleanFormVehType || cleanFormVehName.includes(cleanAdjVeh) || cleanAdjVeh.includes(cleanFormVehName);
       const cleanAdjType = adj.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
+      const kmMatch = distanceInKm >= (adj.minKm || 0) && distanceInKm <= (adj.maxKm || 99999);
       const tripDate = formData.dateTime ? new Date(formData.dateTime) : new Date();
       const vFrom = adj.validFrom ? new Date(adj.validFrom) : null; if (vFrom) vFrom.setHours(0, 0, 0, 0);
       const vTo = adj.validTo ? new Date(adj.validTo) : null; if (vTo) vTo.setHours(23, 59, 59, 999);
-      return vehicleMatch && typeMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
+      return vehicleMatch && typeMatch && kmMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
     });
     if (matches.length === 0) return null;
     return matches.sort((a, b) => {
@@ -669,7 +674,7 @@ export function useHeroBooking() {
     return { km: extraKm, cost: extraKm * matchedPackage.extraKMRate };
   })();
 
-  const seasonalAdjustmentAmount = Math.round(basePriceBeforeAdjustment * (seasonalMultiplier - 1));
+  const seasonalAdjustmentAmount = activeAdjustment?.adjustmentType === 'fixed' ? (activeAdjustment.fixedAmount || 0) : Math.round(basePriceBeforeAdjustment * (seasonalMultiplier - 1));
   const provinceAdjustmentAmount = Math.round(basePriceBeforeAdjustment * seasonalMultiplier * (provinceMultiplier - 1));
   const rawTotalPrice = basePriceBeforeAdjustment + seasonalAdjustmentAmount + provinceAdjustmentAmount;
 
@@ -785,10 +790,11 @@ export function useHeroBooking() {
       const vehicleMatch = cleanAdjVeh === 'all' || cleanAdjVeh === cleanVName || cleanAdjVeh === cleanVType || cleanVName.includes(cleanAdjVeh) || cleanAdjVeh.includes(cleanVName);
       const cleanAdjType = a.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
+      const kmMatch = distanceInKm >= (a.minKm || 0) && distanceInKm <= (a.maxKm || 99999);
       const tripDate = formData.dateTime ? new Date(formData.dateTime) : new Date();
       const vFrom = a.validFrom ? new Date(a.validFrom) : null; if (vFrom) vFrom.setHours(0, 0, 0, 0);
       const vTo = a.validTo ? new Date(a.validTo) : null; if (vTo) vTo.setHours(23, 59, 59, 999);
-      return vehicleMatch && typeMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
+      return vehicleMatch && typeMatch && kmMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
     }).sort((a, b) => {
       const aClean = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
       const bClean = b.vehicle.toLowerCase().replace(/\s+/g, '').trim();
@@ -798,11 +804,14 @@ export function useHeroBooking() {
       return a.type.toLowerCase() === 'all' ? 1 : -1;
     })[0];
 
-    const sMultiplier = 1 + ((adj?.percentage ?? 0) / 100);
+    const sMultiplier = adj?.adjustmentType === 'fixed' ? 1 : (1 + ((adj?.percentage ?? 0) / 100));
     const provMultiplier = 1 + ((provinceAdjustments[pickupProvince] || 0) / 100);
     const adjMultiplier = sMultiplier * provMultiplier;
 
-    const rawTotal = Math.round(basePrice * adjMultiplier);
+    let rawTotal = Math.round(basePrice * adjMultiplier);
+    if (adj?.adjustmentType === 'fixed') {
+      rawTotal += (adj.fixedAmount || 0);
+    }
 
     // 4. Promo Discount
     let discAmount = 0;
@@ -1056,6 +1065,14 @@ export function useHeroBooking() {
 
   const currentCategoryVehicles = sampleVehicles[selectedCategory as keyof typeof sampleVehicles] || { models: [] };
 
+  const isFormDirty = useMemo(() => {
+    // Basic check: if pickup or dropoff is filled, or if user was anonymous and entered details
+    const hasLocation = formData.pickupLocation.length > 5 || formData.dropoffLocation.length > 5 || formData.destinations.length > 0;
+    const hasPersonalDetails = (formData.name !== (user?.name || '') && formData.name.length > 2) || 
+                                (formData.telephone !== (user?.phone || '') && formData.telephone.length > 5);
+    return (hasLocation || hasPersonalDetails) && !requestSent;
+  }, [formData, user, requestSent]);
+
   return {
     // State
     formData, setFormData, routeResponse, minDateTime, openPromoDialog, setOpenPromoDialog,
@@ -1089,6 +1106,7 @@ export function useHeroBooking() {
     handleVehicleSelect, handleTripTypeSelect, handleRequestBooking,
     handleClosePersonalDialog, handleConfirmClose, downloadTripSummary, handleSendRequest,
     handleSnackbarClose, addDestination, removeDestination, updateDestination,
+    isFormDirty,
     getVehicleFolderName,
   };
 }
