@@ -147,6 +147,7 @@ export function useHeroBooking() {
   const [showProvinceBlockDialog, setShowProvinceBlockDialog] = useState(false);
   const [blockedProvinceName, setBlockedProvinceName] = useState('');
   const [summaryDownloaded, setSummaryDownloaded] = useState(false);
+  const [showBackConfirm, setShowBackConfirm] = useState(false);
   const [nsRules, setNsRules] = useState<any[]>([]);
   const [classifiedAreas, setClassifiedAreas] = useState<any[]>([]);
 
@@ -277,8 +278,8 @@ export function useHeroBooking() {
     const isVanOrBus = ['Van', 'Bus'].includes(formData.vehicleType);
     if (!isVanOrBus) return 'City & Mountain';
 
-    const distInKm = routeDistance / 1000;
-    if (distInKm < 200) return 'City & Mountain';
+    const currentDistInKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
+    if (currentDistInKm < 200) return 'City & Mountain';
     return routeCrossesMountain ? 'City & Mountain' : 'Plains';
   }, [routeDistance, routeCrossesMountain, formData.vehicleType]);
 
@@ -419,6 +420,13 @@ export function useHeroBooking() {
     }
     const hasEnteredInfo = formData.name?.trim() || formData.telephone?.trim() || formData.email?.trim() || formData.remark?.trim() || formData.additionalPhones.some(p => p.trim());
     if (hasEnteredInfo) setShowCloseConfirm(true); else setOpenPersonalDialog(false);
+  };
+
+  const handleConfirmBack = () => {
+    setShowBackConfirm(false);
+    // Remove our listeners before going back to avoid trigger
+    window.removeEventListener("beforeunload", () => {});
+    window.history.go(-2); // One for the pushState, one for the original back
   };
 
   const handleConfirmClose = () => {
@@ -700,8 +708,8 @@ export function useHeroBooking() {
     const localDeterminedCategory = (() => {
       if (routeDistance === null) return 'City & Mountain';
       if (!['Van', 'Bus'].includes(vType)) return 'City & Mountain';
-      const distInKm = routeDistance / 1000;
-      if (distInKm < 200) return 'City & Mountain';
+      const currentDistInKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
+      if (currentDistInKm < 200) return 'City & Mountain';
       return routeCrossesMountain ? 'City & Mountain' : 'Plains';
     })();
 
@@ -1108,5 +1116,8 @@ export function useHeroBooking() {
     handleSnackbarClose, addDestination, removeDestination, updateDestination,
     isFormDirty,
     getVehicleFolderName,
+    showBackConfirm,
+    setShowBackConfirm,
+    handleConfirmBack,
   };
 }

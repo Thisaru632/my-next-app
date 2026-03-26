@@ -72,11 +72,9 @@ export default function HeroSection() {
 
       const handlePopState = (e: PopStateEvent) => {
           if (h.isFormDirty) {
-              const confirmLeave = window.confirm("You have entered booking details. Are you sure you want to go back?");
-              if (!confirmLeave) {
-                  // Re-push current state to stay on page
-                  window.history.pushState(null, "", window.location.pathname);
-              }
+              h.setShowBackConfirm(true);
+              // Re-push current state to stay on page
+              window.history.pushState(null, "", window.location.pathname);
           }
       };
 
@@ -94,7 +92,7 @@ export default function HeroSection() {
           window.removeEventListener("beforeunload", handleBeforeUnload);
           window.removeEventListener("popstate", handlePopState);
       };
-  }, [h.isFormDirty]);
+  }, [h.isFormDirty, h.setShowBackConfirm]);
 
   const goTo = (i: number) => { setCurrent(i); setKenKey((k) => k + 1); };
 
@@ -167,7 +165,7 @@ export default function HeroSection() {
       />
       <TripTypeDialog open={h.openTripTypeDialog} onClose={() => h.setOpenTripTypeDialog(false)} tripType={h.formData.tripType} tripTypes={tripTypes} onSelect={h.handleTripTypeSelect} onWarn={() => { }} />
       <PromoDialog open={h.openPromoDialog} onClose={() => h.setOpenPromoDialog(false)} hasPromoOption={h.hasPromoOption} setHasPromoOption={h.setHasPromoOption} promoCodeInput={h.promoCodeInput} setPromoCodeInput={h.setPromoCodeInput} isPromoLoading={h.isPromoLoading} onSubmit={h.handlePromoSubmit} />
-      <ProvinceBlockDialog open={h.showProvinceBlockDialog} onClose={() => h.setShowProvinceBlockDialog(false)} provinceName={h.blockedProvinceName} />
+      <ProvinceBlockDialog open={h.showProvinceBlockDialog} onClose={() => h.setShowProvinceBlockDialog(false)} onCall={() => h.setShowCallPopup(true)} provinceName={h.blockedProvinceName} />
       <DropHireSuggestionDialog open={h.showDropHireSuggestion} onClose={() => h.setShowDropHireSuggestion(false)} onReconsider={() => { h.setShowDropHireSuggestion(false); h.setOpenTripTypeDialog(true); }} onConfirm={() => { h.setAcknowledgedDropHireSuggestion(true); h.setShowDropHireSuggestion(false); h.setOpenPersonalDialog(true); }} />
       <PersonalDialog open={h.openPersonalDialog} onClose={h.handleClosePersonalDialog} formData={h.formData} emailError={h.emailError} phoneError={h.phoneError} additionalPhoneErrors={h.additionalPhoneErrors} handleChange={h.handleChange} handleAddPhone={h.handleAddPhone} handleRemovePhone={h.handleRemovePhone} updateAdditionalPhone={h.updateAdditionalPhone} showRemark={h.showRemark} setShowRemark={h.setShowRemark} requestSent={h.requestSent} bookingRefNo={h.bookingRefNo} downloadTripSummary={h.downloadTripSummary} handleSendRequest={h.handleSendRequest} setShowCallPopup={h.setShowCallPopup} setOpenPolicyDialog={h.setOpenPolicyDialog} />
       <CallPopupDialog open={h.showCallPopup} onClose={() => h.setShowCallPopup(false)} onCopySuccess={() => { }} />
@@ -181,6 +179,13 @@ export default function HeroSection() {
         onConfirm={h.handleConfirmClose}
         title={h.requestSent ? "Wait! Close Summary?" : "Are you sure?"}
         message={h.requestSent ? "Have you downloaded your summary? You will lose this message if you leave." : "Your entered contact information will be kept, but you will leave this step."}
+      />
+      <CloseConfirmDialog 
+        open={h.showBackConfirm} 
+        onClose={() => h.setShowBackConfirm(false)} 
+        onConfirm={h.handleConfirmBack}
+        title="Leaving so soon?"
+        message="You have entered booking details. Are you sure you want to go back? Your progress will be lost."
       />
       <LoginRequiredDialog open={h.showLoginAlert} onClose={() => h.setShowLoginAlert(false)} onConfirm={() => { h.setShowLoginAlert(false); h.setOpenAuthModal(true); }} />
       {h.openRouteViewer && <RouteViewer open={h.openRouteViewer} onClose={() => h.setOpenRouteViewer(false)} origin={h.formData.pickupLocation} destination={h.formData.dropoffLocation} waypoints={h.formData.destinations.map(d => d.address)} pickupCoords={h.pickupCoords} dropoffCoords={h.dropoffCoords} stopCoords={h.formData.destinations.map(d => h.stopCoords[d.id] || null)} apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc" initialResponse={h.routeResponse} />}

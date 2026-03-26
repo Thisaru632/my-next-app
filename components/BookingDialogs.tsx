@@ -1,6 +1,6 @@
 import React from 'react';
 import { Dialog, DialogContent, Box, Typography, IconButton, CircularProgress } from '@mui/material';
-import { Close as CloseIcon, CheckCircle, DirectionsCar, Group, Work, TrendingFlat, Loop, AirportShuttle, DirectionsBus } from '@mui/icons-material';
+import { Close as CloseIcon, CheckCircle, DirectionsCar, Group, Work, TrendingFlat, Loop, AirportShuttle, DirectionsBus, Call } from '@mui/icons-material';
 
 interface VehicleModel {
   name: string;
@@ -185,10 +185,11 @@ export const PromoDialog: React.FC<PromoDialogProps> = ({ open, onClose, hasProm
 interface ProvinceBlockDialogProps {
   open: boolean;
   onClose: () => void;
+  onCall?: () => void;
   provinceName: string;
 }
 
-export const ProvinceBlockDialog: React.FC<ProvinceBlockDialogProps> = ({ open, onClose, provinceName }) => (
+export const ProvinceBlockDialog: React.FC<ProvinceBlockDialogProps> = ({ open, onClose, onCall, provinceName }) => (
   <Dialog 
     open={open} 
     onClose={onClose}
@@ -201,13 +202,13 @@ export const ProvinceBlockDialog: React.FC<ProvinceBlockDialogProps> = ({ open, 
         textAlign: 'center', 
         overflow: 'hidden',
         boxShadow: '0 32px 64px -12px rgba(0,0,0,0.14)',
-        border: '1px solid rgba(239, 68, 68, 0.1)'
+        border: '1px solid rgba(13,148,136,0.1)'
       } 
     }}
   >
     <Box sx={{ 
       p: 4, 
-      background: 'linear-gradient(180deg, #fff5f5 0%, #ffffff 100%)',
+      background: 'linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center'
@@ -216,63 +217,95 @@ export const ProvinceBlockDialog: React.FC<ProvinceBlockDialogProps> = ({ open, 
         width: 80, 
         height: 80, 
         borderRadius: '50%', 
-        bgcolor: 'rgba(239, 68, 68, 0.1)', 
-        color: '#ef4444', 
+        bgcolor: 'rgba(13, 148, 136, 0.1)', 
+        color: '#0d9488', 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
         mb: 3,
         animation: 'pulse 2s infinite'
       }}>
-        <CloseIcon sx={{ fontSize: 40 }} />
+        <Call sx={{ fontSize: 40 }} />
       </Box>
       
       <Typography variant="h5" sx={{ 
         fontFamily: "'Cormorant Garamond', serif", 
         fontWeight: 800, 
         color: '#1e293b', 
-        mb: 1.5,
+        mb: 2,
         lineHeight: 1.2
       }}>
-        High Demand in {provinceName} Province
+        Limited Availability in {provinceName}
       </Typography>
       
       <Typography variant="body2" sx={{ 
         fontFamily: "'Montserrat', sans-serif", 
-        color: '#64748b', 
+        color: '#4b5563', 
         mb: 4, 
         lineHeight: 1.6,
-        px: 2
+        px: 1
       }}>
-        Sorry, you cannot select a pickup from this province at the moment because there are <strong>low availability of vehicles</strong> in this location.
+        Vehicle availability is currently limited in your selected pickup area. But don’t worry — if you’d like to book a ride or get an estimate, just give us a call!<br/><br/>
+        Our team is ready to arrange a flexible and comfortable solution that fits your travel needs perfectly.
       </Typography>
       
-      <button 
-        onClick={onClose}
-        style={{ 
-          width: '100%',
-          padding: '1rem', 
-          borderRadius: '16px', 
-          border: 'none', 
-          background: '#1e293b', 
-          color: '#fff', 
-          fontWeight: 700, 
-          fontSize: '0.95rem', 
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          boxShadow: '0 10px 20px -5px rgba(30, 41, 59, 0.3)'
-        }}
-        onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-        onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-      >
-        Understood
-      </button>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, width: '100%' }}>
+        <button 
+          onClick={onCall}
+          style={{ 
+            width: '100%',
+            padding: '1rem', 
+            borderRadius: '16px', 
+            border: 'none', 
+            background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)', 
+            color: '#fff', 
+            fontWeight: 700, 
+            fontSize: '1rem', 
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 10px 20px rgba(13, 148, 136, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 15px 30px rgba(13, 148, 136, 0.3)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 10px 20px rgba(13, 148, 136, 0.2)';
+          }}
+        >
+          <Call sx={{ fontSize: 20 }} />
+          Call Us Now
+        </button>
+
+        <button 
+          onClick={onClose}
+          style={{ 
+            width: '100%',
+            padding: '0.85rem', 
+            borderRadius: '16px', 
+            border: '1.5px solid #e2e8f0', 
+            background: '#fff', 
+            color: '#64748b', 
+            fontWeight: 600, 
+            fontSize: '0.9rem', 
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          Understood
+        </button>
+      </Box>
     </Box>
     <style>{`
       @keyframes pulse {
-        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-        70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(13, 148, 136, 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
       }
     `}</style>
   </Dialog>

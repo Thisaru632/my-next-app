@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useUser } from "@/context/UserContext";
 import AuthModal from "./AuthModal";
 import ProfileModal from "./ProfileModal";
-import { AccountCircle, Logout } from "@mui/icons-material";
+import { AccountCircle, Logout, Call } from "@mui/icons-material";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -53,12 +53,12 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
   return (
     <nav
       className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${isLightHeader
-        ? "bg-white shadow-md py-1"
-        : "bg-transparent py-3"
+        ? "bg-white shadow-md"
+        : "bg-transparent"
         }`}
     >
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className={`flex items-center justify-between transition-all duration-300 ${isScrolled ? "h-14" : "h-16"}`}>
 
           {/* Logo */}
           <Link href="/" className="flex items-center -ml-4">
@@ -119,13 +119,41 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
                 </button>
               )}
             </li>
+
+            {/* Hotline Highlight Button */}
+            <li className="ml-4 -mr-4">
+               <a 
+                href="tel:+94702787787" 
+                className={`group flex items-center gap-2.5 px-4 py-2 rounded-full font-bold transition-all duration-300 shadow-md transform hover:scale-105 active:scale-95 ${
+                  isLightHeader 
+                    ? "bg-green-600 text-white hover:bg-green-700 shadow-green-200" 
+                    : "bg-white/20 text-white backdrop-blur-md border border-white/20 hover:bg-white/30"
+                }`}
+              >
+                <div className="relative flex items-center justify-center">
+                   <div className="absolute w-2 h-2 bg-green-400 rounded-full animate-ping opacity-75"></div>
+                   <div className="relative w-2 h-2 bg-green-500 rounded-full"></div>
+                </div>
+                <Call style={{ fontSize: '18px' }} />
+                <span className="text-sm font-black tracking-tight">070 278 7787</span>
+              </a>
+            </li>
           </ul>
 
-          {/* Mobile Auth & Hamburger */}
+          {/* Mobile Auth & Hotline & Hamburger */}
           <div className="flex items-center gap-2 md:hidden">
+            <a 
+              href="tel:+94702787787" 
+              className={`flex items-center justify-center w-10 h-10 rounded-full shadow-md transition-all active:scale-90 ${
+                isLightHeader ? "bg-green-600 text-white" : "bg-green-600 text-white"
+              }`}
+            >
+              <Call style={{ fontSize: '20px' }} />
+            </a>
+            
             {user ? (
               <div
-                className={`flex items-center justify-center w-10 h-10 rounded-full cursor-pointer ${isLightHeader ? "bg-green-50" : "bg-white/20"}`}
+                className={`flex items-center justify-center w-10 h-10 rounded-full cursor-pointer ${isLightHeader ? "bg-green-50" : "bg-white/20 shadow-md"}`}
                 onClick={() => setProfileModalOpen(true)}
               >
                 <AccountCircle className="text-green-600" style={{ fontSize: '32px' }} />
