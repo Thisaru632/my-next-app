@@ -58,15 +58,15 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
         }`}
     >
       <div className="max-w-7xl mx-auto px-4">
-        <div className={`flex items-center justify-between transition-all duration-300 ${isScrolled ? "h-14" : "h-16"}`}>
+        <div className={`flex items-center justify-between transition-all duration-300 ${isScrolled ? "h-20" : "h-24"}`}>
 
           {/* Logo */}
           <Link href="/" className="flex items-center -ml-4">
             <Image
-              src="/senu tours 3d.png"
+              src="/logo.png"
               alt="Senu Tours Logo"
-              width={isScrolled ? 50 : 60}
-              height={20}
+              width={isScrolled ? 160 : 180}
+              height={isScrolled ? 52 : 64}
               priority
               className="object-contain transition-all duration-300"
             />

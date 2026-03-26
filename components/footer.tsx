@@ -159,7 +159,7 @@ export default function Footer() {
             {/* Logo */}
             <div className="footer-logo">
               <Image
-                src="/senu tours 3d.png"
+                src="/logo.png"
                 alt="Senu Tours Logo"
                 width={160}
                 height={60}

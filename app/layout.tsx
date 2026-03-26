@@ -12,8 +12,8 @@ export const metadata = {
   title: "Senu Tours — Excellence Redefined",
   description: "Premium destination travel and tour agency in Sri Lanka. Exceptional journeys tailored to your profile.",
   icons: {
-    icon: "/senu%20tours%203d.png",
-    apple: "/senu%20tours%203d.png",
+    icon: "/logo.png",
+    apple: "/logo.png",
   },
   themeColor: "#071d24",
 };

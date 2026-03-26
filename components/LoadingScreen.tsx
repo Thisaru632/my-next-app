@@ -55,12 +55,12 @@ export default function LoadingScreen() {
             }}>
                 <div style={{
                     position: 'relative',
-                    width: '130px',
-                    height: '130px',
+                    width: '380px',
+                    height: '380px',
                     animation: 'pulseScale 2s infinite ease-in-out'
                 }}>
                     <Image 
-                        src="/senu tours 3d.png" 
+                        src="/logo.png" 
                         alt="Senu Tours Logo" 
                         fill 
                         className="object-contain"
@@ -69,65 +69,31 @@ export default function LoadingScreen() {
                 </div>
                 
                 <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '12px'
+                    width: '320px',
+                    height: '6px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    borderRadius: '10px',
+                    marginTop: '20px',
+                    border: '1px solid rgba(13,148,136,0.2)'
                 }}>
-                    <div style={{ textAlign: 'center' }}>
-                        <h1 style={{
-                            fontFamily: "'Cormorant Garamond', serif",
-                            fontSize: '2.2rem',
-                            fontWeight: 700,
-                            color: '#C9A961',
-                            letterSpacing: '6px',
-                            margin: 0,
-                            textTransform: 'uppercase',
-                            textShadow: '0 2px 10px rgba(0,0,0,0.3)'
-                        }}>
-                            SENU TOURS
-                        </h1>
-                        <p style={{
-                            fontFamily: "'Montserrat', sans-serif",
-                            fontSize: '0.65rem',
-                            color: '#0d9488',
-                            letterSpacing: '3px',
-                            margin: '4px 0 0 0',
-                            textTransform: 'uppercase',
-                            fontWeight: 600,
-                            opacity: 0.8
-                        }}>
-                            Excellence Redefined
-                        </p>
-                    </div>
-
                     <div style={{
-                        width: '280px',
-                        height: '6px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        position: 'relative',
-                        overflow: 'hidden',
+                        position: 'absolute',
+                        height: '100%',
+                        width: '40%',
+                        background: 'linear-gradient(90deg, transparent, #C9A961, #0d9488, transparent)',
                         borderRadius: '10px',
-                        marginTop: '12px',
-                        border: '1px solid rgba(13,148,136,0.2)'
-                    }}>
-                        <div style={{
-                            position: 'absolute',
-                            height: '100%',
-                            width: '40%',
-                            background: 'linear-gradient(90deg, transparent, #C9A961, #0d9488, transparent)',
-                            borderRadius: '10px',
-                            animation: 'loadingProgress 1.5s infinite linear',
-                            boxShadow: '0 0 15px rgba(201, 169, 97, 0.6)'
-                        }} />
-                    </div>
+                        animation: 'loadingProgress 1.5s infinite linear',
+                        boxShadow: '0 0 15px rgba(201, 169, 97, 0.6)'
+                    }} />
                 </div>
             </div>
 
             <style jsx>{`
                 @keyframes pulseScale {
-                    0%, 100% { transform: scale(1); opacity: 0.9; }
-                    50% { transform: scale(1.05); opacity: 1; }
+                    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(201, 169, 97, 0.2)); opacity: 0.9; }
+                    50% { transform: scale(1.15); filter: drop-shadow(0 0 40px rgba(201, 169, 97, 0.5)); opacity: 1; }
                 }
                 @keyframes loadingProgress {
                     0% { left: -50%; }

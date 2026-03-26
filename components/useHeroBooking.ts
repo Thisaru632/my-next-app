@@ -278,10 +278,12 @@ export function useHeroBooking() {
     const isVanOrBus = ['Van', 'Bus'].includes(formData.vehicleType);
     if (!isVanOrBus) return 'City & Mountain';
 
-    const currentDistInKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
-    if (currentDistInKm < 200) return 'City & Mountain';
+    if (formData.tripType === 'Drop') return 'City & Mountain';
+    
+    const distKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
+    if (distKm < 200) return 'City & Mountain';
     return routeCrossesMountain ? 'City & Mountain' : 'Plains';
-  }, [routeDistance, routeCrossesMountain, formData.vehicleType]);
+  }, [routeDistance, routeCrossesMountain, formData.vehicleType, formData.tripType]);
 
   const getVehicleFolderName = (modelName: string) => {
     const mapping: { [key: string]: string } = { 'Aqua': 'Toyota Aqua', 'Axio': 'Toyota Axio', 'KDH Flat Roof': 'KDH Flat Roof  9 Seats', 'Dual AC Van': 'Dual Ac 9 Seater', 'NON AC VAN': 'NON AC Van', 'AC 29 Seater': 'AC 29 Seater Bus', 'Non AC 29 Seater': 'Non AC 29 seater bus', 'AC 32 Seater': 'AC 32 Seater Bus', 'Non AC 32 Seater': 'Non AC 32 seater bus' };
@@ -667,9 +669,7 @@ export function useHeroBooking() {
   const adjustmentMultiplier = seasonalMultiplier * provinceMultiplier;
 
   const basePriceBeforeAdjustment = (() => {
-    const ratePerKm = formData.vehicleType === 'Car' ? 110 : formData.vehicleType === 'Van' ? 160 : formData.vehicleType === 'Bus' ? 450 : formData.vehicleType === 'SUV' ? 250 : 0;
-    const basePricePerDay = formData.vehicleType === 'Car' ? 15000 : formData.vehicleType === 'Van' ? 18000 : formData.vehicleType === 'Bus' ? 35000 : formData.vehicleType === 'SUV' ? 25000 : 0;
-    if (!matchedPackage) return routeDistance !== null ? distanceInKm * ratePerKm : basePricePerDay * formData.numberOfDays;
+    if (!matchedPackage) return 0;
     let price = matchedPackage.rateAmount;
     if (distanceInKm > matchedPackage.km) price += Math.ceil(distanceInKm - matchedPackage.km) * matchedPackage.extraKMRate;
     if (formData.additionalHours > 0) price += formData.additionalHours * (matchedPackage.extraHrRate1 || 0);
@@ -696,7 +696,7 @@ export function useHeroBooking() {
 
   const nightSurcharge = calculateNightSurchargeAmount(formData.dateTime, formData.vehicleType, formData.vehicleName, distanceInKm, formData.tripType);
 
-  const totalPrice = Math.max(0, rawTotalPrice - discountAmount) + nightSurcharge;
+  const totalPrice = basePriceBeforeAdjustment === 0 ? 0 : Math.max(0, rawTotalPrice - discountAmount) + nightSurcharge;
 
   const getPriceForVehicle = useCallback((vName: string, vType: string) => {
     if (!vType) return 0;
@@ -706,10 +706,10 @@ export function useHeroBooking() {
     const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
 
     const localDeterminedCategory = (() => {
-      if (routeDistance === null) return 'City & Mountain';
+      if (routeDistance === null || formData.tripType === 'Drop') return 'City & Mountain';
       if (!['Van', 'Bus'].includes(vType)) return 'City & Mountain';
-      const currentDistInKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
-      if (currentDistInKm < 200) return 'City & Mountain';
+      const curDistKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
+      if (curDistKm < 200) return 'City & Mountain';
       return routeCrossesMountain ? 'City & Mountain' : 'Plains';
     })();
 
@@ -785,7 +785,7 @@ export function useHeroBooking() {
 
     let basePrice = 0;
     if (!matchedPkg) {
-      basePrice = routeDistance !== null ? distanceInKm * ratePerKm : basePricePerDay * targetDays;
+      return 0;
     } else {
       basePrice = matchedPkg.rateAmount;
       if (distanceInKm > matchedPkg.km) basePrice += Math.ceil(distanceInKm - matchedPkg.km) * matchedPkg.extraKMRate;
@@ -888,7 +888,7 @@ export function useHeroBooking() {
     // Add Logo
     try {
       // Use URL-encoded path for spaces
-      doc.addImage("/senu%20tours%203d.png", "PNG", 85, 2, 40, 28);
+      doc.addImage("/logo.png", "PNG", 85, 2, 40, 28);
     } catch (e) {
       console.error("Logo failed to load:", e);
       // Fallback text if logo fails
@@ -961,7 +961,7 @@ export function useHeroBooking() {
 
     // INCLUSIONS
     addSectionHeader("INCLUSIONS");
-    addRow("Package Rate", data.formData.vehicleType === 'SUV' ? "Price on Request" : `Rs. ${data.basePriceBeforeAdjustment?.toLocaleString() || 0}`);
+    addRow("Package Rate", (data.formData.vehicleType === 'SUV' || (data.basePriceBeforeAdjustment || 0) === 0) ? "Price on Request" : `Rs. ${data.basePriceBeforeAdjustment?.toLocaleString() || 0}`);
     const currentRouteDistance = data.routeDistance !== undefined ? data.routeDistance : routeDistance;
     const currentDistanceInKm = currentRouteDistance ? (currentRouteDistance / 1000) : 0;
     const extraKm = Math.max(0, Math.ceil(currentDistanceInKm - (matchedPkg?.km || 0)));
@@ -976,7 +976,7 @@ export function useHeroBooking() {
     }
     addRow("Miscellaneous Items", "");
     addRow("Miscellaneous Rate", "");
-    addRow("TOTAL", data.formData.vehicleType === 'SUV' ? "Price on Request" : `Rs. ${data.totalPrice?.toLocaleString() || 0}`, true);
+    addRow("TOTAL", (data.formData.vehicleType === 'SUV' || (data.totalPrice || 0) === 0) ? "Price on Request" : `Rs. ${data.totalPrice?.toLocaleString() || 0}`, true);
     currentY += 5;
 
     // EXTRAS
