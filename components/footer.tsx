@@ -96,7 +96,7 @@ export default function Footer() {
             <div className="footer-col">
               <h4 className="footer-heading">Hotline</h4>
               <a href="tel:+94702787787" className="footer-phone">
-                070 278 7787
+                +94 70 278 7787
               </a>
               <p className="footer-phone-note">(24/7) Support for all inquiries</p>
 

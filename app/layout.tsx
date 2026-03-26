@@ -8,13 +8,21 @@ import { UserProvider } from "@/context/UserContext";
 import LoadingScreen from "@/components/LoadingScreen";
 import "./globals.css";
 
+export const metadata = {
+  title: "Senu Tours — Excellence Redefined",
+  description: "Premium destination travel and tour agency in Sri Lanka. Exceptional journeys tailored to your profile.",
+  icons: {
+    icon: "/senu%20tours%203d.png",
+    apple: "/senu%20tours%203d.png",
+  },
+  themeColor: "#071d24",
+};
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#0d9488" />
-        <link rel="apple-touch-icon" href="/senu tours 3d.png" />
       </head>
       <body>
         <UserProvider>

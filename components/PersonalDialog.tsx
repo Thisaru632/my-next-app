@@ -14,6 +14,7 @@ import AddCircle from '@mui/icons-material/AddCircle';
 import RemoveCircle from '@mui/icons-material/RemoveCircle';
 import Call from '@mui/icons-material/Call';
 import { Download } from 'lucide-react';
+import PhoneInput from './PhoneInput';
 
 interface PersonalDialogProps {
   open: boolean;
@@ -273,106 +274,75 @@ export const PersonalDialog: React.FC<PersonalDialogProps> = ({
                 }}
               />
             </div>
-            <div>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Phone style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
-                <input
-                  type="tel"
-                  placeholder="Primary Telephone"
-                  value={formData.telephone}
-                  onChange={(e) => handleChange('telephone', e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '1rem 3rem 1rem 3rem',
+            <div style={{ position: 'relative' }}>
+              <PhoneInput
+                label="Primary Telephone"
+                value={formData.telephone}
+                onChange={(val) => handleChange('telephone', val)}
+                error={!!phoneError}
+                helperText={phoneError}
+                required
+                sx={{
+                  '& .MuiOutlinedInput-root': {
                     borderRadius: '14px',
-                    border: '1.5px solid rgba(0,0,0,0.08)',
-                    background: 'rgba(0,0,0,0.02)',
-                    fontFamily: "'Montserrat', sans-serif",
-                    fontSize: '0.95rem',
-                    outline: 'none',
-                    transition: 'all 0.3s ease'
+                    bgcolor: 'rgba(0,0,0,0.02)',
+                    '& fieldset': { borderColor: 'rgba(0,0,0,0.08)' },
+                    '&:hover fieldset': { borderColor: '#0d9488' },
+                    '&.Mui-focused fieldset': { borderColor: '#0d9488' }
+                  }
+                }}
+              />
+              {formData.additionalPhones.length < 1 && (
+                <IconButton
+                  onClick={handleAddPhone}
+                  sx={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    color: '#0d9488',
+                    zIndex: 2,
+                    '&:hover': { color: '#0891b2' }
                   }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = '#0d9488';
-                    e.target.style.background = '#fff';
-                    e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = 'rgba(0,0,0,0.08)';
-                    e.target.style.background = 'rgba(0,0,0,0.02)';
-                    e.target.style.boxShadow = 'none';
+                >
+                  <AddCircle />
+                </IconButton>
+              )}
+            </div>
+
+            {/* Additional Phones */}
+            {formData.additionalPhones.map((phoneVal, idx) => (
+              <div key={idx} style={{ position: 'relative' }}>
+                <PhoneInput
+                  label={`Additional Phone ${idx + 1}`}
+                  value={phoneVal}
+                  onChange={(val) => updateAdditionalPhone(idx, val)}
+                  error={!!(additionalPhoneErrors && additionalPhoneErrors[idx])}
+                  helperText={additionalPhoneErrors ? additionalPhoneErrors[idx] : ''}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '14px',
+                      bgcolor: 'rgba(0,0,0,0.02)',
+                      '& fieldset': { borderColor: 'rgba(0,0,0,0.08)' },
+                      '&:hover fieldset': { borderColor: '#0d9488' },
+                      '&.Mui-focused fieldset': { borderColor: '#0d9488' }
+                     }
                   }}
                 />
-                {phoneError && (
-                  <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: '4px', marginLeft: '4px', fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}>
-                    {phoneError}
-                  </div>
-                )}
-                {formData.additionalPhones.length < 1 && (
-                  <IconButton
-                    onClick={handleAddPhone}
-                    sx={{
-                      position: 'absolute',
-                      right: '0.5rem',
-                      color: '#0d9488',
-                      '&:hover': { color: '#0891b2' }
-                    }}
-                  >
-                    <AddCircle />
-                  </IconButton>
-                )}
+                <IconButton
+                  onClick={() => handleRemovePhone(idx)}
+                  sx={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    color: '#ef4444',
+                    zIndex: 2,
+                    '&:hover': { color: '#dc2626' }
+                  }}
+                >
+                  <RemoveCircle />
+                </IconButton>
               </div>
-
-              {/* Additional Phones */}
-              {formData.additionalPhones.map((phoneVal, idx) => (
-                <div key={idx} style={{ position: 'relative', marginTop: '0.75rem', display: 'flex', alignItems: 'center' }}>
-                  <Phone style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
-                  <input
-                    type="tel"
-                    placeholder={`Additional Phone ${idx + 1}`}
-                    value={phoneVal}
-                    onChange={(e) => updateAdditionalPhone(idx, e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '1rem 3rem 1rem 3rem',
-                      borderRadius: '14px',
-                      border: '1.5px solid rgba(0,0,0,0.08)',
-                      background: 'rgba(0,0,0,0.02)',
-                      fontFamily: "'Montserrat', sans-serif",
-                      fontSize: '0.95rem',
-                      outline: 'none',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#0d9488';
-                      e.target.style.background = '#fff';
-                      e.target.style.boxShadow = '0 0 0 4px rgba(13, 148, 136, 0.1)';
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = 'rgba(0,0,0,0.08)';
-                      e.target.style.background = 'rgba(0,0,0,0.02)';
-                      e.target.style.boxShadow = 'none';
-                    }}
-                  />
-                  <IconButton
-                    onClick={() => handleRemovePhone(idx)}
-                    sx={{
-                      position: 'absolute',
-                      right: '0.5rem',
-                      color: '#ef4444',
-                      '&:hover': { color: '#dc2626' }
-                    }}
-                  >
-                    <RemoveCircle />
-                  </IconButton>
-                  {additionalPhoneErrors && additionalPhoneErrors[idx] && (
-                    <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: '4px', marginLeft: '4px', fontFamily: "'Montserrat', sans-serif", fontWeight: 500 }}>
-                      {additionalPhoneErrors[idx]}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+            ))}
             <div style={{ position: 'relative' }}>
               <Email style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#0d9488', zIndex: 1, fontSize: '1.2rem' }} />
               <input

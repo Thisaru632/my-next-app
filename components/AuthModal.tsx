@@ -14,6 +14,7 @@ import {
     Link
 } from '@mui/material';
 import { Mail, Lock, Eye, EyeOff, LogIn, UserPlus, User, Phone, X } from 'lucide-react';
+import PhoneInput from './PhoneInput';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_ENDPOINTS } from '@/config/api';
 import { useUser } from '@/context/UserContext';
@@ -228,26 +229,14 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                                         InputLabelProps={{ sx: { color: '#6b7280' } }}
                                         sx={inputStyles}
                                     />
-                                    <TextField
-                                        fullWidth
+                                    <PhoneInput
                                         label="Phone Number"
-                                        name="phone"
-                                        variant="outlined"
-                                        margin="normal"
                                         value={formData.phone}
-                                        onChange={handleChange}
+                                        onChange={(val) => setFormData({ ...formData, phone: val })}
                                         error={!!fieldErrors.phone}
                                         helperText={fieldErrors.phone}
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <Phone size={20} color="#9ca3af" />
-                                                </InputAdornment>
-                                            ),
-                                            sx: { color: '#111827', fontFamily: "'Montserrat', sans-serif", fontSize: '0.95rem' }
-                                        }}
-                                        InputLabelProps={{ sx: { color: '#6b7280' } }}
-                                        sx={inputStyles}
+                                        required
+                                        sx={{ mt: 2 }}
                                     />
                                 </motion.div>
                             </AnimatePresence>

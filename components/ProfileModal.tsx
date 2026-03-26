@@ -46,6 +46,7 @@ import {
     VisibilityOff as VisibilityOffIcon
 } from '@mui/icons-material';
 import { API_ENDPOINTS } from '@/config/api';
+import PhoneInput from './PhoneInput';
 import { useUser } from '@/context/UserContext';
 
 interface ProfileModalProps {
@@ -316,17 +317,17 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                                     </Box>
                                     <Box>
                                         <Typography variant="caption" sx={{ color: '#C9A961', fontWeight: 700, textTransform: 'uppercase', mb: 1, display: 'block', letterSpacing: '1px' }}>Direct Line</Typography>
-                                        <TextField
-                                            fullWidth
-                                            variant="standard"
-                                            disabled={!editing}
+                                        <PhoneInput
                                             value={profileData.phone}
-                                            onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                                            InputProps={{ 
-                                                disableUnderline: !editing,
-                                                sx: { color: 'white', fontSize: '1.2rem', fontWeight: 600, pb: 0.5, '& .MuiInput-input.Mui-disabled': { WebkitTextFillColor: 'white' } } 
+                                            onChange={(val) => setProfileData({ ...profileData, phone: val })}
+                                            disabled={!editing}
+                                            colorMode="dark"
+                                            variant="standard"
+                                            label=""
+                                            sx={{
+                                                '& .MuiInput-underline:before': { borderBottomColor: 'rgba(255,255,255,0.1)' },
+                                                '& .MuiInput-input.Mui-disabled': { WebkitTextFillColor: 'white' }
                                             }}
-                                            sx={{ '& .MuiInput-underline:before': { borderBottomColor: 'rgba(255,255,255,0.1)' } }}
                                         />
                                     </Box>
                                 </Box>

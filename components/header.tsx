@@ -135,7 +135,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
                    <div className="relative w-2 h-2 bg-green-500 rounded-full"></div>
                 </div>
                 <Call style={{ fontSize: '18px' }} />
-                <span className="text-sm font-black tracking-tight">070 278 7787</span>
+                <span className="text-sm font-black tracking-tight">+94 70 278 7787</span>
               </a>
             </li>
           </ul>

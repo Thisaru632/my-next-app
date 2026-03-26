@@ -1,24 +1,24 @@
 {
-  "name": "Senu Tours - Premium Travel",
+  "name": "Senu Tours — Excellence Redefined",
   "short_name": "Senu Tours",
-  "description": "Premium Tour and Travel Services in Sri Lanka. Professional drivers and luxury vehicles.",
+  "description": "Premium destination travel and tour agency in Sri Lanka. Exceptional journeys tailored to your profile.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0d9488",
+  "background_color": "#071d24",
+  "theme_color": "#071d24",
   "orientation": "portrait",
   "scope": "/",
   "icons": [
     {
-      "src": "/senu tours 3d.png",
+      "src": "/senu%20tours%203d.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/senu%20tours%203d.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-       "src": "/senu tours 3d.png",
-       "sizes": "192x192",
-       "type": "image/png"
     }
   ]
 }
