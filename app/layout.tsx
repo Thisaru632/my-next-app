@@ -5,6 +5,7 @@ import ThemeRegistry from "./all_packages/Themeregistry";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { UserProvider } from "@/context/UserContext";
+import LoadingScreen from "@/components/LoadingScreen";
 import "./globals.css";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <UserProvider>
           <EmotionCache>
             <ThemeRegistry>
+              <LoadingScreen />
               <PWAInstallBanner />
               <ConditionalNavbar />
               <main>{children}</main>

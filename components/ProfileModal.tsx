@@ -329,10 +329,6 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                                             sx={{ '& .MuiInput-underline:before': { borderBottomColor: 'rgba(255,255,255,0.1)' } }}
                                         />
                                     </Box>
-                                    <Box>
-                                        <Typography variant="caption" sx={{ color: '#C9A961', fontWeight: 700, textTransform: 'uppercase', mb: 1, display: 'block', letterSpacing: '1px' }}>Guest Rating</Typography>
-                                        <Typography variant="body1" sx={{ color: '#C9A961', fontWeight: 700, mt: 1, letterSpacing: '2px' }}>★★★★★</Typography>
-                                    </Box>
                                 </Box>
 
                                 {error && <Alert severity="error" sx={{ mb: 3, borderRadius: '12px', bgcolor: 'rgba(244,63,94,0.1)', color: '#f43f5e', border: '1px solid rgba(244,63,94,0.2)', fontWeight: 600 }}>{error}</Alert>}
@@ -345,7 +341,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                                         variant="text"
                                         sx={{ color: '#f43f5e', textTransform: 'none', fontWeight: 700 }}
                                     >
-                                        Terminate Session
+                                        Log out
                                     </Button>
 
                                     <Box sx={{ display: 'flex', gap: 2 }}>
