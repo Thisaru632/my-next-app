@@ -160,7 +160,7 @@ export default function HeroSection() {
         vehicleDiscountsMap={h.vehicleDiscountsMap}
         showPrices={h.selectedCategory !== 'SUV' && (h.formData.tripType === 'Drop' 
           ? !!(h.formData.pickupLocation && h.formData.dropoffLocation) 
-          : !!(h.formData.pickupLocation && h.formData.destinations[0])
+          : !!(h.formData.pickupLocation && h.formData.destinations[0]?.address.trim())
         )}
       />
       <TripTypeDialog open={h.openTripTypeDialog} onClose={() => h.setOpenTripTypeDialog(false)} tripType={h.formData.tripType} tripTypes={tripTypes} onSelect={h.handleTripTypeSelect} onWarn={() => { }} />

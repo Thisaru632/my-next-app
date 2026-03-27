@@ -111,7 +111,9 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
               )}
             </div>
           </div>
-        {h.formData.pickupLocation && h.formData.dropoffLocation && (h.formData.vehicleType === 'SUV' || h.formData.tripType) && (
+        {h.formData.pickupLocation && h.formData.dropoffLocation && 
+         (h.formData.tripType !== 'Return' || h.formData.destinations.some(d => d.address.trim())) && 
+         (h.formData.vehicleType === 'SUV' || h.formData.tripType) && (
           <div id="booking-summary-rate-area" style={{ marginTop: '6px', padding: '12px', background: 'rgba(13,148,136,0.06)', borderRadius: '12px', border: '1px solid rgba(13,148,136,0.15)' }}>
             <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>{h.formData.vehicleType === 'SUV' || h.totalPrice === 0 ? 'Booking Request' : 'Total Estimate'}</div>
             {h.formData.vehicleType !== 'SUV' && h.totalPrice > 0 && (
@@ -172,6 +174,11 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                   </div>
                 )}
               </>
+            )}
+            {Number(h.formData.numberOfDays) > 5 && (
+              <div style={{ marginTop: '1rem', padding: '12px', background: 'rgba(13,148,136,0.06)', borderRadius: '10px', border: '1.5px solid rgba(13,148,136,0.2)', fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#0d9488', fontWeight: 600, textAlign: 'left', lineHeight: 1.5 }}>
+                ℹ️ This trip is more than 5 days. Because we have to clarify some things with you, don't worry—just submit this request and our team will contact you shortly.
+              </div>
             )}
             <div style={{ marginTop: '1rem', textAlign: 'center' }}>
               <button onClick={() => h.setOpenPolicyDialog(true)} style={{ background: 'transparent', border: 'none', color: '#6b7280', fontSize: '0.72rem', fontFamily: "'Montserrat', sans-serif", fontWeight: 500, cursor: 'pointer', textDecoration: 'underline' }}

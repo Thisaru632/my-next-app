@@ -170,7 +170,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMenuClick, showMenuIcon }) => {
                 zIndex: (theme) => theme.zIndex.drawer + 0,
             }}
         >
-            <Toolbar sx={{ justifyContent: 'space-between', gap: 2, minHeight: { xs: 70, sm: 80 } }}>
+            <Toolbar sx={{ justifyContent: 'space-between', gap: 2, minHeight: { xs: 42, sm: 52 } }}>
                 {/* Left Section: Mobile Menu Icon or Page title */}
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     {showMenuIcon && (
@@ -194,8 +194,8 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMenuClick, showMenuIcon }) => {
                             <Image
                                 src="/logo.png"
                                 alt="Senu Tours Logo"
-                                width={180}
-                                height={64}
+                                width={90}
+                                height={32}
                                 priority
                                 style={{ objectFit: 'contain' }}
                             />

@@ -207,8 +207,10 @@ export function useHeroBooking() {
 
   /* Route calculation */
   useEffect(() => {
+    const hasRequiredStop = formData.tripType === 'Drop' || formData.destinations.some(d => d.address.trim() !== "");
     const allStopsHaveCoords = formData.destinations.every(d => d.address.trim() === "" || stopCoords[d.id]);
-    if (!isLoaded || !pickupCoords || !dropoffCoords || !allStopsHaveCoords) {
+    
+    if (!isLoaded || !pickupCoords || !dropoffCoords || !allStopsHaveCoords || !hasRequiredStop) {
       if (routeDistance !== null) { setRouteDistance(null); setRouteDuration(null); setRouteResponse(null); }
       return;
     }
@@ -272,8 +274,6 @@ export function useHeroBooking() {
   }, [routeResponse, classifiedAreas]);
 
   const determinedCategory = useMemo(() => {
-    if (routeDistance === null) return 'City & Mountain'; 
-    
     // Rule: Plains rates ONLY apply to Bus and Van
     const isVanOrBus = ['Van', 'Bus'].includes(formData.vehicleType);
     if (!isVanOrBus) return 'City & Mountain';
@@ -281,9 +281,15 @@ export function useHeroBooking() {
     if (formData.tripType === 'Drop') return 'City & Mountain';
     
     const distKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
-    if (distKm < 200) return 'City & Mountain';
-    return routeCrossesMountain ? 'City & Mountain' : 'Plains';
-  }, [routeDistance, routeCrossesMountain, formData.vehicleType, formData.tripType]);
+    const isMultiDay = Number(formData.numberOfDays) > 1;
+
+    // Use Plains if (dist >= 200 OR multi-day) AND NOT crossing mountain
+    if (distKm >= 200 || isMultiDay) {
+      return routeCrossesMountain ? 'City & Mountain' : 'Plains';
+    }
+    
+    return 'City & Mountain';
+  }, [routeDistance, routeCrossesMountain, formData.vehicleType, formData.tripType, formData.numberOfDays]);
 
   const getVehicleFolderName = (modelName: string) => {
     const mapping: { [key: string]: string } = { 'Aqua': 'Toyota Aqua', 'Axio': 'Toyota Axio', 'KDH Flat Roof': 'KDH Flat Roof  9 Seats', 'Dual AC Van': 'Dual Ac 9 Seater', 'NON AC VAN': 'NON AC Van', 'AC 29 Seater': 'AC 29 Seater Bus', 'Non AC 29 Seater': 'Non AC 29 seater bus', 'AC 32 Seater': 'AC 32 Seater Bus', 'Non AC 32 Seater': 'Non AC 32 seater bus' };
@@ -706,11 +712,18 @@ export function useHeroBooking() {
     const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
 
     const localDeterminedCategory = (() => {
-      if (routeDistance === null || formData.tripType === 'Drop') return 'City & Mountain';
+      // Rule: Plains rates ONLY apply to Bus and Van
       if (!['Van', 'Bus'].includes(vType)) return 'City & Mountain';
+      if (formData.tripType === 'Drop') return 'City & Mountain';
+
       const curDistKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
-      if (curDistKm < 200) return 'City & Mountain';
-      return routeCrossesMountain ? 'City & Mountain' : 'Plains';
+      const isMultiDay = Number(formData.numberOfDays) > 1;
+
+      // Use Plains if (dist >= 200 OR multi-day) AND NOT crossing mountain
+      if (curDistKm >= 200 || isMultiDay) {
+        return routeCrossesMountain ? 'City & Mountain' : 'Plains';
+      }
+      return 'City & Mountain';
     })();
 
     // 1. Find Matched Package (Mirroring main logic)
@@ -944,9 +957,11 @@ export function useHeroBooking() {
     addSectionHeader("TRIP DETAILS");
     addRow("Start Date & Time", formatDate(data.formData.dateTime));
     addRow("From", data.formData.pickupLocation);
-    if (data.destinations && data.destinations.length > 0) {
-      data.destinations
-        .filter((d: string) => d.trim() !== "")
+    const destinations = data.formData.destinations || [];
+    if (destinations.length > 0) {
+      destinations
+        .map((d: any) => typeof d === 'string' ? d : d.address)
+        .filter((addr: string) => addr && addr.trim() !== "")
         .forEach((stop: string, i: number) => {
           addRow(`Stop ${i + 1}`, stop);
         });

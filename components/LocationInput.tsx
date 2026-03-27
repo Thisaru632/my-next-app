@@ -1,8 +1,10 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { IconButton } from '@mui/material';
-import { MyLocation as MyLocationIcon, Map as MapIcon } from '@mui/icons-material';
+import { MyLocation as MyLocationIcon, Map as MapIcon, History as HistoryIcon, LocationOn as LocationIcon } from '@mui/icons-material';
 import MapPicker from './MapPicker';
+import { useUser } from '@/context/UserContext';
+import { API_ENDPOINTS } from '@/config/api';
 
 interface GooglePlaceSuggestion {
   description: string;
@@ -36,6 +38,50 @@ export function LocationInput({
   const abortRef = useRef<AbortController | null>(null);
   const coordsSetRef = useRef(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const { user } = useUser();
+  const [searchHistory, setSearchHistory] = useState<any[]>([]);
+
+  const filteredHistory = searchHistory.filter(h => 
+    !value || h.address.toLowerCase().startsWith(value.toLowerCase())
+  );
+
+  const fetchHistory = useCallback(async () => {
+    if (!user) return;
+    try {
+      const token = localStorage.getItem('customerToken');
+      const res = await fetch(`${API_ENDPOINTS.CUSTOMERS}/search-history`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSearchHistory(data);
+      }
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    }
+  }, [user]);
+
+  const saveToHistory = async (address: string, lat: string, lon: string) => {
+    if (!user) return;
+    try {
+      const token = localStorage.getItem('customerToken');
+      await fetch(`${API_ENDPOINTS.CUSTOMERS}/search-history`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ address, lat, lon })
+      });
+      fetchHistory(); // Refresh history
+    } catch (error) {
+      console.error("Error saving to history:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (user) fetchHistory();
+  }, [user, fetchHistory]);
 
   const handleMyLocation = () => {
     if (!navigator.geolocation) { alert("Geolocation is not supported by your browser"); return; }
@@ -78,7 +124,7 @@ export function LocationInput({
   }, []);
 
   const fetchSuggestions = useCallback(async (query: string) => {
-    if (query.trim().length < 1) { setSuggestions([]); setShowDropdown(false); return; }
+    if (query.trim().length < 1) { setSuggestions([]); return; }
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
     setLoading(true);
@@ -88,7 +134,7 @@ export function LocationInput({
       if (!res.ok) throw new Error(`Google HTTP ${res.status}`);
       const data = await res.json();
       setSuggestions(data.predictions || []);
-      setShowDropdown((data.predictions || []).length > 0);
+      setShowDropdown(true);
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') setSuggestions([]);
     } finally {
@@ -117,6 +163,7 @@ export function LocationInput({
         onSelect?.(lat.toString(), lng.toString());
         coordsSetRef.current = true;
         setCoordsConfirmed(true);
+        saveToHistory(suggestion.description, lat.toString(), lng.toString());
       }
     } catch (error) {
       console.error("Geocoding error:", error);
@@ -133,8 +180,8 @@ export function LocationInput({
         type="text" value={value} onChange={handleInput} placeholder={placeholder}
         autoComplete="off" disabled={disabled}
         style={{ ...inputStyle, ...activeStyle, width: '100%', boxSizing: 'border-box', paddingRight: (coordsConfirmed || loading) ? '60px' : '40px', cursor: disabled ? 'not-allowed' : 'text', opacity: disabled ? 0.8 : 1 }}
-        onFocus={() => { if (disabled) return; setActiveStyle(onFocusStyle); setShowDropdown(true); }}
-        onClick={() => { if (disabled) return; setShowDropdown(true); }}
+        onFocus={() => { if (disabled) return; setActiveStyle(onFocusStyle); setShowDropdown(true); if (user) fetchHistory(); }}
+        onClick={() => { if (disabled) return; setShowDropdown(true); if (user) fetchHistory(); }}
         onBlur={() => { setActiveStyle(onBlurStyle); setTimeout(() => setShowDropdown(false), 200); }}
       />
       {showDropdown && (
@@ -155,13 +202,45 @@ export function LocationInput({
           >
             <MapIcon style={{ fontSize: '18px' }} /> Select on map
           </li>
+          
+          {user && filteredHistory.length > 0 && (
+            <>
+              <li style={{ padding: '8px 14px', fontSize: '0.7rem', fontWeight: 700, color: '#666', background: '#f8fafc', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                <HistoryIcon style={{ fontSize: '14px' }} /> {value ? 'Matching History' : 'Recent History'}
+              </li>
+              {filteredHistory.map((h, i) => (
+                <li key={`hist-${i}`} onMouseDown={(e) => {
+                  e.preventDefault();
+                  onChange(h.address);
+                  onSelect?.(h.lat, h.lon);
+                  setCoordsConfirmed(true);
+                  setShowDropdown(false);
+                  saveToHistory(h.address, h.lat, h.lon);
+                }}
+                  style={{ padding: '9px 14px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: "'Montserrat', sans-serif", color: '#1a1a1a', lineHeight: 1.4, borderBottom: '1px solid rgba(13,148,136,0.05)', transition: 'background 0.15s', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(13,148,136,0.08)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <LocationIcon style={{ fontSize: '14px', color: '#999' }} />
+                  <span style={{ color: '#444', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.address}</span>
+                </li>
+              ))}
+              {suggestions.length > 0 && (
+                <li style={{ padding: '8px 14px', fontSize: '0.7rem', fontWeight: 700, color: '#666', background: '#f8fafc', textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: '2px solid rgba(13,148,136,0.1)', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                  Search Results
+                </li>
+              )}
+            </>
+          )}
+
           {suggestions.map((s) => (
             <li key={s.place_id} onMouseDown={() => handleSelect(s)}
-              style={{ padding: '9px 14px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: "'Montserrat', sans-serif", color: '#1a1a1a', lineHeight: 1.4, borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background 0.15s' }}
+              style={{ padding: '9px 14px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: "'Montserrat', sans-serif", color: '#1a1a1a', lineHeight: 1.4, borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background 0.15s', display: 'flex', alignItems: 'center', gap: '8px' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(13,148,136,0.08)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              <span style={{ color: '#0d9488', fontWeight: 600 }}>{s.description}</span>
+              <LocationIcon style={{ fontSize: '14px', color: '#666' }} />
+              <span style={{ color: '#0d9488', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</span>
             </li>
           ))}
         </ul>
@@ -180,7 +259,13 @@ export function LocationInput({
       )}
       <style>{`@keyframes loc-spin { to { transform: translateY(-50%) rotate(360deg); } }`}</style>
       <MapPicker open={showMapPicker} onClose={() => setShowMapPicker(false)} apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc"
-        onSelect={(addr, lat, lng) => { onChange(addr); onSelect?.(lat.toString(), lng.toString()); setCoordsConfirmed(true); setShowDropdown(false); }}
+        onSelect={(addr, lat, lng) => {
+          onChange(addr);
+          onSelect?.(lat.toString(), lng.toString());
+          setCoordsConfirmed(true);
+          setShowDropdown(false);
+          saveToHistory(addr, lat.toString(), lng.toString());
+        }}
       />
     </div>
   );
