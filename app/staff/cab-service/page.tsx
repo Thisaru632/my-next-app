@@ -32,7 +32,10 @@ import {
     Chip,
     Tabs,
     Tab,
-    Autocomplete
+    Autocomplete,
+    InputAdornment,
+    Grid,
+    Divider
 } from '@mui/material';
 import { 
     Add as AddIcon, 
@@ -42,7 +45,13 @@ import {
     Refresh as RefreshIcon,
     Search as SearchIcon,
     Phone as PhoneIcon,
-    LocationOn as LocationIcon
+    LocationOn as LocationIcon,
+    Warning as WarningIcon,
+    Visibility as ViewIcon,
+    Block as BlockIcon,
+    CheckCircle as ApproveIcon,
+    TrendingUp as TrendingUpIcon,
+    Info as InfoIcon
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
@@ -97,18 +106,29 @@ const CabServicePage = () => {
         hotlineNumbers: '',
         location: '',
         serviceType: '',
-        comments: '',
         status: 'Active'
     });
     const [isEditing, setIsEditing] = useState(false);
+    const [isViewing, setIsViewing] = useState(false);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+    const [errorModal, setErrorModal] = useState({ open: false, message: '', title: '' });
+    const [serviceTypeFilter, setServiceTypeFilter] = useState('All');
 
     // Rates State
     const [activeTab, setActiveTab] = useState(0);
     const [rates, setRates] = useState<CabRate[]>([]);
     const [rateCardVehicles, setRateCardVehicles] = useState<string[]>([]);
+    const [rateCompanyFilter, setRateCompanyFilter] = useState('All');
+    const [rateVehicleFilter, setRateVehicleFilter] = useState('All');
+    const [rateHourFilter, setRateHourFilter] = useState('All');
+    const [rateStartDateFilter, setRateStartDateFilter] = useState('');
+    const [rateEndDateFilter, setRateEndDateFilter] = useState('');
+    const [rateMinKmFilter, setRateMinKmFilter] = useState('');
+    const [rateMaxKmFilter, setRateMaxKmFilter] = useState('');
     const [openRateDialog, setOpenRateDialog] = useState(false);
     const [isEditingRate, setIsEditingRate] = useState(false);
+    const [isViewingRate, setIsViewingRate] = useState(false);
+    const [senuRateCards, setSenuRateCards] = useState<any[]>([]);
     const [currentRate, setCurrentRate] = useState<CabRate>({
         rateDate: new Date().toISOString().split('T')[0],
         cabCompanyName: '',
@@ -169,33 +189,103 @@ const CabServicePage = () => {
         }
     };
 
+    const fetchSenuRateCards = async () => {
+        try {
+            const response = await fetch(API_ENDPOINTS.RATE_CARDS);
+            if (response.ok) {
+                setSenuRateCards(await response.json());
+            }
+        } catch (error) {
+            console.error('Error fetching senu rates:', error);
+        }
+    };
+
     useEffect(() => {
         fetchServices();
         fetchRates();
         fetchRateCardVehicles();
+        fetchSenuRateCards();
     }, []);
 
     const showSnackbar = (message: string, severity: 'success' | 'error' = 'success') => {
         setSnackbar({ open: true, message, severity });
     };
 
-    const handleOpenDialog = (service?: CabService) => {
+    const handleOpenDialog = (service?: CabService, viewing = false) => {
+        setIsViewing(viewing);
         if (service) {
-            setCurrentService(service);
-            setIsEditing(true);
+            // Sanitize service to avoid null/undefined values in TextFields
+            setCurrentService({
+                _id: service._id,
+                serviceName: service.serviceName || '',
+                hotlineNumbers: service.hotlineNumbers || '',
+                location: service.location || '',
+                serviceType: service.serviceType || '',
+                status: service.status || 'Active'
+            });
+            setIsEditing(!viewing);
         } else {
             setCurrentService({
                 serviceName: '',
                 hotlineNumbers: '',
                 location: '',
                 serviceType: '',
-                comments: '',
                 status: 'Active'
             });
             setIsEditing(false);
         }
         setHotlineError('');
         setOpenDialog(true);
+    };
+
+    const handleReject = async (id: string) => {
+        if (!window.confirm('Are you sure you want to reject this cab service?')) return;
+        try {
+            const token = localStorage.getItem('staffToken');
+            const response = await fetch(`${API_ENDPOINTS.CAB_SERVICES}/${id}`, {
+                method: 'PATCH',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: 'Rejected' })
+            });
+
+            if (response.ok) {
+                showSnackbar('Service rejected successfully');
+                fetchServices();
+            } else {
+                showSnackbar('Failed to update status', 'error');
+            }
+        } catch (error) {
+            console.error('Error rejecting service:', error);
+            showSnackbar('An error occurred', 'error');
+        }
+    };
+
+    const handleApprove = async (id: string) => {
+        if (!window.confirm('Are you sure you want to approve this cab service?')) return;
+        try {
+            const token = localStorage.getItem('staffToken');
+            const response = await fetch(`${API_ENDPOINTS.CAB_SERVICES}/${id}`, {
+                method: 'PATCH',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: 'Active' })
+            });
+
+            if (response.ok) {
+                showSnackbar('Service approved successfully');
+                fetchServices();
+            } else {
+                showSnackbar('Failed to update status', 'error');
+            }
+        } catch (error) {
+            console.error('Error approving service:', error);
+            showSnackbar('An error occurred', 'error');
+        }
     };
 
     const handleCloseDialog = () => {
@@ -212,6 +302,24 @@ const CabServicePage = () => {
             showSnackbar('Please fix the invalid hotline number(s)', 'error');
             return;
         }
+
+        // --- DUPLICATE HOTLINE CHECK ---
+        const currentNums = currentService.hotlineNumbers.split(',').map(num => num.trim().replace(/\D/g, ''));
+        const duplicate = services.find(s => {
+            if (isEditing && s._id === currentService._id) return false;
+            const existingNums = s.hotlineNumbers.split(',').map(num => num.trim().replace(/\D/g, ''));
+            return existingNums.some(num => num && currentNums.includes(num));
+        });
+
+        if (duplicate) {
+            setErrorModal({
+                open: true,
+                title: 'Duplicate Hotline Detected',
+                message: `This hotline number already belongs to "${duplicate.serviceName}". Duplicate entries are not allowed.`
+            });
+            return;
+        }
+        // -------------------------------
 
         try {
             const token = localStorage.getItem('staffToken');
@@ -263,28 +371,174 @@ const CabServicePage = () => {
         }
     };
 
-    const filteredServices = services.filter(s => 
-        s.serviceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.hotlineNumbers.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (s.serviceType && s.serviceType.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    const filteredServices = services.filter(s => {
+        const matchesSearch = s.serviceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            s.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            s.hotlineNumbers.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (s.serviceType && s.serviceType.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        const matchesType = serviceTypeFilter === 'All' || 
+            (s.serviceType && s.serviceType.split(', ').includes(serviceTypeFilter));
+        
+        return matchesSearch && matchesType;
+    });
 
-    const filteredRates = rates.filter(r => 
-        r.cabCompanyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.nearTown.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.startLocation.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.endLocation.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredRates = rates.filter(r => {
+        const matchesSearch = r.cabCompanyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            r.nearTown.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            r.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            r.startLocation.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            r.endLocation.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const matchesCompany = rateCompanyFilter === 'All' || r.cabCompanyName === rateCompanyFilter;
+        const matchesVehicle = rateVehicleFilter === 'All' || r.vehicle === rateVehicleFilter;
+        const matchesHour = rateHourFilter === 'All' || r.hours === parseInt(rateHourFilter);
+        
+        let matchesDate = true;
+        if (rateStartDateFilter || rateEndDateFilter) {
+            const rDate = new Date(r.rateDate);
+            if (rateStartDateFilter && rDate < new Date(rateStartDateFilter)) matchesDate = false;
+            if (rateEndDateFilter && rDate > new Date(rateEndDateFilter)) matchesDate = false;
+        }
+        
+        const minKm = rateMinKmFilter ? parseInt(rateMinKmFilter) : 0;
+        const maxKm = rateMaxKmFilter ? parseInt(rateMaxKmFilter) : Infinity;
+        const matchesKm = r.km >= minKm && r.km <= maxKm;
 
-    const handleOpenRateDialog = (rate?: CabRate) => {
+        return matchesSearch && matchesCompany && matchesVehicle && matchesHour && matchesDate && matchesKm;
+    });
+
+    const clearRateFilters = () => {
+        setRateCompanyFilter('All');
+        setRateVehicleFilter('All');
+        setRateHourFilter('All');
+        setRateStartDateFilter('');
+        setRateEndDateFilter('');
+        setRateMinKmFilter('');
+        setRateMaxKmFilter('');
+        setSearchQuery('');
+    };
+
+    const uniqueRateCompanies = Array.from(new Set(rates.map(r => r.cabCompanyName))).sort();
+    const uniqueRateVehicles = Array.from(new Set(rates.map(r => r.vehicle))).sort();
+    const uniqueRateHours = Array.from(new Set(rates.map(r => r.hours))).sort((a,b) => a-b);
+    const uniqueRateTowns = Array.from(new Set(rates.map(r => r.nearTown))).filter(Boolean).sort();
+
+    const getSenuRateDetails = (row: CabRate) => {
+        if (!senuRateCards.length || !row.km || parseFloat(String(row.km)) === 0) return null;
+        
+        const simplify = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const cleanVeh = simplify(row.vehicle);
+        const cleanType = row.tripType.toLowerCase();
+
+        const matches = senuRateCards.filter(card => {
+            const cVeh = simplify(card.vehicle);
+            const cType = simplify(card.type);
+            
+            const isOneway = cType.includes('oneway') || cType === 'drop';
+            const isReturn = cType.includes('roundtrip') || cType.includes('bothway') || cType === 'return';
+            
+            const typeMatch = (cleanType === 'drop' && isOneway) ||
+                              (cleanType === 'return' && isReturn);
+            
+            const vehMatch = cVeh === cleanVeh || cVeh.includes(cleanVeh) || cleanVeh.includes(cVeh);
+            const dayMatch = card.days === 1;
+
+            return typeMatch && vehMatch && (card.status === 'Approved' || card.status === 'Active') && dayMatch;
+        });
+
+        if (matches.length === 0) {
+             const fallback = senuRateCards.filter(card => {
+                const cVeh = simplify(card.vehicle);
+                const cType = simplify(card.type);
+                const isOneway = cType.includes('oneway') || cType === 'drop';
+                const isReturn = cType.includes('roundtrip') || cType.includes('bothway') || cType === 'return';
+                const typeMatch = (cleanType === 'drop' && isOneway) || (cleanType === 'return' && isReturn);
+                const vehMatch = cVeh === cleanVeh || cVeh.includes(cleanVeh) || cleanVeh.includes(cVeh);
+                return typeMatch && vehMatch;
+            });
+            if (fallback.length === 0) return null;
+            matches.push(...fallback);
+        }
+
+        const rowKm = parseFloat(String(row.km)) || 0;
+        const rowHrs = parseFloat(String(row.hours)) || 0;
+
+        const exactKmMatches = matches.filter(c => parseFloat(String(c.km)) === rowKm);
+        let matchedPkg = null;
+        let method = '';
+
+        if (exactKmMatches.length > 0) {
+            const preferredExact = exactKmMatches.filter(c => c.category?.toLowerCase() === 'city & mountain');
+            const targetExact = preferredExact.length > 0 ? preferredExact : exactKmMatches;
+            matchedPkg = targetExact.reduce((min, curr) => (curr.hrs < min.hrs ? curr : min), targetExact[0]);
+            method = preferredExact.length > 0 ? 'Exact KM Match (City & Mountain)' : 'Exact KM Match';
+        } else {
+            let priorityMatches = matches.filter(c => c.category?.toLowerCase() === 'city & mountain');
+            const finalMatches = priorityMatches.length > 0 ? priorityMatches : matches;
+            const sorted = finalMatches.sort((a, b) => a.km !== b.km ? a.km - b.km : a.hrs - b.hrs);
+            const possible = sorted.filter(c => c.km <= rowKm).map(c => c.km);
+            const maxBelow = possible.length > 0 ? Math.max(...possible) : null;
+            matchedPkg = maxBelow !== null ? sorted.find(c => c.km === maxBelow) : sorted[0];
+            method = priorityMatches.length > 0 ? (maxBelow !== null ? 'Closest Match Below (C&M)' : 'Smallest Package (C&M)') : (maxBelow !== null ? 'Closest Match Below' : 'Smallest Package');
+        }
+
+        if (!matchedPkg) return null;
+
+        let total = matchedPkg.rateAmount;
+        let extraKmCost = 0;
+        let extraHrCost = 0;
+
+        if (rowKm > matchedPkg.km) {
+            extraKmCost = Math.ceil(rowKm - matchedPkg.km) * (matchedPkg.extraKMRate || 0);
+            total += extraKmCost;
+        }
+        if (rowHrs > matchedPkg.hrs) {
+            extraHrCost = (rowHrs - matchedPkg.hrs) * (matchedPkg.extraHrRate1 || 0);
+            total += extraHrCost;
+        }
+
+        return {
+            package: `${matchedPkg.km} KM / ${matchedPkg.hrs} Hrs`,
+            method,
+            baseRate: matchedPkg.rateAmount,
+            extraKmRate: matchedPkg.extraKMRate,
+            extraHrRate: matchedPkg.extraHrRate1,
+            extraKmCost,
+            extraHrCost,
+            total,
+            category: matchedPkg.category
+        };
+    };
+
+    const calculateSenuRateValue = (row: CabRate) => {
+        if (!row.km || parseFloat(String(row.km)) === 0) return '---';
+        const details = getSenuRateDetails(row);
+        return details ? details.total : 'No Card';
+    };
+
+    const handleOpenRateDialog = (rate?: CabRate, viewing = false) => {
+        setIsViewingRate(viewing);
         if (rate) {
+            // Sanitize rate to avoid null/undefined values in TextFields
             setCurrentRate({
                 ...rate,
-                rateDate: rate.rateDate ? new Date(rate.rateDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+                rateDate: rate.rateDate ? new Date(rate.rateDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                cabCompanyName: rate.cabCompanyName || '',
+                hotline: rate.hotline || '',
+                nearTown: rate.nearTown || '',
+                vehicle: rate.vehicle || '',
+                startLocation: rate.startLocation || '',
+                endLocation: rate.endLocation || '',
+                tripType: rate.tripType || '',
+                km: rate.km ?? '',
+                hours: rate.hours ?? '',
+                price: rate.price ?? '',
+                extraKmPrice: rate.extraKmPrice ?? '',
+                extraHourPrice: rate.extraHourPrice ?? '',
+                comment: rate.comment || ''
             });
-            setIsEditingRate(true);
+            setIsEditingRate(!viewing);
         } else {
             setCurrentRate({
                 rateDate: new Date().toISOString().split('T')[0],
@@ -439,22 +693,138 @@ const CabServicePage = () => {
             </Box>
 
             {/* Search and Refresh */}
-            <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
                 <TextField
-                    placeholder="Search by name, location, or phone..."
+                    placeholder={activeTab === 0 ? "Search by name, location or hotline..." : "Search by company, town or vehicle..."}
                     variant="outlined"
                     size="small"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    InputProps={{
-                        startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />,
-                    }}
                     sx={{ 
-                        flex: 1, 
-                        maxWidth: '500px',
+                        flexGrow: 1,
+                        maxWidth: '400px',
                         '& .MuiOutlinedInput-root': { borderRadius: '12px' }
                     }}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon fontSize="small" color="action" />
+                            </InputAdornment>
+                        ),
+                    }}
                 />
+
+                {activeTab === 0 && (
+                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                        <InputLabel>Filter by Service Type</InputLabel>
+                        <Select
+                            label="Filter by Service Type"
+                            value={serviceTypeFilter}
+                            onChange={(e) => setServiceTypeFilter(e.target.value)}
+                            sx={{ borderRadius: '12px' }}
+                        >
+                            <MenuItem value="All">All Services</MenuItem>
+                            {SERVICE_TYPE_OPTIONS.map(opt => (
+                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                )}
+
+                {activeTab === 1 && (
+                    <>
+                        <FormControl size="small" sx={{ minWidth: 160 }}>
+                            <InputLabel>Company</InputLabel>
+                            <Select
+                                label="Company"
+                                value={rateCompanyFilter}
+                                onChange={(e) => setRateCompanyFilter(e.target.value)}
+                                sx={{ borderRadius: '12px' }}
+                            >
+                                <MenuItem value="All">All Companies</MenuItem>
+                                {uniqueRateCompanies.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ minWidth: 160 }}>
+                            <InputLabel>Vehicle</InputLabel>
+                            <Select
+                                label="Vehicle"
+                                value={rateVehicleFilter}
+                                onChange={(e) => setRateVehicleFilter(e.target.value)}
+                                sx={{ borderRadius: '12px' }}
+                            >
+                                <MenuItem value="All">All Vehicles</MenuItem>
+                                {rateCardVehicles.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
+                            </Select>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ minWidth: 100 }}>
+                            <InputLabel>Hours</InputLabel>
+                            <Select
+                                label="Hours"
+                                value={rateHourFilter}
+                                onChange={(e) => setRateHourFilter(e.target.value)}
+                                sx={{ borderRadius: '12px' }}
+                            >
+                                <MenuItem value="All">All Hrs</MenuItem>
+                                {uniqueRateHours.map(h => <MenuItem key={h} value={String(h)}>{h}h</MenuItem>)}
+                            </Select>
+                        </FormControl>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <TextField
+                                label="From"
+                                size="small"
+                                type="date"
+                                value={rateStartDateFilter}
+                                onChange={(e) => setRateStartDateFilter(e.target.value)}
+                                sx={{ width: 150, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                InputLabelProps={{ shrink: true }}
+                            />
+                            <Typography variant="caption" color="text.secondary">to</Typography>
+                            <TextField
+                                label="To"
+                                size="small"
+                                type="date"
+                                value={rateEndDateFilter}
+                                onChange={(e) => setRateEndDateFilter(e.target.value)}
+                                sx={{ width: 150, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <TextField
+                                label="Min KM"
+                                size="small"
+                                type="number"
+                                value={rateMinKmFilter}
+                                onChange={(e) => setRateMinKmFilter(e.target.value)}
+                                sx={{ width: 90, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                            />
+                            <Typography variant="caption" color="text.secondary">-</Typography>
+                            <TextField
+                                label="Max KM"
+                                size="small"
+                                type="number"
+                                value={rateMaxKmFilter}
+                                onChange={(e) => setRateMaxKmFilter(e.target.value)}
+                                sx={{ width: 90, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                            />
+                        </Box>
+
+                        <Button 
+                            variant="text" 
+                            size="small" 
+                            onClick={clearRateFilters}
+                            sx={{ color: 'text.secondary', textTransform: 'none', fontWeight: 600 }}
+                        >
+                            Reset
+                        </Button>
+                    </>
+                )}
+
                 <IconButton onClick={activeTab === 0 ? fetchServices : fetchRates} disabled={loading} color="primary" sx={{ bgcolor: 'rgba(59, 130, 246, 0.1)' }}>
                     <RefreshIcon className={loading ? 'spin' : ''} />
                 </IconButton>
@@ -484,6 +854,7 @@ const CabServicePage = () => {
                                     <TableCell sx={{ fontWeight: 700 }}>Hotline Number</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Location</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Service Type</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Comments</TableCell>
                                     <TableCell sx={{ fontWeight: 700, textAlign: 'right' }}>Actions</TableCell>
                                 </TableRow>
@@ -491,7 +862,7 @@ const CabServicePage = () => {
                             <TableBody>
                                 {filteredServices.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                                        <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
                                             <Typography color="text.secondary">No cab services found.</Typography>
                                         </TableCell>
                                     </TableRow>
@@ -535,20 +906,70 @@ const CabServicePage = () => {
                                                     ))}
                                                 </Box>
                                             </TableCell>
+                                            <TableCell>
+                                                <Chip 
+                                                    label={service.status || 'Active'} 
+                                                    size="small" 
+                                                    color={service.status === 'Rejected' ? 'error' : (service.status === 'Pending' ? 'warning' : 'success')}
+                                                    variant="outlined"
+                                                    sx={{ fontWeight: 700, minWidth: 80, borderRadius: '8px' }}
+                                                />
+                                            </TableCell>
                                             <TableCell sx={{ maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                {service.comments}
+                                                {service.comments || '---'}
                                             </TableCell>
                                             <TableCell align="right">
-                                                <Tooltip title="Edit">
-                                                    <IconButton onClick={() => handleOpenDialog(service)} size="small" color="primary">
-                                                        <EditIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                                <Tooltip title="Delete">
-                                                    <IconButton onClick={() => handleDelete(service._id!)} size="small" color="error">
-                                                        <DeleteIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
+                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+                                                    <Tooltip title="View Details">
+                                                        <IconButton 
+                                                            size="small" 
+                                                            onClick={() => handleOpenDialog(service, true)}
+                                                            sx={{ color: 'text.secondary' }}
+                                                        >
+                                                            <ViewIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Edit Service">
+                                                        <IconButton 
+                                                            size="small" 
+                                                            onClick={() => handleOpenDialog(service, false)}
+                                                            color="primary"
+                                                        >
+                                                            <EditIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    {service.status !== 'Active' && (
+                                                        <Tooltip title="Approve Service">
+                                                            <IconButton 
+                                                                size="small" 
+                                                                onClick={() => handleApprove(service._id!)}
+                                                                sx={{ color: '#22c55e' }}
+                                                            >
+                                                                <ApproveIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+                                                    {service.status !== 'Rejected' && (
+                                                        <Tooltip title="Reject Service">
+                                                            <IconButton 
+                                                                size="small" 
+                                                                onClick={() => handleReject(service._id!)}
+                                                                sx={{ color: '#ef4444' }}
+                                                            >
+                                                                <BlockIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+                                                    <Tooltip title="Delete Permanently">
+                                                        <IconButton 
+                                                            size="small" 
+                                                            onClick={() => handleDelete(service._id!)}
+                                                            sx={{ color: '#94a3b8' }}
+                                                        >
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Box>
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -577,22 +998,18 @@ const CabServicePage = () => {
                         <Table size="small" sx={{ minWidth: 1200 }}>
                             <TableHead sx={{ bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b' }}>
                                 <TableRow>
-                                    <TableCell sx={{ fontWeight: 700 }}>Ref No</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Cab Company</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Hotline</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Near Town</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Vehicle</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Start</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>End</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>KM</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Hours</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Price</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Ex KM</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Ex Hr</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Added By</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Comment</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Cab Rate</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Senu Rate</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
@@ -606,39 +1023,60 @@ const CabServicePage = () => {
                                 ) : (
                                     filteredRates.map((rate) => (
                                         <TableRow key={rate._id} hover>
-                                            <TableCell>
-                                                <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', bgcolor: 'rgba(59, 130, 246, 0.1)', px: 1, py: 0.5, borderRadius: '4px' }}>
-                                                    {rate.refNo || '---'}
-                                                </Typography>
-                                            </TableCell>
                                             <TableCell>{rate.rateDate ? new Date(rate.rateDate).toLocaleDateString() : 'N/A'}</TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>{rate.cabCompanyName}</TableCell>
-                                            <TableCell>{rate.hotline}</TableCell>
-                                            <TableCell>{rate.nearTown}</TableCell>
                                             <TableCell>{rate.vehicle}</TableCell>
                                             <TableCell>{rate.startLocation}</TableCell>
                                             <TableCell>{rate.endLocation}</TableCell>
                                             <TableCell>{rate.tripType}</TableCell>
                                             <TableCell>{rate.km}</TableCell>
                                             <TableCell>{rate.hours}</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, color: 'primary.main' }}>{rate.price?.toLocaleString()}</TableCell>
                                             <TableCell>{rate.extraKmPrice}</TableCell>
                                             <TableCell>{rate.extraHourPrice}</TableCell>
-                                            <TableCell>
-                                                <Chip 
-                                                    label={rate.addedBy || 'System'} 
-                                                    size="small" 
-                                                    sx={{ fontSize: '0.65rem', height: '20px', bgcolor: 'rgba(0,0,0,0.05)' }} 
-                                                />
+                                            <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>{rate.price?.toLocaleString()}</TableCell>
+                                            <TableCell sx={{ fontWeight: 800, color: (() => {
+                                                const sRateValue = calculateSenuRateValue(rate);
+                                                if (typeof sRateValue !== 'number') return 'text.secondary';
+                                                const cabP = Number(rate.price) || 0;
+                                                return sRateValue < cabP ? '#10b981' : (sRateValue > cabP ? '#ef4444' : '#059669');
+                                            })() }}>
+                                                {(() => {
+                                                    const sVal = calculateSenuRateValue(rate);
+                                                    return typeof sVal === 'number' 
+                                                        ? `Rs. ${sVal.toLocaleString()}` 
+                                                        : sVal;
+                                                })()}
                                             </TableCell>
-                                            <TableCell sx={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rate.comment}</TableCell>
-                                            <TableCell>
-                                                <IconButton onClick={() => handleOpenRateDialog(rate)} size="small" color="primary">
-                                                    <EditIcon fontSize="inherit" />
-                                                </IconButton>
-                                                <IconButton onClick={() => handleDeleteRate(rate._id!)} size="small" color="error">
-                                                    <DeleteIcon fontSize="inherit" />
-                                                </IconButton>
+                                            <TableCell align="right">
+                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
+                                                    <Tooltip title="View Details">
+                                                        <IconButton 
+                                                            size="small" 
+                                                            onClick={() => handleOpenRateDialog(rate, true)}
+                                                            sx={{ color: 'text.secondary' }}
+                                                        >
+                                                            <ViewIcon fontSize="inherit" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Edit Rate">
+                                                        <IconButton 
+                                                            size="small" 
+                                                            onClick={() => handleOpenRateDialog(rate, false)}
+                                                            color="primary"
+                                                        >
+                                                            <EditIcon fontSize="inherit" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Delete Permanently">
+                                                        <IconButton 
+                                                            size="small" 
+                                                            onClick={() => handleDeleteRate(rate._id!)}
+                                                            color="error"
+                                                        >
+                                                            <DeleteIcon fontSize="inherit" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Box>
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -660,7 +1098,7 @@ const CabServicePage = () => {
                 }}
             >
                 <DialogTitle sx={{ fontWeight: 800 }}>
-                    {isEditing ? 'Edit Cab Service' : 'Add New Cab Service'}
+                    {isViewing ? 'Cab Service Details' : (isEditing ? 'Edit Cab Service' : 'Add New Cab Service')}
                 </DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
@@ -669,6 +1107,7 @@ const CabServicePage = () => {
                             fullWidth
                             variant="outlined"
                             required
+                            disabled={isViewing}
                             value={currentService.serviceName}
                             onChange={(e) => setCurrentService({ ...currentService, serviceName: e.target.value })}
                         />
@@ -678,6 +1117,7 @@ const CabServicePage = () => {
                             variant="outlined"
                             helperText={hotlineError || "E.g. 0112337337 / 777456"}
                             error={!!hotlineError}
+                            disabled={isViewing}
                             value={currentService.hotlineNumbers}
                             onChange={(e) => {
                                 const val = e.target.value;
@@ -702,6 +1142,7 @@ const CabServicePage = () => {
                             label="Location"
                             fullWidth
                             variant="outlined"
+                            disabled={isViewing}
                             value={currentService.location}
                             onChange={(e) => setCurrentService({ ...currentService, location: e.target.value })}
                         />
@@ -717,6 +1158,7 @@ const CabServicePage = () => {
                                     setCurrentService({ ...currentService, serviceType: (val as string[]).join(', ') });
                                 }}
                                 input={<OutlinedInput id="select-multiple-chip" label="Service Type" />}
+                                disabled={isViewing}
                                 renderValue={(selected) => (
                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                         {(selected as string[]).map((value) => (
@@ -743,12 +1185,27 @@ const CabServicePage = () => {
                                 ))}
                             </Select>
                         </FormControl>
+                        <FormControl fullWidth variant="outlined" disabled={isViewing}>
+                            <InputLabel id="service-status-label">Status</InputLabel>
+                            <Select
+                                labelId="service-status-label"
+                                label="Status"
+                                value={currentService.status || 'Active'}
+                                onChange={(e) => setCurrentService({ ...currentService, status: e.target.value })}
+                            >
+                                <MenuItem value="Active">Active</MenuItem>
+                                <MenuItem value="Pending">Pending</MenuItem>
+                                <MenuItem value="Rejected">Rejected</MenuItem>
+                            </Select>
+                        </FormControl>
+
                         <TextField
                             label="Comments"
                             fullWidth
                             multiline
                             rows={3}
                             variant="outlined"
+                            disabled={isViewing}
                             value={currentService.comments}
                             onChange={(e) => setCurrentService({ ...currentService, comments: e.target.value })}
                         />
@@ -756,21 +1213,23 @@ const CabServicePage = () => {
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
                     <Button onClick={handleCloseDialog} sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600 }}>
-                        Cancel
+                        {isViewing ? 'Close' : 'Cancel'}
                     </Button>
-                    <Button 
-                        onClick={handleSubmit} 
-                        variant="contained" 
-                        sx={{ 
-                            borderRadius: '12px', 
-                            textTransform: 'none', 
-                            px: 4,
-                            fontWeight: 700,
-                            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
-                        }}
-                    >
-                        {isEditing ? 'Update Changes' : 'Register Service'}
-                    </Button>
+                    {!isViewing && (
+                        <Button 
+                            onClick={handleSubmit} 
+                            variant="contained" 
+                            sx={{ 
+                                borderRadius: '12px', 
+                                textTransform: 'none', 
+                                px: 4,
+                                fontWeight: 700,
+                                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
+                            }}
+                        >
+                            {isEditing ? 'Update Changes' : 'Register Service'}
+                        </Button>
+                    )}
                 </DialogActions>
             </Dialog>
 
@@ -785,7 +1244,7 @@ const CabServicePage = () => {
                 }}
             >
                 <DialogTitle sx={{ fontWeight: 800 }}>
-                    {isEditingRate ? 'Edit Company Rate' : 'Add New Company Rate'}
+                    {isViewingRate ? 'Company Rate Details' : (isEditingRate ? 'Edit Company Rate' : 'Add New Company Rate')}
                 </DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
@@ -793,34 +1252,39 @@ const CabServicePage = () => {
                             <TextField
                                 label="Date"
                                 type="date"
+                                disabled={isViewingRate}
                                 value={currentRate.rateDate}
                                 onChange={(e) => setCurrentRate({ ...currentRate, rateDate: e.target.value })}
                                 InputLabelProps={{ shrink: true }}
                             />
+                            {(isEditingRate || isViewingRate) && (
+                                <TextField
+                                    label="Reference Number"
+                                    disabled
+                                    value={currentRate.refNo || currentRate._id?.slice(-6) || '---'}
+                                />
+                            )}
                             <Autocomplete
-                                options={services}
-                                getOptionLabel={(option) => typeof option === 'string' ? option : option.serviceName}
-                                value={services.find(s => s.serviceName === currentRate.cabCompanyName) || null}
+                                options={uniqueRateCompanies}
+                                value={currentRate.cabCompanyName}
+                                disabled={isViewingRate}
                                 onChange={(_, newValue) => {
-                                    if (newValue && typeof newValue !== 'string') {
-                                        setCurrentRate({
-                                            ...currentRate,
-                                            cabCompanyName: newValue.serviceName,
-                                            hotline: newValue.hotlineNumbers,
-                                            nearTown: newValue.location
-                                        });
-                                    } else if (!newValue) {
-                                        setCurrentRate({
-                                            ...currentRate,
-                                            cabCompanyName: '',
-                                            hotline: '',
-                                            nearTown: ''
-                                        });
+                                    if (newValue) {
+                                        const company = services.find(s => s.serviceName === newValue);
+                                        if (company) {
+                                            setCurrentRate(prev => ({ 
+                                                ...prev, 
+                                                cabCompanyName: newValue,
+                                                hotline: company.hotlineNumbers,
+                                                nearTown: company.location
+                                            }));
+                                        } else {
+                                            setCurrentRate(prev => ({ ...prev, cabCompanyName: newValue }));
+                                        }
                                     }
                                 }}
                                 onInputChange={(_, newValue) => {
-                                    if (typeof newValue === 'string') {
-                                        // Try to find a match as the user types
+                                    if (newValue) {
                                         const match = services.find(s => s.serviceName.toLowerCase() === newValue.toLowerCase());
                                         if (match) {
                                             setCurrentRate(prev => ({ 
@@ -839,16 +1303,19 @@ const CabServicePage = () => {
                             />
                             <TextField
                                 label="Hotline"
+                                disabled={isViewingRate}
                                 value={currentRate.hotline}
                                 onChange={(e) => setCurrentRate({ ...currentRate, hotline: e.target.value })}
                             />
                             <TextField
                                 label="Near Town"
+                                disabled={isViewingRate}
                                 value={currentRate.nearTown}
                                 onChange={(e) => setCurrentRate({ ...currentRate, nearTown: e.target.value })}
                             />
                             <Autocomplete
                                 options={rateCardVehicles}
+                                disabled={isViewingRate}
                                 value={currentRate.vehicle}
                                 onChange={(_, newValue) => setCurrentRate({ ...currentRate, vehicle: newValue || '' })}
                                 onInputChange={(_, newValue) => setCurrentRate({ ...currentRate, vehicle: newValue })}
@@ -857,18 +1324,21 @@ const CabServicePage = () => {
                             />
                             <TextField
                                 label="Start Location"
+                                disabled={isViewingRate}
                                 value={currentRate.startLocation}
                                 onChange={(e) => setCurrentRate({ ...currentRate, startLocation: e.target.value })}
                             />
                             <TextField
                                 label="End Location"
+                                disabled={isViewingRate}
                                 value={currentRate.endLocation}
                                 onChange={(e) => setCurrentRate({ ...currentRate, endLocation: e.target.value })}
                             />
-                            <FormControl fullWidth>
+                            <FormControl fullWidth disabled={isViewingRate}>
                                 <InputLabel>Trip Type</InputLabel>
                                 <Select
                                     label="Trip Type"
+                                    disabled={isViewingRate}
                                     value={currentRate.tripType}
                                     onChange={(e) => setCurrentRate({ ...currentRate, tripType: e.target.value })}
                                 >
@@ -879,18 +1349,21 @@ const CabServicePage = () => {
                             <TextField
                                 label="KM"
                                 type="number"
+                                disabled={isViewingRate}
                                 value={currentRate.km}
                                 onChange={(e) => setCurrentRate({ ...currentRate, km: e.target.value ? Number(e.target.value) : '' })}
                             />
                             <TextField
                                 label="Hours"
                                 type="number"
+                                disabled={isViewingRate}
                                 value={currentRate.hours}
                                 onChange={(e) => setCurrentRate({ ...currentRate, hours: e.target.value ? Number(e.target.value) : '' })}
                             />
                             <TextField
                                 label="Price"
                                 type="number"
+                                disabled={isViewingRate}
                                 value={currentRate.price}
                                 onChange={(e) => setCurrentRate({ ...currentRate, price: e.target.value ? Number(e.target.value) : '' })}
                                 sx={{ '& .MuiInputBase-input': { fontWeight: 700, color: 'primary.main' } }}
@@ -898,42 +1371,181 @@ const CabServicePage = () => {
                             <TextField
                                 label="Extra Per KM"
                                 type="number"
+                                disabled={isViewingRate}
                                 value={currentRate.extraKmPrice}
                                 onChange={(e) => setCurrentRate({ ...currentRate, extraKmPrice: e.target.value ? Number(e.target.value) : '' })}
                             />
                             <TextField
                                 label="Extra Per Hour"
                                 type="number"
+                                disabled={isViewingRate}
                                 value={currentRate.extraHourPrice}
                                 onChange={(e) => setCurrentRate({ ...currentRate, extraHourPrice: e.target.value ? Number(e.target.value) : '' })}
                             />
                         </Box>
-                        <TextField
-                            label="Comment"
-                            fullWidth
-                            multiline
-                            rows={2}
-                            value={currentRate.comment}
-                            onChange={(e) => setCurrentRate({ ...currentRate, comment: e.target.value })}
-                        />
+                         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                            <TextField
+                                label="Comment"
+                                fullWidth
+                                multiline
+                                rows={2}
+                                disabled={isViewingRate}
+                                value={currentRate.comment}
+                                onChange={(e) => setCurrentRate({ ...currentRate, comment: e.target.value })}
+                            />
+                            {(isEditingRate || isViewingRate) && (
+                                <TextField
+                                    label="Added By"
+                                    disabled
+                                    value={currentRate.addedBy || 'System'}
+                                />
+                            )}
+                        </Box>
+                        
+                        {/* Company Rate Details (Senu Rate Reference) */}
+                        {(isViewingRate || isEditingRate) && (
+                            (() => {
+                                const details = getSenuRateDetails(currentRate);
+                                if (!details) return null;
+                                return (
+                                    <Box sx={{ 
+                                        mt: 1, 
+                                        p: 2.5, 
+                                        borderRadius: '20px', 
+                                        bgcolor: mode === 'light' ? 'rgba(59, 130, 246, 0.04)' : 'rgba(59, 130, 246, 0.08)',
+                                        border: '1px solid',
+                                        borderColor: 'rgba(59, 130, 246, 0.2)',
+                                        position: 'relative',
+                                        overflow: 'hidden'
+                                    }}>
+                                        <Box sx={{ 
+                                            position: 'absolute', 
+                                            top: 0, 
+                                            right: 0, 
+                                            p: 1.5, 
+                                            bgcolor: 'primary.main', 
+                                            color: 'white',
+                                            borderRadius: '0 0 0 20px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 0.5,
+                                            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)'
+                                        }}>
+                                            <TrendingUpIcon fontSize="small" />
+                                            <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: '0.05em' }}>SENU RATE ENGINE</Typography>
+                                        </Box>
+
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'primary.main', mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <InfoIcon fontSize="small" /> Comparison with Senu Rate Card
+                                        </Typography>
+
+                                        <Grid container spacing={3}>
+                                            <Grid item xs={12} md={6}>
+                                                <TextField
+                                                    label="Matched Base Package"
+                                                    fullWidth
+                                                    disabled
+                                                    value={`${details.package}`}
+                                                    variant="outlined"
+                                                    size="small"
+                                                    helperText={`Standard Package Price: Rs. ${details.baseRate.toLocaleString()}`}
+                                                    InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)', fontWeight: 700 } }}
+                                                />
+                                            </Grid>
+                                            <Grid item xs={12} md={6}>
+                                                <TextField
+                                                    label="Selection Logic"
+                                                    fullWidth
+                                                    disabled
+                                                    value={details.method}
+                                                    variant="outlined"
+                                                    size="small"
+                                                    helperText="How this package was chosen from the rate card"
+                                                    InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)' } }}
+                                                />
+                                            </Grid>
+                                            
+                                            <Grid item xs={12} md={6}>
+                                                <TextField
+                                                    label="Extra Distance (KM) Breakdown"
+                                                    fullWidth
+                                                    disabled
+                                                    value={`@ Rs. ${details.extraKmRate}/km → Charge: Rs. ${details.extraKmCost.toLocaleString()}`}
+                                                    variant="outlined"
+                                                    size="small"
+                                                    helperText={details.extraKmCost > 0 ? `Calculated for additional distance beyond base KM` : "No additional distance charge"}
+                                                    InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)' } }}
+                                                />
+                                            </Grid>
+                                            <Grid item xs={12} md={6}>
+                                                <TextField
+                                                    label="Extra Time (Hrs) Breakdown"
+                                                    fullWidth
+                                                    disabled
+                                                    value={`@ Rs. ${details.extraHrRate}/hr → Charge: Rs. ${details.extraHrCost.toLocaleString()}`}
+                                                    variant="outlined"
+                                                    size="small"
+                                                    helperText={details.extraHrCost > 0 ? `Calculated for additional hours beyond base package` : "No additional hours charge"}
+                                                    InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)' } }}
+                                                />
+                                            </Grid>
+
+                                            <Grid item xs={12}>
+                                                <Box sx={{ 
+                                                    mt: 1,
+                                                    p: 2.5,
+                                                    borderRadius: '16px',
+                                                    bgcolor: 'rgba(34, 197, 94, 0.08)',
+                                                    border: '1px solid rgba(34, 197, 94, 0.2)',
+                                                    display: 'flex',
+                                                    flexDirection: { xs: 'column', sm: 'row' },
+                                                    justifyContent: 'space-between',
+                                                    alignItems: { xs: 'flex-start', sm: 'center' },
+                                                    gap: 2
+                                                }}>
+                                                    <Box>
+                                                        <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', display: 'block', mb: 0.5, letterSpacing: '0.05em' }}>
+                                                            TOTAL CALCULATED SENU RATE
+                                                        </Typography>
+                                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.85rem' }}>
+                                                            Base Rs. {details.baseRate.toLocaleString()} 
+                                                            {details.extraKmCost > 0 && ` + KM Rs. ${details.extraKmCost.toLocaleString()}`}
+                                                            {details.extraHrCost > 0 && ` + Hrs Rs. ${details.extraHrCost.toLocaleString()}`}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+                                                        <Typography variant="h4" sx={{ fontWeight: 900, color: '#16a34a', lineHeight: 1 }}>
+                                                            Rs. {details.total.toLocaleString()}
+                                                        </Typography>
+                                                    </Box>
+                                                </Box>
+                                            </Grid>
+                                        </Grid>
+                                    </Box>
+                                );
+                            })()
+                        )}
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
-                    <Button onClick={() => setOpenRateDialog(false)} sx={{ borderRadius: '12px', textTransform: 'none' }}>
-                        Cancel
+                    <Button onClick={() => setOpenRateDialog(false)} sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 600 }}>
+                        {isViewingRate ? 'Close' : 'Cancel'}
                     </Button>
-                    <Button 
-                        onClick={handleRateSubmit} 
-                        variant="contained" 
-                        sx={{ 
-                            borderRadius: '12px', 
-                            textTransform: 'none', 
-                            px: 4,
-                            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
-                        }}
-                    >
-                        {isEditingRate ? 'Update Rate' : 'Add Rate'}
-                    </Button>
+                    {!isViewingRate && (
+                        <Button 
+                            onClick={handleRateSubmit} 
+                            variant="contained" 
+                            sx={{ 
+                                borderRadius: '12px', 
+                                textTransform: 'none', 
+                                px: 4,
+                                fontWeight: 700,
+                                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
+                            }}
+                        >
+                            {isEditingRate ? 'Update Rate' : 'Add Rate'}
+                        </Button>
+                    )}
                 </DialogActions>
             </Dialog>
 
@@ -952,6 +1564,42 @@ const CabServicePage = () => {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+
+            {/* Error Popup Modal */}
+            <Dialog 
+                open={errorModal.open} 
+                onClose={() => setErrorModal({ ...errorModal, open: false })}
+                PaperProps={{
+                    sx: { borderRadius: '24px', p: 1, maxWidth: '400px' }
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, color: 'error.main', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <WarningIcon color="error" />
+                    Duplicate Hotline Detected
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500, mt: 1 }}>
+                        {errorModal.message}
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 3 }}>
+                    <Button 
+                        onClick={() => setErrorModal({ ...errorModal, open: false })}
+                        variant="contained"
+                        color="error"
+                        fullWidth
+                        sx={{ 
+                            borderRadius: '12px', 
+                            textTransform: 'none', 
+                            py: 1.5, 
+                            fontWeight: 700,
+                            boxShadow: '0 4px 12px rgba(211, 47, 47, 0.4)'
+                        }}
+                    >
+                        I'll Fix It
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <style>{`
                 @keyframes spin {
