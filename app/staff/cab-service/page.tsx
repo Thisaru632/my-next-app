@@ -35,7 +35,8 @@ import {
     Autocomplete,
     InputAdornment,
     Grid,
-    Divider
+    Divider,
+    Menu
 } from '@mui/material';
 import { 
     Add as AddIcon, 
@@ -51,7 +52,8 @@ import {
     Block as BlockIcon,
     CheckCircle as ApproveIcon,
     TrendingUp as TrendingUpIcon,
-    Info as InfoIcon
+    Info as InfoIcon,
+    MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
@@ -126,6 +128,8 @@ const CabServicePage = () => {
     const [rateMinKmFilter, setRateMinKmFilter] = useState('');
     const [rateMaxKmFilter, setRateMaxKmFilter] = useState('');
     const [openRateDialog, setOpenRateDialog] = useState(false);
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [menuRate, setMenuRate] = useState<CabRate | null>(null);
     const [isEditingRate, setIsEditingRate] = useState(false);
     const [isViewingRate, setIsViewingRate] = useState(false);
     const [senuRateCards, setSenuRateCards] = useState<any[]>([]);
@@ -214,7 +218,6 @@ const CabServicePage = () => {
     const handleOpenDialog = (service?: CabService, viewing = false) => {
         setIsViewing(viewing);
         if (service) {
-            // Sanitize service to avoid null/undefined values in TextFields
             setCurrentService({
                 _id: service._id,
                 serviceName: service.serviceName || '',
@@ -303,7 +306,6 @@ const CabServicePage = () => {
             return;
         }
 
-        // --- DUPLICATE HOTLINE CHECK ---
         const currentNums = currentService.hotlineNumbers.split(',').map(num => num.trim().replace(/\D/g, ''));
         const duplicate = services.find(s => {
             if (isEditing && s._id === currentService._id) return false;
@@ -319,7 +321,6 @@ const CabServicePage = () => {
             });
             return;
         }
-        // -------------------------------
 
         try {
             const token = localStorage.getItem('staffToken');
@@ -425,7 +426,6 @@ const CabServicePage = () => {
     const uniqueRateHours = Array.from(new Set(rates.map(r => r.hours)))
         .filter((h): h is number => typeof h === 'number')
         .sort((a, b) => a - b);
-    const uniqueRateTowns = Array.from(new Set(rates.map(r => r.nearTown))).filter(Boolean).sort();
 
     const getSenuRateDetails = (row: CabRate) => {
         if (!senuRateCards.length || !row.km || parseFloat(String(row.km)) === 0) return null;
@@ -523,7 +523,6 @@ const CabServicePage = () => {
     const handleOpenRateDialog = (rate?: CabRate, viewing = false) => {
         setIsViewingRate(viewing);
         if (rate) {
-            // Sanitize rate to avoid null/undefined values in TextFields
             setCurrentRate({
                 ...rate,
                 rateDate: rate.rateDate ? new Date(rate.rateDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
@@ -564,6 +563,16 @@ const CabServicePage = () => {
         setOpenRateDialog(true);
     };
 
+    const handleEditRate = (rate: CabRate) => {
+        setCurrentRate({
+            ...rate,
+            rateDate: rate.rateDate ? new Date(rate.rateDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        });
+        setIsEditingRate(true);
+        setIsViewingRate(false);
+        setOpenRateDialog(true);
+    };
+
     const handleRateSubmit = async () => {
         if (!currentRate.cabCompanyName) {
             showSnackbar('Cab Company Name is required', 'error');
@@ -571,7 +580,6 @@ const CabServicePage = () => {
         }
 
         try {
-            // Get current user for tracking
             const userStr = localStorage.getItem('staffUser');
             let addedBy = 'System';
             if (userStr) {
@@ -624,7 +632,6 @@ const CabServicePage = () => {
 
     return (
         <Box sx={{ p: { xs: 2, md: 4 } }}>
-            {/* Page Header */}
             <Box
                 sx={{
                     mb: 4,
@@ -695,7 +702,6 @@ const CabServicePage = () => {
                 </Tabs>
             </Box>
 
-            {/* Search and Refresh */}
             <Box sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
                 <TextField
                     placeholder={activeTab === 0 ? "Search by name, location or hotline..." : "Search by company, town or vehicle..."}
@@ -1037,49 +1043,21 @@ const CabServicePage = () => {
                                             <TableCell>{rate.extraKmPrice}</TableCell>
                                             <TableCell>{rate.extraHourPrice}</TableCell>
                                             <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>{rate.price?.toLocaleString()}</TableCell>
-                                            <TableCell sx={{ fontWeight: 800, color: (() => {
-                                                const sRateValue = calculateSenuRateValue(rate);
-                                                if (typeof sRateValue !== 'number') return 'text.secondary';
-                                                const cabP = Number(rate.price) || 0;
-                                                return sRateValue < cabP ? '#10b981' : (sRateValue > cabP ? '#ef4444' : '#059669');
-                                            })() }}>
-                                                {(() => {
-                                                    const sVal = calculateSenuRateValue(rate);
-                                                    return typeof sVal === 'number' 
-                                                        ? `Rs. ${sVal.toLocaleString()}` 
-                                                        : sVal;
-                                                })()}
+                                            <TableCell sx={{ color: '#16a34a', fontWeight: 700 }}>
+                                                {calculateSenuRateValue(rate) === 'No Card' || calculateSenuRateValue(rate) === '---' 
+                                                    ? calculateSenuRateValue(rate) 
+                                                    : `Rs. ${calculateSenuRateValue(rate).toLocaleString()}`}
                                             </TableCell>
-                                            <TableCell align="right">
-                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                                                    <Tooltip title="View Details">
-                                                        <IconButton 
-                                                            size="small" 
-                                                            onClick={() => handleOpenRateDialog(rate, true)}
-                                                            sx={{ color: 'text.secondary' }}
-                                                        >
-                                                            <ViewIcon fontSize="inherit" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Edit Rate">
-                                                        <IconButton 
-                                                            size="small" 
-                                                            onClick={() => handleOpenRateDialog(rate, false)}
-                                                            color="primary"
-                                                        >
-                                                            <EditIcon fontSize="inherit" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Delete Permanently">
-                                                        <IconButton 
-                                                            size="small" 
-                                                            onClick={() => handleDeleteRate(rate._id!)}
-                                                            color="error"
-                                                        >
-                                                            <DeleteIcon fontSize="inherit" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
+                                            <TableCell>
+                                                <IconButton 
+                                                    size="small" 
+                                                    onClick={(e) => {
+                                                        setAnchorEl(e.currentTarget);
+                                                        setMenuRate(rate);
+                                                    }}
+                                                >
+                                                    <MoreVertIcon fontSize="small" />
+                                                </IconButton>
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -1090,7 +1068,6 @@ const CabServicePage = () => {
                 </TableContainer>
             )}
 
-            {/* Dialog */}
             <Dialog 
                 open={openDialog} 
                 onClose={handleCloseDialog} 
@@ -1236,7 +1213,6 @@ const CabServicePage = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* Rate Dialog */}
             <Dialog 
                 open={openRateDialog} 
                 onClose={() => setOpenRateDialog(false)} 
@@ -1405,7 +1381,6 @@ const CabServicePage = () => {
                             )}
                         </Box>
                         
-                        {/* Company Rate Details (Senu Rate Reference) */}
                         {(isViewingRate || isEditingRate) && (
                             (() => {
                                 const details = getSenuRateDetails(currentRate);
@@ -1546,7 +1521,6 @@ const CabServicePage = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* Snackbar */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={4000}
@@ -1562,7 +1536,6 @@ const CabServicePage = () => {
                 </Alert>
             </Snackbar>
 
-            {/* Error Popup Modal */}
             <Dialog 
                 open={errorModal.open} 
                 onClose={() => setErrorModal({ ...errorModal, open: false })}
@@ -1598,6 +1571,50 @@ const CabServicePage = () => {
                 </DialogActions>
             </Dialog>
 
+            <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={() => {
+                    setAnchorEl(null);
+                    setMenuRate(null);
+                }}
+                PaperProps={{
+                    sx: {
+                        borderRadius: '12px',
+                        minWidth: 150,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                    }
+                }}
+            >
+                <MenuItem onClick={() => {
+                    if (menuRate) {
+                        setCurrentRate(menuRate);
+                        setIsEditingRate(false);
+                        setIsViewingRate(true);
+                        setOpenRateDialog(true);
+                    }
+                    setAnchorEl(null);
+                }}>
+                    <ViewIcon sx={{ mr: 1.5, fontSize: '1.1rem', color: 'text.secondary' }} />
+                    View Details
+                </MenuItem>
+                <MenuItem onClick={() => {
+                    if (menuRate) handleEditRate(menuRate);
+                    setAnchorEl(null);
+                }}>
+                    <EditIcon sx={{ mr: 1.5, fontSize: '1.1rem', color: 'primary.main' }} />
+                    Edit Rate
+                </MenuItem>
+                <Divider sx={{ my: 1 }} />
+                <MenuItem onClick={() => {
+                    if (menuRate) handleDeleteRate(menuRate._id!);
+                    setAnchorEl(null);
+                }} sx={{ color: 'error.main' }}>
+                    <DeleteIcon sx={{ mr: 1.5, fontSize: '1.1rem' }} />
+                    Delete Rate
+                </MenuItem>
+            </Menu>
+
             <style>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
@@ -1607,7 +1624,6 @@ const CabServicePage = () => {
                     animation: spin 1s linear infinite;
                 }
                 
-                /* Remove spin buttons from number inputs */
                 input::-webkit-outer-spin-button,
                 input::-webkit-inner-spin-button {
                     -webkit-appearance: none;
