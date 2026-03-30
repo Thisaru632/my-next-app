@@ -11,4 +11,5 @@ export const API_ENDPOINTS = {
     CUSTOMERS: `${API_BASE_URL}/api/customers`,
     STAFF_GUIDES: `${API_BASE_URL}/api/staff-guides`,
     CAB_SERVICES: `${API_BASE_URL}/api/cab-service`,
+    CAB_RATES: `${API_BASE_URL}/api/cab-rates`,
 };
