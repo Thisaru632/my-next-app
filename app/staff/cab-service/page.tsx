@@ -565,7 +565,7 @@ const CabServicePage = () => {
                         border: '1px solid', 
                         borderColor: 'divider',
                         boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-                        overflow: 'hidden'
+                        overflowX: 'auto'
                     }}
                 >
                     {loading ? (
@@ -574,7 +574,7 @@ const CabServicePage = () => {
                             <Typography sx={{ mt: 2 }}>Loading rates...</Typography>
                         </Box>
                     ) : (
-                        <Table size="small">
+                        <Table size="small" sx={{ minWidth: 1200 }}>
                             <TableHead sx={{ bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b' }}>
                                 <TableRow>
                                     <TableCell sx={{ fontWeight: 700 }}>Ref No</TableCell>
