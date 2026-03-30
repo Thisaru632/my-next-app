@@ -232,7 +232,14 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }: Auth
                                     <PhoneInput
                                         label="Phone Number"
                                         value={formData.phone}
-                                        onChange={(val) => setFormData({ ...formData, phone: val })}
+                                        onChange={(val) => {
+                                            setFormData({ ...formData, phone: val });
+                                            if (val && !PHONE_REGEX.test(val)) {
+                                                setFieldErrors(prev => ({ ...prev, phone: 'Invalid phone format (e.g. 07XXXXXXXX)' }));
+                                            } else {
+                                                setFieldErrors(prev => ({ ...prev, phone: '' }));
+                                            }
+                                        }}
                                         error={!!fieldErrors.phone}
                                         helperText={fieldErrors.phone}
                                         required

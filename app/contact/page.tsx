@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Mail, Phone, MapPin, Send, Facebook, MessageCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '@/config/api';
+import PhoneInput from '@/components/PhoneInput';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -299,15 +300,20 @@ export default function ContactPage() {
 
                 <div className="form-group">
                   <label htmlFor="phone">Phone Number</label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
+                  <PhoneInput
                     value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="+1 (555) 000-0000"
+                    onChange={(val) => {
+                      setFormData(prev => ({ ...prev, phone: val }));
+                      if (val && !PHONE_REGEX.test(val)) {
+                        setPhoneError('Invalid phone format (e.g. 07XXXXXXXX)');
+                      } else {
+                        setPhoneError('');
+                      }
+                    }}
+                    label="Phone Number"
+                    error={!!phoneError}
+                    helperText={phoneError}
                   />
-                  {phoneError && <span className="error-text">{phoneError}</span>}
                 </div>
               </div>
 

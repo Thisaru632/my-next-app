@@ -28,6 +28,7 @@ import {
     MenuBook as MenuBookIcon,
     FileUpload as FileUploadIcon,
     LocationCity as LocationCityIcon,
+    LocalTaxi as LocalTaxiIcon,
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 import { API_ENDPOINTS } from '@/config/api';
@@ -60,6 +61,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Rate Card Manage', icon: <PaymentsIcon />, path: '/staff/rate_card_manage', key: 'rateCardManage' },
         { text: 'Staff Guide', icon: <MenuBookIcon />, path: '/staff/staff-guide', key: 'dashboard' }, // Always allow if they have dashboard access
         { text: 'Manage Guides', icon: <FileUploadIcon />, path: '/staff/staff-guide/manage', key: 'staffGuideManage' },
+        { text: 'Cab Service', icon: <LocalTaxiIcon />, path: '/staff/cab-service', key: 'cabService' },
     ];
 
     const [allowedItems, setAllowedItems] = React.useState<MenuItem[]>([]);

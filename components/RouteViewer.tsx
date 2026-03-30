@@ -79,10 +79,19 @@ const RouteViewer: React.FC<RouteViewerProps> = ({
     result: google.maps.DirectionsResult | null,
     status: google.maps.DirectionsStatus
   ) => {
-    if (status === 'OK' && result !== null) {
-      setResponse(result);
+    if (status === 'OK' && result !== null && result.routes && result.routes.length > 0) {
+      console.log(`[DEBUG-VIEWER] Finding shortest among ${result.routes.length} routes`);
+      // Pick route with minimum total distance
+      const shortestRoute = result.routes.reduce((min, curr, idx) => {
+        const minDistance = min.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0);
+        const currDistance = curr.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0);
+        console.log(`Route ${idx}: ${currDistance/1000}km`);
+        return currDistance < minDistance ? curr : min;
+      });
+
+      setResponse({ ...result, routes: [shortestRoute] });
       setLoading(false);
-    } else {
+    } else if (status !== 'OK') {
       // Silence expected typing errors, otherwise they clutter the console
       if (status !== 'NOT_FOUND' && status !== 'ZERO_RESULTS') {
         console.error('Directions request failed with status:', status);
@@ -168,7 +177,8 @@ const RouteViewer: React.FC<RouteViewerProps> = ({
                         }
                         return { location: wp, stopover: true };
                       }),
-                    travelMode: google.maps.TravelMode.DRIVING
+                    travelMode: google.maps.TravelMode.DRIVING,
+                    provideRouteAlternatives: true
                   }}
                   callback={directionsCallback}
                 />

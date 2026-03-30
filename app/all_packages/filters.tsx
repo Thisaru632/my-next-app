@@ -162,6 +162,8 @@ interface RateAdjustment {
   validTo: string | null;
 }
 
+const PHONE_REGEX = /^(?:\+94|0)?[0-9]{9,10}$/;
+
 export default function BookingForm() {
   const [rateCards, setRateCards] = useState<RateCard[]>([]);
   const [adjustments, setAdjustments] = useState<RateAdjustment[]>([]);
@@ -172,6 +174,8 @@ export default function BookingForm() {
   const [pickupProvince, setPickupProvince] = useState<string>('');
   const [showProvinceBlockDialog, setShowProvinceBlockDialog] = useState(false);
   const [blockedProvinceName, setBlockedProvinceName] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [additionalPhoneErrors, setAdditionalPhoneErrors] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchRateData = async () => {
@@ -263,6 +267,13 @@ export default function BookingForm() {
 
   const handleChange = (field: string, value: string | any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    if (field === 'telephone') {
+      if (value && !PHONE_REGEX.test(value)) {
+        setPhoneError('Invalid phone format (e.g. 07XXXXXXXX)');
+      } else {
+        setPhoneError('');
+      }
+    }
   };
 
   const handleAddPhone = () => {
@@ -270,6 +281,7 @@ export default function BookingForm() {
       ...prev,
       additionalPhones: [...prev.additionalPhones, '']
     }));
+    setAdditionalPhoneErrors(prev => [...prev, '']);
   };
 
   const handleRemovePhone = (index: number) => {
@@ -284,6 +296,15 @@ export default function BookingForm() {
       const newPhones = [...prev.additionalPhones];
       newPhones[index] = value;
       return { ...prev, additionalPhones: newPhones };
+    });
+    setAdditionalPhoneErrors(prev => {
+      const newErrors = [...prev];
+      if (value && !PHONE_REGEX.test(value)) {
+        newErrors[index] = 'Invalid format';
+      } else {
+        newErrors[index] = '';
+      }
+      return newErrors;
     });
   };
 
@@ -336,6 +357,10 @@ export default function BookingForm() {
   };
 
   const handleSendRequest = async () => {
+    if (phoneError || additionalPhoneErrors.some(e => !!e)) {
+      alert('Please fix the phone number errors before submitting.');
+      return;
+    }
     try {
       const response = await fetch(API_ENDPOINTS.BOOKINGS, {
         method: 'POST',
@@ -1337,6 +1362,8 @@ export default function BookingForm() {
               placeholder="Enter your phone number"
               value={formData.telephone}
               onChange={(e) => handleChange('telephone', e.target.value)}
+              error={!!phoneError}
+              helperText={phoneError}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -1355,8 +1382,8 @@ export default function BookingForm() {
               fullWidth
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': { borderColor: '#4facfe' },
-                  '&.Mui-focused fieldset': { borderColor: '#4facfe', borderWidth: 2 },
+                  '&:hover fieldset': { borderColor: phoneError ? 'error.main' : '#4facfe' },
+                  '&.Mui-focused fieldset': { borderColor: phoneError ? 'error.main' : '#4facfe', borderWidth: 2 },
                 }
               }}
             />
@@ -1368,6 +1395,8 @@ export default function BookingForm() {
                 placeholder="Enter additional phone number"
                 value={phoneVal}
                 onChange={(e) => updateAdditionalPhone(idx, e.target.value)}
+                error={!!additionalPhoneErrors[idx]}
+                helperText={additionalPhoneErrors[idx]}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -1386,8 +1415,8 @@ export default function BookingForm() {
                 fullWidth
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    '&:hover fieldset': { borderColor: '#4facfe' },
-                    '&.Mui-focused fieldset': { borderColor: '#4facfe', borderWidth: 2 },
+                    '&:hover fieldset': { borderColor: additionalPhoneErrors[idx] ? 'error.main' : '#4facfe' },
+                    '&.Mui-focused fieldset': { borderColor: additionalPhoneErrors[idx] ? 'error.main' : '#4facfe', borderWidth: 2 },
                   }
                 }}
               />
@@ -1454,7 +1483,7 @@ export default function BookingForm() {
               fullWidth
               size="large"
               onClick={handleSendRequest}
-              disabled={!formData.name || !formData.telephone || !formData.email}
+              disabled={!formData.name || !formData.telephone || !formData.email || !!phoneError || additionalPhoneErrors.some(e => !!e)}
               sx={{
                 mt: 2,
                 py: 1.5,

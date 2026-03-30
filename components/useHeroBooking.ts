@@ -226,13 +226,32 @@ export function useHeroBooking() {
           return d.address.trim() !== "" ? { location: d.address, stopover: true } : null;
         }).filter(wp => wp !== null) as google.maps.DirectionsWaypoint[];
         try {
-          const result = await directionsService.route({ origin, destination, waypoints: validWaypoints, travelMode: google.maps.TravelMode.DRIVING });
+          const result = await directionsService.route({ 
+            origin, 
+            destination, 
+            waypoints: validWaypoints, 
+            travelMode: google.maps.TravelMode.DRIVING,
+            provideRouteAlternatives: true 
+          });
           if (cancelled) return;
-          if (result.routes && result.routes[0]) {
-            const route = result.routes[0];
-            setRouteDistance(route.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0));
-            setRouteDuration(route.legs.reduce((acc, leg) => acc + (leg.duration?.value || 0), 0));
-            setRouteResponse(result);
+          if (result.routes && result.routes.length > 0) {
+            console.log(`[DEBUG-ROUTE] Received ${result.routes.length} routes from Google`);
+            
+            // Pick route with minimum total distance
+            const shortestRoute = result.routes.reduce((min, curr, idx) => {
+              const minDistance = min.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0);
+              const currDistance = curr.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0);
+              console.log(`Route ${idx}: Distance = ${currDistance/1000}km, Duration = ${curr.legs.reduce((acc, leg) => acc + (leg.duration?.value || 0), 0)/60}min`);
+              return currDistance < minDistance ? curr : min;
+            });
+
+            const finalDist = shortestRoute.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0);
+            console.log(`Selected Shortest Route: ${finalDist/1000}km`);
+            
+            setRouteDistance(finalDist);
+            setRouteDuration(shortestRoute.legs.reduce((acc, leg) => acc + (leg.duration?.value || 0), 0));
+            // We set the result's routes to just the shortest one so viewers use it
+            setRouteResponse({ ...result, routes: [shortestRoute] });
           }
         } catch (err: any) {
           if (!cancelled) {

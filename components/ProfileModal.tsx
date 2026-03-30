@@ -66,6 +66,8 @@ interface Booking {
     totalPrice?: number;
 }
 
+const PHONE_REGEX = /^(?:\+94|0)?[0-9]{9,10}$/;
+
 export default function ProfileModal({ open, onClose }: ProfileModalProps) {
     const { user, updateUser, logout } = useUser();
     const [tabValue, setTabValue] = useState(0);
@@ -80,6 +82,7 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
         name: '',
         phone: ''
     });
+    const [phoneError, setPhoneError] = useState('');
 
     // Password Update Logic
     const [passwordData, setPasswordData] = useState({
@@ -133,6 +136,12 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
         const token = localStorage.getItem('customerToken');
         if (!token) {
             setError('Auth token expired. Log in again.');
+            setLoading(false);
+            return;
+        }
+
+        if (phoneError) {
+            setError('Please fix the phone number format.');
             setLoading(false);
             return;
         }
@@ -319,7 +328,16 @@ export default function ProfileModal({ open, onClose }: ProfileModalProps) {
                                         <Typography variant="caption" sx={{ color: '#C9A961', fontWeight: 700, textTransform: 'uppercase', mb: 1, display: 'block', letterSpacing: '1px' }}>Direct Line</Typography>
                                         <PhoneInput
                                             value={profileData.phone}
-                                            onChange={(val) => setProfileData({ ...profileData, phone: val })}
+                                            onChange={(val) => {
+                                                setProfileData({ ...profileData, phone: val });
+                                                if (val && !PHONE_REGEX.test(val)) {
+                                                    setPhoneError('Invalid phone format (e.g. 0XXXXXXXXX)');
+                                                } else {
+                                                    setPhoneError('');
+                                                }
+                                            }}
+                                            error={!!phoneError}
+                                            helperText={phoneError}
                                             disabled={!editing}
                                             colorMode="dark"
                                             variant="standard"

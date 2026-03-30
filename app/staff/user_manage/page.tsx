@@ -59,6 +59,7 @@ interface Permission {
     rateCardManage: boolean;
     promoCodeManage: boolean;
     staffGuideManage: boolean;
+    cabService: boolean;
 }
 
 interface CurrentUser {
@@ -214,6 +215,7 @@ const permissionLabels: { key: keyof Permission; label: string }[] = [
     { key: 'rateCardManage', label: 'Rate Card Manage' },
     { key: 'promoCodeManage', label: 'Promo Code Manager' },
     { key: 'staffGuideManage', label: 'Manage Staff Guides' },
+    { key: 'cabService', label: 'Cab Service' },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -255,7 +257,8 @@ const UserManagementPage: React.FC = () => {
                         reports: false,
                         rateCardManage: false,
                         promoCodeManage: false,
-                        staffGuideManage: false
+                        staffGuideManage: false,
+                        cabService: false
                     },
                     requestedRole: user.role === 'admin' ? 'Admin' : 'Staff',
                     requestDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : 'N/A',
