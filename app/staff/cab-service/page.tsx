@@ -62,7 +62,7 @@ interface CabService {
     hotlineNumbers: string;
     location: string;
     serviceType: string;
-    comments: string;
+    comments?: string;
     status: string;
     createdAt?: string;
 }
@@ -403,7 +403,8 @@ const CabServicePage = () => {
         
         const minKm = rateMinKmFilter ? parseInt(rateMinKmFilter) : 0;
         const maxKm = rateMaxKmFilter ? parseInt(rateMaxKmFilter) : Infinity;
-        const matchesKm = r.km >= minKm && r.km <= maxKm;
+        const rKm = typeof r.km === 'number' ? r.km : 0;
+        const matchesKm = rKm >= minKm && rKm <= maxKm;
 
         return matchesSearch && matchesCompany && matchesVehicle && matchesHour && matchesDate && matchesKm;
     });
@@ -421,7 +422,9 @@ const CabServicePage = () => {
 
     const uniqueRateCompanies = Array.from(new Set(rates.map(r => r.cabCompanyName))).sort();
     const uniqueRateVehicles = Array.from(new Set(rates.map(r => r.vehicle))).sort();
-    const uniqueRateHours = Array.from(new Set(rates.map(r => r.hours))).sort((a,b) => a-b);
+    const uniqueRateHours = Array.from(new Set(rates.map(r => r.hours)))
+        .filter((h): h is number => typeof h === 'number')
+        .sort((a, b) => a - b);
     const uniqueRateTowns = Array.from(new Set(rates.map(r => r.nearTown))).filter(Boolean).sort();
 
     const getSenuRateDetails = (row: CabRate) => {
@@ -1439,88 +1442,82 @@ const CabServicePage = () => {
                                             <InfoIcon fontSize="small" /> Comparison with Senu Rate Card
                                         </Typography>
 
-                                        <Grid container spacing={3}>
-                                            <Grid item xs={12} md={6}>
-                                                <TextField
-                                                    label="Matched Base Package"
-                                                    fullWidth
-                                                    disabled
-                                                    value={`${details.package}`}
-                                                    variant="outlined"
-                                                    size="small"
-                                                    helperText={`Standard Package Price: Rs. ${details.baseRate.toLocaleString()}`}
-                                                    InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)', fontWeight: 700 } }}
-                                                />
-                                            </Grid>
-                                            <Grid item xs={12} md={6}>
-                                                <TextField
-                                                    label="Selection Logic"
-                                                    fullWidth
-                                                    disabled
-                                                    value={details.method}
-                                                    variant="outlined"
-                                                    size="small"
-                                                    helperText="How this package was chosen from the rate card"
-                                                    InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)' } }}
-                                                />
-                                            </Grid>
-                                            
-                                            <Grid item xs={12} md={6}>
-                                                <TextField
-                                                    label="Extra Distance (KM) Breakdown"
-                                                    fullWidth
-                                                    disabled
-                                                    value={`@ Rs. ${details.extraKmRate}/km → Charge: Rs. ${details.extraKmCost.toLocaleString()}`}
-                                                    variant="outlined"
-                                                    size="small"
-                                                    helperText={details.extraKmCost > 0 ? `Calculated for additional distance beyond base KM` : "No additional distance charge"}
-                                                    InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)' } }}
-                                                />
-                                            </Grid>
-                                            <Grid item xs={12} md={6}>
-                                                <TextField
-                                                    label="Extra Time (Hrs) Breakdown"
-                                                    fullWidth
-                                                    disabled
-                                                    value={`@ Rs. ${details.extraHrRate}/hr → Charge: Rs. ${details.extraHrCost.toLocaleString()}`}
-                                                    variant="outlined"
-                                                    size="small"
-                                                    helperText={details.extraHrCost > 0 ? `Calculated for additional hours beyond base package` : "No additional hours charge"}
-                                                    InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)' } }}
-                                                />
-                                            </Grid>
+                                        <Box sx={{ 
+                                            display: 'grid', 
+                                            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, 
+                                            gap: 3 
+                                        }}>
+                                            <TextField
+                                                label="Matched Base Package"
+                                                fullWidth
+                                                disabled
+                                                value={`${details.package}`}
+                                                variant="outlined"
+                                                size="small"
+                                                helperText={`Standard Package Price: Rs. ${details.baseRate.toLocaleString()}`}
+                                                InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)', fontWeight: 700 } }}
+                                            />
+                                            <TextField
+                                                label="Selection Logic"
+                                                fullWidth
+                                                disabled
+                                                value={details.method}
+                                                variant="outlined"
+                                                size="small"
+                                                helperText="How this package was chosen from the rate card"
+                                                InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)' } }}
+                                            />
+                                            <TextField
+                                                label="Extra Distance (KM) Breakdown"
+                                                fullWidth
+                                                disabled
+                                                value={`@ Rs. ${details.extraKmRate}/km → Charge: Rs. ${details.extraKmCost.toLocaleString()}`}
+                                                variant="outlined"
+                                                size="small"
+                                                helperText={details.extraKmCost > 0 ? `Calculated for additional distance beyond base KM` : "No additional distance charge"}
+                                                InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)' } }}
+                                            />
+                                            <TextField
+                                                label="Extra Time (Hrs) Breakdown"
+                                                fullWidth
+                                                disabled
+                                                value={`@ Rs. ${details.extraHrRate}/hr → Charge: Rs. ${details.extraHrCost.toLocaleString()}`}
+                                                variant="outlined"
+                                                size="small"
+                                                helperText={details.extraHrCost > 0 ? `Calculated for additional hours beyond base package` : "No additional hours charge"}
+                                                InputProps={{ sx: { borderRadius: '10px', bgcolor: mode === 'light' ? 'white' : 'rgba(255,255,255,0.05)' } }}
+                                            />
 
-                                            <Grid item xs={12}>
-                                                <Box sx={{ 
-                                                    mt: 1,
-                                                    p: 2.5,
-                                                    borderRadius: '16px',
-                                                    bgcolor: 'rgba(34, 197, 94, 0.08)',
-                                                    border: '1px solid rgba(34, 197, 94, 0.2)',
-                                                    display: 'flex',
-                                                    flexDirection: { xs: 'column', sm: 'row' },
-                                                    justifyContent: 'space-between',
-                                                    alignItems: { xs: 'flex-start', sm: 'center' },
-                                                    gap: 2
-                                                }}>
-                                                    <Box>
-                                                        <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', display: 'block', mb: 0.5, letterSpacing: '0.05em' }}>
-                                                            TOTAL CALCULATED SENU RATE
-                                                        </Typography>
-                                                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.85rem' }}>
-                                                            Base Rs. {details.baseRate.toLocaleString()} 
-                                                            {details.extraKmCost > 0 && ` + KM Rs. ${details.extraKmCost.toLocaleString()}`}
-                                                            {details.extraHrCost > 0 && ` + Hrs Rs. ${details.extraHrCost.toLocaleString()}`}
-                                                        </Typography>
-                                                    </Box>
-                                                    <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
-                                                        <Typography variant="h4" sx={{ fontWeight: 900, color: '#16a34a', lineHeight: 1 }}>
-                                                            Rs. {details.total.toLocaleString()}
-                                                        </Typography>
-                                                    </Box>
+                                            <Box sx={{ 
+                                                gridColumn: { xs: 'span 1', md: 'span 2' },
+                                                mt: 1,
+                                                p: 2.5,
+                                                borderRadius: '16px',
+                                                bgcolor: 'rgba(34, 197, 94, 0.08)',
+                                                border: '1px solid rgba(34, 197, 94, 0.2)',
+                                                display: 'flex',
+                                                flexDirection: { xs: 'column', sm: 'row' },
+                                                justifyContent: 'space-between',
+                                                alignItems: { xs: 'flex-start', sm: 'center' },
+                                                gap: 2
+                                            }}>
+                                                <Box>
+                                                    <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', display: 'block', mb: 0.5, letterSpacing: '0.05em' }}>
+                                                        TOTAL CALCULATED SENU RATE
+                                                    </Typography>
+                                                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.85rem' }}>
+                                                        Base Rs. {details.baseRate.toLocaleString()} 
+                                                        {details.extraKmCost > 0 && ` + KM Rs. ${details.extraKmCost.toLocaleString()}`}
+                                                        {details.extraHrCost > 0 && ` + Hrs Rs. ${details.extraHrCost.toLocaleString()}`}
+                                                    </Typography>
                                                 </Box>
-                                            </Grid>
-                                        </Grid>
+                                                <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+                                                    <Typography variant="h4" sx={{ fontWeight: 900, color: '#16a34a', lineHeight: 1 }}>
+                                                        Rs. {details.total.toLocaleString()}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        </Box>
                                     </Box>
                                 );
                             })()
