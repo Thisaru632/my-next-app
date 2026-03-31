@@ -225,7 +225,7 @@ export default function ContactPage() {
               </div>
               <div className="info-content">
                 <h4>Email Us</h4>
-                <a href="mailto:info@srilankatours.com">info@srilankatours.com</a>
+                <a href="mailto:info@senutours.com">info@senutours.com</a>
               </div>
             </div>
 
@@ -235,7 +235,7 @@ export default function ContactPage() {
               </div>
               <div className="info-content">
                 <h4>Call Us</h4>
-                <a href="tel:+94112345678">+94 11 234 5678</a>
+                <a href="tel:+94702787787">+94 70 278 7787</a>
               </div>
             </div>
 
@@ -245,7 +245,7 @@ export default function ContactPage() {
               </div>
               <div className="info-content">
                 <h4>Visit Us</h4>
-                <p>Colombo, Sri Lanka</p>
+                <p>167/2/C,<br />Hokandara North,<br />Hokandara, SRI LANKA.</p>
               </div>
             </div>
           </div>
@@ -262,7 +262,7 @@ export default function ContactPage() {
               </div>
             </a>
 
-            <a href="https://wa.me/94112345678" target="_blank" rel="noopener noreferrer" className="social-card whatsapp">
+            <a href="https://wa.me/94702787787" target="_blank" rel="noopener noreferrer" className="social-card whatsapp">
               <div className="social-icon-wrapper">
                 <MessageCircle size={24} />
               </div>

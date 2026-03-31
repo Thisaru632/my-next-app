@@ -17,14 +17,6 @@ const PACKAGES = [
         gradient: "linear-gradient(to top, rgba(13, 148, 136, 0.9), transparent)"
     },
     {
-        id: 2,
-        title: "250KM Adventure",
-        limit: "250 KM / 15 Hours",
-        description: "Ideal for a full day of exploration with multiple stops across the region.",
-        image: "https://images.unsplash.com/photo-1506012733027-04d66ee13075?q=80&w=2072&auto=format&fit=crop",
-        gradient: "linear-gradient(to top, rgba(59, 130, 246, 0.9), transparent)"
-    },
-    {
         id: 3,
         title: "350KM Discovery",
         limit: "350 KM / 19 Hours",

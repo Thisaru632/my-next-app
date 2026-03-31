@@ -939,8 +939,8 @@ export function useHeroBooking() {
     doc.setFontSize(8);
     doc.setTextColor(80, 80, 80);
     doc.setFont("helvetica", "normal");
-    doc.text("No. 167/2C Hokandara North, Hokandara.", 105, 46, { align: 'center' });
-    doc.text("Tel: +94 112 787 787 | Mob: +94 070 278 7787", 105, 52, { align: 'center' });
+    doc.text("167/2/C, Hokandara North, Hokandara, SRI LANKA.", 105, 46, { align: 'center' });
+    doc.text("Hotline: +94 70 278 7787", 105, 52, { align: 'center' });
 
     doc.setTextColor(0, 0, 0);
     let currentY = 70;
@@ -1049,7 +1049,7 @@ export function useHeroBooking() {
 
     addPdfButton(startX, currentY, btnW, btnH, "WhatsApp Us", "https://wa.me/94702787787", [37, 211, 102]);
     addPdfButton(startX + btnW + btnGap, currentY, btnW, btnH, "Call Support", "tel:+94702787787", [13, 148, 136]);
-    addPdfButton(startX + (btnW + btnGap) * 2, currentY, btnW, btnH, "Rate Us", "https://senutours.com/contact", [255, 193, 7]);
+    // addPdfButton(startX + (btnW + btnGap) * 2, currentY, btnW, btnH, "Rate Us", "https://senutours.com/contact", [255, 193, 7]);
     
     currentY += 15;
 

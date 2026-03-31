@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Box, MenuItem, Select, TextField, InputAdornment, Typography } from '@mui/material';
+import { Box, MenuItem, TextField, InputAdornment, Typography, Autocomplete } from '@mui/material';
 
 const countryCodes = [
     { code: '+94', label: 'LK', name: 'Sri Lanka' },
@@ -52,8 +52,6 @@ export default function PhoneInput({
     variant = "outlined",
     colorMode = 'light'
 }: PhoneInputProps) {
-    // Extract country code and actual number
-    // We assume the first 2-5 characters might be the country code if it starts with +
     const [selectedCode, setSelectedCode] = useState(() => {
         if (value.startsWith('+')) {
             const found = countryCodes.find(c => value.startsWith(c.code));
@@ -70,7 +68,7 @@ export default function PhoneInput({
     };
 
     const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value.replace(/[^0-9]/g, ''); // Only numbers
+        const val = e.target.value.replace(/[^0-9]/g, '');
         onChange(selectedCode + val);
     };
 
@@ -91,48 +89,105 @@ export default function PhoneInput({
             InputProps={{
                 startAdornment: (
                     <InputAdornment position="start">
-                        <Select
+                        <Autocomplete
+                            freeSolo
+                            disableClearable
+                            options={countryCodes}
+                            getOptionLabel={(option) => {
+                                if (typeof option === 'string') return option;
+                                return `${option.code} ${option.label}`;
+                            }}
                             value={selectedCode}
-                            onChange={(e) => handleCodeChange(e.target.value)}
-                            variant="standard"
-                            disableUnderline
-                            sx={{
-                                mr: 1,
-                                fontSize: '0.9rem',
-                                fontWeight: 600,
-                                color: isDark ? 'white' : 'inherit',
-                                '& .MuiSelect-select': {
-                                    py: 0,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 0.5
-                                },
-                                '& .MuiSvgIcon-root': {
-                                    color: isDark ? 'rgba(255,255,255,0.7)' : 'inherit'
+                            onInputChange={(event, newValue) => {
+                                const cleanValue = newValue.split(' ')[0];
+                                handleCodeChange(cleanValue.startsWith('+') ? cleanValue : '+' + cleanValue.replace(/[^0-9]/g, ''));
+                            }}
+                            onChange={(event, newValue) => {
+                                if (typeof newValue !== 'string' && newValue?.code) {
+                                    handleCodeChange(newValue.code);
+                                } else if (typeof newValue === 'string') {
+                                    const codeOnly = newValue.split(' ')[0];
+                                    handleCodeChange(codeOnly);
                                 }
                             }}
-                            MenuProps={{
-                                PaperProps: {
-                                    sx: {
-                                        maxHeight: 300,
-                                        bgcolor: isDark ? '#1a2a33' : 'white',
-                                        color: isDark ? 'white' : 'inherit',
-                                        '& .MuiMenuItem-root:hover': {
-                                            bgcolor: isDark ? 'rgba(13,148,136,0.2)' : 'rgba(0,0,0,0.04)'
-                                        }
+                            renderOption={(props, option) => (
+                                <MenuItem {...props} component="li">
+                                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
+                                        <Typography variant="body2" fontWeight={800} sx={{ minWidth: '48px', color: '#0d9488' }}>{option.code}</Typography>
+                                        <Typography variant="body2" fontWeight={800} sx={{ minWidth: '35px', color: '#1e293b' }}>{option.label}</Typography>
+                                        <Typography variant="caption" sx={{ opacity: 0.7, fontWeight: 500, ml: 1 }}>— {option.name}</Typography>
+                                    </Box>
+                                </MenuItem>
+                            )}
+                            renderInput={(params) => {
+                                const found = countryCodes.find(c => c.code === selectedCode);
+                                const displayValue = found ? `${found.code} ${found.label}` : selectedCode;
+                                
+                                return (
+                                    <TextField
+                                        {...params}
+                                        variant="standard"
+                                        placeholder="+94"
+                                        inputProps={{
+                                            ...params.inputProps,
+                                            value: displayValue
+                                        }}
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            disableUnderline: true,
+                                            sx: {
+                                                width: found ? 115 : 95,
+                                                height: '40px',
+                                                fontSize: '0.95rem',
+                                                fontWeight: 700,
+                                                color: isDark ? 'white' : '#0d9488',
+                                                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(13,148,136,0.03)',
+                                                borderRadius: '8px 0 0 8px',
+                                                pl: 1.5,
+                                                mr: 1.5,
+                                                borderRight: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(13,148,136,0.1)'}`,
+                                                '& input': {
+                                                    padding: '0 !important',
+                                                },
+                                                '& .MuiAutocomplete-endAdornment': {
+                                                    right: 0,
+                                                    top: '50%',
+                                                    transform: 'translateY(-50%)',
+                                                    '& .MuiIconButton-root': {
+                                                        padding: '2px',
+                                                        color: isDark ? 'rgba(255,255,255,0.5)' : 'rgba(13,148,136,0.5)'
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                    />
+                                );
+                            }}
+                            sx={{
+                                '& .MuiAutocomplete-inputRoot': {
+                                    paddingRight: '24px !important'
+                                }
+                            }}
+                            ListboxProps={{
+                                sx: {
+                                    maxHeight: 300,
+                                    minWidth: 340, // Wider for the labels
+                                    bgcolor: isDark ? '#1a2a33' : 'white',
+                                    color: isDark ? 'white' : 'inherit',
+                                    p: 1,
+                                    '& .MuiAutocomplete-option': {
+                                        borderRadius: '8px',
+                                        mb: 0.5
+                                    },
+                                    '& .MuiAutocomplete-option[aria-selected="true"]': {
+                                        bgcolor: isDark ? 'rgba(13,148,136,0.3) !important' : 'rgba(13,148,136,0.1) !important'
+                                    },
+                                    '& .MuiAutocomplete-option:hover': {
+                                        bgcolor: isDark ? 'rgba(13,148,136,0.2)' : 'rgba(0,0,0,0.04)'
                                     }
                                 }
                             }}
-                        >
-                            {countryCodes.map((c) => (
-                                <MenuItem key={c.code} value={c.code} sx={{ fontSize: '0.85rem' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Typography variant="body2" fontWeight={700} sx={{ minWidth: '35px' }}>{c.code}</Typography>
-                                        <Typography variant="caption" sx={{ opacity: 0.7 }}>({c.label})</Typography>
-                                    </Box>
-                                </MenuItem>
-                            ))}
-                        </Select>
+                        />
                     </InputAdornment>
                 ),
                 sx: { 
@@ -150,7 +205,6 @@ export default function PhoneInput({
             }}
             sx={{
                 ...sx,
-                // Handle different variants if needed
             }}
         />
     );

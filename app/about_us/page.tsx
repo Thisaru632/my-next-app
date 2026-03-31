@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import {
   Box,
   Container,
@@ -52,25 +53,27 @@ export default function AboutUsPage() {
 
   const team = [
     {
-      name: 'Udara Sampath Liyanage',
-      role: 'Founder & Managing Director',
-      avatar: 'UL',
+      name: 'Sampath Liyanage',
+      role: 'Founder / CEO',
+      avatar: 'SL',
       image: '/about/3.jpeg',
-      bio: 'Udara Sampath Liyanage, the founder of Senu Tours, is a visionary leader dedicated to elevating the tourism landscape in Sri Lanka. With years of experience and a deep love for his homeland, he focuses on delivering premium, reliable, and authentic travel experiences that connect guests to the island\'s true heart.',
+      bio: 'Sampath Liyanage, the founder of Senu Tours, is a visionary leader dedicated to elevating the tourism landscape in Sri Lanka. With years of experience and a deep love for his homeland, he focuses on delivering premium, reliable, and authentic travel experiences that connect guests to the island\'s true heart.',
       color: '#0d9488'
     },
     {
-      name: 'Amara Silva',
-      role: 'Operations Manager',
-      avatar: 'AS',
-      bio: 'Expert in logistics and customer service, ensuring seamless travel experiences.',
+      name: 'Sampath Kaluarachchi',
+      role: 'Chief Financial Officer',
+      avatar: 'SK',
+      image: '/1.jpeg',
+      bio: 'Sampath Kaluarachchi serves as the financial backbone of Senu Tours. As Chief Financial Officer, he oversees our financial planning, risk management, and economic strategy. His meticulous focus on transparency and sustainable growth ensures that Senu Tours remains a stable and trustworthy partner for all our clients and stakeholders.',
       color: '#3b82f6'
     },
     {
-      name: 'Kasun Fernando',
-      role: 'Tour Designer',
-      avatar: 'KF',
-      bio: 'Crafting unique itineraries that showcase the best of Sri Lankan culture and nature.',
+      name: 'Manisha Silva',
+      role: 'Managing Director',
+      avatar: 'MS',
+      image: '/2.jpeg',
+      bio: 'Manisha Silva, our Managing Director, drives the strategic growth and daily leadership of Senu Tours. With a focus on business development and operational excellence, she ensures we maintain our position as a market leader. Her vision ensures that every traveler receives the signature premium service Senu Tours is known for.',
       color: '#8b5cf6'
     },
 
@@ -433,7 +436,9 @@ export default function AboutUsPage() {
                 elevation={3}
                 sx={{
                   textAlign: 'center',
-                  transition: 'transform 0.3s',
+                  transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  backfaceVisibility: 'hidden',
+                  transform: 'translateZ(0)',
                   '&:hover': {
                     transform: 'scale(1.05)',
                     boxShadow: 8
@@ -443,20 +448,31 @@ export default function AboutUsPage() {
                 <Box sx={{ pt: 4, pb: 2 }}>
                   {member.image ? (
                     <Box
-                      component="img"
-                      src={member.image}
-                      alt={member.name}
                       sx={{
                         width: 120,
                         height: 120,
                         mx: 'auto',
                         mb: 2,
+                        position: 'relative',
                         borderRadius: '50%',
-                        objectFit: 'cover',
+                        overflow: 'hidden',
                         border: `4px solid ${member.color}`,
-                        boxShadow: 3
+                        boxShadow: 3,
+                        transform: 'translateZ(0)',
+                        '& img': {
+                          imageRendering: 'auto'
+                        }
                       }}
-                    />
+                    >
+                      <Image
+                        src={member.image}
+                        alt={member.name}
+                        fill
+                        sizes="120px"
+                        style={{ objectFit: 'cover' }}
+                        priority={index === 0}
+                      />
+                    </Box>
                   ) : (
                     <Avatar
                       sx={{

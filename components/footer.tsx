@@ -1,9 +1,10 @@
-'use client';
-
 import { useState } from 'react';
 import Image from 'next/image';
+import { PolicyDialog } from './PolicyDialog';
 
 export default function Footer() {
+  const [openPolicy, setOpenPolicy] = useState(false);
+
   return (
     <footer className="footer-section">
       {/* Main Footer Content */}
@@ -25,8 +26,8 @@ export default function Footer() {
             <div className="footer-col">
               <h4 className="footer-heading">Quick Links</h4>
               <ul className="footer-links">
-                <li><a href="/privacy">Privacy Policy</a></li>
-                <li><a href="/terms">Terms &amp; Conditions</a></li>
+                <li><button onClick={() => setOpenPolicy(true)} className="footer-link-btn">Privacy Policy</button></li>
+                <li><button onClick={() => setOpenPolicy(true)} className="footer-link-btn">Terms &amp; Conditions</button></li>
                 <li><a href="/brochure">E – Brochure</a></li>
                 <li><a href="/faq">FAQ</a></li>
               </ul>
@@ -131,6 +132,8 @@ export default function Footer() {
         </div>
       </div>
 
+      <PolicyDialog open={openPolicy} onClose={() => setOpenPolicy(false)} />
+
       <style jsx>{`
         /* ═══════════════════════════════════════════════════════════ */
         /*  FOOTER SECTION — Luxury Heritage Aesthetic                */
@@ -199,16 +202,23 @@ export default function Footer() {
           margin-bottom: 12px;
         }
 
-        .footer-links a {
+        .footer-links a,
+        .footer-link-btn {
           color: #94a3b8;
           font-size: 0.9rem;
           font-weight: 400;
           text-decoration: none;
           transition: all 0.3s ease;
           display: inline-block;
+          background: transparent;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          font-family: inherit;
         }
 
-        .footer-links a:hover {
+        .footer-links a:hover,
+        .footer-link-btn:hover {
           color: #0d9488;
           transform: translateX(5px);
         }
