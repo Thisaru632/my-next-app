@@ -60,9 +60,6 @@ export default function Footer() {
               <h4 className="footer-heading">Helpful Links</h4>
               <ul className="footer-links">
                 <li><a href="/">Home</a></li>
-                <li><a href="/all_packages">Tours</a></li>
-                <li><a href="/our-vehicles">Our Vehicles</a></li>
-                <li><a href="/gallery">Gallery</a></li>
                 <li><a href="/about_us">About Us</a></li>
                 <li><a href="/contact">Contact Us</a></li>
               </ul>
@@ -168,24 +165,6 @@ export default function Footer() {
               />
             </div>
 
-            {/* Awards */}
-            <div className="footer-awards">
-              <div className="award-badge">
-                <Image src="/images/awards/award-1.png" alt="Award 1" width={60} height={60} />
-              </div>
-              <div className="award-badge">
-                <Image src="/images/awards/award-2.png" alt="Award 2" width={60} height={60} />
-              </div>
-              <div className="award-badge">
-                <Image src="/images/awards/award-3.png" alt="Award 3" width={60} height={60} />
-              </div>
-              <div className="award-badge">
-                <Image src="/images/awards/award-4.png" alt="Award 4" width={60} height={60} />
-              </div>
-              <div className="award-badge">
-                <Image src="/images/awards/award-5.png" alt="Award 5" width={60} height={60} />
-              </div>
-            </div>
 
             {/* Copyright */}
             <div className="footer-copyright">

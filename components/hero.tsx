@@ -23,9 +23,12 @@ import { BookingFormCard } from './BookingFormCard';
 import { TripSummaryCard } from './TripSummaryCard';
 
 const SLIDES = [
-  { src: "/hero/beautiful-woman-dress-by-waterfall.jpg", alt: "Woman by waterfall" },
-  { src: "/service/island.jpg", alt: "Tropical Island" },
-  { src: "/hero/promodhya-abeysekara-gjd-7_3Ek_w-unsplash.jpg", alt: "Beach view" },
+  { src: "/hero/beautiful-woman-dress-by-waterfall.webp", alt: "Woman by waterfall" },
+  { src: "/hero/female-tourists.webp", alt: "Tourists exploring" },
+  { src: "/hero/island.webp", alt: "Tropical Island" },
+  { src: "/hero/promodhya-abeysekara-gjd-7_3Ek_w-unsplash.webp", alt: "Beach view" },
+  { src: "/hero/two-individuals-carrying-backpacks-standing-hill-gazing-lake.webp", alt: "Gazing at lake" },
+  { src: "/hero/young-woman-traveling-beach-against-backdrop-old-ship.webp", alt: "Woman by beach" },
 ];
 const INTERVAL_MS = 6000;
 

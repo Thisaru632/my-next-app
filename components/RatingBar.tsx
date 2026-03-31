@@ -5,11 +5,11 @@ import StarIcon from '@mui/icons-material/Star';
 import GoogleIcon from '@mui/icons-material/Google';
 
 const REVIEWS = [
-    { name: "John Doe", rating: 5, text: "Best tour experience in Sri Lanka!", date: "2 days ago" },
-    { name: "Sarah Smith", rating: 5, text: "Excellent service and safe driving. Highly recommended!", date: "1 week ago" },
-    { name: "Michael Chen", rating: 5, text: "Senu Tours made our honeymoon unforgettable.", date: "3 days ago" },
-    { name: "Emma Wilson", rating: 5, text: "Professional staff and very clean vehicles.", date: "5 days ago" },
-    { name: "David Brown", rating: 5, text: "Great value for money. The itinerary was perfect.", date: "2 weeks ago" },
+    { name: "Kavindi Perera", rating: 5, text: "Best tour experience in Sri Lanka! The guide was so helpful.", date: "2 days ago" },
+    { name: "James Thompson", rating: 5, text: "Excellent service and safe driving. Highly recommended for tourists!", date: "1 week ago" },
+    { name: "Duminda Ranaweera", rating: 5, text: "Senu Tours made our family trip truly unforgettable. Thank you!", date: "3 days ago" },
+    { name: "Sophie Schmidt", rating: 5, text: "Professional staff and very clean vehicles. Amazing landscape views.", date: "5 days ago" },
+    { name: "Tharushi Fernando", rating: 5, text: "Great value for money. The itinerary was perfectly planned.", date: "2 weeks ago" },
 ];
 
 export default function RatingBar() {

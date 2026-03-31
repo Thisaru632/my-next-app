@@ -9,7 +9,7 @@ export default function PackHeader() {
       <section className="hero-banner">
         <div className="hero-overlay"></div>
         <Image
-          src="/hero/two-individuals-carrying-backpacks-standing-hill-gazing-lake.jpg"
+          src="/hero/two-individuals-carrying-backpacks-standing-hill-gazing-lake.webp"
           alt="Two people with backpacks standing on a hill gazing at a lake in Sri Lanka"
           fill
           className="hero-image"

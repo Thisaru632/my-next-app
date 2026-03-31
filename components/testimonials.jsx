@@ -19,9 +19,9 @@ const testimonials = [
   },
   {
     id: 3,
-    quote: "Grateful for the excellent 2-week itinerary. Special thanks for thoughtful hotel arrangements. Our guide, Mr. Kumar, was outstanding—warm, knowledgeable and passionate. Your exceptional service guarantees our recommendations to friends and family.",
-    author: "Gayathri",
-    location: "India"
+    quote: "Grateful for the excellent 2-week itinerary. Your service guarantees our recommendations to friends and family. Outstanding guide knowledge and professionalism throughout the journey.",
+    author: "Vishmitha",
+    location: "Sri Lanka"
   }
 ];
 

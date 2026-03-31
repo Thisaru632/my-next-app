@@ -10,7 +10,7 @@ const destinations = [
     name: "Sigiriya",
     label: "Destinations",
     description: "Ancient rock fortress & UNESCO world heritage site",
-    bg: "/destination/sigiriya.jpg",
+    bg: "/destination/sigiriya.webp",
     tall: true,
   },
   {
@@ -18,7 +18,7 @@ const destinations = [
     name: "Ella",
     label: "Destinations",
     description: "Misty mountains & iconic Nine Arch Bridge",
-    bg: "/destination/ella.jpg",
+    bg: "/destination/ella.webp",
     tall: false,
   },
   {
@@ -26,7 +26,7 @@ const destinations = [
     name: "Galle",
     label: "Destinations",
     description: "Colonial fort city by the sea",
-    bg: "/destination/galle.jpg",
+    bg: "/destination/galle.webp",
     tall: false,
     slug: "galle",
   },
@@ -35,7 +35,7 @@ const destinations = [
     name: "Yala",
     label: "Destinations",
     description: "Sri Lanka's premier wildlife sanctuary",
-    bg: "/destination/yala.jpg",
+    bg: "/destination/yala.webp",
     tall: true,
   },
   {
@@ -43,7 +43,7 @@ const destinations = [
     name: "Kandy",
     label: "Destinations",
     description: "Temple of the Tooth & cultural capital",
-    bg: "/destination/kandy.jpg",
+    bg: "/destination/kandy.webp",
     tall: false,
   },
   {
@@ -51,7 +51,7 @@ const destinations = [
     name: "Mirissa",
     label: "Destinations",
     description: "Whale watching & golden beaches",
-    bg: "/destination/mirissa.jpg",
+    bg: "/destination/mirissa.webp",
     tall: false,
   },
   {
@@ -59,7 +59,7 @@ const destinations = [
     name: "Polonnaruwa",
     label: "Destinations",
     description: "Ancient kingdoms & sacred ruins",
-    bg: "/destination/polonnaruwa.jpg",
+    bg: "/destination/polonnaruwa.webp",
     tall: false,
   },
   {
@@ -67,7 +67,7 @@ const destinations = [
     name: "Nuwara Eliya",
     label: "Destinations",
     description: "Tea trails & colonial hill station",
-    bg: "/destination/34.jpg",
+    bg: "/destination/34.webp",
     tall: false,
   },
 ];
