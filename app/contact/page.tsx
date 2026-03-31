@@ -219,15 +219,7 @@ export default function ContactPage() {
 
           {/* Contact Information Cards */}
           <div className="contact-info-cards">
-            <div className="info-card">
-              <div className="icon-wrapper">
-                <Mail size={24} />
-              </div>
-              <div className="info-content">
-                <h4>Email Us</h4>
-                <a href="mailto:info@senutours.com">info@senutours.com</a>
-              </div>
-            </div>
+
 
             <div className="info-card">
               <div className="icon-wrapper">
@@ -235,7 +227,7 @@ export default function ContactPage() {
               </div>
               <div className="info-content">
                 <h4>Call Us</h4>
-                <a href="tel:+94702787787">+94 70 278 7787</a>
+                <a href="tel:+94112787787">0112 787 787</a>
               </div>
             </div>
 
@@ -252,7 +244,7 @@ export default function ContactPage() {
 
           {/* Social Media Cards */}
           <div className="social-cards">
-            <a href="https://facebook.com/yourpage" target="_blank" rel="noopener noreferrer" className="social-card facebook">
+            <a href="https://www.facebook.com/Senucabs/" target="_blank" rel="noopener noreferrer" className="social-card facebook">
               <div className="social-icon-wrapper">
                 <Facebook size={24} />
               </div>

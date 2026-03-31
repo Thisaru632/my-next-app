@@ -19,7 +19,7 @@ interface BookingFormCardProps {
 
 export function BookingFormCard({ booking: h }: BookingFormCardProps) {
   return (
-    <div className="booking-form-card w-full max-w-md rounded-xl px-4 sm:px-5 py-3 sm:py-5 text-left" style={{ background: "rgba(255,255,255,0.55)", backdropFilter: "blur(24px) saturate(180%)", WebkitBackdropFilter: "blur(24px) saturate(180%)", border: "1px solid rgba(255,255,255,0.45)", boxShadow: "0 8px 40px 0 rgba(31, 38, 135, 0.14)", flexShrink: 0 }}>
+    <div className="booking-form-card w-full max-w-md rounded-xl px-3 sm:px-5 py-3 sm:py-5 text-left" style={{ background: "rgba(255,255,255,0.55)", backdropFilter: "blur(24px) saturate(180%)", WebkitBackdropFilter: "blur(24px) saturate(180%)", border: "1px solid rgba(255,255,255,0.45)", boxShadow: "0 8px 40px 0 rgba(31, 38, 135, 0.14)", flexShrink: 0 }}>
       <div className="text-center mb-2 sm:mb-3">
         <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: "1.15rem", color: "#000000" }}>Get a fare estimate</h3>
         <p className="hidden sm:block" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, fontSize: "0.72rem", lineHeight: 1.4, color: "#000000", opacity: 0.85 }}>Choose vehicle & plan your trip</p>

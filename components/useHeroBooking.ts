@@ -669,7 +669,14 @@ export function useHeroBooking() {
     const cleanFormType = formData.tripType.toLowerCase().trim();
     const matches = adjustments.filter(adj => {
       const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const vehicleMatch = cleanAdjVeh === 'all' || cleanAdjVeh === cleanFormVehName || cleanAdjVeh === cleanFormVehType || cleanFormVehName.includes(cleanAdjVeh) || cleanAdjVeh.includes(cleanFormVehName);
+      const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
+      
+      const vehicleMatch = cleanAdjVeh === 'all' || 
+                          adjVehicles.includes(cleanFormVehName) || 
+                          adjVehicles.includes(cleanFormVehType) ||
+                          adjVehicles.some(adjV => cleanFormVehName.includes(adjV)) ||
+                          adjVehicles.some(adjV => cleanFormVehType.includes(adjV));
+
       const cleanAdjType = adj.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
       const kmMatch = distanceInKm >= (adj.minKm || 0) && distanceInKm <= (adj.maxKm || 99999);
@@ -682,8 +689,12 @@ export function useHeroBooking() {
     return matches.sort((a, b) => {
       const aClean = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
       const bClean = b.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const aScore = aClean === cleanFormVehName ? 200 : aClean === cleanFormVehType ? 100 : aClean === 'all' ? 0 : 50;
-      const bScore = bClean === cleanFormVehName ? 200 : bClean === cleanFormVehType ? 100 : bClean === 'all' ? 0 : 50;
+      const aVehs = aClean.split(',');
+      const bVehs = bClean.split(',');
+      
+      const aScore = (aClean === cleanFormVehName || aVehs.includes(cleanFormVehName)) ? 200 : (aClean === cleanFormVehType || aVehs.includes(cleanFormVehType)) ? 100 : aClean === 'all' ? 0 : 50;
+      const bScore = (bClean === cleanFormVehName || bVehs.includes(cleanFormVehName)) ? 200 : (bClean === cleanFormVehType || bVehs.includes(cleanFormVehType)) ? 100 : bClean === 'all' ? 0 : 50;
+      
       if (aScore !== bScore) return bScore - aScore;
       return a.type.toLowerCase() === 'all' ? 1 : -1;
     })[0];
@@ -827,7 +838,14 @@ export function useHeroBooking() {
     // 3. Seasonal Adjustment Multiplier
     const adj = adjustments.filter(a => {
       const cleanAdjVeh = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const vehicleMatch = cleanAdjVeh === 'all' || cleanAdjVeh === cleanVName || cleanAdjVeh === cleanVType || cleanVName.includes(cleanAdjVeh) || cleanAdjVeh.includes(cleanVName);
+      const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
+      
+      const vehicleMatch = cleanAdjVeh === 'all' || 
+                          adjVehicles.includes(cleanVName) || 
+                          adjVehicles.includes(cleanVType) ||
+                          adjVehicles.some(adjV => cleanVName.includes(adjV)) ||
+                          adjVehicles.some(adjV => cleanVType.includes(adjV));
+
       const cleanAdjType = a.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
       const kmMatch = distanceInKm >= (a.minKm || 0) && distanceInKm <= (a.maxKm || 99999);
@@ -838,8 +856,12 @@ export function useHeroBooking() {
     }).sort((a, b) => {
       const aClean = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
       const bClean = b.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const aScore = aClean === cleanVName ? 200 : aClean === cleanVType ? 100 : aClean === 'all' ? 0 : 50;
-      const bScore = bClean === cleanVName ? 200 : bClean === cleanVType ? 100 : bClean === 'all' ? 0 : 50;
+      const aVehs = aClean.split(',');
+      const bVehs = bClean.split(',');
+
+      const aScore = (aClean === cleanVName || aVehs.includes(cleanVName)) ? 200 : (aClean === cleanVType || aVehs.includes(cleanVType)) ? 100 : aClean === 'all' ? 0 : 50;
+      const bScore = (bClean === cleanVName || bVehs.includes(cleanVName)) ? 200 : (bClean === cleanVType || bVehs.includes(cleanVType)) ? 100 : bClean === 'all' ? 0 : 50;
+      
       if (aScore !== bScore) return bScore - aScore;
       return a.type.toLowerCase() === 'all' ? 1 : -1;
     })[0];
@@ -1002,12 +1024,6 @@ export function useHeroBooking() {
     const totalKm = (matchedPkg?.km || 0) + extraKm;
     const totalHrs = (matchedPkg?.hrs || 0) + (data.formData.additionalHours || 0);
     addRow("Package Inclusions", `${totalKm} KMs and ${totalHrs} Hrs`);
-    if (data.seasonalAdjustmentAmount !== 0) {
-      addRow("Seasonal Adjustment", `Rs. ${data.seasonalAdjustmentAmount?.toLocaleString() || 0}`);
-    }
-    if (data.provinceAdjustmentAmount !== 0) {
-      addRow("Province Adjustment", `Rs. ${data.provinceAdjustmentAmount?.toLocaleString() || 0}`);
-    }
     addRow("Miscellaneous Items", "");
     addRow("Miscellaneous Rate", "");
     addRow("TOTAL", (data.formData.vehicleType === 'SUV' || (data.totalPrice || 0) === 0) ? "Price on Request" : `Rs. ${data.totalPrice?.toLocaleString() || 0}`, true);
@@ -1017,9 +1033,6 @@ export function useHeroBooking() {
     addSectionHeader("EXTRAS");
     addRow("Per Extra KM", (matchedPkg?.extraKMRate || 0).toString());
     addRow("Per Extra Hour", (matchedPkg?.extraHrRate1 || 0).toString());
-    if (data.nightSurcharge > 0) {
-      addRow("Night Surcharge", `Rs. ${data.nightSurcharge.toLocaleString()}`);
-    }
     currentY += 15;
 
     // Footer

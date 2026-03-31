@@ -15,7 +15,7 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
   }
 
   return (
-    <div className="w-full lg:max-w-xs xl:max-w-sm rounded-xl p-4 sm:p-5" style={{ background: "rgba(255,255,255,0.75)", backdropFilter: "blur(24px) saturate(180%)", WebkitBackdropFilter: "blur(24px) saturate(180%)", border: "1px solid rgba(255,255,255,0.45)", boxShadow: "0 8px 40px 0 rgba(31, 38, 135, 0.14)", alignSelf: "flex-start", textAlign: "left" }}>
+    <div className="w-full lg:max-w-xs xl:max-w-sm rounded-xl p-3 sm:p-5" style={{ background: "rgba(255,255,255,0.75)", backdropFilter: "blur(24px) saturate(180%)", WebkitBackdropFilter: "blur(24px) saturate(180%)", border: "1px solid rgba(255,255,255,0.45)", boxShadow: "0 8px 40px 0 rgba(31, 38, 135, 0.14)", alignSelf: "flex-start", textAlign: "left" }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
         <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg, #0d9488, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -91,14 +91,16 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                 </div>
               ) : (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1rem', fontWeight: 700, color: '#111827' }}>{h.routeDistance ? Math.ceil(h.routeDistance / 1000) : '0'} km</div>
-                    <button onClick={h.handleViewDirections} disabled={!h.routeDistance} style={{ padding: '3px 8px', fontSize: '0.65rem', background: 'rgba(13,148,136,0.08)', border: '1.5px solid rgba(13,148,136,0.35)', borderRadius: '6px', color: '#0d9488', cursor: h.routeDistance ? 'pointer' : 'not-allowed', opacity: h.routeDistance ? 1 : 0.4, fontWeight: 700 }}>
-                      <MapIcon sx={{ fontSize: '0.85rem' }} /> View
-                    </button>
-                    <button onClick={() => { if (h.routeDistance) h.setOpenNearbyViewer(true); }} disabled={!h.routeDistance} style={{ padding: '3px 8px', fontSize: '0.65rem', background: 'rgba(59,130,246,0.08)', border: '1.5px solid rgba(59,130,246,0.35)', borderRadius: '6px', color: '#3b82f6', cursor: h.routeDistance ? 'pointer' : 'not-allowed', opacity: h.routeDistance ? 1 : 0.4, fontWeight: 700 }}>
-                      <MyLocationIcon sx={{ fontSize: '0.85rem' }} /> Nearby
-                    </button>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button onClick={h.handleViewDirections} disabled={!h.routeDistance} style={{ padding: '3px 8px', fontSize: '0.65rem', background: 'rgba(13,148,136,0.08)', border: '1.5px solid rgba(13,148,136,0.35)', borderRadius: '6px', color: '#0d9488', cursor: h.routeDistance ? 'pointer' : 'not-allowed', opacity: h.routeDistance ? 1 : 0.4, fontWeight: 700 }}>
+                        <MapIcon sx={{ fontSize: '0.85rem' }} /> View
+                      </button>
+                      <button onClick={() => { if (h.routeDistance) h.setOpenNearbyViewer(true); }} disabled={!h.routeDistance} style={{ padding: '3px 8px', fontSize: '0.65rem', background: 'rgba(59,130,246,0.08)', border: '1.5px solid rgba(59,130,246,0.35)', borderRadius: '6px', color: '#3b82f6', cursor: h.routeDistance ? 'pointer' : 'not-allowed', opacity: h.routeDistance ? 1 : 0.4, fontWeight: 700 }}>
+                        <MyLocationIcon sx={{ fontSize: '0.85rem' }} /> Nearby
+                      </button>
+                    </div>
                   </div>
                   {h.routeDuration !== null && <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', marginTop: '1px' }}>Est. Drive: {h.routeDuration >= 3600 ? `${Math.floor(h.routeDuration / 3600)}h ${Math.round((h.routeDuration % 3600) / 60)}m` : `${Math.round(h.routeDuration / 60)} min`}</div>}
                   {h.matchedPackage && h.formData.tripType !== 'Drop' && (
@@ -145,19 +147,7 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                 )}
                 {h.extraKmDetail && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra KM: {h.extraKmDetail.km} km @ LKR {h.matchedPackage?.extraKMRate}/km</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {h.extraKmDetail.cost.toLocaleString()}</span></div>}
                 {Number(h.formData.additionalHours) > 0 && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra Hours: {h.formData.additionalHours}h @ LKR {h.matchedPackage?.extraHrRate1}/h</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {(h.formData.additionalHours * (h.matchedPackage?.extraHrRate1 || 0)).toLocaleString()}</span></div>}
-                {h.seasonalAdjustmentAmount !== 0 && (
-                  <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(59, 130, 246, 0.08)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                    <span style={{ fontSize: '0.6rem', color: '#3b82f6', fontWeight: 700 }}>{h.activeAdjustment?.vehicle === 'all' ? 'SEASONAL' : 'VEHICLE'} ADJUST ({h.activeAdjustment?.percentage || 0}%):</span>
-                    <span style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 800 }}>{h.seasonalAdjustmentAmount > 0 ? '+' : ''} LKR {h.seasonalAdjustmentAmount.toLocaleString()}</span>
-                  </div>
-                )}
-                {h.provinceAdjustmentAmount !== 0 && (
-                  <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.08)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', border: '1px solid rgba(13,148,136,0.2)' }}>
-                    <span style={{ fontSize: '0.6rem', color: '#0d9488', fontWeight: 700 }}>PROVINCE ADJUST ({h.pickupProvince}):</span>
-                    <span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 800 }}>{h.provinceAdjustmentAmount > 0 ? '+' : ''} LKR {h.provinceAdjustmentAmount.toLocaleString()}</span>
-                  </div>
-                )}
-                {h.nightSurcharge > 0 && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(59,130,246,0.08)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', border: '1px solid rgba(59,130,246,0.2)' }}><span style={{ fontSize: '0.6rem', color: '#3b82f6', fontWeight: 700 }}>🌙 NIGHT SURCHARGE:</span><span style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 800 }}>+ LKR {h.nightSurcharge.toLocaleString()}</span></div>}
+
                 <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', marginTop: '3px' }}>*Actual price may vary based on route changes.</div>
                 {h.routeDistance !== null && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>

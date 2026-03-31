@@ -57,18 +57,19 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
       <div className="max-w-7xl mx-auto px-4">
         <div className={`flex items-center justify-between transition-all duration-300 ${isScrolled ? "h-20" : "h-24"}`}>
 
-          {/* Logo */}
           <Link href="/" className="flex items-center -ml-4">
-            <Image
-              src="/logo.png"
-              alt="Senu Tours Logo"
-              width={isScrolled ? 160 : 180}
-              height={isScrolled ? 52 : 64}
-              priority
-              className={`object-contain transition-all duration-300 ${
-                !isLightHeader ? "filter drop-shadow-[0_0_1px_rgba(0,0,0,0.8)] drop-shadow-[0_0_1px_rgba(0,0,0,0.8)]" : ""
-              }`}
-            />
+            <div className={`transition-all duration-300 ${isScrolled ? "w-[140px] sm:w-[160px]" : "w-[155px] sm:w-[180px]"}`}>
+              <Image
+                src="/logo.png"
+                alt="Senu Tours Logo"
+                width={200}
+                height={80}
+                priority
+                className={`object-contain transition-all duration-300 w-full h-auto ${
+                  !isLightHeader ? "filter drop-shadow-[0_0_1px_rgba(0,0,0,0.8)] drop-shadow-[0_0_1px_rgba(0,0,0,0.8)]" : ""
+                }`}
+              />
+            </div>
           </Link>
 
           {/* Desktop Links */}

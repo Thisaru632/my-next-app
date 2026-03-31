@@ -55,8 +55,8 @@ export default function LoadingScreen() {
             }}>
                 <div style={{
                     position: 'relative',
-                    width: '380px',
-                    height: '380px',
+                    width: 'min(380px, 80vw)',
+                    height: 'min(380px, 80vw)',
                     animation: 'pulseScale 2s infinite ease-in-out'
                 }}>
                     <Image 
@@ -69,7 +69,7 @@ export default function LoadingScreen() {
                 </div>
                 
                 <div style={{
-                    width: '320px',
+                    width: 'min(320px, 70vw)',
                     height: '6px',
                     background: 'rgba(255, 255, 255, 0.05)',
                     position: 'relative',

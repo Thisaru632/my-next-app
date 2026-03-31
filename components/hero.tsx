@@ -101,8 +101,8 @@ export default function HeroSection() {
 
   return (
     <section
-      className="relative w-full overflow-hidden transition-all duration-500 ease-in-out"
-      style={{ minHeight: "850px", height: "auto", display: "flex", flexDirection: "column", background: "#071d24" }}
+      className="relative w-full overflow-hidden transition-all duration-500 ease-in-out hero-container"
+      style={{ height: "auto", display: "flex", flexDirection: "column", background: "#071d24" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -115,7 +115,7 @@ export default function HeroSection() {
       ))}
 
       {/* HERO CONTENT */}
-      <div className="relative flex-grow flex flex-col items-center justify-center px-4 pt-32 sm:pt-40 pb-24 text-center transition-opacity duration-500" style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}>
+      <div className="relative flex-grow flex flex-col items-center justify-center px-4 pt-24 sm:pt-40 pb-20 text-center transition-opacity duration-500" style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}>
         <div className="w-full max-w-4xl">
           {/* Headline */}
           <div className="mb-1 sm:mb-2 px-2" style={{ animation: "fadeInUp 1s ease-out" }}>
@@ -208,6 +208,16 @@ export default function HeroSection() {
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes scrollLineMove { 0%, 100% { opacity: 0.6; transform: scaleY(0.8); } 50% { opacity: 1; transform: scaleY(1); } }
         @keyframes loc-spin { to { transform: translateY(-50%) rotate(360deg); } }
+        
+        @media (min-width: 1024px) {
+          .hero-container { min-height: 850px; }
+        }
+        @media (max-width: 1023px) {
+          .hero-container { min-height: 100vh; }
+        }
+        @media (max-width: 640px) {
+          .hero-container { padding-top: 10px; }
+        }
       `}</style>
     </section>
   );

@@ -32,6 +32,8 @@ import {
     Grid,
     TextField,
     InputAdornment,
+    Autocomplete,
+    Checkbox,
 } from '@mui/material';
 import {
     CloudUpload as CloudUploadIcon,
@@ -43,6 +45,8 @@ import {
     TrendingUp as TrendingUpIcon,
     Percent as PercentIcon,
     Assessment as AssessmentIcon,
+    CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
+    CheckBox as CheckBoxIcon,
 } from '@mui/icons-material';
 
 import { API_ENDPOINTS } from '@/config/api';
@@ -103,7 +107,7 @@ const RateCardManagePage = () => {
     // Filtering states
     const [minKmFilter, setMinKmFilter] = useState('');
     const [maxKmFilter, setMaxKmFilter] = useState('');
-    const [vehicleFilter, setVehicleFilter] = useState('All'); // Assuming these exist elsewhere
+    const [vehicleFilter, setVehicleFilter] = useState<string[]>(['All']); // Multi-select support
     const [typeFilter, setTypeFilter] = useState('All'); // Assuming these exist elsewhere
     const [daysFilter, setDaysFilter] = useState('All');
     const [hrsFilter, setHrsFilter] = useState('All');
@@ -433,7 +437,7 @@ const RateCardManagePage = () => {
             const matchesSearch = card.vehicle.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 card.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (card.category && card.category.toLowerCase().includes(searchTerm.toLowerCase()));
-            const matchesVehicle = vehicleFilter === 'All' || card.vehicle === vehicleFilter;
+            const matchesVehicle = vehicleFilter.includes('All') || vehicleFilter.includes(card.vehicle);
             const matchesType = typeFilter === 'All' || card.type === typeFilter;
             const matchesDays = daysFilter === 'All' || card.days.toString() === daysFilter;
             const matchesHrs = hrsFilter === 'All' || card.hrs.toString() === hrsFilter;
@@ -461,7 +465,7 @@ const RateCardManagePage = () => {
     const resetFilters = () => {
         setSearchInput('');
         setSearchTerm('');
-        setVehicleFilter('All');
+        setVehicleFilter(['All']);
         setTypeFilter('All');
         setDaysFilter('All');
         setHrsFilter('All');
@@ -486,7 +490,9 @@ const RateCardManagePage = () => {
             return;
         }
 
-        const newVehicle = vehicleFilter;
+        const newVehicle = (vehicleFilter.includes('All') && categoryFilter !== 'All') 
+            ? categoryFilter 
+            : (vehicleFilter.includes('All') ? 'All' : vehicleFilter.join(','));
         const newType = typeFilter;
 
         // Conflict check: If adding a broader rule (Type = 'All') for the same vehicle scope
@@ -497,7 +503,7 @@ const RateCardManagePage = () => {
 
             if (conflicts.length > 0) {
                 const confNames = conflicts.map(c => `${c.percentage}% for ${c.vehicle} ${c.type}`).join(', ');
-                setConflictMessage(`Remove previously added ${confNames} and apply newly added ${newVehicle === 'All' ? 'All Vehicle' : newVehicle} All rate?`);
+                setConflictMessage(`Remove previously added ${confNames} and apply newly added ${vehicleFilter.includes('All') ? 'All Vehicle' : vehicleFilter.join(', ')} All rate?`);
                 setIdsToDelete(conflicts.map(c => c._id));
                 setConflictDialogOpen(true);
                 return;
@@ -523,7 +529,9 @@ const RateCardManagePage = () => {
                 setIdsToDelete([]); // Clear after deletion
             }
             const bodyPayload = {
-                vehicle: vehicleFilter,
+                vehicle: (vehicleFilter.includes('All') && categoryFilter !== 'All') 
+                    ? categoryFilter 
+                    : (vehicleFilter.includes('All') ? 'All' : vehicleFilter.join(',')),
                 type: typeFilter,
                 adjustmentType: adjustmentType,
                 percentage: adjustmentType === 'percentage' ? parseFloat(adjustValue) : 0,
@@ -920,7 +928,7 @@ const RateCardManagePage = () => {
 
             {/* Filter Section (Moved under Upload Section) */}
             <Paper sx={{
-                p: 2,
+                p: { xs: 2.5, md: 3 },
                 mb: 3,
                 borderRadius: '16px',
                 border: '1px solid',
@@ -928,8 +936,8 @@ const RateCardManagePage = () => {
                 bgcolor: 'background.paper',
                 backgroundImage: 'none'
             }}>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
-                    <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: '200px' } }}>
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" sx={{ flexWrap: 'wrap' }}>
+                    <Box sx={{ flex: '1 1 300px', minWidth: { xs: '100%', md: '200px' } }}>
                         <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Search</Typography>
                         <input
                             placeholder="Search vehicle or type..."
@@ -950,7 +958,7 @@ const RateCardManagePage = () => {
                         />
                     </Box>
 
-                    <Box sx={{ minWidth: '150px' }}>
+                    <Box sx={{ flex: { md: '0 0 180px' }, minWidth: '150px' }}>
                         <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Category</Typography>
                         <select
                             value={categoryFilter}
@@ -977,31 +985,65 @@ const RateCardManagePage = () => {
                         </select>
                     </Box>
 
-                    <Box sx={{ minWidth: '150px' }}>
+                    <Box sx={{ flex: { md: '0 0 260px' }, minWidth: { xs: '100%', md: '200px', lg: '240px' } }}>
                         <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
-                        <select
+                        <Autocomplete
+                            multiple
+                            size="small"
+                            options={['All', ...uniqueVehicles]}
+                            disableCloseOnSelect
                             value={vehicleFilter}
-                            onChange={(e) => {
-                                setVehicleFilter(e.target.value);
+                            onChange={(event, newValue) => {
+                                // If "All" was just added, clear others. If others were added, remove "All".
+                                if (newValue.includes('All') && !vehicleFilter.includes('All')) {
+                                    setVehicleFilter(['All']);
+                                } else if (newValue.length > 1 && newValue.includes('All')) {
+                                    const filtered = newValue.filter(v => v !== 'All');
+                                    setVehicleFilter(filtered.length > 0 ? filtered : ['All']);
+                                } else if (newValue.length === 0) {
+                                    setVehicleFilter(['All']);
+                                } else {
+                                    setVehicleFilter(newValue);
+                                }
                                 setPage(0);
                             }}
-                            style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                border: '1px solid var(--border-color, #cbd5e1)',
-                                marginTop: '4px',
-                                outline: 'none',
-                                background: 'transparent',
-                                color: 'inherit',
-                                fontSize: '0.9rem',
-                                cursor: 'pointer',
-                                fontFamily: 'inherit'
-                            }}
-                        >
-                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Vehicles</option>
-                            {uniqueVehicles.map(v => <option key={v} value={v} style={{ background: '#fff', color: '#000' }}>{v}</option>)}
-                        </select>
+                            getOptionLabel={(option) => option}
+                            renderOption={({ key, ...props }, option, { selected }) => (
+                                <li key={key} {...props} style={{ padding: '0 8px' }}>
+                                    <Checkbox
+                                        icon={<CheckBoxOutlineBlankIcon fontSize="small" />}
+                                        checkedIcon={<CheckBoxIcon fontSize="small" />}
+                                        style={{ marginRight: 8 }}
+                                        checked={selected}
+                                    />
+                                    {option}
+                                </li>
+                            )}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    placeholder="Filter vehicles..."
+                                    sx={{
+                                        marginTop: '4px',
+                                        '& .MuiOutlinedInput-root': {
+                                            borderRadius: '10px',
+                                            bgcolor: 'transparent',
+                                            fontSize: '0.9rem',
+                                            height: '42px',
+                                            overflowY: 'auto !important',
+                                            padding: '2px 9px !important',
+                                            alignContent: 'flex-start',
+                                            '&::-webkit-scrollbar': { width: '4px' },
+                                            '&::-webkit-scrollbar-thumb': { background: '#cbd5e1', borderRadius: '4px' }
+                                        },
+                                        '& .MuiAutocomplete-input': {
+                                            padding: '4px 4px !important'
+                                        }
+                                    }}
+                                />
+                            )}
+                            sx={{ width: '100%' }}
+                        />
                     </Box>
 
                     <Box sx={{ minWidth: '150px' }}>
@@ -1309,7 +1351,7 @@ const RateCardManagePage = () => {
                         bgcolor: 'background.paper',
                         backgroundImage: 'none'
                     }}>
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" sx={{ flexWrap: 'wrap' }}>
                             <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: '200px' } }}>
                                 <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Search</Typography>
                                 <input
@@ -1358,31 +1400,64 @@ const RateCardManagePage = () => {
                                 </select>
                             </Box>
 
-                            <Box sx={{ minWidth: '150px' }}>
+                            <Box sx={{ minWidth: { xs: '100%', md: '200px', lg: '240px' } }}>
                                 <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
-                                <select
+                                <Autocomplete
+                                    multiple
+                                    size="small"
+                                    options={['All', ...uniqueVehicles]}
+                                    disableCloseOnSelect
                                     value={vehicleFilter}
-                                    onChange={(e) => {
-                                        setVehicleFilter(e.target.value);
+                                    onChange={(event, newValue) => {
+                                        if (newValue.includes('All') && !vehicleFilter.includes('All')) {
+                                            setVehicleFilter(['All']);
+                                        } else if (newValue.length > 1 && newValue.includes('All')) {
+                                            const filtered = newValue.filter(v => v !== 'All');
+                                            setVehicleFilter(filtered.length > 0 ? filtered : ['All']);
+                                        } else if (newValue.length === 0) {
+                                            setVehicleFilter(['All']);
+                                        } else {
+                                            setVehicleFilter(newValue);
+                                        }
                                         setPage(0);
                                     }}
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px 14px',
-                                        borderRadius: '10px',
-                                        border: '1px solid var(--border-color, #cbd5e1)',
-                                        marginTop: '4px',
-                                        outline: 'none',
-                                        background: 'transparent',
-                                        color: 'inherit',
-                                        fontSize: '0.9rem',
-                                        cursor: 'pointer',
-                                        fontFamily: 'inherit'
-                                    }}
-                                >
-                                    <option value="All" style={{ background: '#fff', color: '#000' }}>All Vehicles</option>
-                                    {uniqueVehicles.map(v => <option key={v} value={v} style={{ background: '#fff', color: '#000' }}>{v}</option>)}
-                                </select>
+                                    getOptionLabel={(option) => option}
+                                    renderOption={({ key, ...props }, option, { selected }) => (
+                                        <li key={key} {...props} style={{ padding: '0 8px' }}>
+                                            <Checkbox
+                                                icon={<CheckBoxOutlineBlankIcon fontSize="small" />}
+                                                checkedIcon={<CheckBoxIcon fontSize="small" />}
+                                                style={{ marginRight: 8 }}
+                                                checked={selected}
+                                            />
+                                            {option}
+                                        </li>
+                                    )}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            placeholder="Filter vehicles..."
+                                            sx={{
+                                                marginTop: '4px',
+                                                '& .MuiOutlinedInput-root': {
+                                                    borderRadius: '10px',
+                                                    bgcolor: 'transparent',
+                                                    fontSize: '0.9rem',
+                                                    padding: '2px 9px !important',
+                                                    height: '42px',
+                                                    overflowY: 'auto !important',
+                                                    alignContent: 'flex-start',
+                                                    '&::-webkit-scrollbar': { width: '4px' },
+                                                    '&::-webkit-scrollbar-thumb': { background: '#cbd5e1', borderRadius: '4px' }
+                                                },
+                                                '& .MuiAutocomplete-input': {
+                                                    padding: '4px 4px !important'
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                    sx={{ width: '100%' }}
+                                />
                             </Box>
 
                             <Box sx={{ minWidth: '150px' }}>

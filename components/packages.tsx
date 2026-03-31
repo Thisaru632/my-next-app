@@ -364,7 +364,7 @@ export default function MagicalDestinations() {
         }
         .magical-heading {
           font-family: 'Playfair Display', Georgia, serif;
-          font-size: clamp(2rem, 4.5vw, 3.4rem);
+          font-size: clamp(1.5rem, 6vw, 3.4rem);
           font-weight: 700;
           color: #111;
           line-height: 1.18;
