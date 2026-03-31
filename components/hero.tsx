@@ -115,7 +115,7 @@ export default function HeroSection() {
       ))}
 
       {/* HERO CONTENT */}
-      <div className="relative flex-grow flex flex-col items-center justify-center px-4 pt-16 pb-24 text-center transition-opacity duration-500" style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}>
+      <div className="relative flex-grow flex flex-col items-center justify-center px-4 pt-32 sm:pt-40 pb-24 text-center transition-opacity duration-500" style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}>
         <div className="w-full max-w-4xl">
           {/* Headline */}
           <div className="mb-1 sm:mb-2 px-2" style={{ animation: "fadeInUp 1s ease-out" }}>

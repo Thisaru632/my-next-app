@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { CallPopupDialog } from "./CallPopupDialog";
+import { Snackbar, Alert } from "@mui/material";
+import { Phone } from "@mui/icons-material";
 
 /* ─── DESTINATIONS DATA ─────────────────────────────────────────── */
 const destinations = [
@@ -151,19 +154,6 @@ function DestCard({
               <span className="dest-label">{dest.label}</span>
             </div>
 
-            {/* Hover CTA */}
-            <div
-              className="dest-cta"
-              style={{
-                opacity: hovered ? 1 : 0,
-                transform: hovered ? "translateY(0)" : "translateY(8px)",
-              }}
-            >
-              <span>Explore</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
           </div>
         </Link>
       ) : (
@@ -205,19 +195,6 @@ function DestCard({
               <span className="dest-label">{dest.label}</span>
             </div>
 
-            {/* Hover CTA */}
-            <div
-              className="dest-cta"
-              style={{
-                opacity: hovered ? 1 : 0,
-                transform: hovered ? "translateY(0)" : "translateY(8px)",
-              }}
-            >
-              <span>Explore</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
           </div>
         </>
       )}
@@ -228,6 +205,8 @@ function DestCard({
 /* ─── MAIN SECTION ─────────────────────────────────────────────── */
 export default function MagicalDestinations() {
   const { ref, inView } = useInView(0.08);
+  const [showCallPopup, setShowCallPopup] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   return (
     <section ref={ref} className="magical-section">
@@ -250,9 +229,7 @@ export default function MagicalDestinations() {
 
         {/* Main heading */}
         <h2 className="magical-heading">
-          Fortresses, forests,{" "}
-          <em>temples,</em>{" "}
-          <span className="heading-accent">treasures</span>
+          Destination base tour <span className="heading-accent">packages with senu</span>
         </h2>
 
         {/* Sub */}
@@ -309,10 +286,27 @@ export default function MagicalDestinations() {
             <span className="promo-eyebrow">Sri Lanka with Senu Tours</span>
             <h3 className="promo-heading">10+ magical<br /><em>destinations</em></h3>
             <p className="promo-sub">Each place tells a story. Let us take you there.</p>
-            <ViewMoreButton />
+            <ViewMoreButton onClick={() => setShowCallPopup(true)} />
           </div>
         </div>
       </div>
+
+      <CallPopupDialog 
+        open={showCallPopup} 
+        onClose={() => setShowCallPopup(false)} 
+        onCopySuccess={() => setCopySuccess(true)} 
+      />
+
+      <Snackbar 
+        open={copySuccess} 
+        autoHideDuration={3000} 
+        onClose={() => setCopySuccess(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" sx={{ width: '100%' }}>
+            Number copied to clipboard!
+        </Alert>
+      </Snackbar>
 
       {/* ── Styles ── */}
       <style>{`
@@ -565,20 +559,20 @@ export default function MagicalDestinations() {
 }
 
 /* ─── VIEW MORE BUTTON ──────────────────────────────────────────── */
-function ViewMoreButton() {
+function ViewMoreButton({ onClick }: { onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <Link
-      href="/all_packages?tab=destination"
+    <button
+      onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         fontFamily: "'Montserrat', sans-serif",
-        fontSize: "12px",
-        fontWeight: 700,
-        letterSpacing: "0.1em",
+        fontSize: "11px",
+        fontWeight: 800,
+        letterSpacing: "0.15em",
         textTransform: "uppercase",
-        padding: "12px 28px",
+        padding: "14px 32px",
         borderRadius: "50px",
         border: "1.5px solid rgba(255,255,255,0.7)",
         background: hovered ? "rgba(255,255,255,1)" : "rgba(255,255,255,0.12)",
@@ -588,14 +582,14 @@ function ViewMoreButton() {
         backdropFilter: "blur(4px)",
         display: "inline-flex",
         alignItems: "center",
-        gap: "8px",
-        textDecoration: "none",
+        justifyContent: "center",
+        gap: "10px",
+        width: "100%",
+        maxWidth: "320px",
       }}
     >
-      View more destinations
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-        <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </Link>
+      <Phone sx={{ fontSize: 18 }} />
+      get call and select your package
+    </button>
   );
 }

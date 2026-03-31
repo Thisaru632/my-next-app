@@ -4,12 +4,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CallPopupDialog } from './CallPopupDialog';
+import { Snackbar, Alert } from '@mui/material';
 
 const PACKAGES = [
     {
         id: 1,
         title: "100KM Freedom",
-        limit: "100 KM / 5 Hours",
+        limit: "100 KM / 10 Hours",
         description: "Perfect for a quick city tour or a short getaway to nearby attractions.",
         image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2069&auto=format&fit=crop",
         gradient: "linear-gradient(to top, rgba(13, 148, 136, 0.9), transparent)"
@@ -17,39 +19,39 @@ const PACKAGES = [
     {
         id: 2,
         title: "250KM Adventure",
-        limit: "250 KM / 12 Hours",
+        limit: "250 KM / 15 Hours",
         description: "Ideal for a full day of exploration with multiple stops across the region.",
         image: "https://images.unsplash.com/photo-1506012733027-04d66ee13075?q=80&w=2072&auto=format&fit=crop",
         gradient: "linear-gradient(to top, rgba(59, 130, 246, 0.9), transparent)"
     },
     {
         id: 3,
-        title: "500KM Discovery",
-        limit: "500 KM / 15 Hours",
+        title: "350KM Discovery",
+        limit: "350 KM / 19 Hours",
         description: "The ultimate choice for long-distance travel and deep province exploration.",
         image: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021&auto=format&fit=crop",
         gradient: "linear-gradient(to top, rgba(236, 72, 153, 0.9), transparent)"
     },
     {
         id: 4,
-        title: "750KM Expedition",
-        limit: "750 KM / 24 Hours",
+        title: "500KM Expedition",
+        limit: "500 KM / 43 Hours",
         description: "For the serious wanderers who want to cover cross-country distances in comfort.",
         image: "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?q=80&w=2070&auto=format&fit=crop",
         gradient: "linear-gradient(to top, rgba(245, 158, 11, 0.9), transparent)"
     },
     {
         id: 5,
-        title: "1000KM Odyssey",
-        limit: "1000 KM / 48 Hours",
+        title: "750KM Odyssey",
+        limit: "750 KM / 67 Hours",
         description: "A grand tour across multiple cities with overnight stays and unlimited possibilities.",
         image: "https://images.unsplash.com/photo-1502784444187-359ac186c5bb?q=80&w=2070&auto=format&fit=crop",
         gradient: "linear-gradient(to top, rgba(99, 102, 241, 0.9), transparent)"
     },
     {
         id: 6,
-        title: "1500KM Grand Master",
-        limit: "1500 KM / 72 Hours",
+        title: "1000KM Grand Master",
+        limit: "1000 KM / 91 Hours",
         description: "Our most extensive package for those who want to see every corner of paradise.",
         image: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop",
         gradient: "linear-gradient(to top, rgba(16, 185, 129, 0.9), transparent)"
@@ -60,6 +62,8 @@ export default function FreedomPackages() {
     const [active, setActive] = useState(0);
     const [isMobile, setIsMobile] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
+    const [showCallPopup, setShowCallPopup] = useState(false);
+    const [copySuccess, setCopySuccess] = useState(false);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -176,7 +180,13 @@ export default function FreedomPackages() {
                                         {pkg.description}
                                     </p>
 
-                                    <button className="px-6 md:px-8 py-2.5 md:py-3 bg-white text-gray-900 rounded-xl font-bold text-xs md:text-sm tracking-wider uppercase hover:bg-teal-600 hover:text-white transition-all duration-300 shadow-xl self-stretch md:self-start">
+                                    <button 
+                                        className="px-6 md:px-8 py-2.5 md:py-3 bg-white text-gray-900 rounded-xl font-bold text-xs md:text-sm tracking-wider uppercase hover:bg-teal-600 hover:text-white transition-all duration-300 shadow-xl self-stretch md:self-start"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowCallPopup(true);
+                                        }}
+                                    >
                                         Request Package
                                     </button>
                                 </div>
@@ -200,16 +210,23 @@ export default function FreedomPackages() {
                 </div>
             </div>
 
-            {/* View More Button */}
-            <div className="flex justify-center mt-20 relative z-30">
-                <Link
-                    href="/all_packages?tab=distance"
-                    className="group flex items-center gap-3 px-10 py-4 rounded-full border-2 border-teal-600 text-teal-600 font-bold text-sm tracking-widest uppercase hover:bg-teal-600 hover:text-white transition-all duration-300 shadow-lg hover:shadow-teal-500/20"
-                >
-                    View More Packages
-                    <ChevronRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
-                </Link>
-            </div>
+
+            <CallPopupDialog 
+                open={showCallPopup} 
+                onClose={() => setShowCallPopup(false)} 
+                onCopySuccess={() => setCopySuccess(true)} 
+            />
+
+            <Snackbar 
+                open={copySuccess} 
+                autoHideDuration={3000} 
+                onClose={() => setCopySuccess(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert severity="success" sx={{ width: '100%' }}>
+                    Number copied to clipboard!
+                </Alert>
+            </Snackbar>
 
             <style jsx>{`
         .perspective-[1000px] {

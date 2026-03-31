@@ -101,7 +101,8 @@ const RateCardManagePage = () => {
     const [activeTab, setActiveTab] = useState(0);
 
     // Filtering states
-    const [kmFilter, setKmFilter] = useState('');
+    const [minKmFilter, setMinKmFilter] = useState('');
+    const [maxKmFilter, setMaxKmFilter] = useState('');
     const [vehicleFilter, setVehicleFilter] = useState('All'); // Assuming these exist elsewhere
     const [typeFilter, setTypeFilter] = useState('All'); // Assuming these exist elsewhere
     const [daysFilter, setDaysFilter] = useState('All');
@@ -436,13 +437,14 @@ const RateCardManagePage = () => {
             const matchesType = typeFilter === 'All' || card.type === typeFilter;
             const matchesDays = daysFilter === 'All' || card.days.toString() === daysFilter;
             const matchesHrs = hrsFilter === 'All' || card.hrs.toString() === hrsFilter;
-            const matchesKm = kmFilter === '' || card.km.toString().includes(kmFilter);
+            const matchesMinKm = minKmFilter === '' || card.km >= parseInt(minKmFilter);
+            const matchesMaxKm = maxKmFilter === '' || card.km <= parseInt(maxKmFilter);
             const matchesCategory = categoryFilter === 'All' || card.category === categoryFilter;
 
             const isPromotion = card.category?.toLowerCase() === 'promotion' || card.category?.toLowerCase() === 'promotion ';
-            return matchesSearch && matchesVehicle && matchesType && matchesDays && matchesHrs && matchesKm && matchesCategory && !isPromotion;
+            return matchesSearch && matchesVehicle && matchesType && matchesDays && matchesHrs && matchesMinKm && matchesMaxKm && matchesCategory && !isPromotion;
         });
-    }, [rateCards, searchTerm, vehicleFilter, typeFilter, daysFilter, hrsFilter, kmFilter, categoryFilter]);
+    }, [rateCards, searchTerm, vehicleFilter, typeFilter, daysFilter, hrsFilter, minKmFilter, maxKmFilter, categoryFilter]);
 
     // Paginated data
     const paginatedRateCards = useMemo(() => {
@@ -464,7 +466,8 @@ const RateCardManagePage = () => {
         setDaysFilter('All');
         setHrsFilter('All');
         setCategoryFilter('All');
-        setKmFilter('');
+        setMinKmFilter('');
+        setMaxKmFilter('');
         setPage(0);
     };
 
@@ -1080,6 +1083,56 @@ const RateCardManagePage = () => {
                             <option value="All" style={{ background: '#fff', color: '#000' }}>All Hours</option>
                             {uniqueHrs.map(h => <option key={h} value={h} style={{ background: '#fff', color: '#000' }}>{h}</option>)}
                         </select>
+                    </Box>
+
+                    <Box sx={{ minWidth: '80px' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Min KM</Typography>
+                        <input
+                            placeholder="0"
+                            type="number"
+                            value={minKmFilter}
+                            onChange={(e) => {
+                                setMinKmFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                fontFamily: 'inherit'
+                            }}
+                        />
+                    </Box>
+
+                    <Box sx={{ minWidth: '80px' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Max KM</Typography>
+                        <input
+                            placeholder="999..."
+                            type="number"
+                            value={maxKmFilter}
+                            onChange={(e) => {
+                                setMaxKmFilter(e.target.value);
+                                setPage(0);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                fontFamily: 'inherit'
+                            }}
+                        />
                     </Box>
 
 

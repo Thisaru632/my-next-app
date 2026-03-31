@@ -421,7 +421,10 @@ const CabServicePage = () => {
         setSearchQuery('');
     };
 
-    const uniqueRateCompanies = Array.from(new Set(rates.map(r => r.cabCompanyName))).sort();
+    const uniqueRateCompanies = Array.from(new Set([
+        ...rates.map(r => r.cabCompanyName),
+        ...services.map(s => s.serviceName)
+    ])).filter(Boolean).sort();
     const uniqueRateVehicles = Array.from(new Set(rates.map(r => r.vehicle))).sort();
     const uniqueRateHours = Array.from(new Set(rates.map(r => r.hours)))
         .filter((h): h is number => typeof h === 'number')

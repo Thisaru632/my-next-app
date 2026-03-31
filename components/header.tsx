@@ -65,7 +65,9 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
               width={isScrolled ? 160 : 180}
               height={isScrolled ? 52 : 64}
               priority
-              className="object-contain transition-all duration-300"
+              className={`object-contain transition-all duration-300 ${
+                !isLightHeader ? "filter drop-shadow-[0_0_1px_rgba(0,0,0,0.8)] drop-shadow-[0_0_1px_rgba(0,0,0,0.8)]" : ""
+              }`}
             />
           </Link>
 

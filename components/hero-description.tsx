@@ -1,6 +1,4 @@
-"use client";
-
-import { useEffect, useRef, useState } from "react";
+import { ReactNode } from "react";
 
 const PILLARS = [
   {
@@ -40,25 +38,8 @@ const PILLARS = [
 ];
 
 export default function HeroDescription() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
-      { threshold: 0.15 }
-    );
-    if (sectionRef.current) observer.observe(sectionRef.current);
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <>
-      <link
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600&display=swap"
-        rel="stylesheet"
-      />
-
       <style>{`
         /* ── wrapper ── */
         .hd-section {
@@ -95,13 +76,7 @@ export default function HeroDescription() {
         /* ── tagline block ── */
         .hd-tagline {
           text-align: center;
-          opacity: 0;
-          transform: translateY(22px);
-          transition: opacity 0.75s ease, transform 0.75s ease;
-        }
-        .hd-tagline.visible {
           opacity: 1;
-          transform: translateY(0);
         }
         .hd-eyebrow {
           display: block;
@@ -174,18 +149,13 @@ export default function HeroDescription() {
           border: 1px solid rgba(13,148,136,0.15);
           background: #ffffff;
           box-shadow: 0 2px 16px rgba(0,0,0,.004);
-          opacity: 0;
-          transform: translateY(28px);
-          transition: opacity 0.65s ease, transform 0.65s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-        }
-        .hd-pillar.visible {
           opacity: 1;
-          transform: translateY(0);
         }
         .hd-pillar:hover {
           transform: translateY(-5px);
           box-shadow: 0 12px 32px rgba(13,148,136,0.14);
           border-color: rgba(13,148,136,0.4);
+          transition: all 0.3s ease;
         }
         .hd-pillar-icon {
           width: 52px; height: 52px;
@@ -248,11 +218,11 @@ export default function HeroDescription() {
         }
       `}</style>
 
-      <section className="hd-section" ref={sectionRef}>
+      <section className="hd-section">
         <div className="hd-inner">
 
           {/* ── Tagline ── */}
-          <div className={`hd-tagline${visible ? " visible" : ""}`}>
+          <div className="hd-tagline">
             <span className="hd-eyebrow">Welcome to Senu Tours</span>
             <h2 className="hd-headline">
               Sri Lanka, Explored <em>Your Way</em>
@@ -274,8 +244,8 @@ export default function HeroDescription() {
             {PILLARS.map((p, i) => (
               <div
                 key={i}
-                className={`hd-pillar${visible ? " visible" : ""}`}
-                style={{ transitionDelay: visible ? `${0.15 + i * 0.12}s` : "0s" }}
+                className="hd-pillar"
+                style={{ transitionDelay: `${0.1 + i * 0.1}s` }}
               >
                 <div className="hd-pillar-icon">{p.icon}</div>
                 <div className="hd-stat">{p.stat}</div>
