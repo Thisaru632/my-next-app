@@ -57,16 +57,16 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
       <div className="max-w-7xl mx-auto px-4">
         <div className={`flex items-center justify-between transition-all duration-300 ${isScrolled ? "h-20" : "h-24"}`}>
 
-          <Link href="/" className="flex items-center -ml-4">
-            <div className={`transition-all duration-300 ${isScrolled ? "w-[140px] sm:w-[160px]" : "w-[155px] sm:w-[180px]"}`}>
+          <Link href="/" className="flex items-center -ml-2 sm:-ml-4">
+            <div className={`transition-all duration-300 ${isScrolled ? "w-[125px] sm:w-[140px]" : "w-[135px] sm:w-[155px]"}`}>
               <Image
                 src="/logo.png"
                 alt="Senu Tours Logo"
-                width={200}
-                height={80}
+                width={180}
+                height={70}
                 priority
                 className={`object-contain transition-all duration-300 w-full h-auto ${
-                  !isLightHeader ? "filter drop-shadow-[0_0_1px_rgba(0,0,0,0.8)] drop-shadow-[0_0_1px_rgba(0,0,0,0.8)]" : ""
+                  !isLightHeader ? "filter drop-shadow-[0_0_1px_rgba(0,0,0,0.8)]" : ""
                 }`}
               />
             </div>
@@ -141,27 +141,27 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
           </ul>
 
           {/* Mobile Auth & Hotline & Hamburger */}
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center gap-1.5 md:hidden">
             <a 
               href="tel:+94702787787" 
-              className={`flex items-center justify-center w-10 h-10 rounded-full shadow-md transition-all active:scale-90 ${
+              className={`flex items-center justify-center w-9 h-9 rounded-full shadow-md transition-all active:scale-90 ${
                 isLightHeader ? "bg-green-600 text-white" : "bg-green-600 text-white"
               }`}
             >
-              <Call style={{ fontSize: '20px' }} />
+              <Call style={{ fontSize: '18px' }} />
             </a>
             
             {user ? (
               <div
-                className={`flex items-center justify-center w-10 h-10 rounded-full cursor-pointer ${isLightHeader ? "bg-green-50" : "bg-white/20 shadow-md"}`}
+                className={`flex items-center justify-center w-9 h-9 rounded-full cursor-pointer ${isLightHeader ? "bg-green-50" : "bg-white/20 shadow-md"}`}
                 onClick={() => setProfileModalOpen(true)}
               >
-                <AccountCircle className="text-green-600" style={{ fontSize: '32px' }} />
+                <AccountCircle className="text-green-600" style={{ fontSize: '28px' }} />
               </div>
             ) : (
               <button
                 onClick={() => setAuthModalOpen(true)}
-                className={`px-4 py-2 rounded-full text-sm font-bold shadow-md transition-all active:scale-95 ${
+                className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md transition-all active:scale-95 ${
                   isLightHeader 
                     ? "bg-green-600 text-white" 
                     : "bg-green-600 text-white" /* Force green on mobile for better visibility */
@@ -173,10 +173,10 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
 
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className={`p-2 rounded-md focus:outline-none ${isLightHeader ? "text-gray-800" : "text-white"}`}
+              className={`p-1.5 rounded-md focus:outline-none ${isLightHeader ? "text-gray-800" : "text-white"}`}
               aria-label="Toggle menu"
             >
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {isOpen ? (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 ) : (

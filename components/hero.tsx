@@ -101,30 +101,30 @@ export default function HeroSection() {
 
   return (
     <section
-      className="relative w-full overflow-hidden transition-all duration-500 ease-in-out hero-container"
-      style={{ height: "auto", display: "flex", flexDirection: "column", background: "#071d24" }}
+      className="relative w-full overflow-hidden transition-all duration-500 ease-in-out hero-container flex flex-col"
+      style={{ minHeight: "100dvh", background: "#071d24" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
       {/* SLIDE STACK */}
       {SLIDES.map((slide, i) => (
-        <div key={i} className="absolute inset-0 transition-opacity duration-1000 ease-in-out" style={{ zIndex: i === current ? 1 : 0, opacity: i === current ? 1 : 0, pointerEvents: i === current ? "auto" : "none" }} aria-hidden={i !== current}>
-          <Image src={slide.src} alt={slide.alt} fill priority={i === 0} className="object-cover" style={{ animation: i === current ? "kenBurns 8s ease-out forwards" : "none" }} onLoadingComplete={() => { if (i === 0) setFirstImageLoaded(true); }} />
+        <div key={i} className="absolute inset-0 transition-opacity duration-1000 ease-in-out overflow-hidden" style={{ zIndex: i === current ? 1 : 0, opacity: i === current ? 1 : 0, pointerEvents: i === current ? "auto" : "none" }}>
+          <Image src={slide.src} alt={slide.alt} fill priority={i === 0} className="object-cover" style={{ transformOrigin: "center", animation: i === current ? "kenBurns 8s ease-out forwards" : "none" }} onLoadingComplete={() => { if (i === 0) setFirstImageLoaded(true); }} />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(45,35,25,0.5) 50%, rgba(45,35,25,0.75) 100%)" }} />
         </div>
       ))}
 
       {/* HERO CONTENT */}
-      <div className="relative flex-grow flex flex-col items-center justify-center px-3 sm:px-4 pt-20 sm:pt-40 pb-20 text-center transition-opacity duration-500" style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}>
-        <div className="w-full max-w-4xl">
+      <div className="relative flex-grow flex flex-col items-center justify-center px-4 pt-16 sm:pt-40 pb-20 text-center transition-opacity duration-500 overflow-x-hidden" style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}>
+        <div className="w-full max-w-4xl mx-auto">
           {/* Headline */}
-          <div className="mb-4 sm:mb-6 px-2" style={{ animation: "fadeInUp 1s ease-out" }}>
-            <h1 className="text-white font-semibold tracking-tight mb-2" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2rem, 8vw, 4.5rem)", lineHeight: 1.1, textShadow: "0 4px 24px rgba(0,0,0,0.6)" }}>SENU TOURS</h1>
-            <p className="text-white uppercase leading-relaxed mx-auto max-w-lg" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 400, letterSpacing: "0.08em", fontSize: "clamp(0.65rem, 2.5vw, 0.95rem)", textShadow: "0 2px 10px rgba(0,0,0,0.5)", opacity: 0.95 }}>
+          <div className="mb-4 sm:mb-6 px-4" style={{ animation: "fadeInUp 1s ease-out" }}>
+            <h1 className="text-white font-semibold tracking-tight mb-2" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.7rem, 6vw, 4.5rem)", lineHeight: 1.1, textShadow: "0 4px 24px rgba(0,0,0,0.6)" }}>SENU TOURS</h1>
+            <p className="text-white uppercase leading-relaxed mx-auto max-w-sm sm:max-w-lg" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 400, letterSpacing: "0.08em", fontSize: "clamp(0.6rem, 2vw, 0.95rem)", textShadow: "0 2px 10px rgba(0,0,0,0.5)", opacity: 0.95 }}>
               Your Home, Your Journey, Your Hospitality Haven
             </p>
           </div>
- 
+
           {/* Form and Summary */}
           <div className="flex flex-col lg:flex-row justify-center items-start gap-6 sm:gap-4 mt-2 mb-4 w-full" style={{ animation: "fadeInUp 1s ease-out 0.3s both" }}>
             <BookingFormCard booking={h} />

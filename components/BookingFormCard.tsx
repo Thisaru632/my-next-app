@@ -164,18 +164,18 @@ export function BookingFormCard({ booking: h }: BookingFormCardProps) {
       {/* Vehicle Type Selection */}
       <div className="mb-3">
         <label style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "0.72rem", fontWeight: 500, color: "#000000", display: "block", marginBottom: "0.4rem", letterSpacing: "0.04em", opacity: 0.8 }}>SELECT VEHICLE</label>
-        <div className="grid grid-cols-4 gap-2 sm:gap-3">
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
           {vehicleTypes.map((vehicle) => (
             <button key={vehicle.name} onClick={() => h.handleVehicleCardClick(vehicle.name)}
-              style={{ background: h.formData.vehicleType === vehicle.name ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.14)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: h.formData.vehicleType === vehicle.name ? "2px solid #0d9488" : "1.5px solid rgba(255,255,255,0.42)", borderRadius: "10px", padding: "0.5rem 0.3rem", cursor: "pointer", transition: "all 0.3s ease", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
+              style={{ background: h.formData.vehicleType === vehicle.name ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.14)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", border: h.formData.vehicleType === vehicle.name ? "2px solid #0d9488" : "1.5px solid rgba(255,255,255,0.42)", borderRadius: "10px", padding: "0.5rem 0.15rem", cursor: "pointer", transition: "all 0.3s ease", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.34)"; e.currentTarget.style.transform = "translateY(-3px)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = h.formData.vehicleType === vehicle.name ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.14)"; e.currentTarget.style.transform = "translateY(0)"; }}
             >
-              <div style={{ width: "32px", height: "32px", marginBottom: "0.2rem", position: "relative" }}>
+              <div style={{ width: "24px", height: "24px", marginBottom: "0.2rem", position: "relative" }}>
                 <Image src={vehicle.icon} alt={vehicle.name} fill style={{ objectFit: "contain" }} sizes="32px" />
               </div>
-              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "0.6rem", fontWeight: 600, color: "#000000" }}>{vehicle.name}</div>
-              {h.formData.vehicleType === vehicle.name && <div style={{ position: "absolute", top: "4px", right: "4px", color: "#0d9488", fontSize: "0.8rem" }}>✓</div>}
+              <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "0.58rem", fontWeight: 600, color: "#000000" }}>{vehicle.name}</div>
+              {h.formData.vehicleType === vehicle.name && <div style={{ position: "absolute", top: "2px", right: "2px", color: "#0d9488", fontSize: "0.7rem" }}>✓</div>}
             </button>
           ))}
         </div>
