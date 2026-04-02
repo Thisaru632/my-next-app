@@ -24,11 +24,12 @@ export interface RateCard {
 }
 
 export interface RateAdjustment {
-  _id: string; vehicle: string; type: string; percentage: number;
+  _id: string; vehicle: string; type: string; category?: string; days?: string; hrs?: string; percentage: number;
   fixedAmount?: number; adjustmentType?: 'percentage' | 'fixed';
   minKm?: number;
   maxKm?: number;
   validFrom: string | null; validTo: string | null;
+  lastUpdated: string;
 }
 
 const sampleVehicles = {
@@ -537,10 +538,10 @@ export function useHeroBooking() {
     if (routeDistance !== null) {
       const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
       const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
-      const bestMatch = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : sortedCards[0];
-      return bestMatch || sortedCards[0];
+      const bestMatch = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : (formData.vehicleType === 'Bus' ? null : sortedCards[0]);
+      return bestMatch;
     }
-    return sortedCards[0];
+    return formData.vehicleType === 'Bus' ? null : sortedCards[0];
   })();
 
   const minKmRequired = (() => {
@@ -672,31 +673,67 @@ export function useHeroBooking() {
       const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
       
       const vehicleMatch = cleanAdjVeh === 'all' || 
-                          adjVehicles.includes(cleanFormVehName) || 
-                          adjVehicles.includes(cleanFormVehType) ||
-                          adjVehicles.some(adjV => cleanFormVehName.includes(adjV)) ||
-                          adjVehicles.some(adjV => cleanFormVehType.includes(adjV));
+                          adjVehicles.some(adjV => 
+                            adjV === cleanFormVehName || 
+                            adjV === cleanFormVehType ||
+                            (adjV.length > 2 && cleanFormVehName.includes(adjV)) ||
+                            (cleanFormVehName.length > 2 && adjV.includes(cleanFormVehName)) ||
+                            (adjV.length > 2 && cleanFormVehType.includes(adjV)) ||
+                            (cleanFormVehType.length > 2 && adjV.includes(cleanFormVehType))
+                          );
 
       const cleanAdjType = adj.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
+      
+      const categoryMatch = !adj.category || adj.category === 'All' || adj.category.toLowerCase().trim() === determinedCategory.toLowerCase().trim();
+      const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
+      const daysMatch = !adj.days || adj.days === 'All' || adj.days === targetDays.toString();
+      const hrsMatch = !adj.hrs || adj.hrs === 'All' || (matchedPackage && adj.hrs === matchedPackage.hrs.toString());
+
       const kmMatch = distanceInKm >= (adj.minKm || 0) && distanceInKm <= (adj.maxKm || 99999);
       const tripDate = formData.dateTime ? new Date(formData.dateTime) : new Date();
       const vFrom = adj.validFrom ? new Date(adj.validFrom) : null; if (vFrom) vFrom.setHours(0, 0, 0, 0);
       const vTo = adj.validTo ? new Date(adj.validTo) : null; if (vTo) vTo.setHours(23, 59, 59, 999);
-      return vehicleMatch && typeMatch && kmMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
+      return vehicleMatch && typeMatch && categoryMatch && daysMatch && hrsMatch && kmMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
     });
     if (matches.length === 0) return null;
     return matches.sort((a, b) => {
-      const aClean = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const bClean = b.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const aVehs = aClean.split(',');
-      const bVehs = bClean.split(',');
-      
-      const aScore = (aClean === cleanFormVehName || aVehs.includes(cleanFormVehName)) ? 200 : (aClean === cleanFormVehType || aVehs.includes(cleanFormVehType)) ? 100 : aClean === 'all' ? 0 : 50;
-      const bScore = (bClean === cleanFormVehName || bVehs.includes(cleanFormVehName)) ? 200 : (bClean === cleanFormVehType || bVehs.includes(cleanFormVehType)) ? 100 : bClean === 'all' ? 0 : 50;
-      
-      if (aScore !== bScore) return bScore - aScore;
-      return a.type.toLowerCase() === 'all' ? 1 : -1;
+        const getScore = (adj: RateAdjustment) => {
+            let score = 0;
+            const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+            const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
+            
+            const isSpecificMatch = adjVehicles.some(adjV => 
+                adjV === cleanFormVehName || 
+                (adjV.length > 2 && cleanFormVehName.includes(adjV)) ||
+                (cleanFormVehName.length > 2 && adjV.includes(cleanFormVehName))
+            );
+            const isTypeMatch = adjVehicles.some(adjV => 
+                adjV === cleanFormVehType || 
+                (adjV.length > 2 && cleanFormVehType.includes(adjV)) ||
+                (cleanFormVehType.length > 2 && adjV.includes(cleanFormVehType))
+            );
+
+            // Primary specificity: Vehicle name/type
+            if (isSpecificMatch) score += 500;
+            else if (isTypeMatch) score += 300;
+            else if (cleanAdjVeh !== 'all') score += 100;
+
+            // Secondary specificity: Discrete filters
+            if (adj.category && adj.category !== 'All') score += 50;
+            if (adj.days && adj.days !== 'All') score += 50;
+            if (adj.hrs && adj.hrs !== 'All') score += 50;
+            if (adj.type && adj.type.toLowerCase() !== 'all') score += 40;
+            
+            // Range specificity
+            if (adj.minKm! > 0 || adj.maxKm! < 99999) score += 20;
+            
+            return score;
+        };
+        const scoreA = getScore(a);
+        const scoreB = getScore(b);
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(); // Latest first
     })[0];
   })();
 
@@ -816,9 +853,9 @@ export function useHeroBooking() {
       if (routeDistance !== null) {
         const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
         const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
-        matchedPkg = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : sortedCards[0];
+        matchedPkg = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : (vType === 'Bus' ? null : sortedCards[0]);
       } else {
-        matchedPkg = sortedCards[0];
+        matchedPkg = vType === 'Bus' ? null : sortedCards[0];
       }
     }
 
@@ -837,33 +874,68 @@ export function useHeroBooking() {
 
     // 3. Seasonal Adjustment Multiplier
     const adj = adjustments.filter(a => {
-      const cleanAdjVeh = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
-      
-      const vehicleMatch = cleanAdjVeh === 'all' || 
-                          adjVehicles.includes(cleanVName) || 
-                          adjVehicles.includes(cleanVType) ||
-                          adjVehicles.some(adjV => cleanVName.includes(adjV)) ||
-                          adjVehicles.some(adjV => cleanVType.includes(adjV));
+        const cleanAdjVeh = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+        const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
+        
+        const vehicleMatch = cleanAdjVeh === 'all' || 
+                            adjVehicles.some(adjV => 
+                                adjV === cleanVName || 
+                                adjV === cleanVType ||
+                                (adjV.length > 2 && cleanVName.includes(adjV)) ||
+                                (cleanVName.length > 2 && adjV.includes(cleanVName)) ||
+                                (adjV.length > 2 && cleanVType.includes(adjV)) ||
+                                (cleanVType.length > 2 && adjV.includes(cleanVType))
+                            );
 
-      const cleanAdjType = a.type.toLowerCase().trim();
-      const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
-      const kmMatch = distanceInKm >= (a.minKm || 0) && distanceInKm <= (a.maxKm || 99999);
-      const tripDate = formData.dateTime ? new Date(formData.dateTime) : new Date();
-      const vFrom = a.validFrom ? new Date(a.validFrom) : null; if (vFrom) vFrom.setHours(0, 0, 0, 0);
-      const vTo = a.validTo ? new Date(a.validTo) : null; if (vTo) vTo.setHours(23, 59, 59, 999);
-      return vehicleMatch && typeMatch && kmMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
+        const cleanAdjType = a.type.toLowerCase().trim();
+        const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
+        
+        const categoryMatch = !a.category || a.category === 'All' || a.category.toLowerCase().trim() === localDeterminedCategory.toLowerCase().trim();
+        const daysMatch = !a.days || a.days === 'All' || a.days === targetDays.toString();
+        const hrsMatch = !a.hrs || a.hrs === 'All' || (matchedPkg && a.hrs === matchedPkg.hrs.toString());
+
+        const kmMatch = distanceInKm >= (a.minKm || 0) && distanceInKm <= (a.maxKm || 99999);
+        const tripDate = formData.dateTime ? new Date(formData.dateTime) : new Date();
+        const vFrom = a.validFrom ? new Date(a.validFrom) : null; if (vFrom) vFrom.setHours(0, 0, 0, 0);
+        const vTo = a.validTo ? new Date(a.validTo) : null; if (vTo) vTo.setHours(23, 59, 59, 999);
+        return vehicleMatch && typeMatch && categoryMatch && daysMatch && hrsMatch && kmMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
     }).sort((a, b) => {
-      const aClean = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const bClean = b.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const aVehs = aClean.split(',');
-      const bVehs = bClean.split(',');
+        const getScore = (adj: RateAdjustment) => {
+            let score = 0;
+            const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+            const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
+            
+            const isSpecificMatch = adjVehicles.some(adjV => 
+                adjV === cleanVName || 
+                (adjV.length > 2 && cleanVName.includes(adjV)) ||
+                (cleanVName.length > 2 && adjV.includes(cleanVName))
+            );
+            const isTypeMatch = adjVehicles.some(adjV => 
+                adjV === cleanVType || 
+                (adjV.length > 2 && cleanVType.includes(adjV)) ||
+                (cleanVType.length > 2 && adjV.includes(cleanVType))
+            );
 
-      const aScore = (aClean === cleanVName || aVehs.includes(cleanVName)) ? 200 : (aClean === cleanVType || aVehs.includes(cleanVType)) ? 100 : aClean === 'all' ? 0 : 50;
-      const bScore = (bClean === cleanVName || bVehs.includes(cleanVName)) ? 200 : (bClean === cleanVType || bVehs.includes(cleanVType)) ? 100 : bClean === 'all' ? 0 : 50;
-      
-      if (aScore !== bScore) return bScore - aScore;
-      return a.type.toLowerCase() === 'all' ? 1 : -1;
+            // Primary specificity: Vehicle name/type
+            if (isSpecificMatch) score += 500;
+            else if (isTypeMatch) score += 300;
+            else if (cleanAdjVeh !== 'all') score += 100;
+
+            // Secondary specificity: Discrete filters
+            if (adj.category && adj.category !== 'All') score += 50;
+            if (adj.days && adj.days !== 'All') score += 50;
+            if (adj.hrs && adj.hrs !== 'All') score += 50;
+            if (adj.type && adj.type.toLowerCase() !== 'all') score += 40;
+            
+            // Range specificity
+            if (adj.minKm! > 0 || adj.maxKm! < 99999) score += 20;
+            
+            return score;
+        };
+        const scoreA = getScore(a);
+        const scoreB = getScore(b);
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(); // Latest first
     })[0];
 
     const sMultiplier = adj?.adjustmentType === 'fixed' ? 1 : (1 + ((adj?.percentage ?? 0) / 100));

@@ -51,12 +51,14 @@ export default function LoadingScreen() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '24px'
+                gap: '1.5rem',
+                width: '100%',
+                padding: '0 20px'
             }}>
                 <div style={{
                     position: 'relative',
-                    width: 'min(380px, 80vw)',
-                    height: 'min(380px, 80vw)',
+                    width: 'min(280px, 70vw)',
+                    height: 'min(280px, 70vw)',
                     animation: 'pulseScale 2s infinite ease-in-out'
                 }}>
                     <Image 
@@ -69,13 +71,13 @@ export default function LoadingScreen() {
                 </div>
                 
                 <div style={{
-                    width: 'min(320px, 70vw)',
-                    height: '6px',
+                    width: 'min(240px, 60vw)',
+                    height: '4px',
                     background: 'rgba(255, 255, 255, 0.05)',
                     position: 'relative',
                     overflow: 'hidden',
                     borderRadius: '10px',
-                    marginTop: '20px',
+                    marginTop: '10px',
                     border: '1px solid rgba(13,148,136,0.2)'
                 }}>
                     <div style={{

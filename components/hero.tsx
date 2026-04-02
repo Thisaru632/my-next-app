@@ -115,18 +115,18 @@ export default function HeroSection() {
       ))}
 
       {/* HERO CONTENT */}
-      <div className="relative flex-grow flex flex-col items-center justify-center px-4 pt-24 sm:pt-40 pb-20 text-center transition-opacity duration-500" style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}>
+      <div className="relative flex-grow flex flex-col items-center justify-center px-3 sm:px-4 pt-20 sm:pt-40 pb-20 text-center transition-opacity duration-500" style={{ zIndex: 10, opacity: firstImageLoaded ? 1 : 0 }}>
         <div className="w-full max-w-4xl">
           {/* Headline */}
-          <div className="mb-1 sm:mb-2 px-2" style={{ animation: "fadeInUp 1s ease-out" }}>
-            <h1 className="text-white font-semibold tracking-tight mb-1" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(1.6rem, 5vw, 4.5rem)", lineHeight: 1, textShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>SENU TOURS</h1>
-            <p className="text-white uppercase leading-relaxed" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 300, letterSpacing: "0.05em", fontSize: "clamp(0.6rem, 1.8vw, 0.95rem)", textShadow: "0 2px 10px rgba(0,0,0,0.5)", opacity: 0.9 }}>
+          <div className="mb-4 sm:mb-6 px-2" style={{ animation: "fadeInUp 1s ease-out" }}>
+            <h1 className="text-white font-semibold tracking-tight mb-2" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "clamp(2rem, 8vw, 4.5rem)", lineHeight: 1.1, textShadow: "0 4px 24px rgba(0,0,0,0.6)" }}>SENU TOURS</h1>
+            <p className="text-white uppercase leading-relaxed mx-auto max-w-lg" style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 400, letterSpacing: "0.08em", fontSize: "clamp(0.65rem, 2.5vw, 0.95rem)", textShadow: "0 2px 10px rgba(0,0,0,0.5)", opacity: 0.95 }}>
               Your Home, Your Journey, Your Hospitality Haven
             </p>
           </div>
-
+ 
           {/* Form and Summary */}
-          <div className="flex flex-col lg:flex-row justify-center items-start gap-4 mt-1 sm:mt-2 mb-2 sm:mb-4 w-full" style={{ animation: "fadeInUp 1s ease-out 0.3s both" }}>
+          <div className="flex flex-col lg:flex-row justify-center items-start gap-6 sm:gap-4 mt-2 mb-4 w-full" style={{ animation: "fadeInUp 1s ease-out 0.3s both" }}>
             <BookingFormCard booking={h} />
             <div id="trip-summary-section" className="w-full lg:w-auto">
               <TripSummaryCard booking={h} />

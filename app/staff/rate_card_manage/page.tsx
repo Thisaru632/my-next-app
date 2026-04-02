@@ -72,7 +72,10 @@ interface RateCardEntry {
 interface RateAdjustment {
     _id: string;
     vehicle: string;
+    category: string;
     type: string;
+    days: string;
+    hrs: string;
     percentage: number;
     fixedAmount?: number;
     adjustmentType?: 'percentage' | 'fixed';
@@ -490,15 +493,13 @@ const RateCardManagePage = () => {
             return;
         }
 
-        const newVehicle = (vehicleFilter.includes('All') && categoryFilter !== 'All') 
-            ? categoryFilter 
-            : (vehicleFilter.includes('All') ? 'All' : vehicleFilter.join(','));
+        const newVehicle = vehicleFilter.includes('All') ? 'All' : vehicleFilter.join(',');
         const newType = typeFilter;
 
         // Conflict check: If adding a broader rule (Type = 'All') for the same vehicle scope
         if (newType === 'All') {
             const conflicts = adjustments.filter(adj =>
-                adj.vehicle === newVehicle && adj.type !== 'All'
+                adj.vehicle === newVehicle && adj.category === categoryFilter && adj.type !== 'All'
             );
 
             if (conflicts.length > 0) {
@@ -529,10 +530,11 @@ const RateCardManagePage = () => {
                 setIdsToDelete([]); // Clear after deletion
             }
             const bodyPayload = {
-                vehicle: (vehicleFilter.includes('All') && categoryFilter !== 'All') 
-                    ? categoryFilter 
-                    : (vehicleFilter.includes('All') ? 'All' : vehicleFilter.join(',')),
+                vehicle: vehicleFilter.includes('All') ? 'All' : vehicleFilter.join(','),
+                category: categoryFilter,
                 type: typeFilter,
+                days: daysFilter,
+                hrs: hrsFilter,
                 adjustmentType: adjustmentType,
                 percentage: adjustmentType === 'percentage' ? parseFloat(adjustValue) : 0,
                 fixedAmount: adjustmentType === 'fixed' ? parseFloat(adjustValue) : 0,
@@ -612,7 +614,10 @@ const RateCardManagePage = () => {
                 percentage: parseFloat(editingAdjustment.percentage?.toString() || '0'),
                 fixedAmount: parseFloat(editingAdjustment.fixedAmount?.toString() || '0'),
                 vehicle: editingAdjustment.vehicle,
+                category: editingAdjustment.category,
                 type: editingAdjustment.type,
+                days: editingAdjustment.days,
+                hrs: editingAdjustment.hrs,
                 minKm: editingAdjustment.minKm !== undefined ? parseInt(editingAdjustment.minKm.toString()) : 0,
                 maxKm: editingAdjustment.maxKm !== undefined ? parseInt(editingAdjustment.maxKm.toString()) : 99999,
                 validFrom: editingAdjustment.validFrom,
@@ -1343,7 +1348,7 @@ const RateCardManagePage = () => {
                 <>
                     {/* Filter Section (Specific to Bulk Adjustment) */}
                     <Paper sx={{
-                        p: 2,
+                        p: { xs: 2.5, md: 3 },
                         mb: 3,
                         borderRadius: '16px',
                         border: '1px solid',
@@ -1352,7 +1357,7 @@ const RateCardManagePage = () => {
                         backgroundImage: 'none'
                     }}>
                         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" sx={{ flexWrap: 'wrap' }}>
-                            <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', md: '200px' } }}>
+                            <Box sx={{ flex: '1 1 300px', minWidth: { xs: '100%', md: '200px' } }}>
                                 <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Search</Typography>
                                 <input
                                     placeholder="Search vehicle or type..."
@@ -1373,7 +1378,7 @@ const RateCardManagePage = () => {
                                 />
                             </Box>
 
-                            <Box sx={{ minWidth: '150px' }}>
+                            <Box sx={{ flex: { md: '0 0 180px' }, minWidth: '150px' }}>
                                 <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Category</Typography>
                                 <select
                                     value={categoryFilter}
@@ -1400,7 +1405,7 @@ const RateCardManagePage = () => {
                                 </select>
                             </Box>
 
-                            <Box sx={{ minWidth: { xs: '100%', md: '200px', lg: '240px' } }}>
+                            <Box sx={{ flex: { md: '0 0 260px' }, minWidth: { xs: '100%', md: '200px', lg: '240px' } }}>
                                 <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Vehicle</Typography>
                                 <Autocomplete
                                     multiple
@@ -1541,6 +1546,55 @@ const RateCardManagePage = () => {
                                 </select>
                             </Box>
 
+                            <Box sx={{ minWidth: '80px' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Min KM</Typography>
+                                <input
+                                    placeholder="0"
+                                    type="number"
+                                    value={minKmFilter}
+                                    onChange={(e) => {
+                                        setMinKmFilter(e.target.value);
+                                        setPage(0);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        border: '1px solid var(--border-color, #cbd5e1)',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit'
+                                    }}
+                                />
+                            </Box>
+
+                            <Box sx={{ minWidth: '80px' }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Max KM</Typography>
+                                <input
+                                    placeholder="999..."
+                                    type="number"
+                                    value={maxKmFilter}
+                                    onChange={(e) => {
+                                        setMaxKmFilter(e.target.value);
+                                        setPage(0);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        border: '1px solid var(--border-color, #cbd5e1)',
+                                        marginTop: '4px',
+                                        outline: 'none',
+                                        background: 'transparent',
+                                        color: 'inherit',
+                                        fontSize: '0.9rem',
+                                        fontFamily: 'inherit'
+                                    }}
+                                />
+                            </Box>
 
                             <Button
                                 size="small"
@@ -1789,7 +1843,7 @@ const RateCardManagePage = () => {
                         <Typography variant="body2" sx={{ color: '#4b5563', lineHeight: 1.4 }}>
                             Applying a persistent <strong style={{ color: '#0d9488' }}>
                                 {adjustmentType === 'percentage' ? `${adjustValue}%` : `Rs. ${adjustValue}`}
-                            </strong> adjustment for <strong style={{ color: '#1e293b' }}>{vehicleFilter}</strong> vehicles ({typeFilter}).
+                            </strong> adjustment for <strong style={{ color: '#1e293b' }}>{vehicleFilter.includes('All') ? 'All' : vehicleFilter.join(', ')}</strong> vehicles ({typeFilter}).
                         </Typography>
                     </Box>
                 )}
@@ -1994,7 +2048,7 @@ const RateCardManagePage = () => {
                         <Stack spacing={1.5}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>Target Vehicle:</Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 800, color: '#1e293b' }}>{vehicleFilter === 'All' ? 'All Vehicles' : vehicleFilter}</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 800, color: '#1e293b' }}>{vehicleFilter.includes('All') ? 'All Vehicles' : vehicleFilter.join(', ')}</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>Trip Category:</Typography>

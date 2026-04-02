@@ -41,7 +41,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                         localStorage.removeItem('customerToken');
                     }
                 } catch (error) {
-                    console.error('Error checking user auth:', error);
+                    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+                        console.warn('Backend server is unreachable. Please ensure the backend is running on http://127.0.0.1:5000');
+                    } else {
+                        console.error('Error checking user auth:', error);
+                    }
                 }
             }
             setLoading(false);
