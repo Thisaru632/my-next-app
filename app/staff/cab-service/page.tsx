@@ -838,7 +838,7 @@ const CabServicePage = () => {
                         }}
                     >
                         <TaxiIcon sx={{ fontSize: '2.5rem', color: '#3b82f6' }} />
-                        Cab Service Management
+                        SEARCHABLE Cab Service Management
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                         Maintain a registry of partner cab services and hotlines.
@@ -900,62 +900,57 @@ const CabServicePage = () => {
                 />
 
                 {activeTab === 0 && (
-                    <FormControl size="small" sx={{ minWidth: 200 }}>
-                        <InputLabel>Filter by Service Type</InputLabel>
-                        <Select
-                            label="Filter by Service Type"
-                            value={serviceTypeFilter}
-                            onChange={(e) => setServiceTypeFilter(e.target.value)}
-                            sx={{ borderRadius: '12px' }}
-                        >
-                            <MenuItem value="All">All Services</MenuItem>
-                            {SERVICE_TYPE_OPTIONS.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                    <Autocomplete
+                        size="small"
+                        options={['All', ...SERVICE_TYPE_OPTIONS]}
+                        value={serviceTypeFilter}
+                        onChange={(_, newValue) => setServiceTypeFilter(newValue || 'All')}
+                        renderInput={(params) => <TextField {...params} label="Filter by Service Type" />}
+                        sx={{ 
+                            minWidth: 220, 
+                            '& .MuiOutlinedInput-root': { borderRadius: '12px' } 
+                        }}
+                    />
                 )}
 
                 {activeTab === 1 && (
                     <>
-                        <FormControl size="small" sx={{ minWidth: 160 }}>
-                            <InputLabel>Company</InputLabel>
-                            <Select
-                                label="Company"
-                                value={rateCompanyFilter}
-                                onChange={(e) => setRateCompanyFilter(e.target.value)}
-                                sx={{ borderRadius: '12px' }}
-                            >
-                                <MenuItem value="All">All Companies</MenuItem>
-                                {uniqueRateCompanies.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-                            </Select>
-                        </FormControl>
+                        <Autocomplete
+                            size="small"
+                            options={['All', ...uniqueRateCompanies]}
+                            value={rateCompanyFilter}
+                            onChange={(_, newValue) => setRateCompanyFilter(newValue || 'All')}
+                            renderInput={(params) => <TextField {...params} label="Company" />}
+                            sx={{ 
+                                minWidth: 200, 
+                                '& .MuiOutlinedInput-root': { borderRadius: '12px' } 
+                            }}
+                        />
 
-                        <FormControl size="small" sx={{ minWidth: 160 }}>
-                            <InputLabel>Vehicle</InputLabel>
-                            <Select
-                                label="Vehicle"
-                                value={rateVehicleFilter}
-                                onChange={(e) => setRateVehicleFilter(e.target.value)}
-                                sx={{ borderRadius: '12px' }}
-                            >
-                                <MenuItem value="All">All Vehicles</MenuItem>
-                                {rateCardVehicles.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
-                            </Select>
-                        </FormControl>
+                        <Autocomplete
+                            size="small"
+                            options={['All', ...rateCardVehicles]}
+                            value={rateVehicleFilter}
+                            onChange={(_, newValue) => setRateVehicleFilter(newValue || 'All')}
+                            renderInput={(params) => <TextField {...params} label="Vehicle" />}
+                            sx={{ 
+                                minWidth: 160, 
+                                '& .MuiOutlinedInput-root': { borderRadius: '12px' } 
+                            }}
+                        />
 
-                        <FormControl size="small" sx={{ minWidth: 100 }}>
-                            <InputLabel>Hours</InputLabel>
-                            <Select
-                                label="Hours"
-                                value={rateHourFilter}
-                                onChange={(e) => setRateHourFilter(e.target.value)}
-                                sx={{ borderRadius: '12px' }}
-                            >
-                                <MenuItem value="All">All Hrs</MenuItem>
-                                {uniqueRateHours.map(h => <MenuItem key={h} value={String(h)}>{h}h</MenuItem>)}
-                            </Select>
-                        </FormControl>
+                        <Autocomplete
+                            size="small"
+                            options={['All', ...uniqueRateHours.map(String)]}
+                            getOptionLabel={(option) => option === 'All' ? 'All Hrs' : `${option}h`}
+                            value={String(rateHourFilter)}
+                            onChange={(_, newValue) => setRateHourFilter(newValue === 'All' ? 'All' : Number(newValue))}
+                            renderInput={(params) => <TextField {...params} label="Hours" />}
+                            sx={{ 
+                                minWidth: 120, 
+                                '& .MuiOutlinedInput-root': { borderRadius: '12px' } 
+                            }}
+                        />
 
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <TextField
@@ -1426,6 +1421,7 @@ const CabServicePage = () => {
                                 />
                             )}
                             <Autocomplete
+                                freeSolo
                                 options={uniqueRateCompanies}
                                 value={currentRate.cabCompanyName}
                                 disabled={isViewingRate}
@@ -1543,21 +1539,14 @@ const CabServicePage = () => {
                                 value={currentRate.extraHourPrice}
                                 onChange={(e) => setCurrentRate({ ...currentRate, extraHourPrice: e.target.value ? Number(e.target.value) : '' })}
                             />
-                            <FormControl fullWidth disabled={isViewingRate}>
-                                <InputLabel>Called SIM</InputLabel>
-                                <Select
-                                    label="Called SIM"
-                                    value={currentRate.calledSim || ''}
-                                    onChange={(e) => setCurrentRate({ ...currentRate, calledSim: e.target.value })}
-                                >
-                                    <MenuItem value=""><em>None</em></MenuItem>
-                                    {sims.map((sim, idx) => (
-                                        <MenuItem key={sim._id || idx} value={`SIM ${sim.simNumber}`}>
-                                            SIM {sim.simNumber} ({sim.phoneNumber})
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+                            <Autocomplete
+                                options={sims.map(sim => `SIM ${sim.simNumber}`)}
+                                value={currentRate.calledSim || ''}
+                                disabled={isViewingRate}
+                                onChange={(_, newValue) => setCurrentRate({ ...currentRate, calledSim: newValue || '' })}
+                                renderInput={(params) => <TextField {...params} label="Called SIM" />}
+                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
+                            />
                         </Box>
                          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                             <TextField
