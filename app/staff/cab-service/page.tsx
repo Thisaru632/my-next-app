@@ -763,7 +763,7 @@ const CabServicePage = () => {
                                 <Typography sx={{ fontWeight: 800, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>SIM {sim.simNumber}</Typography>
                                 <Typography sx={{ color: 'primary.main', fontWeight: 800, fontSize: '1rem' }}>{sim.phoneNumber}</Typography>
                             </Box>
-                            {(userRole === 'superadmin' || userRole === 'admin') && (
+                            {userRole === 'superadmin' && (
                                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                                     <IconButton 
                                         size="small" 
@@ -786,7 +786,7 @@ const CabServicePage = () => {
                         </Box>
                     ))}
 
-                    {(userRole === 'superadmin' || userRole === 'admin') && (
+                    {userRole === 'superadmin' && (
                         <Button 
                             startIcon={<AddIcon />} 
                             variant="outlined" 
