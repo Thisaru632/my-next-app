@@ -538,10 +538,10 @@ export function useHeroBooking() {
     if (routeDistance !== null) {
       const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
       const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
-      const bestMatch = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : (formData.vehicleType === 'Bus' ? null : sortedCards[0]);
+      const bestMatch = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : (formData.vehicleType === 'Bus' || distanceInKm === 0 ? null : sortedCards[0]);
       return bestMatch;
     }
-    return formData.vehicleType === 'Bus' ? null : sortedCards[0];
+    return (formData.vehicleType === 'Bus' || distanceInKm === 0) ? null : sortedCards[0];
   })();
 
   const minKmRequired = (() => {
@@ -773,6 +773,7 @@ export function useHeroBooking() {
 
   const getPriceForVehicle = useCallback((vName: string, vType: string) => {
     if (!vType) return 0;
+    const curDistKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
     const cleanVName = vName ? vName.toLowerCase().replace(/\s+/g, '').trim() : '';
     const cleanVType = vType.toLowerCase().trim();
     const cleanFormType = formData.tripType.toLowerCase().trim();
@@ -783,7 +784,6 @@ export function useHeroBooking() {
       if (!['Van', 'Bus'].includes(vType)) return 'City & Mountain';
       if (formData.tripType === 'Drop') return 'City & Mountain';
 
-      const curDistKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
       const isMultiDay = Number(formData.numberOfDays) > 1;
 
       // Use Plains if (dist >= 200 OR multi-day) AND NOT crossing mountain
@@ -853,9 +853,9 @@ export function useHeroBooking() {
       if (routeDistance !== null) {
         const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
         const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
-        matchedPkg = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : (vType === 'Bus' ? null : sortedCards[0]);
+        matchedPkg = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : (vType === 'Bus' || curDistKm === 0 ? null : sortedCards[0]);
       } else {
-        matchedPkg = vType === 'Bus' ? null : sortedCards[0];
+        matchedPkg = (vType === 'Bus' || curDistKm === 0) ? null : sortedCards[0];
       }
     }
 

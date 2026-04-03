@@ -110,15 +110,18 @@ export default function PhoneInput({
                                     handleCodeChange(codeOnly);
                                 }
                             }}
-                            renderOption={(props, option) => (
-                                <MenuItem {...props} component="li">
-                                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
-                                        <Typography variant="body2" fontWeight={800} sx={{ minWidth: '48px', color: '#0d9488' }}>{option.code}</Typography>
-                                        <Typography variant="body2" fontWeight={800} sx={{ minWidth: '35px', color: '#1e293b' }}>{option.label}</Typography>
-                                        <Typography variant="caption" sx={{ opacity: 0.7, fontWeight: 500, ml: 1 }}>— {option.name}</Typography>
-                                    </Box>
-                                </MenuItem>
-                            )}
+                            renderOption={(props, option) => {
+                                const { key, ...optionProps } = props;
+                                return (
+                                    <MenuItem key={key} {...optionProps} component="li">
+                                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
+                                            <Typography variant="body2" fontWeight={800} sx={{ minWidth: '48px', color: '#0d9488' }}>{option.code}</Typography>
+                                            <Typography variant="body2" fontWeight={800} sx={{ minWidth: '35px', color: '#1e293b' }}>{option.label}</Typography>
+                                            <Typography variant="caption" sx={{ opacity: 0.7, fontWeight: 500, ml: 1 }}>— {option.name}</Typography>
+                                        </Box>
+                                    </MenuItem>
+                                );
+                            }}
                             renderInput={(params) => {
                                 const found = countryCodes.find(c => c.code === selectedCode);
                                 const displayValue = found ? `${found.code} ${found.label}` : selectedCode;

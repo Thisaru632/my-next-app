@@ -90,7 +90,8 @@ export function LocationInput({
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          const res = await fetch(`/api/google-geocode?latlng=${latitude},${longitude}`);
+          const key = "AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc";
+          const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`);
           const data = await res.json();
           if (data.results && data.results[0]) {
             const address = data.results[0].formatted_address;
@@ -129,7 +130,8 @@ export function LocationInput({
     abortRef.current = new AbortController();
     setLoading(true);
     try {
-      const url = `/api/google-geocode?q=${encodeURIComponent(query)}`;
+      const key = "AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc";
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${key}&components=country:lk`;
       const res = await fetch(url, { signal: abortRef.current.signal });
       if (!res.ok) throw new Error(`Google HTTP ${res.status}`);
       const data = await res.json();

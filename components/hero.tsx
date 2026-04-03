@@ -164,7 +164,7 @@ export default function HeroSection() {
         showPrices={h.selectedCategory !== 'SUV' && (h.formData.tripType === 'Drop' 
           ? !!(h.formData.pickupLocation && h.formData.dropoffLocation) 
           : !!(h.formData.pickupLocation && h.formData.destinations[0]?.address.trim())
-        )}
+        ) && (h.routeDistance !== null && h.routeDistance > 0)}
       />
       <TripTypeDialog open={h.openTripTypeDialog} onClose={() => h.setOpenTripTypeDialog(false)} tripType={h.formData.tripType} tripTypes={tripTypes} onSelect={h.handleTripTypeSelect} onWarn={() => { }} />
       <PromoDialog open={h.openPromoDialog} onClose={() => h.setOpenPromoDialog(false)} hasPromoOption={h.hasPromoOption} setHasPromoOption={h.setHasPromoOption} promoCodeInput={h.promoCodeInput} setPromoCodeInput={h.setPromoCodeInput} isPromoLoading={h.isPromoLoading} onSubmit={h.handlePromoSubmit} />
