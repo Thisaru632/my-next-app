@@ -87,6 +87,7 @@ interface CabRate {
     extraKmPrice: number | '';
     extraHourPrice: number | '';
     comment: string;
+    calledSim?: string;
     createdAt?: string;
 }
 
@@ -115,6 +116,7 @@ const CabServicePage = () => {
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
     const [errorModal, setErrorModal] = useState({ open: false, message: '', title: '' });
     const [serviceTypeFilter, setServiceTypeFilter] = useState('All');
+    const [userRole, setUserRole] = useState('');
 
     // Rates State
     const [activeTab, setActiveTab] = useState(0);
@@ -147,8 +149,14 @@ const CabServicePage = () => {
         price: '',
         extraKmPrice: '',
         extraHourPrice: '',
-        comment: ''
+        comment: '',
+        calledSim: ''
     });
+
+    // SIM State
+    const [sims, setSims] = useState<any[]>([]);
+    const [openSimDialog, setOpenSimDialog] = useState(false);
+    const [currentSim, setCurrentSim] = useState({ simNumber: 1, phoneNumber: '' });
 
     const fetchServices = async () => {
         try {
@@ -204,11 +212,28 @@ const CabServicePage = () => {
         }
     };
 
+    const fetchSims = async () => {
+        try {
+            const response = await fetch(API_ENDPOINTS.SIMS);
+            if (response.ok) {
+                setSims(await response.json());
+            }
+        } catch (error) {
+            console.error('Error fetching sims:', error);
+        }
+    };
+
     useEffect(() => {
+        const userStr = localStorage.getItem('staffUser');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            setUserRole(user.role || '');
+        }
         fetchServices();
         fetchRates();
         fetchRateCardVehicles();
         fetchSenuRateCards();
+        fetchSims();
     }, []);
 
     const showSnackbar = (message: string, severity: 'success' | 'error' = 'success') => {
@@ -224,7 +249,8 @@ const CabServicePage = () => {
                 hotlineNumbers: service.hotlineNumbers || '',
                 location: service.location || '',
                 serviceType: service.serviceType || '',
-                status: service.status || 'Active'
+                status: service.status || 'Active',
+                comments: service.comments || ''
             });
             setIsEditing(!viewing);
         } else {
@@ -233,7 +259,8 @@ const CabServicePage = () => {
                 hotlineNumbers: '',
                 location: '',
                 serviceType: '',
-                status: 'Active'
+                status: 'Active',
+                comments: ''
             });
             setIsEditing(false);
         }
@@ -541,7 +568,8 @@ const CabServicePage = () => {
                 price: rate.price ?? '',
                 extraKmPrice: rate.extraKmPrice ?? '',
                 extraHourPrice: rate.extraHourPrice ?? '',
-                comment: rate.comment || ''
+                comment: rate.comment || '',
+                calledSim: rate.calledSim || ''
             });
             setIsEditingRate(!viewing);
         } else {
@@ -559,7 +587,8 @@ const CabServicePage = () => {
                 price: '',
                 extraKmPrice: '',
                 extraHourPrice: '',
-                comment: ''
+                comment: '',
+                calledSim: ''
             });
             setIsEditingRate(false);
         }
@@ -570,6 +599,20 @@ const CabServicePage = () => {
         setCurrentRate({
             ...rate,
             rateDate: rate.rateDate ? new Date(rate.rateDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            cabCompanyName: rate.cabCompanyName || '',
+            hotline: rate.hotline || '',
+            nearTown: rate.nearTown || '',
+            vehicle: rate.vehicle || '',
+            startLocation: rate.startLocation || '',
+            endLocation: rate.endLocation || '',
+            tripType: rate.tripType || '',
+            km: rate.km ?? '',
+            hours: rate.hours ?? '',
+            price: rate.price ?? '',
+            extraKmPrice: rate.extraKmPrice ?? '',
+            extraHourPrice: rate.extraHourPrice ?? '',
+            comment: rate.comment || '',
+            calledSim: rate.calledSim || ''
         });
         setIsEditingRate(true);
         setIsViewingRate(false);
@@ -633,8 +676,138 @@ const CabServicePage = () => {
         }
     };
 
+    const handleSimSubmit = async () => {
+        if (!currentSim.phoneNumber) {
+            showSnackbar('Phone number is required', 'error');
+            return;
+        }
+        try {
+            const response = await fetch(API_ENDPOINTS.SIMS, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentSim)
+            });
+            if (response.ok) {
+                showSnackbar('SIM saved successfully');
+                setOpenSimDialog(false);
+                fetchSims();
+            } else {
+                showSnackbar('Failed to save SIM', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving SIM:', error);
+            showSnackbar('An error occurred', 'error');
+        }
+    };
+
+    const handleDeleteSim = async (id: string) => {
+        if (!window.confirm('Are you sure you want to delete this SIM?')) return;
+        try {
+            const response = await fetch(`${API_ENDPOINTS.SIMS}/${id}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                showSnackbar('SIM deleted successfully');
+                fetchSims();
+            }
+        } catch (error) {
+            console.error('Error deleting SIM:', error);
+        }
+    };
+
     return (
         <Box sx={{ p: { xs: 2, md: 4 } }}>
+            {/* SIM Registration Section */}
+            <Paper 
+                sx={{ 
+                    p: 2.5, 
+                    mb: 4, 
+                    borderRadius: '20px', 
+                    display: 'flex', 
+                    flexWrap: 'wrap', 
+                    gap: 3, 
+                    alignItems: 'center', 
+                    background: mode === 'light' ? 'rgba(59, 130, 246, 0.05)' : '#1e293b',
+                    border: '1px solid',
+                    borderColor: mode === 'light' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255,255,255,0.05)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.05)'
+                }}
+            >
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <PhoneIcon /> Registered SIMs
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, flexGrow: 1 }}>
+                    {sims.map((sim, index) => (
+                        <Box 
+                            key={sim._id || index} 
+                            sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 2, 
+                                bgcolor: mode === 'light' ? '#fff' : 'rgba(255,255,255,0.05)', 
+                                px: 2.5, 
+                                py: 1.2, 
+                                borderRadius: '14px', 
+                                border: '1.5px solid', 
+                                borderColor: 'divider',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                    borderColor: '#3b82f6',
+                                    transform: 'translateY(-2px)',
+                                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.1)'
+                                }
+                            }}
+                        >
+                            <Box sx={{ minWidth: 50 }}>
+                                <Typography sx={{ fontWeight: 800, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase' }}>SIM {sim.simNumber}</Typography>
+                                <Typography sx={{ color: 'primary.main', fontWeight: 800, fontSize: '1rem' }}>{sim.phoneNumber}</Typography>
+                            </Box>
+                            {userRole === 'superadmin' && (
+                                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                    <IconButton 
+                                        size="small" 
+                                        onClick={() => { 
+                                            setCurrentSim({ 
+                                                simNumber: sim.simNumber || 0, 
+                                                phoneNumber: sim.phoneNumber || '' 
+                                            }); 
+                                            setOpenSimDialog(true); 
+                                        }} 
+                                        sx={{ color: '#3b82f6' }}
+                                    >
+                                        <EditIcon fontSize="small" />
+                                    </IconButton>
+                                    <IconButton size="small" onClick={() => handleDeleteSim(sim._id)} sx={{ color: '#ef4444' }}>
+                                        <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                </Box>
+                            )}
+                        </Box>
+                    ))}
+
+                    {userRole === 'superadmin' && (
+                        <Button 
+                            startIcon={<AddIcon />} 
+                            variant="outlined" 
+                            onClick={() => { 
+                                const nextNum = sims.length > 0 ? Math.max(...sims.map(s => s.simNumber)) + 1 : 1;
+                                setCurrentSim({ simNumber: nextNum, phoneNumber: '' }); 
+                                setOpenSimDialog(true); 
+                            }}
+                            sx={{ 
+                                borderRadius: '14px', 
+                                textTransform: 'none', 
+                                fontWeight: 700,
+                                borderWidth: '2px',
+                                '&:hover': { borderWidth: '2px' }
+                            }}
+                        >
+                            Add SIM
+                        </Button>
+                    )}
+                </Box>
+            </Paper>
             <Box
                 sx={{
                     mb: 4,
@@ -1011,6 +1184,7 @@ const CabServicePage = () => {
                             <TableHead sx={{ bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b' }}>
                                 <TableRow>
                                     <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>SIM</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Cab Company</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Vehicle</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Start</TableCell>
@@ -1036,6 +1210,11 @@ const CabServicePage = () => {
                                     filteredRates.map((rate) => (
                                         <TableRow key={rate._id} hover>
                                             <TableCell>{rate.rateDate ? new Date(rate.rateDate).toLocaleDateString() : 'N/A'}</TableCell>
+                                            <TableCell>
+                                                <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', display: 'block', bgcolor: mode === 'light' ? 'rgba(59, 130, 246, 0.05)' : 'rgba(255,255,255,0.05)', px: 1, py: 0.5, borderRadius: '6px', textAlign: 'center' }}>
+                                                    {rate.calledSim || '---'}
+                                                </Typography>
+                                            </TableCell>
                                             <TableCell sx={{ fontWeight: 600 }}>{rate.cabCompanyName}</TableCell>
                                             <TableCell>{rate.vehicle}</TableCell>
                                             <TableCell>{rate.startLocation}</TableCell>
@@ -1364,6 +1543,21 @@ const CabServicePage = () => {
                                 value={currentRate.extraHourPrice}
                                 onChange={(e) => setCurrentRate({ ...currentRate, extraHourPrice: e.target.value ? Number(e.target.value) : '' })}
                             />
+                            <FormControl fullWidth disabled={isViewingRate}>
+                                <InputLabel>Called SIM</InputLabel>
+                                <Select
+                                    label="Called SIM"
+                                    value={currentRate.calledSim || ''}
+                                    onChange={(e) => setCurrentRate({ ...currentRate, calledSim: e.target.value })}
+                                >
+                                    <MenuItem value=""><em>None</em></MenuItem>
+                                    {sims.map((sim, idx) => (
+                                        <MenuItem key={sim._id || idx} value={`SIM ${sim.simNumber}`}>
+                                            SIM {sim.simNumber} ({sim.phoneNumber})
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
                         </Box>
                          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
                             <TextField
@@ -1521,6 +1715,36 @@ const CabServicePage = () => {
                             {isEditingRate ? 'Update Rate' : 'Add Rate'}
                         </Button>
                     )}
+                </DialogActions>
+            </Dialog>
+
+            <Dialog 
+                open={openSimDialog} 
+                onClose={() => setOpenSimDialog(false)}
+                PaperProps={{ sx: { borderRadius: '24px', p: 1 } }}
+            >
+                <DialogTitle sx={{ fontWeight: 800 }}>SIM Registration</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1, minWidth: 300 }}>
+                        <TextField
+                            label="SIM Number"
+                            type="number"
+                            fullWidth
+                            value={currentSim.simNumber}
+                            onChange={(e) => setCurrentSim({ ...currentSim, simNumber: parseInt(e.target.value) })}
+                        />
+                        <TextField
+                            label="Phone Number"
+                            fullWidth
+                            value={currentSim.phoneNumber}
+                            onChange={(e) => setCurrentSim({ ...currentSim, phoneNumber: e.target.value })}
+                            placeholder="e.g. 077XXXXXXXX"
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions sx={{ p: 3 }}>
+                    <Button onClick={() => setOpenSimDialog(false)} sx={{ fontWeight: 600, textTransform: 'none' }}>Cancel</Button>
+                    <Button onClick={handleSimSubmit} variant="contained" sx={{ borderRadius: '12px', fontWeight: 700, textTransform: 'none' }}>Save SIM</Button>
                 </DialogActions>
             </Dialog>
 

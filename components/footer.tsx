@@ -1,9 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { PolicyDialog } from './PolicyDialog';
+import { API_ENDPOINTS } from '@/config/api';
 
 export default function Footer() {
   const [openPolicy, setOpenPolicy] = useState(false);
+  const [sims, setSims] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchSims = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.SIMS);
+        if (response.ok) {
+          const data = await response.json();
+          setSims(data);
+        }
+      } catch (error) {
+        console.error('Error fetching footer sims:', error);
+      }
+    };
+    fetchSims();
+  }, []);
 
   return (
     <footer className="footer-section">
@@ -49,9 +66,17 @@ export default function Footer() {
             {/* Column 4 - Contact Info */}
             <div className="footer-col">
               <h4 className="footer-heading">Hotline</h4>
-              <a href="tel:+94702787787" className="footer-phone">
-                +94 70 278 7787
-              </a>
+              {sims.length > 0 ? (
+                sims.map((sim, idx) => (
+                  <a key={sim._id || idx} href={`tel:${sim.phoneNumber}`} className="footer-phone" style={{ display: 'block', fontSize: '1.4rem' }}>
+                    {sim.phoneNumber}
+                  </a>
+                ))
+              ) : (
+                <a href="tel:+94702787787" className="footer-phone">
+                  +94 70 278 7787
+                </a>
+              )}
               <p className="footer-phone-note">(24/7) Support for all inquiries</p>
 
               <div className="footer-address">
