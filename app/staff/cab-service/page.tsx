@@ -931,18 +931,20 @@ const CabServicePage = () => {
                             </Select>
                         </FormControl>
 
-                        <FormControl size="small" sx={{ minWidth: 160 }}>
-                            <InputLabel>Vehicle</InputLabel>
-                            <Select
-                                label="Vehicle"
-                                value={rateVehicleFilter}
-                                onChange={(e) => setRateVehicleFilter(e.target.value)}
-                                sx={{ borderRadius: '12px' }}
-                            >
-                                <MenuItem value="All">All Vehicles</MenuItem>
-                                {rateCardVehicles.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}
-                            </Select>
-                        </FormControl>
+                        <Autocomplete
+                            size="small"
+                            sx={{ minWidth: 200 }}
+                            options={['All', ...rateCardVehicles]}
+                            value={rateVehicleFilter}
+                            onChange={(_, newValue) => setRateVehicleFilter(newValue || 'All')}
+                            renderInput={(params) => (
+                                <TextField 
+                                    {...params} 
+                                    label="Vehicle Filter" 
+                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                />
+                            )}
+                        />
 
                         <FormControl size="small" sx={{ minWidth: 100 }}>
                             <InputLabel>Hours</InputLabel>
