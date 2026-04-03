@@ -838,7 +838,7 @@ const CabServicePage = () => {
                         }}
                     >
                         <TaxiIcon sx={{ fontSize: '2.5rem', color: '#3b82f6' }} />
-                        SEARCHABLE Cab Service Management
+                        Cab Service Management
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                         Maintain a registry of partner cab services and hotlines.
@@ -944,7 +944,7 @@ const CabServicePage = () => {
                             options={['All', ...uniqueRateHours.map(String)]}
                             getOptionLabel={(option) => option === 'All' ? 'All Hrs' : `${option}h`}
                             value={String(rateHourFilter)}
-                            onChange={(_, newValue) => setRateHourFilter(newValue === 'All' ? 'All' : Number(newValue))}
+                            onChange={(_, newValue) => setRateHourFilter(newValue || 'All')}
                             renderInput={(params) => <TextField {...params} label="Hours" />}
                             sx={{ 
                                 minWidth: 120, 
@@ -1456,7 +1456,6 @@ const CabServicePage = () => {
                                     }
                                 }}
                                 renderInput={(params) => <TextField {...params} label="Cab Company Name" required />}
-                                freeSolo
                             />
                             <TextField
                                 label="Hotline"
