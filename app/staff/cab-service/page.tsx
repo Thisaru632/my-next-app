@@ -453,6 +453,14 @@ const CabServicePage = () => {
         ...services.map(s => s.serviceName)
     ])).filter(Boolean).sort();
     const uniqueRateVehicles = Array.from(new Set(rates.map(r => r.vehicle))).sort();
+    
+    // Dynamic vehicle options based on company selection
+    const dynamicRateVehicles = Array.from(new Set(
+        rates
+            .filter(r => rateCompanyFilter === 'All' || r.cabCompanyName === rateCompanyFilter)
+            .map(r => r.vehicle)
+    )).filter(Boolean).sort();
+
     const uniqueRateHours = Array.from(new Set(rates.map(r => r.hours)))
         .filter((h): h is number => typeof h === 'number')
         .sort((a, b) => a - b);
@@ -918,23 +926,25 @@ const CabServicePage = () => {
 
                 {activeTab === 1 && (
                     <>
-                        <FormControl size="small" sx={{ minWidth: 160 }}>
-                            <InputLabel>Company</InputLabel>
-                            <Select
-                                label="Company"
-                                value={rateCompanyFilter}
-                                onChange={(e) => setRateCompanyFilter(e.target.value)}
-                                sx={{ borderRadius: '12px' }}
-                            >
-                                <MenuItem value="All">All Companies</MenuItem>
-                                {uniqueRateCompanies.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-                            </Select>
-                        </FormControl>
+                        <Autocomplete
+                            size="small"
+                            sx={{ minWidth: 200 }}
+                            options={['All', ...uniqueRateCompanies]}
+                            value={rateCompanyFilter}
+                            onChange={(_, newValue) => setRateCompanyFilter(newValue || 'All')}
+                            renderInput={(params) => (
+                                <TextField 
+                                    {...params} 
+                                    label="Company Filter" 
+                                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                />
+                            )}
+                        />
 
                         <Autocomplete
                             size="small"
                             sx={{ minWidth: 200 }}
-                            options={['All', ...rateCardVehicles]}
+                            options={['All', ...dynamicRateVehicles]}
                             value={rateVehicleFilter}
                             onChange={(_, newValue) => setRateVehicleFilter(newValue || 'All')}
                             renderInput={(params) => (
