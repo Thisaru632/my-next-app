@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from '@/context/UserContext';
 import { useJsApiLoader } from '@react-google-maps/api';
@@ -190,27 +190,27 @@ export function useHeroBooking() {
     fetchRateData();
   }, []);
 
-  const addDestination = useCallback(() => { 
+  const addDestination = useCallback(() => {
     const id = Math.random().toString(36).substr(2, 9);
-    setFormData(p => ({ ...p, destinations: [...p.destinations, { id, address: '' }] })); 
-    setStopCoords(p => ({ ...p, [id]: null })); 
+    setFormData(p => ({ ...p, destinations: [...p.destinations, { id, address: '' }] }));
+    setStopCoords(p => ({ ...p, [id]: null }));
   }, []);
 
-  const removeDestination = useCallback((id: string) => { 
-    setFormData(p => ({ ...p, destinations: p.destinations.filter(d => d.id !== id) })); 
-    setStopCoords(p => { const n = { ...p }; delete n[id]; return n; }); 
+  const removeDestination = useCallback((id: string) => {
+    setFormData(p => ({ ...p, destinations: p.destinations.filter(d => d.id !== id) }));
+    setStopCoords(p => { const n = { ...p }; delete n[id]; return n; });
   }, []);
 
-  const updateDestination = useCallback((id: string, v: string) => { 
-    setFormData(p => ({ ...p, destinations: p.destinations.map(d => d.id === id ? { ...d, address: v } : d) })); 
-    setStopCoords(p => ({ ...p, [id]: null })); 
+  const updateDestination = useCallback((id: string, v: string) => {
+    setFormData(p => ({ ...p, destinations: p.destinations.map(d => d.id === id ? { ...d, address: v } : d) }));
+    setStopCoords(p => ({ ...p, [id]: null }));
   }, []);
 
   /* Route calculation */
   useEffect(() => {
     const hasRequiredStop = formData.tripType === 'Drop' || formData.destinations.some(d => d.address.trim() !== "");
     const allStopsHaveCoords = formData.destinations.every(d => d.address.trim() === "" || stopCoords[d.id]);
-    
+
     if (!isLoaded || !pickupCoords || !dropoffCoords || !allStopsHaveCoords || !hasRequiredStop) {
       if (routeDistance !== null) { setRouteDistance(null); setRouteDuration(null); setRouteResponse(null); }
       return;
@@ -227,28 +227,28 @@ export function useHeroBooking() {
           return d.address.trim() !== "" ? { location: d.address, stopover: true } : null;
         }).filter(wp => wp !== null) as google.maps.DirectionsWaypoint[];
         try {
-          const result = await directionsService.route({ 
-            origin, 
-            destination, 
-            waypoints: validWaypoints, 
+          const result = await directionsService.route({
+            origin,
+            destination,
+            waypoints: validWaypoints,
             travelMode: google.maps.TravelMode.DRIVING,
-            provideRouteAlternatives: true 
+            provideRouteAlternatives: true
           });
           if (cancelled) return;
           if (result.routes && result.routes.length > 0) {
             console.log(`[DEBUG-ROUTE] Received ${result.routes.length} routes from Google`);
-            
+
             // Pick route with minimum total distance
             const shortestRoute = result.routes.reduce((min, curr, idx) => {
               const minDistance = min.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0);
               const currDistance = curr.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0);
-              console.log(`Route ${idx}: Distance = ${currDistance/1000}km, Duration = ${curr.legs.reduce((acc, leg) => acc + (leg.duration?.value || 0), 0)/60}min`);
+              console.log(`Route ${idx}: Distance = ${currDistance / 1000}km, Duration = ${curr.legs.reduce((acc, leg) => acc + (leg.duration?.value || 0), 0) / 60}min`);
               return currDistance < minDistance ? curr : min;
             });
 
             const finalDist = shortestRoute.legs.reduce((acc, leg) => acc + (leg.distance?.value || 0), 0);
-            console.log(`Selected Shortest Route: ${finalDist/1000}km`);
-            
+            console.log(`Selected Shortest Route: ${finalDist / 1000}km`);
+
             setRouteDistance(finalDist);
             setRouteDuration(shortestRoute.legs.reduce((acc, leg) => acc + (leg.duration?.value || 0), 0));
             // We set the result's routes to just the shortest one so viewers use it
@@ -266,7 +266,7 @@ export function useHeroBooking() {
     }, 1000);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [formData.pickupLocation, formData.dropoffLocation, formData.destinations, pickupCoords, dropoffCoords, stopCoords, isLoaded]);
-  
+
   const routeCrossesMountain = useMemo(() => {
     if (!routeResponse || !classifiedAreas.length || typeof google === 'undefined' || !google.maps.geometry) return false;
     const mountainAreas = classifiedAreas.filter(a => a.type === 'Mountain');
@@ -274,9 +274,9 @@ export function useHeroBooking() {
 
     const polygons = mountainAreas.map(a => new google.maps.Polygon({ paths: a.paths }));
     const path = routeResponse.routes[0].overview_path;
-    
+
     // Sample points for performance
-    const sampleSize = Math.max(1, Math.floor(path.length / 40)); 
+    const sampleSize = Math.max(1, Math.floor(path.length / 40));
     for (let i = 0; i < path.length; i += sampleSize) {
       const point = path[i];
       for (const poly of polygons) {
@@ -299,7 +299,7 @@ export function useHeroBooking() {
     if (!isVanOrBus) return 'City & Mountain';
 
     if (formData.tripType === 'Drop') return 'City & Mountain';
-    
+
     const distKm = routeDistance ? Math.ceil(routeDistance / 1000) : 0;
     const isMultiDay = Number(formData.numberOfDays) > 1;
 
@@ -307,7 +307,7 @@ export function useHeroBooking() {
     if (distKm >= 200 || isMultiDay) {
       return routeCrossesMountain ? 'City & Mountain' : 'Plains';
     }
-    
+
     return 'City & Mountain';
   }, [routeDistance, routeCrossesMountain, formData.vehicleType, formData.tripType, formData.numberOfDays]);
 
@@ -384,10 +384,10 @@ export function useHeroBooking() {
       const currentDropoff = formData.dropoffLocation;
       const currentDropoffCoords = dropoffCoords;
       const destId = Math.random().toString(36).substr(2, 9);
-      setFormData(prev => ({ 
-        ...prev, 
-        tripType: tripTypeName, 
-        dropoffLocation: currentPickup || prev.dropoffLocation, 
+      setFormData(prev => ({
+        ...prev,
+        tripType: tripTypeName,
+        dropoffLocation: currentPickup || prev.dropoffLocation,
         numberOfDays: prev.numberOfDays || '',
         destinations: (() => {
           if (currentDropoff && currentDropoff.trim() !== "" && currentDropoff !== currentPickup) {
@@ -438,13 +438,13 @@ export function useHeroBooking() {
   };
 
   const handleClosePersonalDialog = () => {
-    if (requestSent) { 
+    if (requestSent) {
       if (summaryDownloaded) {
         handleConfirmClose();
         return;
       }
-      setShowCloseConfirm(true); 
-      return; 
+      setShowCloseConfirm(true);
+      return;
     }
     const hasEnteredInfo = formData.name?.trim() || formData.telephone?.trim() || formData.email?.trim() || formData.remark?.trim() || formData.additionalPhones.some(p => p.trim());
     if (hasEnteredInfo) setShowCloseConfirm(true); else setOpenPersonalDialog(false);
@@ -453,12 +453,12 @@ export function useHeroBooking() {
   const handleConfirmBack = () => {
     setShowBackConfirm(false);
     // Remove our listeners before going back to avoid trigger
-    window.removeEventListener("beforeunload", () => {});
+    window.removeEventListener("beforeunload", () => { });
     window.history.go(-2); // One for the pushState, one for the original back
   };
 
   const handleConfirmClose = () => {
-    setShowCloseConfirm(false); 
+    setShowCloseConfirm(false);
     setOpenPersonalDialog(false);
     if (requestSent) {
       setTimeout(() => {
@@ -483,7 +483,7 @@ export function useHeroBooking() {
       const cleanCardVehSimplified = simplify(card.vehicle);
       const cleanFormVehNameSimplified = simplify(formData.vehicleName);
       const cleanFormVehTypeSimplified = simplify(formData.vehicleType);
-      
+
       const vehicleMatch = (() => {
         const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 0);
         const cardWords = words(card.vehicle);
@@ -500,13 +500,13 @@ export function useHeroBooking() {
         // Check if all form words are in card name or vice versa
         const allFormInCard = formWords.every(w => cardWords.includes(w));
         const allCardInForm = cardWords.every(w => formWords.includes(w));
-        
+
         return allFormInCard || allCardInForm || cleanFormVehNameSimplified.includes(cleanCardVehSimplified) || cleanCardVehSimplified.includes(cleanFormVehNameSimplified);
       })();
       const cleanCardType = card.type.toLowerCase().trim();
       const cleanFormType = formData.tripType.toLowerCase().trim();
       const typeMatch = cleanCardType === cleanFormType || (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) || (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
-      
+
       const cardCatClean = card.category?.toLowerCase().trim() || 'city & mountain';
       const detCatClean = determinedCategory.toLowerCase().trim();
       const catMatch = cardCatClean === detCatClean;
@@ -514,13 +514,13 @@ export function useHeroBooking() {
       return vehicleMatch && typeMatch && Number(card.days) === targetDays && card.status === 'Approved' && catMatch;
     });
     if (potentialCards.length === 0) return null;
-        const simplify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const simplify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
     const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 0);
-    const specificMatches = potentialCards.filter(card => { 
+    const specificMatches = potentialCards.filter(card => {
       const c = simplify(card.vehicle);
       const vNameSimplified = simplify(formData.vehicleName);
       if (c === vNameSimplified) return true;
-      
+
       const cardHasNon = c.includes('non');
       const formHasNon = vNameSimplified.includes('non');
       if (cardHasNon !== formHasNon && (c.includes('ac') || vNameSimplified.includes('ac'))) return false;
@@ -530,7 +530,7 @@ export function useHeroBooking() {
       const allFormInCard = formWords.every(w => cardWords.includes(w));
       const allCardInForm = cardWords.every(w => formWords.includes(w));
 
-      return allFormInCard || allCardInForm || c.includes(vNameSimplified) || vNameSimplified.includes(c); 
+      return allFormInCard || allCardInForm || c.includes(vNameSimplified) || vNameSimplified.includes(c);
     });
 
     const finalPotential = specificMatches.length > 0 ? specificMatches : potentialCards;
@@ -555,7 +555,7 @@ export function useHeroBooking() {
       const cleanCardType = card.type.toLowerCase().trim();
       const cleanFormType = formData.tripType.toLowerCase().trim();
       const typeMatch = cleanCardType === cleanFormType || (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) || (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
-      
+
       const cardCatClean = card.category?.toLowerCase().trim() || 'city & mountain';
       const detCatClean = determinedCategory.toLowerCase().trim();
       const catMatch = cardCatClean === detCatClean;
@@ -596,7 +596,7 @@ export function useHeroBooking() {
 
   const calculateNightSurchargeAmount = useCallback((dateTime: string, vType: string, vName: string, distance: number, tripType: string) => {
     if (!dateTime || !vType || nsRules.length === 0) return 0;
-    
+
     const date = new Date(dateTime);
     const hour = date.getHours();
     const min = date.getMinutes();
@@ -615,15 +615,15 @@ export function useHeroBooking() {
     const applicableRules = nsRules.filter(rule => {
       if (rule.status === 'Inactive') return false;
       const ruleVeh = rule.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const vehMatch = ruleVeh === 'all' || 
-                       ruleVeh === cleanVType || 
-                       ruleVeh === cleanVName || 
-                       ruleVeh.includes(cleanVName) || 
-                       cleanVName.includes(ruleVeh);
-      
+      const vehMatch = ruleVeh === 'all' ||
+        ruleVeh === cleanVType ||
+        ruleVeh === cleanVName ||
+        ruleVeh.includes(cleanVName) ||
+        cleanVName.includes(ruleVeh);
+
       const ruleType = rule.type.toLowerCase().trim();
       const typeMatch = ruleType === 'all' || ruleType === cleanTripType;
-      
+
       const kmMatch = distance >= rule.minKm && distance <= rule.maxKm;
 
       // Time match (handling overnight windows like 22:00 to 04:00)
@@ -671,20 +671,20 @@ export function useHeroBooking() {
     const matches = adjustments.filter(adj => {
       const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
       const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
-      
-      const vehicleMatch = cleanAdjVeh === 'all' || 
-                          adjVehicles.some(adjV => 
-                            adjV === cleanFormVehName || 
-                            adjV === cleanFormVehType ||
-                            (adjV.length > 2 && cleanFormVehName.includes(adjV)) ||
-                            (cleanFormVehName.length > 2 && adjV.includes(cleanFormVehName)) ||
-                            (adjV.length > 2 && cleanFormVehType.includes(adjV)) ||
-                            (cleanFormVehType.length > 2 && adjV.includes(cleanFormVehType))
-                          );
+
+      const vehicleMatch = cleanAdjVeh === 'all' ||
+        adjVehicles.some(adjV =>
+          adjV === cleanFormVehName ||
+          adjV === cleanFormVehType ||
+          (adjV.length > 2 && cleanFormVehName.includes(adjV)) ||
+          (cleanFormVehName.length > 2 && adjV.includes(cleanFormVehName)) ||
+          (adjV.length > 2 && cleanFormVehType.includes(adjV)) ||
+          (cleanFormVehType.length > 2 && adjV.includes(cleanFormVehType))
+        );
 
       const cleanAdjType = adj.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
-      
+
       const categoryMatch = !adj.category || adj.category === 'All' || adj.category.toLowerCase().trim() === determinedCategory.toLowerCase().trim();
       const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
       const daysMatch = !adj.days || adj.days === 'All' || adj.days === targetDays.toString();
@@ -698,42 +698,42 @@ export function useHeroBooking() {
     });
     if (matches.length === 0) return null;
     return matches.sort((a, b) => {
-        const getScore = (adj: RateAdjustment) => {
-            let score = 0;
-            const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-            const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
-            
-            const isSpecificMatch = adjVehicles.some(adjV => 
-                adjV === cleanFormVehName || 
-                (adjV.length > 2 && cleanFormVehName.includes(adjV)) ||
-                (cleanFormVehName.length > 2 && adjV.includes(cleanFormVehName))
-            );
-            const isTypeMatch = adjVehicles.some(adjV => 
-                adjV === cleanFormVehType || 
-                (adjV.length > 2 && cleanFormVehType.includes(adjV)) ||
-                (cleanFormVehType.length > 2 && adjV.includes(cleanFormVehType))
-            );
+      const getScore = (adj: RateAdjustment) => {
+        let score = 0;
+        const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+        const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
 
-            // Primary specificity: Vehicle name/type
-            if (isSpecificMatch) score += 500;
-            else if (isTypeMatch) score += 300;
-            else if (cleanAdjVeh !== 'all') score += 100;
+        const isSpecificMatch = adjVehicles.some(adjV =>
+          adjV === cleanFormVehName ||
+          (adjV.length > 2 && cleanFormVehName.includes(adjV)) ||
+          (cleanFormVehName.length > 2 && adjV.includes(cleanFormVehName))
+        );
+        const isTypeMatch = adjVehicles.some(adjV =>
+          adjV === cleanFormVehType ||
+          (adjV.length > 2 && cleanFormVehType.includes(adjV)) ||
+          (cleanFormVehType.length > 2 && adjV.includes(cleanFormVehType))
+        );
 
-            // Secondary specificity: Discrete filters
-            if (adj.category && adj.category !== 'All') score += 50;
-            if (adj.days && adj.days !== 'All') score += 50;
-            if (adj.hrs && adj.hrs !== 'All') score += 50;
-            if (adj.type && adj.type.toLowerCase() !== 'all') score += 40;
-            
-            // Range specificity
-            if (adj.minKm! > 0 || adj.maxKm! < 99999) score += 20;
-            
-            return score;
-        };
-        const scoreA = getScore(a);
-        const scoreB = getScore(b);
-        if (scoreA !== scoreB) return scoreB - scoreA;
-        return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(); // Latest first
+        // Primary specificity: Vehicle name/type
+        if (isSpecificMatch) score += 500;
+        else if (isTypeMatch) score += 300;
+        else if (cleanAdjVeh !== 'all') score += 100;
+
+        // Secondary specificity: Discrete filters
+        if (adj.category && adj.category !== 'All') score += 50;
+        if (adj.days && adj.days !== 'All') score += 50;
+        if (adj.hrs && adj.hrs !== 'All') score += 50;
+        if (adj.type && adj.type.toLowerCase() !== 'all') score += 40;
+
+        // Range specificity
+        if (adj.minKm! > 0 || adj.maxKm! < 99999) score += 20;
+
+        return score;
+      };
+      const scoreA = getScore(a);
+      const scoreB = getScore(b);
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(); // Latest first
     })[0];
   })();
 
@@ -799,7 +799,7 @@ export function useHeroBooking() {
       const cleanCardVeh = simplify(card.vehicle);
       const cleanVNameSimplified = simplify(vName);
       const cleanVTypeSimplified = simplify(vType);
-      
+
       const vehicleMatch = (() => {
         const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 0);
         const cardWords = words(card.vehicle);
@@ -807,7 +807,7 @@ export function useHeroBooking() {
         const vTypeWords = words(vType);
 
         if (cleanCardVeh === cleanVNameSimplified || cleanCardVeh === cleanVTypeSimplified) return true;
-        
+
         const cardHasNon = cleanCardVeh.includes('non');
         const formHasNon = cleanVNameSimplified.includes('non');
         if (cardHasNon !== formHasNon && (cleanCardVeh.includes('ac') || cleanVNameSimplified.includes('ac'))) return false;
@@ -817,10 +817,10 @@ export function useHeroBooking() {
 
         return allVNameInCard || allCardInVName || cleanVNameSimplified.includes(cleanCardVeh) || cleanCardVeh.includes(cleanVNameSimplified);
       })();
-                           
+
       const cleanCardType = card.type.toLowerCase().trim();
       const typeMatch = cleanCardType === cleanFormType || (cleanFormType === 'drop' && (cleanCardType === 'oneway' || cleanCardType === 'one way')) || (cleanFormType === 'return' && (cleanCardType === 'roundtrip' || cleanCardType === 'round trip' || cleanCardType === 'bothway'));
-      
+
       const cardCatClean = card.category?.toLowerCase().trim() || 'city & mountain';
       const detCatClean = localDeterminedCategory.toLowerCase().trim();
       const catMatch = cardCatClean === detCatClean;
@@ -832,7 +832,7 @@ export function useHeroBooking() {
     if (potentialCards.length > 0) {
       const simplify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
       const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 0);
-      const specificMatches = potentialCards.filter(card => { 
+      const specificMatches = potentialCards.filter(card => {
         const c = simplify(card.vehicle);
         const vNameSimplified = simplify(vName);
         if (c === vNameSimplified) return true;
@@ -846,7 +846,7 @@ export function useHeroBooking() {
         const allVNameInCard = vNameWords.every(w => cardWords.includes(w));
         const allCardInVName = cardWords.every(w => vNameWords.includes(w));
 
-        return allVNameInCard || allCardInVName || c.includes(vNameSimplified) || vNameSimplified.includes(c); 
+        return allVNameInCard || allCardInVName || c.includes(vNameSimplified) || vNameSimplified.includes(c);
       });
       const finalPotential = specificMatches.length > 0 ? specificMatches : potentialCards;
       const sortedCards = finalPotential.sort((a, b) => a.km !== b.km ? a.km - b.km : a.hrs - b.hrs);
@@ -874,68 +874,68 @@ export function useHeroBooking() {
 
     // 3. Seasonal Adjustment Multiplier
     const adj = adjustments.filter(a => {
-        const cleanAdjVeh = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-        const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
-        
-        const vehicleMatch = cleanAdjVeh === 'all' || 
-                            adjVehicles.some(adjV => 
-                                adjV === cleanVName || 
-                                adjV === cleanVType ||
-                                (adjV.length > 2 && cleanVName.includes(adjV)) ||
-                                (cleanVName.length > 2 && adjV.includes(cleanVName)) ||
-                                (adjV.length > 2 && cleanVType.includes(adjV)) ||
-                                (cleanVType.length > 2 && adjV.includes(cleanVType))
-                            );
+      const cleanAdjVeh = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
 
-        const cleanAdjType = a.type.toLowerCase().trim();
-        const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
-        
-        const categoryMatch = !a.category || a.category === 'All' || a.category.toLowerCase().trim() === localDeterminedCategory.toLowerCase().trim();
-        const daysMatch = !a.days || a.days === 'All' || a.days === targetDays.toString();
-        const hrsMatch = !a.hrs || a.hrs === 'All' || (matchedPkg && a.hrs === matchedPkg.hrs.toString());
+      const vehicleMatch = cleanAdjVeh === 'all' ||
+        adjVehicles.some(adjV =>
+          adjV === cleanVName ||
+          adjV === cleanVType ||
+          (adjV.length > 2 && cleanVName.includes(adjV)) ||
+          (cleanVName.length > 2 && adjV.includes(cleanVName)) ||
+          (adjV.length > 2 && cleanVType.includes(adjV)) ||
+          (cleanVType.length > 2 && adjV.includes(cleanVType))
+        );
 
-        const kmMatch = distanceInKm >= (a.minKm || 0) && distanceInKm <= (a.maxKm || 99999);
-        const tripDate = formData.dateTime ? new Date(formData.dateTime) : new Date();
-        const vFrom = a.validFrom ? new Date(a.validFrom) : null; if (vFrom) vFrom.setHours(0, 0, 0, 0);
-        const vTo = a.validTo ? new Date(a.validTo) : null; if (vTo) vTo.setHours(23, 59, 59, 999);
-        return vehicleMatch && typeMatch && categoryMatch && daysMatch && hrsMatch && kmMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
+      const cleanAdjType = a.type.toLowerCase().trim();
+      const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
+
+      const categoryMatch = !a.category || a.category === 'All' || a.category.toLowerCase().trim() === localDeterminedCategory.toLowerCase().trim();
+      const daysMatch = !a.days || a.days === 'All' || a.days === targetDays.toString();
+      const hrsMatch = !a.hrs || a.hrs === 'All' || (matchedPkg && a.hrs === matchedPkg.hrs.toString());
+
+      const kmMatch = distanceInKm >= (a.minKm || 0) && distanceInKm <= (a.maxKm || 99999);
+      const tripDate = formData.dateTime ? new Date(formData.dateTime) : new Date();
+      const vFrom = a.validFrom ? new Date(a.validFrom) : null; if (vFrom) vFrom.setHours(0, 0, 0, 0);
+      const vTo = a.validTo ? new Date(a.validTo) : null; if (vTo) vTo.setHours(23, 59, 59, 999);
+      return vehicleMatch && typeMatch && categoryMatch && daysMatch && hrsMatch && kmMatch && (!vFrom || tripDate >= vFrom) && (!vTo || tripDate <= vTo);
     }).sort((a, b) => {
-        const getScore = (adj: RateAdjustment) => {
-            let score = 0;
-            const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-            const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
-            
-            const isSpecificMatch = adjVehicles.some(adjV => 
-                adjV === cleanVName || 
-                (adjV.length > 2 && cleanVName.includes(adjV)) ||
-                (cleanVName.length > 2 && adjV.includes(cleanVName))
-            );
-            const isTypeMatch = adjVehicles.some(adjV => 
-                adjV === cleanVType || 
-                (adjV.length > 2 && cleanVType.includes(adjV)) ||
-                (cleanVType.length > 2 && adjV.includes(cleanVType))
-            );
+      const getScore = (adj: RateAdjustment) => {
+        let score = 0;
+        const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+        const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
 
-            // Primary specificity: Vehicle name/type
-            if (isSpecificMatch) score += 500;
-            else if (isTypeMatch) score += 300;
-            else if (cleanAdjVeh !== 'all') score += 100;
+        const isSpecificMatch = adjVehicles.some(adjV =>
+          adjV === cleanVName ||
+          (adjV.length > 2 && cleanVName.includes(adjV)) ||
+          (cleanVName.length > 2 && adjV.includes(cleanVName))
+        );
+        const isTypeMatch = adjVehicles.some(adjV =>
+          adjV === cleanVType ||
+          (adjV.length > 2 && cleanVType.includes(adjV)) ||
+          (cleanVType.length > 2 && adjV.includes(cleanVType))
+        );
 
-            // Secondary specificity: Discrete filters
-            if (adj.category && adj.category !== 'All') score += 50;
-            if (adj.days && adj.days !== 'All') score += 50;
-            if (adj.hrs && adj.hrs !== 'All') score += 50;
-            if (adj.type && adj.type.toLowerCase() !== 'all') score += 40;
-            
-            // Range specificity
-            if (adj.minKm! > 0 || adj.maxKm! < 99999) score += 20;
-            
-            return score;
-        };
-        const scoreA = getScore(a);
-        const scoreB = getScore(b);
-        if (scoreA !== scoreB) return scoreB - scoreA;
-        return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(); // Latest first
+        // Primary specificity: Vehicle name/type
+        if (isSpecificMatch) score += 500;
+        else if (isTypeMatch) score += 300;
+        else if (cleanAdjVeh !== 'all') score += 100;
+
+        // Secondary specificity: Discrete filters
+        if (adj.category && adj.category !== 'All') score += 50;
+        if (adj.days && adj.days !== 'All') score += 50;
+        if (adj.hrs && adj.hrs !== 'All') score += 50;
+        if (adj.type && adj.type.toLowerCase() !== 'all') score += 40;
+
+        // Range specificity
+        if (adj.minKm! > 0 || adj.maxKm! < 99999) score += 20;
+
+        return score;
+      };
+      const scoreA = getScore(a);
+      const scoreB = getScore(b);
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime(); // Latest first
     })[0];
 
     const sMultiplier = adj?.adjustmentType === 'fixed' ? 1 : (1 + ((adj?.percentage ?? 0) / 100));
@@ -997,165 +997,217 @@ export function useHeroBooking() {
 
   const downloadTripSummary = () => {
     const doc = new jsPDF();
-    const primaryColor: [number, number, number] = [13, 148, 136];
-    const data = submittedBookingData || { formData, totalPrice, rawTotalPrice, appliedPromo, matchedPackage, nightSurcharge, bookingRefNo };
+    const primaryColor: [number, number, number] = [13, 148, 136]; // Teal
+    const secondaryColor: [number, number, number] = [6, 78, 59]; // Dark Green
+    const accentColor: [number, number, number] = [16, 185, 129]; // Acccent Green
+
+    const data = submittedBookingData || { formData, totalPrice, rawTotalPrice, appliedPromo, matchedPackage, nightSurcharge, bookingRefNo, discount: discountAmount, routeDuration };
     const matchedPkg = data.matchedPackage || matchedPackage;
 
-    const darkGreen: [number, number, number] = [6, 78, 59];
-    const headerOutline: [number, number, number] = [16, 185, 129];
-
-    // Header (White background with green outline)
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 210, 60, 'F');
-    doc.setDrawColor(headerOutline[0], headerOutline[1], headerOutline[2]);
-    doc.setLineWidth(0.5);
-    doc.line(0, 60, 210, 60);
+    // --- Modern Header ---
+    // Background bar at the very top
+    doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.rect(0, 0, 210, 4, 'F');
 
     // Add Logo
     try {
-      // Use URL-encoded path for spaces
-      doc.addImage("/logo.png", "PNG", 85, 2, 40, 28);
+      doc.addImage("/logo.png", "PNG", 14, 10, 35, 25);
     } catch (e) {
-      console.error("Logo failed to load:", e);
-      // Fallback text if logo fails
-      doc.setTextColor(darkGreen[0], darkGreen[1], darkGreen[2]);
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
-      doc.text("SENU TOURS", 105, 18, { align: 'center' });
+      doc.text("SENU TOURS", 14, 25);
     }
 
-    doc.setTextColor(darkGreen[0], darkGreen[1], darkGreen[2]);
-    doc.setFontSize(10);
+    // Company Info (Top Right)
     doc.setFont("helvetica", "bold");
-    doc.text("Your Home, Your Journey, Your Hospitality Haven", 105, 38, { align: 'center' });
+    doc.setFontSize(10);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("SENU TOURS SRI LANKA", 196, 15, { align: 'right' });
 
-    // Business Details (Centered under tagline)
-    doc.setFontSize(8);
-    doc.setTextColor(80, 80, 80);
     doc.setFont("helvetica", "normal");
-    doc.text("167/2/C, Hokandara North, Hokandara, SRI LANKA.", 105, 46, { align: 'center' });
-    doc.text("Hotline: +94 70 278 7787", 105, 52, { align: 'center' });
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text("167/2/C, Hokandara North, Hokandara.", 196, 20, { align: 'right' });
+    doc.text("Hotline: +94 70 278 7787", 196, 24, { align: 'right' });
+    doc.text("Web: www.senutours.com", 196, 28, { align: 'right' });
 
-    doc.setTextColor(0, 0, 0);
-    let currentY = 70;
+    // Document Title
+    doc.setFillColor(248, 250, 252); // Very light gray bg for title
+    doc.rect(0, 40, 210, 15, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("TRIP ESTIMATE", 105, 50, { align: 'center' });
 
-    const addSectionHeader = (title: string) => {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.setTextColor(darkGreen[0], darkGreen[1], darkGreen[2]);
-      doc.text(title, 14, currentY);
-      currentY += 8;
-    };
+    let currentY = 65;
 
-    const addRow = (label: string, value: string, isBold = false) => {
-      doc.setFont("helvetica", isBold ? "bold" : "normal");
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      doc.text(label, 14, currentY);
-      doc.text(`: ${value}`, 60, currentY);
-      currentY += 7;
+    const currentRouteDuration = data.routeDuration !== undefined ? data.routeDuration : routeDuration;
+    const currentRouteDistance = data.routeDistance !== undefined ? data.routeDistance : routeDistance;
+    const currentDistanceInKm = currentRouteDistance ? (currentRouteDistance / 1000) : 0;
+    const totalDistanceKm = Math.ceil(currentDistanceInKm);
+
+    const formatDuration = (sec: number | null) => {
+      if (sec === null || sec === undefined) return 'N/A';
+      if (sec >= 3600) return `${Math.floor(sec / 3600)}h ${Math.round((sec % 3600) / 60)}m`;
+      return `${Math.round(sec / 60)} min`;
     };
 
     const formatDate = (dateStr: string, showSeconds = false) => {
       if (!dateStr) return 'N/A';
       const d = new Date(dateStr);
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      const timePart = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}${showSeconds ? ':00' : ''}`;
-      return `${year}-${month}-${day} @ ${timePart}`;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} @ ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}${showSeconds ? ':00' : ''}`;
     };
 
-    // TRIP DETAILS
-    addSectionHeader("TRIP DETAILS");
-    addRow("Start Date & Time", formatDate(data.formData.dateTime));
-    addRow("From", data.formData.pickupLocation);
+    // --- Table 1: Trip Identification ---
+    autoTable(doc, {
+      startY: currentY,
+      head: [['TRIP CONFIGURATION', 'VALUE']],
+      body: [
+        ['Reference Number', data.bookingRefNo || "N/A"],
+        ['Journey Type', data.formData.tripType || "Drop"],
+        ['Vehicle Model', `${data.formData.vehicleName || "Not Selected"} (${data.formData.maxPersons || 0} Seater)`],
+        ['Route Distance', `${totalDistanceKm} KM (Est. Total)`],
+        ['Package Hours', `${matchedPkg?.hrs || 0} Hours Allowance`],
+        ['Start Date', formatDate(data.formData.dateTime)],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: secondaryColor, textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: { '0': { fontStyle: 'bold', cellWidth: 50 }, '1': { cellWidth: 'auto' } }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 10;
+
+    // --- Table 1.5: Package Allowances ---
+    if (matchedPkg && data.formData.vehicleType !== 'SUV') {
+      const allowancesBody = [
+        ['Extra KM Rate', `Rs. ${matchedPkg.extraKMRate || 0}`]
+      ];
+      if (data.formData.tripType !== 'Drop') {
+        allowancesBody.push(['Extra Hour Rate', `Rs. ${matchedPkg.extraHrRate1 || 0}`]);
+      }
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['PACKAGE ALLOWANCES', 'RATE']],
+        body: allowancesBody,
+        theme: 'grid',
+        headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
+        styles: { fontSize: 9, cellPadding: 3 },
+        columnStyles: { '0': { fontStyle: 'bold', cellWidth: 50 }, '1': { halign: 'right', textColor: primaryColor, fontStyle: 'bold' } }
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // --- Table 2: Route Details ---
     const destinations = data.formData.destinations || [];
-    if (destinations.length > 0) {
-      destinations
+    const routeBody = [
+      ['Pickup Location', data.formData.pickupLocation],
+      ...destinations
         .map((d: any) => typeof d === 'string' ? d : d.address)
         .filter((addr: string) => addr && addr.trim() !== "")
-        .forEach((stop: string, i: number) => {
-          addRow(`Stop ${i + 1}`, stop);
-        });
+        .map((stop: string, i: number) => [`Stop ${i + 1}`, stop]),
+      ['Final Dropoff', data.formData.dropoffLocation],
+    ];
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['ROUTE INFORMATION', 'LOCATION ADDRESS']],
+      body: routeBody,
+      theme: 'striped',
+      headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: { '0': { fontStyle: 'bold', cellWidth: 50 } }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 10;
+
+    // --- Table 3: Pricing Summary ---
+    const extraKm = Math.max(0, totalDistanceKm - (matchedPkg?.km || 0));
+
+    const pricingRows = [
+      ['Standard Package Rate', (data.formData.vehicleType === 'SUV' || (data.totalPrice || 0) === 0) ? "Price on Request" : `Rs. ${(data.totalPrice + (data.discount || 0)).toLocaleString()}`],
+    ];
+
+    if (data.appliedPromo) {
+      pricingRows.push(['Promo Discount', `- Rs. ${data.discount?.toLocaleString()}`]);
     }
-    addRow("To", data.formData.dropoffLocation);
-    addRow("End Date & Time", formatDate(data.formData.dateTime, true));
-    addRow("Journey Type", data.formData.tripType || "Drop");
-    addRow("Payment", "Cash");
-    addRow("Vehicle Type", `${data.formData.vehicleName || "Not Selected"} | ${data.formData.maxPersons || 0} Seater`);
-    addRow("Passengers", (data.formData.maxPersons || 0).toString());
-    currentY += 5;
 
-    // INCLUSIONS
-    addSectionHeader("INCLUSIONS");
-    addRow("Package Rate", (data.formData.vehicleType === 'SUV' || (data.basePriceBeforeAdjustment || 0) === 0) ? "Price on Request" : `Rs. ${data.basePriceBeforeAdjustment?.toLocaleString() || 0}`);
-    const currentRouteDistance = data.routeDistance !== undefined ? data.routeDistance : routeDistance;
-    const currentDistanceInKm = currentRouteDistance ? (currentRouteDistance / 1000) : 0;
-    const extraKm = Math.max(0, Math.ceil(currentDistanceInKm - (matchedPkg?.km || 0)));
-    const totalKm = (matchedPkg?.km || 0) + extraKm;
-    const totalHrs = (matchedPkg?.hrs || 0) + (data.formData.additionalHours || 0);
-    addRow("Package Inclusions", `${totalKm} KMs and ${totalHrs} Hrs`);
-    addRow("Miscellaneous Items", "");
-    addRow("Miscellaneous Rate", "");
-    addRow("TOTAL", (data.formData.vehicleType === 'SUV' || (data.totalPrice || 0) === 0) ? "Price on Request" : `Rs. ${data.totalPrice?.toLocaleString() || 0}`, true);
-    currentY += 5;
+    pricingRows.push(['TOTAL ESTIMATED PRICE', (data.formData.vehicleType === 'SUV' || (data.totalPrice || 0) === 0) ? "Price on Request" : `Rs. ${data.totalPrice?.toLocaleString()}`]);
 
-    // EXTRAS
-    addSectionHeader("EXTRAS");
-    addRow("Per Extra KM", (matchedPkg?.extraKMRate || 0).toString());
-    addRow("Per Extra Hour", (matchedPkg?.extraHrRate1 || 0).toString());
+    autoTable(doc, {
+      startY: currentY,
+      head: [['PRICING BREAKDOWN', 'ESTIMATED COST']],
+      body: pricingRows,
+      theme: 'grid',
+      headStyles: { fillColor: secondaryColor, textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 4 },
+      columnStyles: {
+        '0': { fontStyle: 'bold', cellWidth: 50 },
+        '1': { halign: 'right', fontStyle: 'bold', textColor: primaryColor }
+      },
+      didParseCell: (data) => {
+        if (data.row.index === pricingRows.length - 1) {
+          data.cell.styles.fillColor = [240, 253, 250]; // Teal 50
+          data.cell.styles.fontSize = 11;
+        }
+      }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    // --- Policy Note ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Notes & Policies:", 14, currentY);
+    currentY += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text("• Parking, Highway, and Entrance fees are NOT included and must be paid by the customer.", 14, currentY);
+    currentY += 4;
+    doc.text("• This is an estimated price based on the provided route. Final price may vary based on actual travel.", 14, currentY);
+
     currentY += 15;
 
-    // Footer
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(9);
-    doc.setTextColor(150, 150, 150);
+    // --- Call to Action Section ---
     const now = new Date();
-    const preparedOn = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${now.toLocaleTimeString()}`;
-    doc.text(`Prepared on ${preparedOn} by Website Form | Valid for 14 Days`, 14, currentY);
-    currentY += 10;
+    const preparedOn = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${now.toLocaleTimeString()}`;
 
-    // Interactive Buttons
-    const btnW = 45;
-    const btnH = 8;
-    const btnGap = 10;
-    const startX = 14;
+    doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.rect(14, currentY, 182, 30, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Ready to confirm your journey?", 105, currentY + 10, { align: 'center' });
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Reference No: ${data.bookingRefNo || "N/A"}`, 105, currentY + 18, { align: 'center' });
+    doc.text("Contact our 24/7 hotline or WhatsApp us to finalize your booking.", 105, currentY + 24, { align: 'center' });
+
+    // Floating WhatsApp/Call Buttons
+    currentY += 38;
+    const btnW = 50;
+    const btnH = 10;
+    const startX = 45;
 
     const addPdfButton = (x: number, y: number, w: number, h: number, text: string, url: string, color: [number, number, number]) => {
       doc.setFillColor(color[0], color[1], color[2]);
-      (doc as any).roundedRect(x, y, w, h, 1, 1, 'F');
+      (doc as any).roundedRect(x, y, w, h, 2, 2, 'F');
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(8);
+      doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
-      doc.text(text, x + w/2, y + h/2 + 1, { align: 'center' });
+      doc.text(text, x + w / 2, y + h / 2 + 1.5, { align: 'center' });
       doc.link(x, y, w, h, { url });
     };
 
-    addPdfButton(startX, currentY, btnW, btnH, "WhatsApp Us", "https://wa.me/94702787787", [37, 211, 102]);
-    addPdfButton(startX + btnW + btnGap, currentY, btnW, btnH, "Call Support", "tel:+94702787787", [13, 148, 136]);
-    // addPdfButton(startX + (btnW + btnGap) * 2, currentY, btnW, btnH, "Rate Us", "https://senutours.com/contact", [255, 193, 7]);
-    
-    currentY += 15;
+    addPdfButton(startX, currentY, btnW, btnH, "Message on WhatsApp", "https://wa.me/94702787787", [34, 197, 94]);
+    addPdfButton(startX + btnW + 10, currentY, btnW, btnH, "Call Support Now", "tel:+94702787787", [13, 148, 136]);
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    const refNo = data.bookingRefNo || "N/A";
-    const contactText = `Contact us and mention the reference number `;
-    doc.text(contactText, 14, currentY);
-    
-    // Colored and Underlined Reference Number
-    const textWidth = doc.getTextWidth(contactText);
-    doc.setTextColor(13, 148, 136);
-    doc.text(refNo, 14 + textWidth, currentY);
-    const refWidth = doc.getTextWidth(refNo);
-    doc.setDrawColor(13, 148, 136);
-    doc.line(14 + textWidth, currentY + 1, 14 + textWidth + refWidth, currentY + 1);
-    
-    doc.setTextColor(0, 0, 0);
-    doc.text(" to confirm the booking.", 14 + textWidth + refWidth, currentY);
-
+    // Stamp-like validity
     doc.save(`Senu_Tours_Trip_Summary_${new Date().getTime()}.pdf`);
     setSummaryDownloaded(true);
   };
@@ -1166,18 +1218,18 @@ export function useHeroBooking() {
     if (!isEmailValid || !isPhoneValid || additionalPhoneErrors.some(e => e !== '')) { setSnackbarMessage('Please fix the errors in the form before submitting.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
     if (!formData.name || !formData.telephone || !formData.email) { setSnackbarMessage('Please fill in all required fields (Name, Telephone, Email).'); setSnackbarSeverity('warning'); setSnackbarOpen(true); return; }
     try {
-      const payload = { 
-        ...formData, 
-        destinations: formData.destinations.map(d => d.address).filter(addr => addr.trim() !== ''), 
-        matchedPackage, 
-        promoCode: appliedPromo?.code || '', 
+      const payload = {
+        ...formData,
+        destinations: formData.destinations.map(d => d.address).filter(addr => addr.trim() !== ''),
+        matchedPackage,
+        promoCode: appliedPromo?.code || '',
         discount: discountAmount,
         nightSurcharge: nightSurcharge
       };
       const response = await fetch(API_ENDPOINTS.BOOKINGS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (response.ok) {
         const result = await response.json();
-        setSubmittedBookingData({ formData: { ...formData }, totalPrice, rawTotalPrice, basePriceBeforeAdjustment, provinceAdjustmentAmount, seasonalAdjustmentAmount, appliedPromo, bookingRefNo: result.customId || result._id, nightSurcharge, matchedPackage, routeDistance });
+        setSubmittedBookingData({ formData: { ...formData }, totalPrice, rawTotalPrice, basePriceBeforeAdjustment, provinceAdjustmentAmount, seasonalAdjustmentAmount, appliedPromo, bookingRefNo: result.customId || result._id, nightSurcharge, matchedPackage, routeDistance, routeDuration, discount: discountAmount });
         setRequestSent(true);
         setFormData({ vehicleType: '', vehicleName: '', tripType: '', pickupLocation: '', dropoffLocation: '', dateTime: '', numberOfDays: '' as any, name: '', telephone: '', additionalPhones: [], email: '', remark: '', maxPersons: 0, maxBags: 0, additionalHours: 0, destinations: [] });
         setAppliedPromo(null); setPromoCodeInput(''); setHasPromoOption(null); setShowRemark(false);
@@ -1195,8 +1247,8 @@ export function useHeroBooking() {
   const isFormDirty = useMemo(() => {
     // Basic check: if pickup or dropoff is filled, or if user was anonymous and entered details
     const hasLocation = formData.pickupLocation.length > 5 || formData.dropoffLocation.length > 5 || formData.destinations.length > 0;
-    const hasPersonalDetails = (formData.name !== (user?.name || '') && formData.name.length > 2) || 
-                                (formData.telephone !== (user?.phone || '') && formData.telephone.length > 5);
+    const hasPersonalDetails = (formData.name !== (user?.name || '') && formData.name.length > 2) ||
+      (formData.telephone !== (user?.phone || '') && formData.telephone.length > 5);
     return (hasLocation || hasPersonalDetails) && !requestSent;
   }, [formData, user, requestSent]);
 

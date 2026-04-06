@@ -5,6 +5,7 @@ import { MyLocation as MyLocationIcon, Map as MapIcon, History as HistoryIcon, L
 import MapPicker from './MapPicker';
 import { useUser } from '@/context/UserContext';
 import { API_ENDPOINTS } from '@/config/api';
+import { useJsApiLoader } from '@react-google-maps/api';
 
 interface GooglePlaceSuggestion {
   description: string;
@@ -40,6 +41,9 @@ export function LocationInput({
   const [showMapPicker, setShowMapPicker] = useState(false);
   const { user } = useUser();
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
+  const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc", libraries: ["places", "geometry"] });
+  const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
+  const geocoder = useRef<google.maps.Geocoder | null>(null);
 
   const filteredHistory = searchHistory.filter(h => 
     !value || h.address.toLowerCase().startsWith(value.toLowerCase())
@@ -90,17 +94,17 @@ export function LocationInput({
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          const key = "AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc";
-          const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${key}`);
-          const data = await res.json();
-          if (data.results && data.results[0]) {
-            const address = data.results[0].formatted_address;
-            onChange(address);
-            onSelect?.(latitude.toString(), longitude.toString());
-            coordsSetRef.current = true;
-            setCoordsConfirmed(true);
-            onMyLocationUsed?.();
-          }
+          if (!geocoder.current) geocoder.current = new google.maps.Geocoder();
+          geocoder.current.geocode({ location: { lat: latitude, lng: longitude } }, (results, status) => {
+            if (status === 'OK' && results?.[0]) {
+              const address = results[0].formatted_address;
+              onChange(address);
+              onSelect?.(latitude.toString(), longitude.toString());
+              coordsSetRef.current = true;
+              setCoordsConfirmed(true);
+              onMyLocationUsed?.();
+            }
+          });
         } catch (error) {
           console.error("Reverse geocoding error:", error);
         } finally {
@@ -124,25 +128,32 @@ export function LocationInput({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const fetchSuggestions = useCallback(async (query: string) => {
-    if (query.trim().length < 1) { setSuggestions([]); return; }
-    if (abortRef.current) abortRef.current.abort();
-    abortRef.current = new AbortController();
+  const fetchSuggestions = useCallback((query: string) => {
+    if (query.trim().length < 1 || !isLoaded) { setSuggestions([]); return; }
     setLoading(true);
     try {
-      const key = "AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc";
-      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${key}&components=country:lk`;
-      const res = await fetch(url, { signal: abortRef.current.signal });
-      if (!res.ok) throw new Error(`Google HTTP ${res.status}`);
-      const data = await res.json();
-      setSuggestions(data.predictions || []);
-      setShowDropdown(true);
+      if (!autocompleteService.current) autocompleteService.current = new google.maps.places.AutocompleteService();
+      autocompleteService.current.getPlacePredictions(
+        { input: query, componentRestrictions: { country: 'lk' } },
+        (predictions, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+            const formatted = predictions.map(p => ({
+              description: p.description,
+              place_id: p.place_id
+            }));
+            setSuggestions(formatted);
+            setShowDropdown(true);
+          } else {
+            setSuggestions([]);
+          }
+          setLoading(false);
+        }
+      );
     } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') setSuggestions([]);
-    } finally {
+      setSuggestions([]);
       setLoading(false);
     }
-  }, []);
+  }, [isLoaded]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -158,21 +169,26 @@ export function LocationInput({
     onChange(suggestion.description);
     setLoading(true);
     try {
-      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?place_id=${suggestion.place_id}&key=AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc`);
-      const data = await res.json();
-      if (data.results && data.results[0]) {
-        const { lat, lng } = data.results[0].geometry.location;
-        onSelect?.(lat.toString(), lng.toString());
-        coordsSetRef.current = true;
-        setCoordsConfirmed(true);
-        saveToHistory(suggestion.description, lat.toString(), lng.toString());
-      }
+      if (!geocoder.current) geocoder.current = new google.maps.Geocoder();
+      geocoder.current.geocode({ placeId: suggestion.place_id }, (results, status) => {
+        if (status === 'OK' && results?.[0]) {
+          const { lat, lng } = results[0].geometry.location;
+          const latStr = lat().toString();
+          const lonStr = lng().toString();
+          onSelect?.(latStr, lonStr);
+          coordsSetRef.current = true;
+          setCoordsConfirmed(true);
+          saveToHistory(suggestion.description, latStr, lonStr);
+          setLoading(false);
+          setSuggestions([]);
+          setShowDropdown(false);
+        } else {
+          setLoading(false);
+        }
+      });
     } catch (error) {
       console.error("Geocoding error:", error);
-    } finally {
       setLoading(false);
-      setSuggestions([]);
-      setShowDropdown(false);
     }
   };
 

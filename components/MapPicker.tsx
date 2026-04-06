@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, Autocomplete } from '@react-google-maps/api';
 import {
   Dialog,
   DialogTitle,
@@ -11,7 +11,9 @@ import {
   Box,
   Typography,
   CircularProgress,
-  IconButton
+  IconButton,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import { Close as CloseIcon, Map as MapIcon, LocationOn } from '@mui/icons-material';
 
@@ -45,6 +47,7 @@ const MapPicker: React.FC<MapPickerProps> = ({ open, onClose, onSelect, apiKey, 
   const [markerPosition, setMarkerPosition] = useState<google.maps.LatLngLiteral>(initialLocation || defaultCenter);
   const [address, setAddress] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
   useEffect(() => {
     if (open && !initialLocation && navigator.geolocation) {
@@ -90,6 +93,24 @@ const MapPicker: React.FC<MapPickerProps> = ({ open, onClose, onSelect, apiKey, 
       setAddress('Error finding address');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onPlaceChanged = () => {
+    if (autocompleteRef.current !== null) {
+      const place = autocompleteRef.current.getPlace();
+      if (place.geometry && place.geometry.location) {
+        const newPos = {
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+        };
+        setMarkerPosition(newPos);
+        setAddress(place.formatted_address || '');
+        if (map) {
+          map.panTo(newPos);
+          map.setZoom(15);
+        }
+      }
     }
   };
 
@@ -139,6 +160,35 @@ const MapPicker: React.FC<MapPickerProps> = ({ open, onClose, onSelect, apiKey, 
                 fullscreenControl: false,
               }}
             >
+              <Box sx={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: '400px', zIndex: 10 }}>
+                <Autocomplete
+                  onLoad={(auto) => autocompleteRef.current = auto}
+                  onPlaceChanged={onPlaceChanged}
+                  options={{ componentRestrictions: { country: 'lk' } }}
+                >
+                  <TextField
+                    fullWidth
+                    placeholder="Search for a location..."
+                    variant="outlined"
+                    size="small"
+                    sx={{
+                      background: 'white',
+                      borderRadius: '8px',
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '8px',
+                        boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                      }
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <LocationOn sx={{ color: '#0d9488', fontSize: '1.2rem' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Autocomplete>
+              </Box>
               <Marker 
                 position={markerPosition} 
                 draggable={true}
