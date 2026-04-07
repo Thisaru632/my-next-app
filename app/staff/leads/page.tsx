@@ -85,18 +85,33 @@ interface Lead {
   staffRemark?: string;
   promoCode?: string;
   discount?: number;
+  routeDistance?: number;
+  routeDuration?: number;
+  totalPrice?: number;
+  provinceAdjustment?: number;
+  seasonalAdjustment?: number;
+  discountPercentage?: number;
+  nightSurcharge?: number;
 }
 
 // Mock data
 // Mock data removed in favor of API fetching
 
 // Helper function to format date
-const formatDate = (dateString: string): string => {
+const formatDate = (dateString: string, includeTime = false): string => {
   if (!dateString) return 'N/A';
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return 'N/A';
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  const base = `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  if (!includeTime) return base;
+  
+  let hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${base} | ${hours}:${minutes} ${ampm}`;
 };
 
 // Status color mapping
@@ -284,6 +299,13 @@ const LeadInfoPage: React.FC = () => {
               additionalPhones: booking.additionalPhones || [],
               promoCode: booking.promoCode || '',
               discount: booking.discount || 0,
+              routeDistance: booking.routeDistance || 0,
+              routeDuration: booking.routeDuration || 0,
+              totalPrice: booking.totalPrice || 0,
+              provinceAdjustment: booking.provinceAdjustment || 0,
+              seasonalAdjustment: booking.seasonalAdjustment || 0,
+              nightSurcharge: booking.nightSurcharge || 0,
+              discountPercentage: booking.discountPercentage || 0,
             }));
             allLeads = [...allLeads, ...mappedBookings];
           } catch (e) {
@@ -892,7 +914,7 @@ const LeadInfoPage: React.FC = () => {
                     {/* Shared header cell sx */}
                     {[
                       'Lead ID',
-                      'Lead Date',
+                      'Lead Date & Time',
                       ...(activeTab === 0 ? ['From → To'] : []),
                       'Status',
                       'Employee',
@@ -972,8 +994,8 @@ const LeadInfoPage: React.FC = () => {
 
                           {/* Lead Date */}
                           <TableCell>
-                            <Typography sx={{ fontSize: '0.9375rem', color: 'text.primary' }}>
-                              {formatDate(lead.leadDate)}
+                            <Typography sx={{ fontSize: '0.875rem', color: 'text.primary', fontWeight: 500 }}>
+                              {formatDate(lead.leadDate, true)}
                             </Typography>
                           </TableCell>
 
@@ -1379,8 +1401,101 @@ const LeadInfoPage: React.FC = () => {
                         {selectedLead.matchedPackage.rateAmount?.toLocaleString()}
                       </Typography>
                     </Box>
-                  </Box>
-                </Box>
+                                    {/* Detailed Calculation Process — only if route distance is available */}
+                  {(selectedLead.routeDistance !== undefined && selectedLead.routeDistance > 0) ? (
+                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed rgba(22,101,52,0.3)' }}>
+                      <Typography sx={{ fontSize: '0.72rem', color: '#166534', fontWeight: 800, mb: 1.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Calculation Breakdown:
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                            Base {selectedLead.matchedPackage.km} KM Package:
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                            Rs. {selectedLead.matchedPackage.rateAmount?.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        
+                        {(() => {
+                           const actualKm = Math.ceil(selectedLead.routeDistance / 1000);
+                           const pkgKm = selectedLead.matchedPackage.km;
+                           const extraKm = Math.max(0, actualKm - pkgKm);
+                           const rate = selectedLead.matchedPackage.extraKMRate || 0;
+                           const extraCost = extraKm * rate;
+
+                           if (extraKm > 0) {
+                             return (
+                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                 <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                                   Extra Distance ({extraKm} KM × Rs. {rate}):
+                                 </Typography>
+                                 <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                                   + Rs. {extraCost.toLocaleString()}
+                                 </Typography>
+                               </Box>
+                             );
+                           }
+                           return null;
+                        })()}
+
+                        {/* Seasonal Adjustment */}
+                        {selectedLead.seasonalAdjustment !== undefined && selectedLead.seasonalAdjustment > 0 && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                              Seasonal Price Adjustment:
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                              + Rs. {selectedLead.seasonalAdjustment.toLocaleString()}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {/* Province Adjustment */}
+                        {selectedLead.provinceAdjustment !== undefined && selectedLead.provinceAdjustment > 0 && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                              Province Surcharge:
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                              + Rs. {selectedLead.provinceAdjustment.toLocaleString()}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {/* Night Surcharge */}
+                        {selectedLead.nightSurcharge !== undefined && selectedLead.nightSurcharge > 0 && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                              Night Surcharge:
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                              + Rs. {selectedLead.nightSurcharge.toLocaleString()}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, pt: 1, borderTop: '1.5px solid rgba(22,101,52,0.2)' }}>
+                          <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: '#065f46' }}>
+                            Calculated Total:
+                          </Typography>
+                          <Typography sx={{ fontSize: '1.1rem', fontWeight: 900, color: '#065f46' }}>
+                            Rs. {((selectedLead.totalPrice || 0) > 0 ? selectedLead.totalPrice : (selectedLead.matchedPackage.rateAmount + (Math.max(0, Math.ceil(selectedLead.routeDistance / 1000) - selectedLead.matchedPackage.km) * (selectedLead.matchedPackage.extraKMRate || 0))))?.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Typography sx={{ fontSize: '0.65rem', color: '#065f46', mt: 0.5, fontStyle: 'italic', fontWeight: 600, opacity: 0.8 }}>
+                          * Total distance used for calculation: {Math.ceil(selectedLead.routeDistance / 1000)} KM
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed rgba(22,101,52,0.3)', textAlign: 'center' }}>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic' }}>
+                        * Route distance and detailed mapping for this lead are not available in current record.
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>     </Box>
               )}
 
               {/* Promo Code & Discount — Decoupled from Package check */}
@@ -1400,7 +1515,16 @@ const LeadInfoPage: React.FC = () => {
                     <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.6)', border: '1px solid #fdba74' }}>
                       <Typography sx={{ fontSize: '0.65rem', color: '#9a3412', fontWeight: 600, mb: 0.5 }}>DISCOUNT SAVED</Typography>
                       <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: '#ef4444' }}>
-                        LKR {selectedLead.discount?.toLocaleString()} (10%)
+                        LKR {selectedLead.discount?.toLocaleString()} ({(() => {
+                           if (selectedLead.discountPercentage && selectedLead.discountPercentage > 0) return `${selectedLead.discountPercentage}%`;
+                           // Fallback calculation for records that didn't have percentage saved
+                           const baseForDiscount = (selectedLead.totalPrice || 0) - (selectedLead.nightSurcharge || 0) + (selectedLead.discount || 0);
+                           if (baseForDiscount > 0) {
+                             const calcPercent = Math.round((selectedLead.discount! / baseForDiscount) * 100);
+                             if (calcPercent > 0) return `${calcPercent}%`;
+                           }
+                           return '10%'; // Ultimate fallback
+                        })()})
                       </Typography>
                     </Box>
                   </Box>

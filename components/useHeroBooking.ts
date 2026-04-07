@@ -1210,7 +1210,13 @@ export function useHeroBooking() {
         matchedPackage,
         promoCode: appliedPromo?.code || '',
         discount: discountAmount,
-        nightSurcharge: nightSurcharge
+        nightSurcharge: nightSurcharge,
+        routeDistance: routeDistance,
+        routeDuration: routeDuration,
+        totalPrice: totalPrice,
+        provinceAdjustment: provinceAdjustmentAmount,
+        seasonalAdjustment: seasonalAdjustmentAmount,
+        discountPercentage: appliedPromo?.discountType === 'Percentage' ? appliedPromo.discountValue : 0
       };
       const response = await fetch(API_ENDPOINTS.BOOKINGS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (response.ok) {
