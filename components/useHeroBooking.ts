@@ -1024,14 +1024,14 @@ export function useHeroBooking() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.text("SENU TOURS SRI LANKA", 196, 15, { align: 'right' });
+    doc.text("SENU TOURS", 196, 15, { align: 'right' });
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
     doc.text("167/2/C, Hokandara North, Hokandara.", 196, 20, { align: 'right' });
-    doc.text("Hotline: +94 70 278 7787", 196, 24, { align: 'right' });
-    doc.text("Web: www.senutours.com", 196, 28, { align: 'right' });
+    doc.text("Hotline: 0702787787", 196, 24, { align: 'right' });
+    doc.text("Web: senutours.lk", 196, 28, { align: 'right' });
 
     // Document Title
     doc.setFillColor(248, 250, 252); // Very light gray bg for title
@@ -1095,7 +1095,7 @@ export function useHeroBooking() {
         body: allowancesBody,
         theme: 'grid',
         headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
-        styles: { fontSize: 9, cellPadding: 3 },
+        styles: { fontSize: 9, cellPadding: 1.5 },
         columnStyles: { '0': { fontStyle: 'bold', cellWidth: 50 }, '1': { halign: 'right', textColor: primaryColor, fontStyle: 'bold' } }
       });
       currentY = (doc as any).lastAutoTable.finalY + 10;
@@ -1118,7 +1118,7 @@ export function useHeroBooking() {
       body: routeBody,
       theme: 'striped',
       headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 9, cellPadding: 1.5 },
       columnStyles: { '0': { fontStyle: 'bold', cellWidth: 50 } }
     });
 
@@ -1143,7 +1143,7 @@ export function useHeroBooking() {
       body: pricingRows,
       theme: 'grid',
       headStyles: { fillColor: secondaryColor, textColor: 255, fontStyle: 'bold' },
-      styles: { fontSize: 9, cellPadding: 4 },
+      styles: { fontSize: 9, cellPadding: 1.5 },
       columnStyles: {
         '0': { fontStyle: 'bold', cellWidth: 50 },
         '1': { halign: 'right', fontStyle: 'bold', textColor: primaryColor }
@@ -1172,44 +1172,29 @@ export function useHeroBooking() {
 
     currentY += 15;
 
-    // --- Call to Action Section ---
-    const now = new Date();
-    const preparedOn = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${now.toLocaleTimeString()}`;
-
-    doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.rect(14, currentY, 182, 30, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("Ready to confirm your journey?", 105, currentY + 10, { align: 'center' });
-
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Reference No: ${data.bookingRefNo || "N/A"}`, 105, currentY + 18, { align: 'center' });
-    doc.text("Contact our 24/7 hotline or WhatsApp us to finalize your booking.", 105, currentY + 24, { align: 'center' });
-
-    // Floating WhatsApp/Call Buttons
-    currentY += 38;
-    const btnW = 50;
-    const btnH = 10;
-    const startX = 45;
-
+    // Remove Reference & Call to Action Section as requested
+    
+    // Floating WhatsApp/Call Buttons at the very bottom of page 1
     const addPdfButton = (x: number, y: number, w: number, h: number, text: string, url: string, color: [number, number, number]) => {
       doc.setFillColor(color[0], color[1], color[2]);
       (doc as any).roundedRect(x, y, w, h, 2, 2, 'F');
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
       doc.text(text, x + w / 2, y + h / 2 + 1.5, { align: 'center' });
       doc.link(x, y, w, h, { url });
     };
+    
+    const btnW = 48;
+    const btnH = 9;
+    const btnY = 275; // Left-aligned at the bottom
+    const startX = 14; // Standard left margin
+    
+    addPdfButton(startX, btnY, btnW, btnH, "Message on WhatsApp", "https://wa.me/94702787787", [37, 211, 102]);
+    addPdfButton(startX + btnW + 10, btnY, btnW, btnH, "Call Us Now", "tel:0702787787", [13, 148, 136]);
 
-    addPdfButton(startX, currentY, btnW, btnH, "Message on WhatsApp", "https://wa.me/94702787787", [34, 197, 94]);
-    addPdfButton(startX + btnW + 10, currentY, btnW, btnH, "Call Support Now", "tel:+94702787787", [13, 148, 136]);
-
-    // Stamp-like validity
-    doc.save(`Senu_Tours_Trip_Summary_${new Date().getTime()}.pdf`);
+    // Save PDF
+    doc.save(`Senu_Tours_Trip_Estimate_${new Date().getTime()}.pdf`);
     setSummaryDownloaded(true);
   };
 

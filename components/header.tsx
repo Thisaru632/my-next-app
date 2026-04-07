@@ -25,24 +25,11 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [primarySim, setPrimarySim] = useState<string>("+94 70 278 7787");
+  const [primarySim, setPrimarySim] = useState<string>("0702787787");
 
   useEffect(() => {
-    const fetchSims = async () => {
-      try {
-        const { API_ENDPOINTS } = await import("@/config/api");
-        const response = await fetch(API_ENDPOINTS.SIMS);
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.length > 0) {
-            setPrimarySim(data[0].phoneNumber);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching header sims:", error);
-      }
-    };
-    fetchSims();
+    // Hotline is now fixed to 0702787787 as requested
+    setPrimarySim("0702787787");
   }, []);
 
   useEffect(() => {
@@ -142,7 +129,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
             {/* Hotline Highlight Button */}
             <li className="ml-4 -mr-4">
                <a 
-                href={`tel:${primarySim}`} 
+                href={`tel:0702787787`} 
                 className={`group flex items-center gap-2.5 px-4 py-2 rounded-full font-bold transition-all duration-300 shadow-md transform hover:scale-105 active:scale-95 ${
                   isLightHeader 
                     ? "bg-green-600 text-white hover:bg-green-700 shadow-green-200" 
@@ -154,7 +141,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
                    <div className="relative w-2 h-2 bg-green-500 rounded-full"></div>
                 </div>
                 <Call style={{ fontSize: '18px' }} />
-                <span className="text-sm font-black tracking-tight">{primarySim}</span>
+                <span className="text-sm font-black tracking-tight">0702787787</span>
               </a>
             </li>
           </ul>
@@ -162,7 +149,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
           {/* Mobile Auth & Hotline & Hamburger */}
           <div className="flex items-center gap-1.5 md:hidden">
             <a 
-              href={`tel:${primarySim}`} 
+              href={`tel:0702787787`} 
               className={`flex items-center justify-center w-9 h-9 rounded-full shadow-md transition-all active:scale-90 ${
                 isLightHeader ? "bg-green-600 text-white" : "bg-green-600 text-white"
               }`}

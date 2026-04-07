@@ -66,17 +66,9 @@ export default function Footer() {
             {/* Column 4 - Contact Info */}
             <div className="footer-col">
               <h4 className="footer-heading">Hotline</h4>
-              {sims.length > 0 ? (
-                sims.map((sim, idx) => (
-                  <a key={sim._id || idx} href={`tel:${sim.phoneNumber}`} className="footer-phone" style={{ display: 'block', fontSize: '1.4rem' }}>
-                    {sim.phoneNumber}
-                  </a>
-                ))
-              ) : (
-                <a href="tel:+94702787787" className="footer-phone">
-                  +94 70 278 7787
-                </a>
-              )}
+              <a href="tel:+94702787787" className="footer-phone" style={{ display: 'block', fontSize: '1.4rem' }}>
+                0702787787
+              </a>
               <p className="footer-phone-note">(24/7) Support for all inquiries</p>
 
               <div className="footer-address">
@@ -89,10 +81,7 @@ export default function Footer() {
                 </p>
               </div>
 
-              <div className="footer-email">
-                <p>General:</p>
-                <a href="mailto:info@senutours.com">info@senutours.com</a>
-              </div>
+
 
               <div className="footer-hours">
                 <h5>Opening Hours</h5>

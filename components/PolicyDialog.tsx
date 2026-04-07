@@ -169,11 +169,11 @@ export const PolicyDialog: React.FC<PolicyDialogProps> = ({ open, onClose }) => 
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Call</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>0112 787 787</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>0702787787</Typography>
                 </Box>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>WhatsApp</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>0702 787 787</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>0702787787</Typography>
                 </Box>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>Email</Typography>

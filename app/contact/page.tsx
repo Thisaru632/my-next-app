@@ -227,7 +227,7 @@ export default function ContactPage() {
               </div>
               <div className="info-content">
                 <h4>Call Us</h4>
-                <a href="tel:+94112787787">0112 787 787</a>
+                <a href="tel:+94702787787">0702787787</a>
               </div>
             </div>
 

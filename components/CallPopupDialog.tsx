@@ -73,7 +73,7 @@ export const CallPopupDialog: React.FC<CallPopupDialogProps> = ({ open, onClose,
           gap: 1.5
         }}>
           <Call sx={{ fontSize: 28, color: '#C9A961' }} />
-          +94 70 278 7787
+          0702787787
         </Typography>
         
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -104,13 +104,13 @@ export const CallPopupDialog: React.FC<CallPopupDialogProps> = ({ open, onClose,
           >
             Call Now
           </Button>
-
+ 
           <Button
             fullWidth
             variant="text"
             startIcon={<ContentCopy />}
             onClick={() => {
-              navigator.clipboard.writeText('+94702787787');
+              navigator.clipboard.writeText('0702787787');
               onCopySuccess();
             }}
             sx={{
