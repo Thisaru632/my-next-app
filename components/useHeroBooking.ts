@@ -352,8 +352,8 @@ export function useHeroBooking() {
       const pTo = code.validTo ? new Date(code.validTo) : null; if (pTo) pTo.setHours(23, 59, 59, 999);
       if (pFrom && pFrom > now) { setSnackbarMessage('This promo code is not yet valid.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       if (pTo && pTo < now) { setSnackbarMessage('This promo code has expired.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
-      const cleanApp = code.applicableVehicle.toLowerCase().trim();
-      const isApplicable = cleanApp === 'all' || cleanApp === formData.vehicleName.toLowerCase().trim() || cleanApp === formData.vehicleType.toLowerCase().trim();
+      const appVehicles = code.applicableVehicle.toLowerCase().split(',').map(v => v.trim());
+      const isApplicable = appVehicles.includes('all') || appVehicles.includes(formData.vehicleName.toLowerCase().trim()) || appVehicles.includes(formData.vehicleType.toLowerCase().trim());
       setAppliedPromo(code); setOpenPromoDialog(false);
       const discText = code.discountType === 'Percentage' ? `${code.discountValue}%` : `LKR ${code.discountValue.toLocaleString()}`;
       const successMsg = isApplicable ? `Promo code applied! ${discText} discount added.` : `Promo code for ${code.applicableVehicle} applied! Note: Discount will count only when you select this vehicle.`;
@@ -761,8 +761,8 @@ export function useHeroBooking() {
 
   const discountAmount = (() => {
     if (!appliedPromo) return 0;
-    const cleanApp = appliedPromo.applicableVehicle.toLowerCase().trim();
-    const isApplicable = cleanApp === 'all' || cleanApp === formData.vehicleName.toLowerCase().trim() || cleanApp === formData.vehicleType.toLowerCase().trim();
+    const appVehicles = appliedPromo.applicableVehicle.toLowerCase().split(',').map(v => v.trim());
+    const isApplicable = appVehicles.includes('all') || appVehicles.includes(formData.vehicleName.toLowerCase().trim()) || appVehicles.includes(formData.vehicleType.toLowerCase().trim());
     if (!isApplicable) return 0;
     return appliedPromo.discountType === 'Percentage' ? Math.round(rawTotalPrice * (appliedPromo.discountValue / 100)) : appliedPromo.discountValue;
   })();
@@ -950,8 +950,8 @@ export function useHeroBooking() {
     // 4. Promo Discount
     let discAmount = 0;
     if (appliedPromo) {
-      const cleanApplicable = appliedPromo.applicableVehicle.toLowerCase().trim();
-      const isApplicable = cleanApplicable === 'all' || cleanApplicable === vName.toLowerCase().trim() || cleanApplicable === vType.toLowerCase().trim();
+      const appVehicles = appliedPromo.applicableVehicle.toLowerCase().split(',').map(v => v.trim());
+      const isApplicable = appVehicles.includes('all') || appVehicles.includes(vName.toLowerCase().trim()) || appVehicles.includes(vType.toLowerCase().trim());
       if (isApplicable) {
         discAmount = appliedPromo.discountType === 'Percentage' ? Math.round(rawTotal * (appliedPromo.discountValue / 100)) : appliedPromo.discountValue;
       }
@@ -984,7 +984,8 @@ export function useHeroBooking() {
     const cleanApp = appliedPromo.applicableVehicle.toLowerCase().trim();
     Object.entries(sampleVehicles).forEach(([catName, cat]) => {
       cat.models.forEach(m => {
-        const isApp = cleanApp === 'all' || cleanApp === m.name.toLowerCase().trim() || cleanApp === catName.toLowerCase().trim();
+        const appVehs = cleanApp.split(',').map(v => v.trim());
+        const isApp = appVehs.includes('all') || appVehs.includes(m.name.toLowerCase().trim()) || appVehs.includes(catName.toLowerCase().trim());
         if (isApp) {
           map[m.name] = appliedPromo.discountType === 'Percentage' ? `-${appliedPromo.discountValue}%` : `-LKR ${appliedPromo.discountValue.toLocaleString()}`;
         } else {

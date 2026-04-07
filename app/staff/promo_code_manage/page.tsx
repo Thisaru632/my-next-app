@@ -24,7 +24,13 @@ import {
     Alert,
     Tooltip,
     Divider,
-    MenuItem
+    MenuItem,
+    Select,
+    Checkbox,
+    ListItemText,
+    FormControl,
+    InputLabel,
+    OutlinedInput
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -68,7 +74,7 @@ const PromoCodeManagePage = () => {
         code: '',
         discountType: 'Percentage' as 'Percentage' | 'Fixed Amount',
         discountValue: '',
-        applicableVehicle: 'All',
+        applicableVehicles: ['All'],
         description: '',
         validFrom: '',
         validTo: '',
@@ -106,7 +112,7 @@ const PromoCodeManagePage = () => {
             code: '',
             discountType: 'Percentage',
             discountValue: '',
-            applicableVehicle: 'All',
+            applicableVehicles: ['All'],
             description: '',
             validFrom: '',
             validTo: '',
@@ -121,7 +127,7 @@ const PromoCodeManagePage = () => {
             code: promo.code,
             discountType: promo.discountType,
             discountValue: promo.discountValue.toString(),
-            applicableVehicle: promo.applicableVehicle || 'All',
+            applicableVehicles: promo.applicableVehicle ? promo.applicableVehicle.split(',').map(v => v.trim()) : ['All'],
             description: promo.description || '',
             validFrom: promo.validFrom ? new Date(promo.validFrom).toISOString().split('T')[0] : '',
             validTo: promo.validTo ? new Date(promo.validTo).toISOString().split('T')[0] : '',
@@ -150,7 +156,10 @@ const PromoCodeManagePage = () => {
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    applicableVehicle: formData.applicableVehicles.join(', ')
+                })
             });
 
             if (!res.ok) {
@@ -310,12 +319,17 @@ const PromoCodeManagePage = () => {
                                         </Typography>
                                     </TableCell>
                                     <TableCell>
-                                        <Chip
-                                            label={promo.applicableVehicle || 'All'}
-                                            size="small"
-                                            variant="outlined"
-                                            sx={{ fontWeight: 600, borderRadius: '6px' }}
-                                        />
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                            {(promo.applicableVehicle || 'All').split(',').map((v, i) => (
+                                                <Chip
+                                                    key={i}
+                                                    label={v.trim()}
+                                                    size="small"
+                                                    variant="outlined"
+                                                    sx={{ fontWeight: 600, borderRadius: '6px' }}
+                                                />
+                                            ))}
+                                        </Box>
                                     </TableCell>
                                     <TableCell>
                                         <Chip
@@ -408,18 +422,39 @@ const PromoCodeManagePage = () => {
                             value={formData.discountValue}
                             onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
                         />
-                        <TextField
-                            select
-                            fullWidth
-                            label="Applicable Vehicle"
-                            value={formData.applicableVehicle}
-                            onChange={(e) => setFormData({ ...formData, applicableVehicle: e.target.value })}
-                        >
-                            <MenuItem value="All">All Vehicles</MenuItem>
-                            {vehicleNames.map((name) => (
-                                <MenuItem key={name} value={name}>{name}</MenuItem>
-                            ))}
-                        </TextField>
+                        <FormControl fullWidth>
+                            <InputLabel id="applicable-vehicles-label">Applicable Vehicles</InputLabel>
+                            <Select
+                                labelId="applicable-vehicles-label"
+                                multiple
+                                value={formData.applicableVehicles}
+                                onChange={(e) => {
+                                    const value = e.target.value as string[];
+                                    // If 'All' is selected, clear other selections
+                                    if (value.includes('All') && !formData.applicableVehicles.includes('All')) {
+                                        setFormData({ ...formData, applicableVehicles: ['All'] });
+                                    } else if (value.length > 1 && value.includes('All')) {
+                                        // If other vehicles are selected while 'All' is present, remove 'All'
+                                        setFormData({ ...formData, applicableVehicles: value.filter(v => v !== 'All') });
+                                    } else {
+                                        setFormData({ ...formData, applicableVehicles: value.length === 0 ? ['All'] : value });
+                                    }
+                                }}
+                                input={<OutlinedInput label="Applicable Vehicles" />}
+                                renderValue={(selected) => selected.join(', ')}
+                            >
+                                <MenuItem value="All">
+                                    <Checkbox checked={formData.applicableVehicles.includes('All')} />
+                                    <ListItemText primary="All Vehicles" />
+                                </MenuItem>
+                                {vehicleNames.map((name) => (
+                                    <MenuItem key={name} value={name}>
+                                        <Checkbox checked={formData.applicableVehicles.includes(name)} />
+                                        <ListItemText primary={name} />
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
                         <TextField
                             fullWidth
                             label="Description"

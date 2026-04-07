@@ -151,7 +151,7 @@ export const PolicyDialog: React.FC<PolicyDialogProps> = ({ open, onClose }) => 
                 For overnight trips, the customer must provide the driver with suitable accommodation and daily meals.
               </Typography>
               <Typography variant="body2" sx={{ color: '#0d9488', fontWeight: 700 }}>
-                ● If NOT provided: Customer must pay the driver a daily allowance of LKR 3,000.
+                ● If NOT provided: Customer must pay the driver a daily allowance of LKR 3,500.
               </Typography>
             </Box>
 

@@ -106,7 +106,7 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                   {h.matchedPackage && h.formData.tripType !== 'Drop' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginTop: '3px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ fontSize: '0.75rem' }}>ℹ️</span><span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#0d9488', fontWeight: 600 }}>{h.matchedPackage.hrs} Free Hours Included</span></div>
-                      {Number(h.formData.additionalHours) > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ fontSize: '0.75rem' }}>➕</span><span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#0d9488', fontWeight: 600 }}>{h.formData.additionalHours} Extra Hours Added (@ LKR {h.matchedPackage.extraHrRate1}/h)</span></div>}
+                      {/* Number(h.formData.additionalHours) > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ fontSize: '0.75rem' }}>➕</span><span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#0d9488', fontWeight: 600 }}>{h.formData.additionalHours} Extra Hours Added (@ LKR {h.matchedPackage.extraHrRate1}/h)</span></div>} */}
                     </div>
                   )}
                 </>
@@ -145,8 +145,8 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                      )}
                   </div>
                 )}
-                {h.extraKmDetail && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra KM: {h.extraKmDetail.km} km @ LKR {h.matchedPackage?.extraKMRate}/km</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {h.extraKmDetail.cost.toLocaleString()}</span></div>}
-                {Number(h.formData.additionalHours) > 0 && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra Hours: {h.formData.additionalHours}h @ LKR {h.matchedPackage?.extraHrRate1}/h</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {(h.formData.additionalHours * (h.matchedPackage?.extraHrRate1 || 0)).toLocaleString()}</span></div>}
+                {/* h.extraKmDetail && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra KM: {h.extraKmDetail.km} km @ LKR {h.matchedPackage?.extraKMRate}/km</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {h.extraKmDetail.cost.toLocaleString()}</span></div> */}
+                {/* Number(h.formData.additionalHours) > 0 && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra Hours: {h.formData.additionalHours}h @ LKR {h.matchedPackage?.extraHrRate1}/h</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {(h.formData.additionalHours * (h.matchedPackage?.extraHrRate1 || 0)).toLocaleString()}</span></div> */}
 
                 <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', marginTop: '3px' }}>*Actual price may vary based on route changes.</div>
                 {h.routeDistance !== null && (
