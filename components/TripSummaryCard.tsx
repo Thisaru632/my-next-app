@@ -61,21 +61,17 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                 {h.formData.vehicleType !== 'SUV' && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}><span style={{ color: '#4b5563' }}>Extra KM Rate:</span><span style={{ fontWeight: 700 }}>LKR {h.matchedPackage?.extraKMRate || 0}</span></div>
-                    {h.formData.tripType !== 'Drop' && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4b5563' }}>Extra Hour Rate:</span><span style={{ fontWeight: 700 }}>LKR {h.matchedPackage?.extraHrRate1 || 0}</span></div>
-                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4b5563' }}>Extra Hour Rate:</span><span style={{ fontWeight: 700 }}>LKR {h.matchedPackage?.extraHrRate1 || 0}</span></div>
                   </>
                 )}
-                {h.formData.tripType !== 'Drop' && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px dashed rgba(13,148,136,0.2)', paddingTop: '6px' }}>
-                      <span style={{ color: '#0d9488', fontWeight: 700, fontSize: '0.65rem' }}>ADD EXTRA HOURS:</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <IconButton size="small" onClick={() => h.handleChange('additionalHours', Math.max(0, (Number(h.formData.additionalHours) || 0) - 1))} sx={{ padding: '1px', border: '1.2px solid #0d9488', color: '#0d9488', opacity: (Number(h.formData.additionalHours) || 0) <= 0 ? 0.4 : 1 }} disabled={(Number(h.formData.additionalHours) || 0) <= 0}><RemoveCircle sx={{ fontSize: '16px' }} /></IconButton>
-                        <input type="number" value={h.formData.additionalHours === 0 ? "" : h.formData.additionalHours} onChange={(e) => h.handleChange('additionalHours', e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value) || 0))} style={{ width: '32px', height: '24px', textAlign: 'center', background: 'rgba(255,255,255,0.9)', border: '1.2px solid rgba(13,148,136,0.3)', borderRadius: '4px', fontFamily: "'Montserrat', sans-serif", fontSize: '0.8rem', fontWeight: 800, color: '#0d9488', outline: 'none' }} />
-                        <IconButton size="small" onClick={() => h.handleChange('additionalHours', (Number(h.formData.additionalHours) || 0) + 1)} sx={{ padding: '1px', border: '1.2px solid #0d9488', color: '#0d9488' }}><AddCircle sx={{ fontSize: '16px' }} /></IconButton>
-                      </div>
-                    </div>
-                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px dashed rgba(13,148,136,0.2)', paddingTop: '6px' }}>
+                  <span style={{ color: '#0d9488', fontWeight: 700, fontSize: '0.65rem' }}>ADD EXTRA HOURS:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <IconButton size="small" onClick={() => h.handleChange('additionalHours', Math.max(0, (Number(h.formData.additionalHours) || 0) - 1))} sx={{ padding: '1px', border: '1.2px solid #0d9488', color: '#0d9488', opacity: (Number(h.formData.additionalHours) || 0) <= 0 ? 0.4 : 1 }} disabled={(Number(h.formData.additionalHours) || 0) <= 0}><RemoveCircle sx={{ fontSize: '16px' }} /></IconButton>
+                    <input type="number" value={h.formData.additionalHours === 0 ? "" : h.formData.additionalHours} onChange={(e) => h.handleChange('additionalHours', e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value) || 0))} style={{ width: '32px', height: '24px', textAlign: 'center', background: 'rgba(255,255,255,0.9)', border: '1.2px solid rgba(13,148,136,0.3)', borderRadius: '4px', fontFamily: "'Montserrat', sans-serif", fontSize: '0.8rem', fontWeight: 800, color: '#0d9488', outline: 'none' }} />
+                    <IconButton size="small" onClick={() => h.handleChange('additionalHours', (Number(h.formData.additionalHours) || 0) + 1)} sx={{ padding: '1px', border: '1.2px solid #0d9488', color: '#0d9488' }}><AddCircle sx={{ fontSize: '16px' }} /></IconButton>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -103,7 +99,7 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                     </div>
                   </div>
                   {h.routeDuration !== null && <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#4b5563', marginTop: '1px' }}>Est. Drive: {h.routeDuration >= 3600 ? `${Math.floor(h.routeDuration / 3600)}h ${Math.round((h.routeDuration % 3600) / 60)}m` : `${Math.round(h.routeDuration / 60)} min`}</div>}
-                  {h.matchedPackage && h.formData.tripType !== 'Drop' && (
+                  {h.matchedPackage && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginTop: '3px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ fontSize: '0.75rem' }}>ℹ️</span><span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#0d9488', fontWeight: 600 }}>{h.matchedPackage.hrs} Free Hours Included</span></div>
                       {/* Number(h.formData.additionalHours) > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ fontSize: '0.75rem' }}>➕</span><span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#0d9488', fontWeight: 600 }}>{h.formData.additionalHours} Extra Hours Added (@ LKR {h.matchedPackage.extraHrRate1}/h)</span></div>} */}
@@ -117,13 +113,21 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
          (h.formData.tripType !== 'Return' || h.formData.destinations.some(d => d.address.trim())) && 
          (h.formData.vehicleType === 'SUV' || h.formData.tripType) && (
           <div id="booking-summary-rate-area" style={{ marginTop: '6px', padding: '12px', background: 'rgba(13,148,136,0.06)', borderRadius: '12px', border: '1px solid rgba(13,148,136,0.15)' }}>
-            <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>{h.formData.vehicleType === 'SUV' || h.totalPrice === 0 ? 'Booking Request' : 'Total Estimate'}</div>
-            {h.formData.vehicleType !== 'SUV' && h.totalPrice > 0 && (
+            <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>{h.formData.vehicleType === 'SUV' || h.formData.vehicleType === 'Bus' || h.totalPrice === 0 ? 'Booking Request' : 'Total Estimate'}</div>
+            {/* Pricing Details */}
+            {((h.formData.vehicleType === 'Bus' && h.formData.tripType === 'Drop') || h.formData.vehicleType === 'SUV' || h.totalPrice === 0) ? (
+              <div style={{ marginTop: '6px' }}>
+                <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.3rem', fontWeight: 800, color: '#0d9488' }}>Price on Request</span>
+                <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#3b82f6', lineHeight: 1.5, marginTop: '8px', padding: '10px 12px', background: 'rgba(59,130,246,0.05)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.2)' }}>
+                  Submit the request and our team will contact you with the best rate.
+                </div>
+              </div>
+            ) : (
               <>
                 {h.appliedPromo && h.discountAmount > 0 ? (
                   <div style={{ marginTop: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.85rem', fontWeight: 600, color: '#6b7280', textDecoration: 'line-through' }}>LKR {h.rawTotalPrice.toLocaleString()}</span>
+                      <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.85rem', fontWeight: 600, color: '#6b7280', textDecoration: 'line-through' }}>LKR {(h.rawTotalPrice + h.nightSurcharge).toLocaleString()}</span>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: '4px' }}>{h.appliedPromo.discountType === 'Percentage' ? `-${h.appliedPromo.discountValue}%` : `- LKR ${h.appliedPromo.discountValue.toLocaleString()}`} OFF</span>
                     </div>
                     <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.35rem', fontWeight: 800, color: '#0d9488' }}>LKR {h.totalPrice.toLocaleString()}</span>
@@ -134,17 +138,19 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                   </div>
                 ) : (
                   <div style={{ marginTop: '6px' }}>
-                     <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.3rem', fontWeight: 800, color: '#0d9488' }}>LKR {h.totalPrice.toLocaleString()}</span>
-                     <div style={{ marginTop: '2px' }}>
-                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '1px 8px', background: '#ef4444', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em', boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)' }}>💵 CASH</div>
-                     </div>
-                     {h.appliedPromo && (
-                       <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', fontWeight: 600, marginTop: '4px' }}>
-                         Promo "{h.appliedPromo.code}" is valid only for {h.appliedPromo.applicableVehicle === 'All' ? 'any vehicle' : h.appliedPromo.applicableVehicle}.
-                       </div>
-                     )}
+                    <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.3rem', fontWeight: 800, color: '#0d9488' }}>LKR {h.totalPrice.toLocaleString()}</span>
+                    <div style={{ marginTop: '2px' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '1px 8px', background: '#ef4444', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em', boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)' }}>💵 CASH</div>
+                    </div>
+                    {h.appliedPromo && (
+                      <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.65rem', color: '#6b7280', fontWeight: 600, marginTop: '4px' }}>
+                        Promo "{h.appliedPromo.code}" is valid only for {h.appliedPromo.applicableVehicle === 'All' ? 'any vehicle' : h.appliedPromo.applicableVehicle}.
+                      </div>
+                    )}
                   </div>
                 )}
+              </>
+            )}
                 {/* h.extraKmDetail && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra KM: {h.extraKmDetail.km} km @ LKR {h.matchedPackage?.extraKMRate}/km</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {h.extraKmDetail.cost.toLocaleString()}</span></div> */}
                 {/* Number(h.formData.additionalHours) > 0 && <div style={{ marginTop: '3px', padding: '5px 8px', background: 'rgba(13,148,136,0.06)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: '0.6rem', color: '#4b5563', fontWeight: 600 }}>Extra Hours: {h.formData.additionalHours}h @ LKR {h.matchedPackage?.extraHrRate1}/h</span><span style={{ fontSize: '0.65rem', color: '#0d9488', fontWeight: 700 }}>+ LKR {(h.formData.additionalHours * (h.matchedPackage?.extraHrRate1 || 0)).toLocaleString()}</span></div> */}
 
@@ -163,8 +169,6 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                     </div>
                   </div>
                 )}
-              </>
-            )}
             {Number(h.formData.numberOfDays) > 5 && (
               <div style={{ marginTop: '1rem', padding: '12px', background: 'rgba(13,148,136,0.06)', borderRadius: '10px', border: '1.5px solid rgba(13,148,136,0.2)', fontFamily: "'Montserrat', sans-serif", fontSize: '0.72rem', color: '#0d9488', fontWeight: 600, textAlign: 'left', lineHeight: 1.5 }}>
                 ℹ️ This trip is more than 5 days. Because we have to clarify some things with you, don't worry—just submit this request and our team will contact you shortly.

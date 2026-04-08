@@ -27,11 +27,13 @@ import {
     Menu as MenuIcon,
     DarkMode as DarkModeIcon,
     LightMode as LightModeIcon,
+    GetApp as GetAppIcon,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useThemeContext } from '@/context/ThemeContext';
 import { useTheme } from '@mui/material/styles';
+import { usePWA } from '@/context/PWAContext';
 
 import { API_ENDPOINTS } from '@/config/api';
 
@@ -52,6 +54,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMenuClick, showMenuIcon }) => {
     const [notificationCount, setNotificationCount] = useState(0);
     const [notifications, setNotifications] = useState<any[]>([]);
     const [notifLoading, setNotifLoading] = useState(false);
+    const { installPrompt, isInstalled, showInstallPrompt } = usePWA();
 
     const fetchNotifications = async () => {
         try {
@@ -205,6 +208,32 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMenuClick, showMenuIcon }) => {
 
                 {/* Right Section: Theme Toggle, Notification & Profile */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
+                    {/* Install App Button (Staff Specific) */}
+                    {installPrompt && !isInstalled && (
+                        <Tooltip title="Install Staff Portal App">
+                            <IconButton
+                                onClick={showInstallPrompt}
+                                sx={{
+                                    backgroundColor: 'primary.main',
+                                    color: '#fff',
+                                    '&:hover': { 
+                                        backgroundColor: 'primary.dark',
+                                        transform: 'scale(1.05)',
+                                    },
+                                    transition: 'all 0.2s',
+                                    animation: 'pulse 2s infinite',
+                                    '@keyframes pulse': {
+                                        '0%': { boxShadow: '0 0 0 0 rgba(37, 99, 235, 0.4)' },
+                                        '70%': { boxShadow: '0 0 0 10px rgba(37, 99, 235, 0)' },
+                                        '100%': { boxShadow: '0 0 0 0 rgba(37, 99, 235, 0)' },
+                                    },
+                                }}
+                            >
+                                <GetAppIcon />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+
                     {/* Theme Toggle Button */}
                     <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
                         <IconButton

@@ -1,70 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { usePWA } from '@/context/PWAContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, Smartphone, Monitor } from 'lucide-react';
 
 export default function PWAInstallBanner() {
-    const [installPrompt, setInstallPrompt] = useState<any>(null);
+    const { installPrompt, isInstalled, showInstallPrompt } = usePWA();
     const [isVisible, setIsVisible] = useState(false);
-    const [isInstalled, setIsInstalled] = useState(false);
+    const pathname = usePathname();
+    const isStaff = pathname?.startsWith('/staff');
 
     useEffect(() => {
-        // Check if already installed
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-            setIsInstalled(true);
-            return;
-        }
-
-        const handleBeforeInstallPrompt = (e: Event) => {
-            // Prevent the default browser prompt
-            e.preventDefault();
-            // Stash the event so it can be triggered later.
-            setInstallPrompt(e);
-            // Show our custom banner
+        if (installPrompt && !isInstalled) {
             setIsVisible(true);
-        };
-
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-        window.addEventListener('appinstalled', () => {
-            setIsVisible(false);
-            setInstallPrompt(null);
-            setIsInstalled(true);
-            console.log('PWA was installed');
-        });
-
-        // Registration of Service Worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').then(
-                (registration) => {
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                },
-                (err) => {
-                    console.log('ServiceWorker registration failed: ', err);
-                }
-            );
         }
-
-        return () => {
-            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        };
-    }, []);
-
-    const handleInstallClick = async () => {
-        if (!installPrompt) return;
-
-        // Show the native install prompt
-        installPrompt.prompt();
-
-        // Wait for the user to respond to the prompt
-        const { outcome } = await installPrompt.userChoice;
-        console.log(`User response to the install prompt: ${outcome}`);
-
-        // We've used the prompt, and can't use it again, throw it away
-        setInstallPrompt(null);
-        setIsVisible(false);
-    };
+    }, [installPrompt, isInstalled]);
 
     if (isInstalled || !isVisible) return null;
 
@@ -93,17 +45,17 @@ export default function PWAInstallBanner() {
                             </div>
                             <div className="flex flex-col">
                                 <h3 className="text-[13px] font-bold text-gray-800 leading-none flex items-center gap-1">
-                                    Senu Tours App
+                                    {isStaff ? 'Senu Staff Portal' : 'Senu Tours App'}
                                 </h3>
                                 <p className="text-[10px] text-green-600 font-semibold tracking-tight uppercase">
-                                    Instant Install
+                                    {isStaff ? 'Admin Workspace' : 'Instant Install'}
                                 </p>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-1.5 relative z-10">
                             <button
-                                onClick={handleInstallClick}
+                                onClick={showInstallPrompt}
                                 className="bg-green-600 hover:bg-green-700 active:scale-95 text-white px-5 py-2 rounded-full text-[11px] font-bold shadow-sm transition-all flex items-center gap-2 whitespace-nowrap"
                             >
                                 Install

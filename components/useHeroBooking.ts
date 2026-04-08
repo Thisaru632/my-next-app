@@ -535,10 +535,12 @@ export function useHeroBooking() {
 
     const finalPotential = specificMatches.length > 0 ? specificMatches : potentialCards;
     const sortedCards = finalPotential.sort((a, b) => a.km !== b.km ? a.km - b.km : a.hrs - b.hrs);
+    const isBusDrop = formData.vehicleType === 'Bus' && formData.tripType === 'Drop';
+
     if (routeDistance !== null) {
       const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
       const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
-      const bestMatch = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : (formData.vehicleType === 'Bus' || distanceInKm === 0 ? null : sortedCards[0]);
+      const bestMatch = (maxKMBelow !== null && !isBusDrop) ? sortedCards.find(c => c.km === maxKMBelow) : (formData.vehicleType === 'Bus' || distanceInKm === 0 ? null : sortedCards[0]);
       return bestMatch;
     }
     return (formData.vehicleType === 'Bus' || distanceInKm === 0) ? null : sortedCards[0];
@@ -778,6 +780,8 @@ export function useHeroBooking() {
     const cleanVType = vType.toLowerCase().trim();
     const cleanFormType = formData.tripType.toLowerCase().trim();
     const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
+
+    if (vType === 'Bus' && formData.tripType === 'Drop') return 0;
 
     const localDeterminedCategory = (() => {
       // Rule: Plains rates ONLY apply to Bus and Van
@@ -1085,9 +1089,7 @@ export function useHeroBooking() {
       const allowancesBody = [
         ['Extra KM Rate', `Rs. ${matchedPkg.extraKMRate || 0}`]
       ];
-      if (data.formData.tripType !== 'Drop') {
-        allowancesBody.push(['Extra Hour Rate', `Rs. ${matchedPkg.extraHrRate1 || 0}`]);
-      }
+      allowancesBody.push(['Extra Hour Rate', `Rs. ${matchedPkg.extraHrRate1 || 0}`]);
 
       autoTable(doc, {
         startY: currentY,

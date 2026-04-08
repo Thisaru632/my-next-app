@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useThemeContext } from '@/context/ThemeContext';
 import RouteViewer from '@/components/RouteViewer';
 import { useTheme } from '@mui/material/styles';
+import { useSearchParams } from 'next/navigation';
 import {
   Box,
   Paper,
@@ -134,6 +135,8 @@ const getStatusColor = (status: string) => {
       return { color: '#ef4444', bgColor: '#fee2e2', label: status === 'archived' ? 'Archived' : status, IconComponent: CancelIcon };
     case 'Not Contacted':
       return { color: '#6366f1', bgColor: '#e0e7ff', label: 'Not Contacted', IconComponent: PhoneMissedIcon };
+    case 'Ignored':
+      return { color: '#64748b', bgColor: '#f1f5f9', label: 'Ignored', IconComponent: CloseIcon };
     default:
       return { color: '#64748b', bgColor: '#f1f5f9', label: status, IconComponent: HourglassEmptyIcon };
   }
@@ -163,6 +166,8 @@ const LeadInfoPage: React.FC = () => {
   const [viewMapLead, setViewMapLead] = useState<Lead | null>(null);
   const [openRouteViewer, setOpenRouteViewer] = useState(false);
   const [staffRemark, setStaffRemark] = useState<string>('');
+  const searchParams = useSearchParams();
+  const urlStatus = searchParams.get('status');
 
   useEffect(() => {
     const userStr = localStorage.getItem('staffUser');
@@ -174,6 +179,12 @@ const LeadInfoPage: React.FC = () => {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (urlStatus && ['All', 'Confirmed', 'Pending', 'Sent Inquiry', 'Rejected', 'Cancelled', 'Ignored'].includes(urlStatus)) {
+      setStatusFilter(urlStatus);
+    }
+  }, [urlStatus]);
 
   // Derive unique form types (Source) from leads for dropdown options
   const formTypeOptions = useMemo(() => {
@@ -242,6 +253,39 @@ const LeadInfoPage: React.FC = () => {
 
     return filtered;
   }, [searchQuery, statusFilter, formTypeFilter, employeeFilter, leads, activeTab]);
+
+  // Identify duplicate leads
+  const duplicateLeadsIds = useMemo(() => {
+    const ids = new Set<string>();
+    const emailMap = new Map<string, string[]>();
+    const phoneMap = new Map<string, string[]>();
+
+    leads.forEach(l => {
+      if (l.customerEmail && l.customerEmail !== 'N/A') {
+        const email = l.customerEmail.toLowerCase().trim();
+        if (!emailMap.has(email)) emailMap.set(email, []);
+        emailMap.get(email)!.push(l.id);
+      }
+      if (l.customerPhone && l.customerPhone !== 'N/A') {
+        const phone = l.customerPhone.replace(/[\s\-\(\)]/g, '');
+        if (phone) {
+          if (!phoneMap.has(phone)) phoneMap.set(phone, []);
+          phoneMap.get(phone)!.push(l.id);
+        }
+      }
+    });
+
+    emailMap.forEach(idsList => {
+      if (idsList.length > 1) idsList.forEach(id => ids.add(id));
+    });
+    phoneMap.forEach(idsList => {
+      if (idsList.length > 1) idsList.forEach(id => ids.add(id));
+    });
+
+    return ids;
+  }, [leads]);
+
+  const isSuperAdmin = currentUser?.role === 'superadmin';
 
   // Load leads data
   useEffect(() => {
@@ -980,6 +1024,20 @@ const LeadInfoPage: React.FC = () => {
                                   />
                                 </Tooltip>
                               )}
+                              {duplicateLeadsIds.has(lead.id) && (
+                                <Tooltip title="Potential Duplicate Lead">
+                                  <Box
+                                    sx={{
+                                      width: 8,
+                                      height: 8,
+                                      borderRadius: '50%',
+                                      backgroundColor: '#f59e0b',
+                                      boxShadow: '0 0 8px #f59e0b',
+                                      flexShrink: 0
+                                    }}
+                                  />
+                                </Tooltip>
+                              )}
                               <Typography
                                 sx={{
                                   fontWeight: 700,
@@ -1635,13 +1693,15 @@ const LeadInfoPage: React.FC = () => {
                   fullWidth
                   multiline
                   rows={3}
-                  disabled={!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username)}
+                  disabled={!isSuperAdmin && (!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))}
                   placeholder={
-                    selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username)
-                      ? "You must pick this lead before entering remarks."
-                      : !!selectedLead.staffRemark
-                        ? "Remark is locked and cannot be edited."
-                        : "Enter any internal remarks or notes here..."
+                    isSuperAdmin
+                      ? "Enter or edit staff remarks..."
+                      : selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username)
+                        ? "You must pick this lead before entering remarks."
+                        : !!selectedLead.staffRemark
+                          ? "Remark is locked and cannot be edited."
+                          : "Enter any internal remarks or notes here..."
                   }
                   value={staffRemark}
                   onChange={(e) => setStaffRemark(e.target.value)}
@@ -1669,6 +1729,103 @@ const LeadInfoPage: React.FC = () => {
                   }}
                 />
               </Box>
+
+              {/* Super Admin Edit Panel */}
+              {isSuperAdmin && (
+                <Box sx={{
+                  mt: 3,
+                  p: 2,
+                  borderRadius: '16px',
+                  background: mode === 'light' ? '#f8fafc' : 'rgba(59, 130, 246, 0.05)',
+                  border: '1px solid',
+                  borderColor: mode === 'light' ? '#e2e8f0' : 'rgba(59, 130, 246, 0.2)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+                }}>
+                  <Typography sx={{
+                    fontSize: '0.72rem',
+                    color: '#3b82f6',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    mb: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <AssignmentIcon sx={{ fontSize: 16 }} />
+                    Super Admin Controls
+                  </Typography>
+
+                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'center' }}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel sx={{ fontSize: '0.875rem' }}>Update Status</InputLabel>
+                      <Select
+                        value={selectedLead.status}
+                        label="Update Status"
+                        onChange={(e) => handleLeadAction(e.target.value)}
+                        sx={{
+                          borderRadius: '10px',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          backgroundColor: mode === 'light' ? '#ffffff' : 'rgba(0,0,0,0.2)'
+                        }}
+                      >
+                        {(isContactLead(selectedLead)
+                          ? ['new', 'read', 'responded', 'archived', 'Ignored']
+                          : ['Confirmed', 'Pending', 'Sent Inquiry', 'Rejected', 'Cancelled', 'Ignored']
+                        ).map((status) => (
+                          <MenuItem key={status} value={status} sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                            {status === 'new' ? 'New' :
+                              status === 'read' ? 'Read' :
+                                status === 'responded' ? 'Responded' :
+                                  status === 'archived' ? 'Archived' :
+                                    status}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={() => handleLeadAction(selectedLead.status)}
+                      disabled={actionLoading}
+                      sx={{
+                        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                        color: 'white',
+                        fontWeight: 700,
+                        textTransform: 'none',
+                        borderRadius: '10px',
+                        height: '40px',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #334155 0%, #475569 100%)',
+                        }
+                      }}
+                    >
+                      Update Remark Only
+                    </Button>
+
+                    {duplicateLeadsIds.has(selectedLead.id) && (
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        color="warning"
+                        onClick={() => handleLeadAction('Ignored')}
+                        disabled={actionLoading}
+                        sx={{
+                          fontWeight: 700,
+                          textTransform: 'none',
+                          borderRadius: '10px',
+                          height: '40px',
+                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                        }}
+                      >
+                        Ignore Duplicate
+                      </Button>
+                    )}
+                  </Box>
+                </Box>
+              )}
             </Box>
           )}
         </DialogContent>

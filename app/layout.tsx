@@ -4,7 +4,9 @@ import EmotionCache from "./all_packages/Emotioncache";
 import ThemeRegistry from "./all_packages/Themeregistry";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
+import ManifestSwitcher from "@/components/ManifestSwitcher";
 import { UserProvider } from "@/context/UserContext";
+import { PWAProvider } from "@/context/PWAContext";
 import LoadingScreen from "@/components/LoadingScreen";
 import "./globals.css";
 
@@ -22,19 +24,21 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        <ManifestSwitcher />
       </head>
       <body>
         <UserProvider>
-          <EmotionCache>
-            <ThemeRegistry>
-              <LoadingScreen />
-              <PWAInstallBanner />
-              <ConditionalNavbar />
-              <main>{children}</main>
-              <WhatsAppButton />
-            </ThemeRegistry>
-          </EmotionCache>
+          <PWAProvider>
+            <EmotionCache>
+              <ThemeRegistry>
+                <LoadingScreen />
+                <PWAInstallBanner />
+                <ConditionalNavbar />
+                <main>{children}</main>
+                <WhatsAppButton />
+              </ThemeRegistry>
+            </EmotionCache>
+          </PWAProvider>
         </UserProvider>
       </body>
     </html>

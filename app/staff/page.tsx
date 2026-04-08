@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useThemeContext } from '@/context/ThemeContext';
 import { useTheme } from '@mui/material/styles';
+import { useRouter } from 'next/navigation';
 import {
   Box,
   Paper,
@@ -25,6 +26,7 @@ import {
   BookOnline as BookOnlineIcon,
   EventAvailable as EventAvailableIcon,
   Book as BookIcon,
+  Block as BlockIcon,
 } from '@mui/icons-material';
 import { API_ENDPOINTS } from '@/config/api';
 import NotebookModal from '@/components/admin/NotebookModal';
@@ -35,6 +37,7 @@ interface LeadStats {
   pendingLeads: number;
   rejectedLeads: number;
   sentInquiries: number;
+  ignoredLeads: number;
 }
 
 interface PackageStats {
@@ -52,6 +55,7 @@ interface EmployeePerformance {
   confirmed: number;
   sentInquiries: number;
   rejected: number;
+  ignored: number;
   rate: number;
 }
 
@@ -61,6 +65,7 @@ interface StatCardProps {
   icon: React.ReactNode;
   color: string;
   bgColor: string;
+  onClick?: () => void;
 }
 
 // Helper function to format date to YYYY-MM-DD
@@ -80,10 +85,11 @@ const formatDisplayDate = (dateString: string): string => {
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor, onClick }) => {
   const { mode } = useThemeContext();
   return (
     <Card
+      onClick={onClick}
       sx={{
         height: '100%',
         background: 'background.paper',
@@ -93,6 +99,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, bgColor 
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         position: 'relative',
         overflow: 'hidden',
+        cursor: onClick ? 'pointer' : 'default',
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -202,6 +209,7 @@ const StyledTable = styled('table')(({ theme }) => ({
 
 const AdminDashboard: React.FC = () => {
   const theme = useTheme();
+  const router = useRouter();
   const { mode } = useThemeContext();
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -213,6 +221,7 @@ const AdminDashboard: React.FC = () => {
     pendingLeads: 0,
     rejectedLeads: 0,
     sentInquiries: 0,
+    ignoredLeads: 0,
   });
   const [packageStats, setPackageStats] = useState<PackageStats>({
     totalPackages: 0,
@@ -242,7 +251,7 @@ const AdminDashboard: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setPerformanceData(data.performance || []);
-        setStats(data.stats || { totalLeads: 0, confirmedLeads: 0, pendingLeads: 0, rejectedLeads: 0, sentInquiries: 0 });
+        setStats(data.stats || { totalLeads: 0, confirmedLeads: 0, pendingLeads: 0, rejectedLeads: 0, sentInquiries: 0, ignoredLeads: 0 });
         setPackageStats(data.packageStats || { totalPackages: 0, packageBookings: 0, canceledBookings: 0 });
       } else {
         setError(`Failed to load data: ${response.statusText}`);
@@ -265,7 +274,6 @@ const AdminDashboard: React.FC = () => {
     setEndDate('');
     fetchPerformanceData('', '');
   };
-
   const leadStatCards = [
     {
       title: 'Total Leads',
@@ -273,6 +281,7 @@ const AdminDashboard: React.FC = () => {
       icon: <PeopleIcon />,
       color: '#3b82f6',
       bgColor: '#dbeafe',
+      status: 'All',
     },
     {
       title: 'Confirmed Leads',
@@ -280,6 +289,7 @@ const AdminDashboard: React.FC = () => {
       icon: <CheckCircleIcon />,
       color: '#10b981',
       bgColor: '#d1fae5',
+      status: 'Confirmed',
     },
     {
       title: 'Pending Leads',
@@ -287,6 +297,7 @@ const AdminDashboard: React.FC = () => {
       icon: <HourglassEmptyIcon />,
       color: '#f59e0b',
       bgColor: '#fef3c7',
+      status: 'Pending',
     },
     {
       title: 'Rejected Leads',
@@ -294,6 +305,7 @@ const AdminDashboard: React.FC = () => {
       icon: <CancelIcon />,
       color: '#ef4444',
       bgColor: '#fee2e2',
+      status: 'Rejected',
     },
     {
       title: 'Sent Inquiries',
@@ -301,6 +313,15 @@ const AdminDashboard: React.FC = () => {
       icon: <SendIcon />,
       color: '#8b5cf6',
       bgColor: '#ede9fe',
+      status: 'Sent Inquiry',
+    },
+    {
+      title: 'Ignored Leads',
+      value: stats.ignoredLeads,
+      icon: <BlockIcon />,
+      color: '#64748b',
+      bgColor: '#f1f5f9',
+      status: 'Ignored',
     },
   ];
 
@@ -655,6 +676,7 @@ const AdminDashboard: React.FC = () => {
                   icon={card.icon}
                   color={card.color}
                   bgColor={card.bgColor}
+                  onClick={() => router.push(`/staff/leads?status=${card.status}`)}
                 />
               </Box>
             ))}
@@ -800,13 +822,14 @@ const AdminDashboard: React.FC = () => {
                   <th>Confirmed</th>
                   <th>Sent Inquiries</th>
                   <th>Rejected</th>
+                  <th>Ignored</th>
                   <th>Conversion Rate</th>
                 </tr>
               </thead>
               <tbody>
                 {performanceData.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '48px 20px', color: 'text.disabled' }}>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '48px 20px', color: 'text.disabled' }}>
                       <div style={{ fontSize: '2rem', marginBottom: '8px' }}>👥</div>
                       <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>No staff data found</div>
                       <div style={{ fontSize: '0.875rem' }}>No employees or leads match the selected date range.</div>
@@ -928,6 +951,11 @@ const AdminDashboard: React.FC = () => {
                     <td>
                       <Typography sx={{ fontWeight: 600, color: '#ef4444' }}>
                         {employee.rejected}
+                      </Typography>
+                    </td>
+                    <td>
+                      <Typography sx={{ fontWeight: 600, color: '#64748b' }}>
+                        {employee.ignored}
                       </Typography>
                     </td>
                     <td>
