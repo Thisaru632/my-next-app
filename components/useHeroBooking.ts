@@ -420,6 +420,22 @@ export function useHeroBooking() {
     if (!formData.vehicleName || !formData.tripType || !formData.pickupLocation || !formData.dropoffLocation || !formData.dateTime) {
       setSnackbarMessage('Please fill all required fields before proceeding.'); setSnackbarSeverity('warning'); setSnackbarOpen(true); return;
     }
+    
+    // Strict verification: Coordinates MUST be set (meaning a selection was made from suggestions/history/map)
+    if (!pickupCoords) {
+      setSnackbarMessage('Please select your pickup location from the suggestions or recent history list.'); 
+      setSnackbarSeverity('warning'); setSnackbarOpen(true); return; 
+    }
+    if (formData.tripType !== 'Return' && !dropoffCoords) {
+      setSnackbarMessage('Please select your drop-off location from the suggestions or recent history list.'); 
+      setSnackbarSeverity('warning'); setSnackbarOpen(true); return; 
+    }
+    const unconfirmedStop = formData.destinations.find(d => d.address.trim() !== "" && !stopCoords[d.id]);
+    if (unconfirmedStop) {
+      setSnackbarMessage(`Please click and select the location for '${unconfirmedStop.address}' from the suggestion list.`);
+      setSnackbarSeverity('warning'); setSnackbarOpen(true); return;
+    }
+
     if (formData.tripType !== 'Drop' && !formData.numberOfDays) {
       setSnackbarMessage('Please select the number of days for your trip.'); setSnackbarSeverity('warning'); setSnackbarOpen(true); return;
     }
@@ -1086,10 +1102,11 @@ export function useHeroBooking() {
 
     // --- Table 1.5: Package Allowances ---
     if (matchedPkg && data.formData.vehicleType !== 'SUV') {
+      const waiteHrRateLabel = (data.formData.tripType === 'Drop' || data.formData.tripType === 'One Way') ? 'Waiting Hour Rate' : 'Extra Hour Rate';
       const allowancesBody = [
         ['Extra KM Rate', `Rs. ${matchedPkg.extraKMRate || 0}`]
       ];
-      allowancesBody.push(['Extra Hour Rate', `Rs. ${matchedPkg.extraHrRate1 || 0}`]);
+      allowancesBody.push([waiteHrRateLabel, `Rs. ${matchedPkg.extraHrRate1 || 0}`]);
 
       autoTable(doc, {
         startY: currentY,

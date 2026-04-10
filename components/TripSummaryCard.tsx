@@ -61,11 +61,11 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                 {h.formData.vehicleType !== 'SUV' && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}><span style={{ color: '#4b5563' }}>Extra KM Rate:</span><span style={{ fontWeight: 700 }}>LKR {h.matchedPackage?.extraKMRate || 0}</span></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4b5563' }}>Extra Hour Rate:</span><span style={{ fontWeight: 700 }}>LKR {h.matchedPackage?.extraHrRate1 || 0}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4b5563' }}>{(h.formData.tripType === 'Drop' || h.formData.tripType === 'One Way') ? 'Waiting Hour Rate:' : 'Extra Hour Rate:'}</span><span style={{ fontWeight: 700 }}>LKR {h.matchedPackage?.extraHrRate1 || 0}</span></div>
                   </>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px dashed rgba(13,148,136,0.2)', paddingTop: '6px' }}>
-                  <span style={{ color: '#0d9488', fontWeight: 700, fontSize: '0.65rem' }}>ADD EXTRA HOURS:</span>
+                  <span style={{ color: '#0d9488', fontWeight: 700, fontSize: '0.65rem' }}>{(h.formData.tripType === 'Drop' || h.formData.tripType === 'One Way') ? 'ADD WAITING HOURS:' : 'ADD EXTRA HOURS:'}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <IconButton size="small" onClick={() => h.handleChange('additionalHours', Math.max(0, (Number(h.formData.additionalHours) || 0) - 1))} sx={{ padding: '1px', border: '1.2px solid #0d9488', color: '#0d9488', opacity: (Number(h.formData.additionalHours) || 0) <= 0 ? 0.4 : 1 }} disabled={(Number(h.formData.additionalHours) || 0) <= 0}><RemoveCircle sx={{ fontSize: '16px' }} /></IconButton>
                     <input type="number" value={h.formData.additionalHours === 0 ? "" : h.formData.additionalHours} onChange={(e) => h.handleChange('additionalHours', e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value) || 0))} style={{ width: '32px', height: '24px', textAlign: 'center', background: 'rgba(255,255,255,0.9)', border: '1.2px solid rgba(13,148,136,0.3)', borderRadius: '4px', fontFamily: "'Montserrat', sans-serif", fontSize: '0.8rem', fontWeight: 800, color: '#0d9488', outline: 'none' }} />

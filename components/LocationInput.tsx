@@ -39,6 +39,7 @@ export function LocationInput({
   const abortRef = useRef<AbortController | null>(null);
   const coordsSetRef = useRef(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<'top' | 'bottom'>('bottom');
   const { user } = useUser();
   const [searchHistory, setSearchHistory] = useState<any[]>([]);
   const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: "AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc", libraries: ["places", "geometry"] });
@@ -120,13 +121,48 @@ export function LocationInput({
     );
   };
 
+  // Dropdown persistence logic: 
+  // If field has text, keep it open (prevents accidental closing on mobile/mis-clicks).
+  // If field is empty, allow it to close on outside click.
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setShowDropdown(false);
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        // Only close if the input is empty
+        const input = containerRef.current.querySelector('input');
+        if (!input?.value.trim()) {
+          setShowDropdown(false);
+        }
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const updateDropdownPosition = useCallback(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const isMobile = window.innerWidth < 640;
+      // On mobile, if space below is less than 280px, show above
+      if (spaceBelow < (isMobile ? 280 : 300) && rect.top > 250) {
+        setDropdownPos('top');
+      } else {
+        setDropdownPos('bottom');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showDropdown) {
+      updateDropdownPosition();
+      window.addEventListener('scroll', updateDropdownPosition);
+      window.addEventListener('resize', updateDropdownPosition);
+    }
+    return () => {
+      window.removeEventListener('scroll', updateDropdownPosition);
+      window.removeEventListener('resize', updateDropdownPosition);
+    };
+  }, [showDropdown, updateDropdownPosition]);
 
   const fetchSuggestions = useCallback((query: string) => {
     if (query.trim().length < 1 || !isLoaded) { setSuggestions([]); return; }
@@ -165,6 +201,24 @@ export function LocationInput({
     debounceRef.current = setTimeout(() => fetchSuggestions(val), 450);
   };
 
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (disabled) return;
+    setActiveStyle(onFocusStyle);
+    setShowDropdown(true);
+    if (user) fetchHistory();
+    
+    // Improved mobile experience: scroll input to top to ensure room for keyboard and suggestions
+    if (window.innerWidth < 640) {
+      setTimeout(() => {
+        // Adjust for potential headers/navbars, scroll slightly above the element
+        const yOffset = -80; 
+        const element = e.target;
+        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }, 350);
+    }
+  };
+
   const handleSelect = async (suggestion: GooglePlaceSuggestion) => {
     onChange(suggestion.description);
     setLoading(true);
@@ -198,12 +252,34 @@ export function LocationInput({
         type="text" value={value} onChange={handleInput} placeholder={placeholder}
         autoComplete="off" disabled={disabled}
         style={{ ...inputStyle, ...activeStyle, width: '100%', boxSizing: 'border-box', paddingRight: (coordsConfirmed || loading) ? '60px' : '40px', cursor: disabled ? 'not-allowed' : 'text', opacity: disabled ? 0.8 : 1 }}
-        onFocus={() => { if (disabled) return; setActiveStyle(onFocusStyle); setShowDropdown(true); if (user) fetchHistory(); }}
-        onClick={() => { if (disabled) return; setShowDropdown(true); if (user) fetchHistory(); }}
-        onBlur={() => { setActiveStyle(onBlurStyle); setTimeout(() => setShowDropdown(false), 200); }}
+        onFocus={handleFocus}
+        onClick={() => { if (disabled) return; setShowDropdown(true); if (user) fetchHistory(); if (window.innerWidth < 640) handleFocus({ target: containerRef.current?.querySelector('input') } as any); }}
+        onBlur={() => { 
+          setActiveStyle(onBlurStyle); 
+          // Only close on blur if empty
+          if (!value.trim()) {
+            setTimeout(() => setShowDropdown(false), 200);
+          }
+        }}
       />
       {showDropdown && (
-        <ul style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#ffffff', border: '1.5px solid rgba(13,148,136,0.25)', borderRadius: '10px', boxShadow: '0 8px 28px rgba(0,0,0,0.14)', zIndex: 9999, margin: 0, padding: '4px 0', listStyle: 'none', maxHeight: '260px', overflowY: 'auto' }}>
+        <ul style={{ 
+          position: 'absolute', 
+          ...(dropdownPos === 'bottom' ? { top: 'calc(100% + 4px)' } : { bottom: 'calc(100% + 4px)' }),
+          left: 0, 
+          right: 0, 
+          background: '#ffffff', 
+          border: '1.5px solid rgba(13,148,136,0.25)', 
+          borderRadius: '10px', 
+          boxShadow: dropdownPos === 'bottom' ? '0 8px 28px rgba(0,0,0,0.14)' : '0 -8px 28px rgba(0,0,0,0.14)', 
+          zIndex: 9999, 
+          margin: 0, 
+          padding: '4px 0', 
+          listStyle: 'none', 
+          maxHeight: window.innerWidth < 640 ? '180px' : '260px', 
+          overflowY: 'auto',
+          animation: dropdownPos === 'bottom' ? 'slideDown 0.2s ease-out' : 'slideUp 0.2s ease-out'
+        }}>
           {showMyLocation && (
             <li onMouseDown={(e) => { e.preventDefault(); handleMyLocation(); }}
               style={{ padding: '10px 14px', cursor: 'pointer', fontSize: '0.85rem', fontFamily: "'Montserrat', sans-serif", color: '#0d9488', lineHeight: 1.4, borderBottom: '2px solid rgba(13,148,136,0.1)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, background: 'rgba(13,148,136,0.04)', transition: 'background 0.15s' }}
@@ -275,7 +351,17 @@ export function LocationInput({
       {loading && (
         <div style={{ position: 'absolute', right: '35px', top: '50%', transform: 'translateY(-50%)', width: '14px', height: '14px', border: '2px solid rgba(13,148,136,0.3)', borderTop: '2px solid #0d9488', borderRadius: '50%', animation: 'loc-spin 0.7s linear infinite', zIndex: 5 }} />
       )}
-      <style>{`@keyframes loc-spin { to { transform: translateY(-50%) rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes loc-spin { to { transform: translateY(-50%) rotate(360deg); } }
+        @keyframes slideDown { 
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp { 
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
       <MapPicker open={showMapPicker} onClose={() => setShowMapPicker(false)} apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc"
         onSelect={(addr, lat, lng) => {
           onChange(addr);
