@@ -88,12 +88,19 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
         }
     }, [pathname, router, isAuthPage]);
 
-    // --- Idle Timeout Logic (1 Hour) ---
+    // --- Idle Timeout Logic (Dynamic Based on Role) ---
     useEffect(() => {
         if (isAuthPage || !isAuthenticated) return;
 
         let timeoutId: NodeJS.Timeout;
-        const IDLE_TIME = 15 * 60 * 1000; // 15 minutes in milliseconds
+        
+        // Get role from user data
+        const userStr = localStorage.getItem('staffUser');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+        
+        // 4 Hours for Admin/SuperAdmin, 1 Hour for Staff
+        const IDLE_TIME = isAdmin ? 4 * 60 * 60 * 1000 : 1 * 60 * 60 * 1000;
 
         const resetTimer = () => {
             clearTimeout(timeoutId);

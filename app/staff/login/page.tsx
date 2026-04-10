@@ -64,8 +64,9 @@ export default function LoginPage() {
             }
 
             // Save user data and token
+            const duration = (data.role === 'admin' || data.role === 'superadmin') ? 4 * 60 * 60 * 1000 : 1 * 60 * 60 * 1000;
             localStorage.setItem('staffToken', data.token);
-            localStorage.setItem('staffTokenExpiry', (Date.now() + 60 * 60 * 1000).toString()); // 1 hour expiry
+            localStorage.setItem('staffTokenExpiry', (Date.now() + duration).toString());
             localStorage.setItem('staffUser', JSON.stringify({
                 username: data.username,
                 fullName: data.fullName,
