@@ -633,11 +633,14 @@ export function useHeroBooking() {
     const applicableRules = nsRules.filter(rule => {
       if (rule.status === 'Inactive') return false;
       const ruleVeh = rule.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+      const ruleVehSplit = ruleVeh.split(',').map((v: string) => v.trim());
       const vehMatch = ruleVeh === 'all' ||
-        ruleVeh === cleanVType ||
-        ruleVeh === cleanVName ||
-        ruleVeh.includes(cleanVName) ||
-        cleanVName.includes(ruleVeh);
+        ruleVehSplit.some((v: string) => {
+          const modelPart = v.split('|')[0].trim();
+          if (v === cleanVName || modelPart === cleanVName || v === cleanVType || modelPart === cleanVType) return true;
+          const genericTypes = ['car', 'van', 'bus', 'suv', 'cars', 'vans', 'buses', 'suvs'];
+          return genericTypes.includes(v) && (v === cleanVType || v.includes(cleanVType) || cleanVType.includes(v));
+        });
 
       const ruleType = rule.type.toLowerCase().trim();
       const typeMatch = ruleType === 'all' || ruleType === cleanTripType;
@@ -691,14 +694,22 @@ export function useHeroBooking() {
       const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
 
       const vehicleMatch = cleanAdjVeh === 'all' ||
-        adjVehicles.some(adjV =>
-          adjV === cleanFormVehName ||
-          adjV === cleanFormVehType ||
-          (adjV.length > 2 && cleanFormVehName.includes(adjV)) ||
-          (cleanFormVehName.length > 2 && adjV.includes(cleanFormVehName)) ||
-          (adjV.length > 2 && cleanFormVehType.includes(adjV)) ||
-          (cleanFormVehType.length > 2 && adjV.includes(cleanFormVehType))
-        );
+        adjVehicles.some((adjV: string) => {
+          // Normalize adjV by taking the part before the pipe | if it exists (e.g., "ALTO | 3 Seater" -> "alto")
+          const modelPart = adjV.split('|')[0].trim();
+          
+          // 1. Exact match with vehicle name, type or the model part before |
+          if (adjV === cleanFormVehName || 
+              modelPart === cleanFormVehName || 
+              adjV === cleanFormVehType || 
+              modelPart === cleanFormVehType) return true;
+
+          // 2. Type-based match - strictly for generic categories
+          const genericTypes = ['car', 'van', 'bus', 'suv', 'cars', 'vans', 'buses', 'suvs'];
+          if (genericTypes.includes(adjV) && (adjV === cleanFormVehType || adjV.includes(cleanFormVehType) || cleanFormVehType.includes(adjV))) return true;
+
+          return false;
+        });
 
       const cleanAdjType = adj.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
@@ -721,16 +732,16 @@ export function useHeroBooking() {
         const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
         const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
 
-        const isSpecificMatch = adjVehicles.some(adjV =>
-          adjV === cleanFormVehName ||
-          (adjV.length > 2 && cleanFormVehName.includes(adjV)) ||
-          (cleanFormVehName.length > 2 && adjV.includes(cleanFormVehName))
-        );
-        const isTypeMatch = adjVehicles.some(adjV =>
-          adjV === cleanFormVehType ||
-          (adjV.length > 2 && cleanFormVehType.includes(adjV)) ||
-          (cleanFormVehType.length > 2 && adjV.includes(cleanFormVehType))
-        );
+        const isSpecificMatch = adjVehicles.some(adjV => {
+          const modelPart = adjV.split('|')[0].trim();
+          return adjV === cleanFormVehName || modelPart === cleanFormVehName;
+        });
+        const isTypeMatch = adjVehicles.some(adjV => {
+          const modelPart = adjV.split('|')[0].trim();
+          if (adjV === cleanFormVehType || modelPart === cleanFormVehType) return true;
+          const genericTypes = ['car', 'van', 'bus', 'suv', 'cars', 'vans', 'buses', 'suvs'];
+          return genericTypes.includes(adjV) && (adjV === cleanFormVehType || adjV.includes(cleanFormVehType) || cleanFormVehType.includes(adjV));
+        });
 
         // Primary specificity: Vehicle name/type
         if (isSpecificMatch) score += 500;
@@ -779,7 +790,7 @@ export function useHeroBooking() {
 
   const discountAmount = (() => {
     if (!appliedPromo) return 0;
-    const appVehicles = appliedPromo.applicableVehicle.toLowerCase().split(',').map(v => v.trim());
+    const appVehicles = appliedPromo.applicableVehicle.toLowerCase().split(',').map((v: string) => v.trim());
     const isApplicable = appVehicles.includes('all') || appVehicles.includes(formData.vehicleName.toLowerCase().trim()) || appVehicles.includes(formData.vehicleType.toLowerCase().trim());
     if (!isApplicable) return 0;
     return appliedPromo.discountType === 'Percentage' ? Math.round(rawTotalPrice * (appliedPromo.discountValue / 100)) : appliedPromo.discountValue;
@@ -893,19 +904,20 @@ export function useHeroBooking() {
     }
 
     // 3. Seasonal Adjustment Multiplier
-    const adj = adjustments.filter(a => {
+    const adj = adjustments.filter((a: any) => {
       const cleanAdjVeh = a.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
+      const adjVehicles = cleanAdjVeh.split(',').map((v: string) => v.trim());
 
       const vehicleMatch = cleanAdjVeh === 'all' ||
-        adjVehicles.some(adjV =>
-          adjV === cleanVName ||
-          adjV === cleanVType ||
-          (adjV.length > 2 && cleanVName.includes(adjV)) ||
-          (cleanVName.length > 2 && adjV.includes(cleanVName)) ||
-          (adjV.length > 2 && cleanVType.includes(adjV)) ||
-          (cleanVType.length > 2 && adjV.includes(cleanVType))
-        );
+        adjVehicles.some((adjV: string) => {
+          const modelPart = adjV.split('|')[0].trim();
+          if (adjV === cleanVName || modelPart === cleanVName || adjV === cleanVType || modelPart === cleanVType) return true;
+
+          const genericTypes = ['car', 'van', 'bus', 'suv', 'cars', 'vans', 'buses', 'suvs'];
+          if (genericTypes.includes(adjV) && (adjV === cleanVType || adjV.includes(cleanVType) || cleanVType.includes(adjV))) return true;
+
+          return false;
+        });
 
       const cleanAdjType = a.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
@@ -925,16 +937,16 @@ export function useHeroBooking() {
         const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
         const adjVehicles = cleanAdjVeh.split(',').map(v => v.trim());
 
-        const isSpecificMatch = adjVehicles.some(adjV =>
-          adjV === cleanVName ||
-          (adjV.length > 2 && cleanVName.includes(adjV)) ||
-          (cleanVName.length > 2 && adjV.includes(cleanVName))
-        );
-        const isTypeMatch = adjVehicles.some(adjV =>
-          adjV === cleanVType ||
-          (adjV.length > 2 && cleanVType.includes(adjV)) ||
-          (cleanVType.length > 2 && adjV.includes(cleanVType))
-        );
+        const isSpecificMatch = adjVehicles.some(adjV => {
+          const modelPart = adjV.split('|')[0].trim();
+          return adjV === cleanVName || modelPart === cleanVName;
+        });
+        const isTypeMatch = adjVehicles.some(adjV => {
+          const modelPart = adjV.split('|')[0].trim();
+          if (adjV === cleanVType || modelPart === cleanVType) return true;
+          const genericTypes = ['car', 'van', 'bus', 'suv', 'cars', 'vans', 'buses', 'suvs'];
+          return genericTypes.includes(adjV) && (adjV === cleanVType || adjV.includes(cleanVType) || cleanVType.includes(adjV));
+        });
 
         // Primary specificity: Vehicle name/type
         if (isSpecificMatch) score += 500;
@@ -970,7 +982,7 @@ export function useHeroBooking() {
     // 4. Promo Discount
     let discAmount = 0;
     if (appliedPromo) {
-      const appVehicles = appliedPromo.applicableVehicle.toLowerCase().split(',').map(v => v.trim());
+      const appVehicles = appliedPromo.applicableVehicle.toLowerCase().split(',').map((v: string) => v.trim());
       const isApplicable = appVehicles.includes('all') || appVehicles.includes(vName.toLowerCase().trim()) || appVehicles.includes(vType.toLowerCase().trim());
       if (isApplicable) {
         discAmount = appliedPromo.discountType === 'Percentage' ? Math.round(rawTotal * (appliedPromo.discountValue / 100)) : appliedPromo.discountValue;

@@ -124,19 +124,24 @@ export function LocationInput({
   // Dropdown persistence logic: 
   // If field has text, keep it open (prevents accidental closing on mobile/mis-clicks).
   // If field is empty, allow it to close on outside click.
+  // Keep a ref of coordsConfirmed to use in the event listener without re-adding it
+  const confirmedRef = useRef(coordsConfirmed);
+  useEffect(() => { confirmedRef.current = coordsConfirmed; }, [coordsConfirmed]);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        // Only close if the input is empty
+        // Close if the input is empty OR if coordinates are confirmed (tick mark visible)
+        // Using confirmedRef here keeps the dependency array below constant []
         const input = containerRef.current.querySelector('input');
-        if (!input?.value.trim()) {
+        if (!input?.value.trim() || confirmedRef.current) {
           setShowDropdown(false);
         }
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, []); // Constant dependency array size to avoid React Hook errors during HMR
 
   const updateDropdownPosition = useCallback(() => {
     if (containerRef.current) {
@@ -256,8 +261,8 @@ export function LocationInput({
         onClick={() => { if (disabled) return; setShowDropdown(true); if (user) fetchHistory(); if (window.innerWidth < 640) handleFocus({ target: containerRef.current?.querySelector('input') } as any); }}
         onBlur={() => { 
           setActiveStyle(onBlurStyle); 
-          // Only close on blur if empty
-          if (!value.trim()) {
+          // Close on blur if empty or already confirmed
+          if (!value.trim() || coordsConfirmed) {
             setTimeout(() => setShowDropdown(false), 200);
           }
         }}

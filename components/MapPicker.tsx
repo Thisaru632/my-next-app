@@ -126,9 +126,9 @@ const MapPicker: React.FC<MapPickerProps> = ({ open, onClose, onSelect, apiKey, 
         overflow: 'hidden'
       }
     }}>
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <DialogTitle sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         background: 'linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)',
         color: 'white',
@@ -189,8 +189,8 @@ const MapPicker: React.FC<MapPickerProps> = ({ open, onClose, onSelect, apiKey, 
                   />
                 </Autocomplete>
               </Box>
-              <Marker 
-                position={markerPosition} 
+              <Marker
+                position={markerPosition}
                 draggable={true}
                 onDragEnd={(e) => {
                   if (e.latLng) {
@@ -201,13 +201,13 @@ const MapPicker: React.FC<MapPickerProps> = ({ open, onClose, onSelect, apiKey, 
                 }}
               />
             </GoogleMap>
-            <Box sx={{ 
-              position: 'absolute', 
-              bottom: 16, 
-              left: 16, 
-              right: 16, 
-              background: 'rgba(255,255,255,0.95)', 
-              p: 2, 
+            <Box sx={{
+              position: 'absolute',
+              bottom: 16,
+              left: 16,
+              right: 16,
+              background: 'rgba(255,255,255,0.95)',
+              p: 2,
               borderRadius: '12px',
               boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
               display: 'flex',
@@ -233,18 +233,18 @@ const MapPicker: React.FC<MapPickerProps> = ({ open, onClose, onSelect, apiKey, 
         )}
       </DialogContent>
       <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.05)' }}>
-        <Button onClick={onClose} sx={{ 
-          color: '#4b5563', 
+        <Button onClick={onClose} sx={{
+          color: '#4b5563',
           fontFamily: "'Montserrat', sans-serif",
           fontWeight: 600
         }}>
           Cancel
         </Button>
-        <Button 
-          onClick={handleConfirm} 
+        <Button
+          onClick={handleConfirm}
           disabled={!address || loading}
-          variant="contained" 
-          sx={{ 
+          variant="contained"
+          sx={{
             background: 'linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)',
             borderRadius: '8px',
             px: 3,

@@ -185,7 +185,15 @@ export function BookingFormCard({ booking: h }: BookingFormCardProps) {
       {/* Mobile View Summary Button */}
       <div className="lg:hidden mt-4" style={{ textAlign: "center" }}>
         <button 
-          onClick={() => document.getElementById('trip-summary-section')?.scrollIntoView({ behavior: 'smooth' })}
+          onClick={() => {
+            if (!h.formData.vehicleName) {
+              h.setSnackbarMessage('Please select a vehicle model before viewing the summary.');
+              h.setSnackbarSeverity('warning');
+              h.setSnackbarOpen(true);
+              return;
+            }
+            document.getElementById('trip-summary-section')?.scrollIntoView({ behavior: 'smooth' });
+          }}
           style={{ 
             width: "100%", padding: "0.75rem", borderRadius: "10px", 
             border: "1.5px solid #0d9488", background: "rgba(13,148,136,0.08)", 

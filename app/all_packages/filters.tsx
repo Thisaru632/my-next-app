@@ -157,9 +157,17 @@ interface RateAdjustment {
   _id: string;
   vehicle: string;
   type: string;
+  category?: string;
+  days?: string;
+  hrs?: string;
   percentage: number;
+  fixedAmount?: number;
+  adjustmentType?: 'percentage' | 'fixed';
+  minKm?: number;
+  maxKm?: number;
   validFrom: string | null;
   validTo: string | null;
+  lastUpdated?: string;
 }
 
 const PHONE_REGEX = /^(?:\+94|0)?[0-9]{9,10}$/;
@@ -453,15 +461,23 @@ export default function BookingForm() {
 
     const matches = adjustments.filter(adj => {
       const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
-      const vehicleMatch =
-        cleanAdjVeh === 'all' ||
-        cleanAdjVeh === cleanFormVehName ||
-        cleanAdjVeh === cleanFormVehType ||
-        cleanFormVehName.includes(cleanAdjVeh) ||
-        cleanAdjVeh.includes(cleanFormVehName);
+      const adjVehicles = cleanAdjVeh.split(',').map((v: string) => v.trim());
+
+      const vehicleMatch = cleanAdjVeh === 'all' ||
+        adjVehicles.some((adjV: string) => {
+          const modelPart = adjV.split('|')[0].trim();
+          if (adjV === cleanFormVehName || modelPart === cleanFormVehName || adjV === cleanFormVehType || modelPart === cleanFormVehType) return true;
+          const genericTypes = ['car', 'van', 'bus', 'suv', 'cars', 'vans', 'buses', 'suvs'];
+          return genericTypes.includes(adjV) && (adjV === cleanFormVehType || adjV.includes(cleanFormVehType) || cleanFormVehType.includes(adjV));
+        });
 
       const cleanAdjType = adj.type.toLowerCase().trim();
       const typeMatch = cleanAdjType === 'all' || cleanAdjType === cleanFormType;
+
+      const categoryMatch = !adj.category || adj.category === 'All' || adj.category.toLowerCase().trim() === selectedCategory.toLowerCase().trim();
+      const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
+      const daysMatch = !adj.days || adj.days === 'All' || adj.days === targetDays.toString();
+      const hrsMatch = !adj.hrs || adj.hrs === 'All' || (matchedPackage && adj.hrs === matchedPackage.hrs.toString());
 
       // Date Validity Check
       const now = new Date();
@@ -469,26 +485,51 @@ export default function BookingForm() {
       const vTo = adj.validTo ? new Date(adj.validTo) : null;
       const isDateValid = (!vFrom || now >= vFrom) && (!vTo || now <= vTo);
 
-      return vehicleMatch && typeMatch && isDateValid;
+      return vehicleMatch && typeMatch && categoryMatch && daysMatch && hrsMatch && isDateValid;
     });
 
     if (matches.length === 0) return null;
 
-    return matches.sort((a, b) => {
-      const aLow = a.vehicle.toLowerCase();
-      const bLow = b.vehicle.toLowerCase();
-      const aScoreVeh = (aLow === cleanFormVehName) ? 200 : (aLow === cleanFormVehType ? 100 : (aLow === 'all' ? 0 : 50));
-      const bScoreVeh = (bLow === cleanFormVehName) ? 200 : (bLow === cleanFormVehType ? 100 : (bLow === 'all' ? 0 : 50));
-      if (aScoreVeh !== bScoreVeh) return bScoreVeh - aScoreVeh;
+    return matches.sort((a: RateAdjustment, b: RateAdjustment) => {
+      const getScore = (adj: RateAdjustment) => {
+        let score = 0;
+        const cleanAdjVeh = adj.vehicle.toLowerCase().replace(/\s+/g, '').trim();
+        const adjVehicles = cleanAdjVeh.split(',').map((v: string) => v.trim());
 
-      const aTypeAll = a.type.toLowerCase() === 'all';
-      const bTypeAll = b.type.toLowerCase() === 'all';
-      if (aTypeAll !== bTypeAll) return aTypeAll ? 1 : -1;
+        const isSpecificMatch = adjVehicles.some((adjV: string) => {
+          const modelPart = adjV.split('|')[0].trim();
+          return adjV === cleanFormVehName || modelPart === cleanFormVehName;
+        });
+        const isTypeMatch = adjVehicles.some((adjV: string) => {
+          const modelPart = adjV.split('|')[0].trim();
+          if (adjV === cleanFormVehType || modelPart === cleanFormVehType) return true;
+          const genericTypes = ['car', 'van', 'bus', 'suv', 'cars', 'vans', 'buses', 'suvs'];
+          return genericTypes.includes(adjV) && (adjV === cleanFormVehType || adjV.includes(cleanFormVehType) || cleanFormVehType.includes(adjV));
+        });
+
+        // Primary specificity: Vehicle name/type
+        if (isSpecificMatch) score += 500;
+        else if (isTypeMatch) score += 300;
+        else if (cleanAdjVeh !== 'all') score += 100;
+
+        // Secondary specificity: Discrete filters
+        if (adj.category && adj.category !== 'All') score += 50;
+        if (adj.days && adj.days !== 'All') score += 50;
+        if (adj.hrs && adj.hrs !== 'All') score += 50;
+        if (adj.type && adj.type.toLowerCase() !== 'all') score += 40;
+
+        // Range specificity
+        if (adj.minKm! > 0 || adj.maxKm! < 99999) score += 20;
+
+        return score;
+      };
+
+      const scoreA = getScore(a);
+      const scoreB = getScore(b);
+      if (scoreA !== scoreB) return scoreB - scoreA;
       return 0;
     })[0];
   })();
-
-  const adjustmentMultiplier = 1 + ((activeAdjustment?.percentage ?? 0) / 100);
 
   const basePricePerDay =
     formData.vehicleType === 'Car' ? 15000 :
@@ -510,9 +551,14 @@ export default function BookingForm() {
     return 0;
   })();
 
+  const seasonalMultiplier = 1 + ((activeAdjustment?.percentage ?? 0) / 100);
+  const seasonalAdjustmentAmount = activeAdjustment?.adjustmentType === 'fixed' ? (activeAdjustment.fixedAmount || 0) : Math.round(basePriceBeforeAdjustment * (seasonalMultiplier - 1));
+  
   const provinceMultiplier = 1 + ((provinceAdjustments[pickupProvince] || 0) / 100);
-  const totalMultiplier = adjustmentMultiplier * provinceMultiplier;
-  const totalPrice = Math.round(basePriceBeforeAdjustment * totalMultiplier) + nightSurcharge;
+  const totalBaseWithSeasonal = basePriceBeforeAdjustment + seasonalAdjustmentAmount;
+  const provinceAdjustmentAmount = Math.round(totalBaseWithSeasonal * (provinceMultiplier - 1));
+  
+  const totalPrice = Math.max(0, totalBaseWithSeasonal + provinceAdjustmentAmount) + nightSurcharge;
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto', p: { xs: 2, md: 4 } }} suppressHydrationWarning>
