@@ -18,6 +18,9 @@ interface BookingFormCardProps {
 }
 
 export function BookingFormCard({ booking: h }: BookingFormCardProps) {
+  const [isClient, setIsClient] = React.useState(false);
+  React.useEffect(() => { setIsClient(true); }, []);
+
   return (
     <div className="booking-form-card w-full max-w-md rounded-xl px-3 sm:px-5 py-3 sm:py-5 text-left" style={{ background: "rgba(255,255,255,0.55)", backdropFilter: "blur(24px) saturate(180%)", WebkitBackdropFilter: "blur(24px) saturate(180%)", border: "1px solid rgba(255,255,255,0.45)", boxShadow: "0 8px 40px 0 rgba(31, 38, 135, 0.14)", flexShrink: 0 }}>
       <div className="text-center mb-2 sm:mb-3">
@@ -26,16 +29,18 @@ export function BookingFormCard({ booking: h }: BookingFormCardProps) {
       </div>
 
       {/* Promo Button */}
-      <div style={{ display: "flex", justifyContent: "center", marginTop: "0px", marginBottom: "6px" }}>
-        <button type="button"
-          onClick={() => h.setOpenPromoDialog(true)}
-          style={{ background: "transparent", border: "none", color: "#0d9488", fontFamily: "'Montserrat', sans-serif", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", padding: "4px 12px", display: "flex", alignItems: "center", gap: "6px", borderRadius: "20px" }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(13,148,136,0.08)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-        >
-          <GiftIcon style={{ fontSize: '18px' }} /> Add promo code
-        </button>
-      </div>
+      {(isClient && !h.appliedPromo && !h.isOfferClaimed) && (
+        <div style={{ display: "flex", justifyContent: "center", marginTop: "0px", marginBottom: "6px" }}>
+          <button type="button"
+            onClick={() => h.setOpenPromoDialog(true)}
+            style={{ background: "transparent", border: "none", color: "#0d9488", fontFamily: "'Montserrat', sans-serif", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer", padding: "4px 12px", display: "flex", alignItems: "center", gap: "6px", borderRadius: "20px" }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(13,148,136,0.08)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <GiftIcon style={{ fontSize: '18px' }} /> Add promo code
+          </button>
+        </div>
+      )}
 
       {/* Trip Type Selection */}
       <div className="mb-4">
