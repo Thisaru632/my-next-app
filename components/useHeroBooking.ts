@@ -96,6 +96,16 @@ export function useHeroBooking() {
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
   const [hasPromoOption, setHasPromoOption] = useState<boolean | null>(null);
   const [isPromoLoading, setIsPromoLoading] = useState(false);
+  const [isOfferClaimed, setIsOfferClaimed] = useState(false);
+
+  useEffect(() => {
+    const updateClaimed = () => {
+      setIsOfferClaimed(typeof window !== 'undefined' && sessionStorage.getItem('promo_claimed') === 'true');
+    };
+    updateClaimed();
+    window.addEventListener('promo-updated', updateClaimed);
+    return () => window.removeEventListener('promo-updated', updateClaimed);
+  }, []);
 
   const [emailError, setEmailError] = useState('');
   const [phoneError, setPhoneError] = useState('');
@@ -337,21 +347,23 @@ export function useHeroBooking() {
     });
   };
 
-  const handlePromoSubmit = async () => {
-    if (!promoCodeInput.trim()) return;
+  const applyPromoCode = async (codeStr: string) => {
+    if (!codeStr.trim()) return;
     setIsPromoLoading(true);
     try {
       const res = await fetch(API_ENDPOINTS.PROMO_CODES);
       if (!res.ok) throw new Error('Failed to fetch promo codes');
       const codes: PromoCode[] = await res.json();
-      const code = codes.find(c => c.code.toUpperCase() === promoCodeInput.trim().toUpperCase());
+      const code = codes.find(c => c.code.toUpperCase() === codeStr.trim().toUpperCase());
       if (!code) { setSnackbarMessage('Invalid promo code.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       if (code.status !== 'Active') { setSnackbarMessage('This promo code is no longer active.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+      
       const now = new Date();
       const pFrom = code.validFrom ? new Date(code.validFrom) : null; if (pFrom) pFrom.setHours(0, 0, 0, 0);
       const pTo = code.validTo ? new Date(code.validTo) : null; if (pTo) pTo.setHours(23, 59, 59, 999);
       if (pFrom && pFrom > now) { setSnackbarMessage('This promo code is not yet valid.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       if (pTo && pTo < now) { setSnackbarMessage('This promo code has expired.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+      
       const appVehicles = code.applicableVehicle.toLowerCase().split(',').map(v => v.trim());
       const isApplicable = appVehicles.includes('all') || 
                            appVehicles.some(v => {
@@ -361,12 +373,29 @@ export function useHeroBooking() {
                                return v === formVehName || modelPart === formVehName || v === formVehType || modelPart === formVehType;
                            });
       setAppliedPromo(code); setOpenPromoDialog(false);
+      if (codeStr.toLowerCase() === 'senu15') {
+        sessionStorage.setItem('promo_claimed', 'true');
+        window.dispatchEvent(new CustomEvent('promo-updated'));
+      }
       const discText = code.discountType === 'Percentage' ? `${code.discountValue}%` : `LKR ${code.discountValue.toLocaleString()}`;
       const successMsg = isApplicable ? `Promo code applied! ${discText} discount added.` : `Promo code for ${code.applicableVehicle} applied! Note: Discount will count only when you select this vehicle.`;
       setSnackbarMessage(successMsg); setSnackbarSeverity('success'); setSnackbarOpen(true);
     } catch { setSnackbarMessage('Error validating promo code.'); setSnackbarSeverity('error'); setSnackbarOpen(true); }
     finally { setIsPromoLoading(false); }
   };
+
+  const handlePromoSubmit = async () => {
+    applyPromoCode(promoCodeInput);
+  };
+
+  useEffect(() => {
+    const handleApplyPromo = () => {
+      applyPromoCode('senu15');
+    };
+    window.addEventListener('apply-senu15', handleApplyPromo);
+    return () => window.removeEventListener('apply-senu15', handleApplyPromo);
+  }, [formData, rateCards]); // Add dependencies needed for applyPromoCode logic if any, but since it's a ref to state it might need careful handling.
+  // Actually, applyPromoCode uses formData from closure. So dependencies should include it.
 
   const handleViewDirections = () => { if (!pickupCoords || !dropoffCoords || !routeDistance) return; setOpenRouteViewer(true); };
   const handleAddPhone = () => { if (formData.additionalPhones.length >= 1) return; setFormData(prev => ({ ...prev, additionalPhones: [...prev.additionalPhones, ''] })); };
@@ -1263,6 +1292,8 @@ export function useHeroBooking() {
         const result = await response.json();
         setSubmittedBookingData({ formData: { ...formData }, totalPrice, rawTotalPrice, basePriceBeforeAdjustment, provinceAdjustmentAmount, seasonalAdjustmentAmount, appliedPromo, bookingRefNo: result.customId || result._id, nightSurcharge, matchedPackage, routeDistance, routeDuration, discount: discountAmount });
         setRequestSent(true);
+        sessionStorage.removeItem('promo_claimed');
+        window.dispatchEvent(new CustomEvent('promo-updated'));
         setFormData({ vehicleType: '', vehicleName: '', tripType: '', pickupLocation: '', dropoffLocation: '', dateTime: '', numberOfDays: '' as any, name: '', telephone: '', additionalPhones: [], email: '', remark: '', maxPersons: 0, maxBags: 0, additionalHours: 0, destinations: [] });
         setAppliedPromo(null); setPromoCodeInput(''); setHasPromoOption(null); setShowRemark(false);
         setPickupCoords(null); setDropoffCoords(null); setStopCoords({});
@@ -1288,7 +1319,7 @@ export function useHeroBooking() {
     // State
     formData, setFormData, routeResponse, minDateTime, openPromoDialog, setOpenPromoDialog,
     promoCodeInput, setPromoCodeInput, appliedPromo, hasPromoOption, setHasPromoOption,
-    isPromoLoading, emailError, phoneError, additionalPhoneErrors, requestSent, showRemark,
+    isPromoLoading, isOfferClaimed, emailError, phoneError, additionalPhoneErrors, requestSent, showRemark,
     setShowRemark, openAuthModal, setOpenAuthModal, showLoginAlert, setShowLoginAlert,
     openRouteViewer, setOpenRouteViewer, openNearbyViewer, setOpenNearbyViewer,
     openPolicyDialog, setOpenPolicyDialog, submittedBookingData, showCloseConfirm,
@@ -1312,7 +1343,7 @@ export function useHeroBooking() {
     provinceAdjustmentAmount, seasonalAdjustmentAmount, basePriceBeforeAdjustment, getPriceForVehicle, vehiclePricesMap, getMinPriceForCategory,
     vehicleDiscountsMap,
     rawTotalPrice, discountAmount, nightSurcharge, totalPrice, currentCategoryVehicles,
-    handleChange, handlePromoSubmit, handleViewDirections, handleAddPhone,
+    handleChange, handlePromoSubmit, applyPromoCode, handleViewDirections, handleAddPhone,
     handleRemovePhone, updateAdditionalPhone, handleVehicleCardClick,
     handleVehicleSelect, handleTripTypeSelect, handleRequestBooking,
     handleClosePersonalDialog, handleConfirmClose, downloadTripSummary, handleSendRequest,
