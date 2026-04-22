@@ -113,9 +113,9 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
          (h.formData.tripType !== 'Return' || h.formData.destinations.some(d => d.address.trim())) && 
          (h.formData.vehicleType === 'SUV' || h.formData.tripType) && (
           <div id="booking-summary-rate-area" style={{ marginTop: '6px', padding: '12px', background: 'rgba(13,148,136,0.06)', borderRadius: '12px', border: '1px solid rgba(13,148,136,0.15)' }}>
-            <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>{h.formData.vehicleType === 'SUV' || h.formData.vehicleType === 'Bus' || h.totalPrice === 0 ? 'Booking Request' : 'Total Estimate'}</div>
+            <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>{h.formData.vehicleType === 'SUV' || (h.formData.vehicleType === 'Bus' && h.distanceInKm >= h.minKmRequired) || h.totalPrice === 0 ? 'Booking Request' : 'Total Estimate'}</div>
             {/* Pricing Details */}
-            {((h.formData.vehicleType === 'Bus' && h.formData.tripType === 'Drop') || h.formData.vehicleType === 'SUV' || h.totalPrice === 0) ? (
+            {((h.formData.vehicleType === 'Bus' && h.formData.tripType === 'Drop' && h.distanceInKm >= h.minKmRequired) || h.formData.vehicleType === 'SUV' || h.totalPrice === 0) ? (
               <div style={{ marginTop: '6px' }}>
                 <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.3rem', fontWeight: 800, color: '#0d9488' }}>Price on Request</span>
                 <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#3b82f6', lineHeight: 1.5, marginTop: '8px', padding: '10px 12px', background: 'rgba(59,130,246,0.05)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.2)' }}>

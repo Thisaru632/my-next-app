@@ -353,7 +353,13 @@ export function useHeroBooking() {
       if (pFrom && pFrom > now) { setSnackbarMessage('This promo code is not yet valid.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       if (pTo && pTo < now) { setSnackbarMessage('This promo code has expired.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       const appVehicles = code.applicableVehicle.toLowerCase().split(',').map(v => v.trim());
-      const isApplicable = appVehicles.includes('all') || appVehicles.includes(formData.vehicleName.toLowerCase().trim()) || appVehicles.includes(formData.vehicleType.toLowerCase().trim());
+      const isApplicable = appVehicles.includes('all') || 
+                           appVehicles.some(v => {
+                               const modelPart = v.split('|')[0].trim().toLowerCase();
+                               const formVehName = formData.vehicleName.toLowerCase().trim();
+                               const formVehType = formData.vehicleType.toLowerCase().trim();
+                               return v === formVehName || modelPart === formVehName || v === formVehType || modelPart === formVehType;
+                           });
       setAppliedPromo(code); setOpenPromoDialog(false);
       const discText = code.discountType === 'Percentage' ? `${code.discountValue}%` : `LKR ${code.discountValue.toLocaleString()}`;
       const successMsg = isApplicable ? `Promo code applied! ${discText} discount added.` : `Promo code for ${code.applicableVehicle} applied! Note: Discount will count only when you select this vehicle.`;
@@ -556,10 +562,10 @@ export function useHeroBooking() {
     if (routeDistance !== null) {
       const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
       const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
-      const bestMatch = (maxKMBelow !== null && !isBusDrop) ? sortedCards.find(c => c.km === maxKMBelow) : (formData.vehicleType === 'Bus' || distanceInKm === 0 ? null : sortedCards[0]);
+      const bestMatch = (maxKMBelow !== null && !isBusDrop) ? sortedCards.find(c => c.km === maxKMBelow) : (formData.vehicleType === 'Bus' ? (distanceInKm > 0 && distanceInKm < (sortedCards[0]?.km || 0) ? sortedCards[0] : null) : (distanceInKm === 0 ? null : sortedCards[0]));
       return bestMatch;
     }
-    return (formData.vehicleType === 'Bus' || distanceInKm === 0) ? null : sortedCards[0];
+    return (formData.vehicleType === 'Bus' ? (distanceInKm > 0 && distanceInKm < (sortedCards[0]?.km || 0) ? sortedCards[0] : null) : (distanceInKm === 0 ? null : sortedCards[0]));
   })();
 
   const minKmRequired = (() => {
@@ -808,7 +814,7 @@ export function useHeroBooking() {
     const cleanFormType = formData.tripType.toLowerCase().trim();
     const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
 
-    if (vType === 'Bus' && formData.tripType === 'Drop') return 0;
+    const isBusDrop = vType === 'Bus' && formData.tripType === 'Drop';
 
     const localDeterminedCategory = (() => {
       // Rule: Plains rates ONLY apply to Bus and Van
@@ -884,9 +890,9 @@ export function useHeroBooking() {
       if (routeDistance !== null) {
         const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
         const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
-        matchedPkg = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : (vType === 'Bus' || curDistKm === 0 ? null : sortedCards[0]);
+        matchedPkg = (maxKMBelow !== null && !isBusDrop) ? sortedCards.find(c => c.km === maxKMBelow) : (vType === 'Bus' ? (distanceInKm > 0 && distanceInKm < (sortedCards[0]?.km || 0) ? sortedCards[0] : null) : (distanceInKm === 0 ? null : sortedCards[0]));
       } else {
-        matchedPkg = (vType === 'Bus' || curDistKm === 0) ? null : sortedCards[0];
+        matchedPkg = (vType === 'Bus' ? (distanceInKm > 0 && distanceInKm < (sortedCards[0]?.km || 0) ? sortedCards[0] : null) : (distanceInKm === 0 ? null : sortedCards[0]));
       }
     }
 
