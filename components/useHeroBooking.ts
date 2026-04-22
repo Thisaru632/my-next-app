@@ -1098,6 +1098,9 @@ export function useHeroBooking() {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} @ ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}${showSeconds ? ':00' : ''}`;
     };
 
+    const isMinPackageActive = matchedPkg && totalDistanceKm < matchedPkg.km;
+    const pdfDistanceKm = isMinPackageActive ? matchedPkg.km : totalDistanceKm;
+
     // --- Table 1: Trip Identification ---
     autoTable(doc, {
       startY: currentY,
@@ -1106,7 +1109,7 @@ export function useHeroBooking() {
         ['Reference Number', data.bookingRefNo || "N/A"],
         ['Journey Type', data.formData.tripType || "Drop"],
         ['Vehicle Model', `${data.formData.vehicleName || "Not Selected"} (${data.formData.maxPersons || 0} Seater)`],
-        ['Route Distance', `${totalDistanceKm} KM (Est. Total)`],
+        [isMinPackageActive ? 'Package Distance' : 'Route Distance', `${pdfDistanceKm} KM ${isMinPackageActive ? '(Min. Package)' : '(Est. Total)'}`],
         ['Package Hours', `${matchedPkg?.hrs || 0} Hours Allowance`],
         ['Start Date', formatDate(data.formData.dateTime)],
       ],
