@@ -14,6 +14,7 @@ const navLinks = [
   { label: "Contact Us", href: "/contact" },
 ];
 
+
 interface NavbarProps {
   isHeroPage?: boolean;
 }

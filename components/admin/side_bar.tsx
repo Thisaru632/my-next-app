@@ -29,8 +29,10 @@ import {
     FileUpload as FileUploadIcon,
     LocationCity as LocationCityIcon,
     LocalTaxi as LocalTaxiIcon,
+    DirectionsBus as DirectionsBusIcon,
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
+
 import { API_ENDPOINTS } from '@/config/api';
 
 const DRAWER_WIDTH = 260;
@@ -61,8 +63,10 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Rate Card Manage', icon: <PaymentsIcon />, path: '/staff/rate_card_manage', key: 'rateCardManage' },
         { text: 'Staff Guide', icon: <MenuBookIcon />, path: '/staff/staff-guide', key: 'dashboard' }, // Always allow if they have dashboard access
         { text: 'Manage Guides', icon: <FileUploadIcon />, path: '/staff/staff-guide/manage', key: 'staffGuideManage' },
+        { text: 'Vehicle Registrations', icon: <DirectionsBusIcon />, path: '/staff/vehicle-registrations', key: 'leads' },
         { text: 'Cab Service', icon: <LocalTaxiIcon />, path: '/staff/cab-service', key: 'cabService' },
     ];
+
 
     const [allowedItems, setAllowedItems] = React.useState<MenuItem[]>([]);
     const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false);

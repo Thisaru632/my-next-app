@@ -13,4 +13,6 @@ export const API_ENDPOINTS = {
     CAB_SERVICES: `${API_BASE_URL}/api/cab-service`,
     CAB_RATES: `${API_BASE_URL}/api/cab-rates`,
     SIMS: `${API_BASE_URL}/api/sims`,
+    VEHICLE_REGISTRATIONS: `${API_BASE_URL}/api/vehicle-registrations`,
 };
+
