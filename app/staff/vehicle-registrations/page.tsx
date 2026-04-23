@@ -325,7 +325,8 @@ const VehicleRegistrationsPage = () => {
             <DialogContent sx={{ p: 4, bgcolor: '#fafafa' }}>
               <Grid container spacing={4}>
                 {/* Left: Info */}
-                <Grid item xs={12} md={5}>
+                <Grid size={{ xs: 12, md: 5 }}>
+
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 'bold' }}>Driver Name</Typography>
@@ -409,7 +410,8 @@ const VehicleRegistrationsPage = () => {
                 </Grid>
 
                 {/* Right: Images */}
-                <Grid item xs={12} md={7}>
+                <Grid size={{ xs: 12, md: 7 }}>
+
                   <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ textTransform: 'uppercase', color: 'text.secondary', fontSize: '0.75rem' }}>
                     Uploaded Bus Images ({selectedReg.busImages.length})
                   </Typography>
@@ -426,7 +428,8 @@ const VehicleRegistrationsPage = () => {
                   >
                     <Grid container spacing={2}>
                       {selectedReg.busImages.length > 0 ? selectedReg.busImages.map((img, idx) => (
-                        <Grid item xs={6} key={idx}>
+                        <Grid size={{ xs: 6 }} key={idx}>
+
                           <Box 
                             sx={{ 
                               position: 'relative', 
@@ -447,7 +450,8 @@ const VehicleRegistrationsPage = () => {
                           </Box>
                         </Grid>
                       )) : (
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
+
                           <Box sx={{ textAlign: 'center', py: 8, color: 'text.disabled' }}>
                             <Typography variant="body2">No images uploaded</Typography>
                           </Box>
