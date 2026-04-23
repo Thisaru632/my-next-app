@@ -10,6 +10,8 @@ interface TripSummaryCardProps {
 }
 
 export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
+  const [tooltip, setTooltip] = React.useState({ show: false, msg: '' });
+
   if (!h.formData.pickupLocation) {
     return null;
   }
@@ -113,9 +115,9 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
          (h.formData.tripType !== 'Return' || h.formData.destinations.some(d => d.address.trim())) && 
          (h.formData.vehicleType === 'SUV' || h.formData.tripType) && (
           <div id="booking-summary-rate-area" style={{ marginTop: '6px', padding: '12px', background: 'rgba(13,148,136,0.06)', borderRadius: '12px', border: '1px solid rgba(13,148,136,0.15)' }}>
-            <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>{h.formData.vehicleType === 'SUV' || h.formData.vehicleType === 'Bus' || h.totalPrice === 0 ? 'Booking Request' : 'Total Estimate'}</div>
+            <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.7rem', color: '#0d9488', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>{h.formData.vehicleType === 'SUV' || (h.formData.vehicleType === 'Bus' && h.distanceInKm >= h.minKmRequired) || h.totalPrice === 0 ? 'Booking Request' : 'Total Estimate'}</div>
             {/* Pricing Details */}
-            {((h.formData.vehicleType === 'Bus' && h.formData.tripType === 'Drop') || h.formData.vehicleType === 'SUV' || h.totalPrice === 0) ? (
+            {((h.formData.vehicleType === 'Bus' && h.formData.tripType === 'Drop' && h.distanceInKm >= h.minKmRequired) || h.formData.vehicleType === 'SUV' || h.totalPrice === 0) ? (
               <div style={{ marginTop: '6px' }}>
                 <span style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '1.3rem', fontWeight: 800, color: '#0d9488' }}>Price on Request</span>
                 <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: '0.68rem', color: '#3b82f6', lineHeight: 1.5, marginTop: '8px', padding: '10px 12px', background: 'rgba(59,130,246,0.05)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.2)' }}>
@@ -180,14 +182,64 @@ export function TripSummaryCard({ booking: h }: TripSummaryCardProps) {
                 Privacy Policies & Terms and Conditions
               </button>
             </div>
-            <div style={{ marginTop: "1rem" }}>
+            <div style={{ marginTop: "1rem", position: 'relative' }}>
+              {tooltip.show && (
+                <div style={{ 
+                  position: 'absolute', 
+                  bottom: 'calc(100% + 10px)', 
+                  left: '50%', 
+                  transform: 'translateX(-50%)', 
+                  background: '#ef4444', 
+                  color: '#fff', 
+                  padding: '8px 14px', 
+                  borderRadius: '10px', 
+                  fontSize: '0.75rem', 
+                  fontWeight: 700, 
+                  boxShadow: '0 10px 25px rgba(239, 68, 68, 0.25)', 
+                  whiteSpace: 'nowrap', 
+                  zIndex: 1000, 
+                  pointerEvents: 'none',
+                  animation: 'tooltipBounce 0.3s ease-out'
+                }}>
+                  <style>{`
+                    @keyframes tooltipBounce {
+                      0% { transform: translateX(-50%) scale(0.8); opacity: 0; }
+                      50% { transform: translateX(-50%) scale(1.05); }
+                      100% { transform: translateX(-50%) scale(1); opacity: 1; }
+                    }
+                  `}</style>
+                  {tooltip.msg}
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: '100%', 
+                    left: '50%', 
+                    transform: 'translateX(-50%)', 
+                    borderLeft: '7px solid transparent', 
+                    borderRight: '7px solid transparent', 
+                    borderTop: '7px solid #ef4444' 
+                  }} />
+                </div>
+              )}
               {(() => {
-                const canSubmit = !!(h.formData.vehicleName && h.formData.tripType && h.formData.pickupLocation && h.formData.dropoffLocation && h.formData.dateTime && (h.formData.tripType === 'Drop' || !!h.formData.numberOfDays));
+                const handleBtnClick = () => {
+                  const missing = [];
+                  if (!h.formData.vehicleName) missing.push("Vehicle");
+                  if (!h.formData.dateTime) missing.push("Date & Time");
+                  if (h.formData.tripType !== 'Drop' && !h.formData.numberOfDays) missing.push("Trip Duration");
+
+                  if (missing.length > 0) {
+                    setTooltip({ show: true, msg: `⚠️ Please select ${missing.join(", ")}` });
+                    setTimeout(() => setTooltip({ show: false, msg: '' }), 3500);
+                    return;
+                  }
+                  h.handleRequestBooking();
+                };
+
                 return (
-                  <button onClick={h.handleRequestBooking} disabled={!canSubmit} className="inline-flex items-center justify-center text-white uppercase w-full"
-                    style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: "0.85rem", letterSpacing: "0.04em", border: "1.8px solid #0d9488", borderRadius: "12px", padding: "0.85rem 1.6rem", background: canSubmit ? "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)" : "rgba(13,148,136,0.35)", color: "#ffffff", transition: "all 0.3s ease", cursor: canSubmit ? "pointer" : "not-allowed", boxShadow: canSubmit ? "0 4px 14px 0 rgba(13,148,136,0.39)" : "none" }}
-                    onMouseEnter={(e) => { if (canSubmit) { e.currentTarget.style.background = "linear-gradient(135deg, #0f766e 0%, #2563eb 100%)"; e.currentTarget.style.transform = "translateY(-2px)"; } }}
-                    onMouseLeave={(e) => { if (canSubmit) { e.currentTarget.style.background = "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)"; e.currentTarget.style.transform = "translateY(0)"; } }}
+                  <button onClick={handleBtnClick} className="inline-flex items-center justify-center text-white uppercase w-full"
+                    style={{ fontFamily: "'Montserrat', sans-serif", fontWeight: 600, fontSize: "0.85rem", letterSpacing: "0.04em", border: "1.8px solid #0d9488", borderRadius: "12px", padding: "0.85rem 1.6rem", background: "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)", color: "#ffffff", transition: "all 0.3s ease", cursor: "pointer", boxShadow: "0 4px 14px 0 rgba(13,148,136,0.39)" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "linear-gradient(135deg, #0f766e 0%, #2563eb 100%)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "linear-gradient(135deg, #0d9488 0%, #3b82f6 100%)"; e.currentTarget.style.transform = "translateY(0)"; }}
                   >Request Booking <span className="ml-2">→</span></button>
                 );
               })()}

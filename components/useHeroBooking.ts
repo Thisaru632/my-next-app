@@ -142,6 +142,8 @@ export function useHeroBooking() {
   const [openPhotosDialog, setOpenPhotosDialog] = useState(false);
   const [photosVehicle, setPhotosVehicle] = useState('');
   const [nightSurchargeEnabled, setNightSurchargeEnabled] = useState(true);
+  const [nightSurchargeCar, setNightSurchargeCar] = useState(500);
+  const [nightSurchargeVan, setNightSurchargeVan] = useState(1000);
   const [blockedProvinces, setBlockedProvinces] = useState<string[]>([]);
   const [provinceAdjustments, setProvinceAdjustments] = useState<Record<string, number>>({});
   const [pickupProvince, setPickupProvince] = useState<string>('');
@@ -174,6 +176,12 @@ export function useHeroBooking() {
           const settings = await setRes.json();
           if (settings.nightSurchargeEnabled !== undefined) {
             setNightSurchargeEnabled(settings.nightSurchargeEnabled);
+          }
+          if (settings.nightSurchargeCar !== undefined) {
+            setNightSurchargeCar(settings.nightSurchargeCar);
+          }
+          if (settings.nightSurchargeVan !== undefined) {
+            setNightSurchargeVan(settings.nightSurchargeVan);
           }
           if (settings.blockedProvinces !== undefined) {
             setBlockedProvinces(settings.blockedProvinces);
@@ -417,10 +425,22 @@ export function useHeroBooking() {
   };
 
   const handleRequestBooking = () => {
-    if (!formData.vehicleName || !formData.tripType || !formData.pickupLocation || !formData.dropoffLocation || !formData.dateTime) {
+    const missing = [];
+    if (!formData.vehicleName) missing.push("Vehicle");
+    if (!formData.dateTime) missing.push("Date & Time");
+    if (formData.tripType !== 'Drop' && !formData.numberOfDays) missing.push("Number of Days");
+
+    if (missing.length > 0) {
+      setSnackbarMessage(`⚠️ Selection Required: Please select ${missing.join(", ")} before proceeding.`);
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    if (!formData.tripType || !formData.pickupLocation || !formData.dropoffLocation) {
       setSnackbarMessage('Please fill all required fields before proceeding.'); setSnackbarSeverity('warning'); setSnackbarOpen(true); return;
     }
-    
+
     // Strict verification: Coordinates MUST be set (meaning a selection was made from suggestions/history/map)
     if (!pickupCoords) {
       setSnackbarMessage('Please select your pickup location from the suggestions or recent history list.'); 
@@ -434,10 +454,6 @@ export function useHeroBooking() {
     if (unconfirmedStop) {
       setSnackbarMessage(`Please click and select the location for '${unconfirmedStop.address}' from the suggestion list.`);
       setSnackbarSeverity('warning'); setSnackbarOpen(true); return;
-    }
-
-    if (formData.tripType !== 'Drop' && !formData.numberOfDays) {
-      setSnackbarMessage('Please select the number of days for your trip.'); setSnackbarSeverity('warning'); setSnackbarOpen(true); return;
     }
     if (routeLoading) { setSnackbarMessage('Please wait while we calculate the route distance...'); setSnackbarSeverity('info'); setSnackbarOpen(true); return; }
     const selectedTime = new Date(formData.dateTime).getTime();
@@ -613,7 +629,7 @@ export function useHeroBooking() {
   }, [pickupCoords, blockedProvinces, isLoaded]);
 
   const calculateNightSurchargeAmount = useCallback((dateTime: string, vType: string, vName: string, distance: number, tripType: string) => {
-    if (!dateTime || !vType || nsRules.length === 0) return 0;
+    if (!nightSurchargeEnabled || !dateTime || !vType) return 0;
 
     const date = new Date(dateTime);
     const hour = date.getHours();
@@ -668,7 +684,16 @@ export function useHeroBooking() {
       rules: applicableRules
     });
 
-    if (applicableRules.length === 0) return 0;
+    if (applicableRules.length === 0) {
+      // Fallback to global defaults if enabled and within standard night window (12AM - 4AM)
+      if (nightSurchargeEnabled && ((hour >= 0 && hour < 4))) {
+        if (cleanVType === 'car' || cleanVType === 'cars') return nightSurchargeCar;
+        if (cleanVType === 'van' || cleanVType === 'vans') return nightSurchargeVan;
+        if (cleanVType === 'suv' || cleanVType === 'suvs') return nightSurchargeCar; // Default SUV to car rate or same
+      }
+      return 0;
+
+    }
 
     // Pick the most specific or highest amount
     // Specificity: Name > Type > All
@@ -682,7 +707,7 @@ export function useHeroBooking() {
     });
 
     return sorted[0].amount;
-  }, [nightSurchargeEnabled, nsRules]);
+  }, [nightSurchargeEnabled, nsRules, nightSurchargeCar, nightSurchargeVan]);
 
   const activeAdjustment = (() => {
     if (!formData.vehicleType || adjustments.length === 0) return null;
@@ -992,7 +1017,8 @@ export function useHeroBooking() {
     const nightSur = calculateNightSurchargeAmount(formData.dateTime, vType, vName, distanceInKm, formData.tripType);
 
     return Math.max(0, rawTotal - discAmount) + nightSur;
-  }, [formData.tripType, formData.dateTime, formData.numberOfDays, formData.additionalHours, rateCards, adjustments, provinceAdjustments, pickupProvince, distanceInKm, routeDistance, nightSurchargeEnabled, appliedPromo]);
+  }, [formData.tripType, formData.dateTime, formData.numberOfDays, formData.additionalHours, rateCards, adjustments, provinceAdjustments, pickupProvince, distanceInKm, routeDistance, nightSurchargeEnabled, nightSurchargeCar, nightSurchargeVan, nsRules, appliedPromo, calculateNightSurchargeAmount]);
+
 
   const vehiclePricesMap = useMemo(() => {
     const map: Record<string, number> = {};

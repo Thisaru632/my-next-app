@@ -34,6 +34,8 @@ import {
     InputAdornment,
     Autocomplete,
     Checkbox,
+    Switch,
+    FormControlLabel,
 } from '@mui/material';
 import {
     CloudUpload as CloudUploadIcon,
@@ -115,6 +117,7 @@ const RateCardManagePage = () => {
     const [daysFilter, setDaysFilter] = useState('All');
     const [hrsFilter, setHrsFilter] = useState('All');
     const [categoryFilter, setCategoryFilter] = useState('All');
+    const [statusFilterRate, setStatusFilterRate] = useState('All');
     const [searchTerm, setSearchTerm] = useState(''); // State for debounced search term
 
     // Pagination states
@@ -447,11 +450,12 @@ const RateCardManagePage = () => {
             const matchesMinKm = minKmFilter === '' || card.km >= parseInt(minKmFilter);
             const matchesMaxKm = maxKmFilter === '' || card.km <= parseInt(maxKmFilter);
             const matchesCategory = categoryFilter === 'All' || card.category === categoryFilter;
+            const matchesStatus = statusFilterRate === 'All' || card.status === statusFilterRate;
 
             const isPromotion = card.category?.toLowerCase() === 'promotion' || card.category?.toLowerCase() === 'promotion ';
-            return matchesSearch && matchesVehicle && matchesType && matchesDays && matchesHrs && matchesMinKm && matchesMaxKm && matchesCategory && !isPromotion;
+            return matchesSearch && matchesVehicle && matchesType && matchesDays && matchesHrs && matchesMinKm && matchesMaxKm && matchesCategory && matchesStatus && !isPromotion;
         });
-    }, [rateCards, searchTerm, vehicleFilter, typeFilter, daysFilter, hrsFilter, minKmFilter, maxKmFilter, categoryFilter]);
+    }, [rateCards, searchTerm, vehicleFilter, typeFilter, daysFilter, hrsFilter, minKmFilter, maxKmFilter, categoryFilter, statusFilterRate]);
 
     // Paginated data
     const paginatedRateCards = useMemo(() => {
@@ -464,6 +468,7 @@ const RateCardManagePage = () => {
     const uniqueDays = Array.from(new Set(rateCards.map(c => c.days.toString()))).sort((a, b) => parseInt(a) - parseInt(b));
     const uniqueHrs = Array.from(new Set(rateCards.map(c => c.hrs.toString()))).sort((a, b) => parseInt(a) - parseInt(b));
     const uniqueCategories = Array.from(new Set(rateCards.map(c => c.category).filter(Boolean) as string[])).sort();
+    const uniqueStatuses = Array.from(new Set(rateCards.map(c => c.status).filter(Boolean) as string[])).sort();
 
     const resetFilters = () => {
         setSearchInput('');
@@ -473,6 +478,7 @@ const RateCardManagePage = () => {
         setDaysFilter('All');
         setHrsFilter('All');
         setCategoryFilter('All');
+        setStatusFilterRate('All');
         setMinKmFilter('');
         setMaxKmFilter('');
         setPage(0);
@@ -1129,6 +1135,33 @@ const RateCardManagePage = () => {
                         >
                             <option value="All" style={{ background: '#fff', color: '#000' }}>All Hours</option>
                             {uniqueHrs.map(h => <option key={h} value={h} style={{ background: '#fff', color: '#000' }}>{h}</option>)}
+                        </select>
+                    </Box>
+
+                    <Box sx={{ minWidth: '100px' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, ml: 1, color: 'text.secondary', textTransform: 'uppercase' }}>Status</Typography>
+                        <select
+                            value={statusFilterRate}
+                            onChange={(e) => {
+                                setStatusFilterRate(e.target.value);
+                                setPage(0);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color, #cbd5e1)',
+                                marginTop: '4px',
+                                outline: 'none',
+                                background: 'transparent',
+                                color: 'inherit',
+                                fontSize: '0.9rem',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit'
+                            }}
+                        >
+                            <option value="All" style={{ background: '#fff', color: '#000' }}>All Status</option>
+                            {uniqueStatuses.map(s => <option key={s} value={s} style={{ background: '#fff', color: '#000' }}>{s}</option>)}
                         </select>
                     </Box>
 
@@ -2307,6 +2340,85 @@ const RateCardManagePage = () => {
                         </Box>
 
                         <Divider sx={{ mb: 4 }} />
+
+                        {/* Global Surcharge Settings */}
+                        <Box sx={{ mb: 6, p: 3, borderRadius: '20px', bgcolor: 'rgba(59, 130, 246, 0.03)', border: '1px solid', borderColor: 'rgba(59, 130, 246, 0.1)' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'primary.main', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        Global Default Surcharges
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                        Applied when no specific rule matches during 12AM - 4AM (Standard Night Window)
+                                    </Typography>
+                                </Box>
+                                <FormControlLabel
+                                    control={
+                                        <Switch 
+                                            checked={nightSurchargeEnabled} 
+                                            onChange={toggleNightSurcharge}
+                                            color="primary"
+                                        />
+                                    }
+                                    label={<Typography variant="body2" sx={{ fontWeight: 800, color: nightSurchargeEnabled ? 'primary.main' : 'text.disabled' }}>
+                                        {nightSurchargeEnabled ? 'System Enabled' : 'System Disabled'}
+                                    </Typography>}
+                                />
+                            </Box>
+
+                            <Grid container spacing={4}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Box sx={{ p: 2, borderRadius: '16px', bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : '#ffffff', border: '1px solid', borderColor: 'divider' }}>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, mb: 1.5, display: 'block', color: 'text.secondary', textTransform: 'uppercase' }}>CAR DEFAULT (LKR)</Typography>
+                                        <Stack direction="row" spacing={2}>
+                                            <TextField 
+                                                fullWidth
+                                                type="number"
+                                                size="small"
+                                                value={nightSurchargeCar}
+                                                onChange={(e) => setNightSurchargeCar(parseInt(e.target.value) || 0)}
+                                                InputProps={{ startAdornment: <InputAdornment position="start">Rs</InputAdornment> }}
+                                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                            />
+                                            <Button 
+                                                variant="contained" 
+                                                size="small"
+                                                disabled={updatingSettings}
+                                                onClick={() => updateNightSurchargeAmount('Car', nightSurchargeCar)}
+                                                sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700, px: 3, bgcolor: 'primary.main' }}
+                                            >
+                                                Update
+                                            </Button>
+                                        </Stack>
+                                    </Box>
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Box sx={{ p: 2, borderRadius: '16px', bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : '#ffffff', border: '1px solid', borderColor: 'divider' }}>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, mb: 1.5, display: 'block', color: 'text.secondary', textTransform: 'uppercase' }}>VAN DEFAULT (LKR)</Typography>
+                                        <Stack direction="row" spacing={2}>
+                                            <TextField 
+                                                fullWidth
+                                                type="number"
+                                                size="small"
+                                                value={nightSurchargeVan}
+                                                onChange={(e) => setNightSurchargeVan(parseInt(e.target.value) || 0)}
+                                                InputProps={{ startAdornment: <InputAdornment position="start">Rs</InputAdornment> }}
+                                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
+                                            />
+                                            <Button 
+                                                variant="contained" 
+                                                size="small"
+                                                disabled={updatingSettings}
+                                                onClick={() => updateNightSurchargeAmount('Van', nightSurchargeVan)}
+                                                sx={{ borderRadius: '10px', textTransform: 'none', fontWeight: 700, px: 3, bgcolor: 'primary.main' }}
+                                            >
+                                                Update
+                                            </Button>
+                                        </Stack>
+                                    </Box>
+                                </Grid>
+                            </Grid>
+                        </Box>
 
                         {/* Add Rule Form */}
                         <Box sx={{ mb: 6, p: 3, borderRadius: '20px', bgcolor: 'rgba(0,0,0,0.02)', border: '1px solid', borderColor: 'divider' }}>

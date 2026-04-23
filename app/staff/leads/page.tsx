@@ -35,6 +35,7 @@ import {
   Tabs,
   Tab,
   Tooltip,
+  Snackbar,
 } from '@mui/material';
 import { API_ENDPOINTS } from '@/config/api';
 import {
@@ -56,6 +57,7 @@ import {
   AssignmentInd as AssignmentIcon,
   TableChart as TableChartIcon,
   Map as MapIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 
 // Types
@@ -166,6 +168,11 @@ const LeadInfoPage: React.FC = () => {
   const [viewMapLead, setViewMapLead] = useState<Lead | null>(null);
   const [openRouteViewer, setOpenRouteViewer] = useState(false);
   const [staffRemark, setStaffRemark] = useState<string>('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('success');
   const searchParams = useSearchParams();
   const urlStatus = searchParams.get('status');
 
@@ -486,6 +493,53 @@ const LeadInfoPage: React.FC = () => {
       alert('An error occurred while picking the lead');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteLead = (lead: Lead) => {
+    if (!isSuperAdmin) {
+      setSnackbarMessage('Only super admins can delete leads.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      return;
+    }
+    setLeadToDelete(lead);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteLead = async () => {
+    if (!leadToDelete) return;
+    
+    setLoading(true);
+    try {
+      const endpoint = leadToDelete.source === 'Online Booking'
+        ? `${API_ENDPOINTS.BOOKINGS}/${leadToDelete.id}`
+        : `${API_ENDPOINTS.CONTACTS}/${leadToDelete.id}`;
+
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setLeads(prevLeads => prevLeads.filter(l => l.id !== leadToDelete.id));
+        setSnackbarMessage(`Lead ${leadToDelete.customId || leadToDelete.id} deleted successfully.`);
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+      } else {
+        const data = await response.json();
+        setSnackbarMessage(data.message || 'Failed to delete lead');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      console.error('Error deleting lead:', error);
+      setSnackbarMessage('An error occurred while deleting the lead');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+      setDeleteConfirmOpen(false);
+      setLeadToDelete(null);
     }
   };
 
@@ -1210,6 +1264,27 @@ const LeadInfoPage: React.FC = () => {
                               >
                                 <AssignmentIcon sx={{ fontSize: 20 }} />
                               </IconButton>
+
+                              {isSuperAdmin && (
+                                <IconButton
+                                  onClick={() => handleDeleteLead(lead)}
+                                  title="Delete Lead"
+                                  sx={{
+                                    background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                                    color: '#ffffff',
+                                    borderRadius: '10px',
+                                    padding: '8px',
+                                    transition: 'all 0.3s ease',
+                                    '&:hover': {
+                                      background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                                      transform: 'translateY(-2px)',
+                                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)',
+                                    },
+                                  }}
+                                >
+                                  <DeleteIcon sx={{ fontSize: 20 }} />
+                                </IconButton>
+                              )}
                             </Box>
                           </TableCell>
                         </TableRow>
@@ -1342,14 +1417,14 @@ const LeadInfoPage: React.FC = () => {
                   </Typography>
                 </Box>
 
-                {/* Tour Date */}
+                {/* Trip Start Time */}
                 <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
                     <CalendarIcon sx={{ color: '#10b981', fontSize: 16 }} />
-                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Tour Date</Typography>
+                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Trip Start Time</Typography>
                   </Box>
                   <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
-                    {formatDate(selectedLead.tourDate)}
+                    {formatDate(selectedLead.tourDate, true)}
                   </Typography>
                 </Box>
 
@@ -1509,6 +1584,18 @@ const LeadInfoPage: React.FC = () => {
                           </Box>
                         )}
 
+                        {/* Night Surcharge */}
+                        {selectedLead.nightSurcharge !== undefined && selectedLead.nightSurcharge > 0 && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                              Night Surcharge:
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                              + Rs. {selectedLead.nightSurcharge.toLocaleString()}
+                            </Typography>
+                          </Box>
+                        )}
+
                         {/* Province Adjustment */}
                         {selectedLead.provinceAdjustment !== undefined && selectedLead.provinceAdjustment > 0 && (
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1521,17 +1608,6 @@ const LeadInfoPage: React.FC = () => {
                           </Box>
                         )}
 
-                        {/* Night Surcharge */}
-                        {selectedLead.nightSurcharge !== undefined && selectedLead.nightSurcharge > 0 && (
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
-                              Night Surcharge:
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
-                              + Rs. {selectedLead.nightSurcharge.toLocaleString()}
-                            </Typography>
-                          </Box>
-                        )}
 
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, pt: 1, borderTop: '1.5px solid rgba(22,101,52,0.2)' }}>
                           <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: '#065f46' }}>
@@ -2121,6 +2197,76 @@ const LeadInfoPage: React.FC = () => {
           apiKey="AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc"
         />
       )}
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            padding: '8px',
+            maxWidth: '400px'
+          }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CancelIcon sx={{ fontSize: 24 }} /> Confirm Deletion
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontWeight: 500, color: 'text.secondary', fontSize: '0.95rem', mt: 1 }}>
+            Are you sure you want to delete lead <strong>{leadToDelete?.customId || leadToDelete?.id}</strong>? This action cannot be undone and will permanently remove all associated data.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button 
+            onClick={() => setDeleteConfirmOpen(false)} 
+            variant="outlined"
+            sx={{ 
+              borderRadius: '10px', 
+              textTransform: 'none', 
+              fontWeight: 600, 
+              px: 3,
+              borderColor: 'divider',
+              color: 'text.secondary'
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmDeleteLead} 
+            variant="contained" 
+            color="error"
+            disabled={loading}
+            sx={{ 
+              borderRadius: '10px', 
+              textTransform: 'none', 
+              fontWeight: 600, 
+              px: 3,
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              '&:hover': { background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)' }
+            }}
+          >
+            {loading ? <CircularProgress size={20} color="inherit" /> : 'Delete Permanently'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Notification Snackbar */}
+      <Snackbar 
+        open={snackbarOpen} 
+        autoHideDuration={6000} 
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setSnackbarOpen(false)} 
+          severity={snackbarSeverity} 
+          sx={{ width: '100%', borderRadius: '12px', fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+          variant="filled"
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box >
   );
 };
