@@ -332,7 +332,7 @@ const VehicleRegistrationsPage = () => {
                       <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 'bold' }}>Driver Name</Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
                         <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: 'primary.light', color: 'primary.contrastText', display: 'flex' }}>
-                          <CheckCircleIcon size={20} />
+                          <CheckCircleIcon sx={{ fontSize: 20 }} />
                         </Box>
                         <Typography variant="h6" fontWeight={700}>{selectedReg.driverName}</Typography>
                       </Box>
