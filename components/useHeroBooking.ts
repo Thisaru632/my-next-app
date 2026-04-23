@@ -96,6 +96,16 @@ export function useHeroBooking() {
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
   const [hasPromoOption, setHasPromoOption] = useState<boolean | null>(null);
   const [isPromoLoading, setIsPromoLoading] = useState(false);
+  const [isOfferClaimed, setIsOfferClaimed] = useState(false);
+
+  useEffect(() => {
+    const updateClaimed = () => {
+      setIsOfferClaimed(typeof window !== 'undefined' && sessionStorage.getItem('promo_claimed') === 'true');
+    };
+    updateClaimed();
+    window.addEventListener('promo-updated', updateClaimed);
+    return () => window.removeEventListener('promo-updated', updateClaimed);
+  }, []);
 
   const [emailError, setEmailError] = useState('');
   const [phoneError, setPhoneError] = useState('');
@@ -345,30 +355,55 @@ export function useHeroBooking() {
     });
   };
 
-  const handlePromoSubmit = async () => {
-    if (!promoCodeInput.trim()) return;
+  const applyPromoCode = async (codeStr: string) => {
+    if (!codeStr.trim()) return;
     setIsPromoLoading(true);
     try {
       const res = await fetch(API_ENDPOINTS.PROMO_CODES);
       if (!res.ok) throw new Error('Failed to fetch promo codes');
       const codes: PromoCode[] = await res.json();
-      const code = codes.find(c => c.code.toUpperCase() === promoCodeInput.trim().toUpperCase());
+      const code = codes.find(c => c.code.toUpperCase() === codeStr.trim().toUpperCase());
       if (!code) { setSnackbarMessage('Invalid promo code.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       if (code.status !== 'Active') { setSnackbarMessage('This promo code is no longer active.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+      
       const now = new Date();
       const pFrom = code.validFrom ? new Date(code.validFrom) : null; if (pFrom) pFrom.setHours(0, 0, 0, 0);
       const pTo = code.validTo ? new Date(code.validTo) : null; if (pTo) pTo.setHours(23, 59, 59, 999);
       if (pFrom && pFrom > now) { setSnackbarMessage('This promo code is not yet valid.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
       if (pTo && pTo < now) { setSnackbarMessage('This promo code has expired.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+      
       const appVehicles = code.applicableVehicle.toLowerCase().split(',').map(v => v.trim());
-      const isApplicable = appVehicles.includes('all') || appVehicles.includes(formData.vehicleName.toLowerCase().trim()) || appVehicles.includes(formData.vehicleType.toLowerCase().trim());
+      const isApplicable = appVehicles.includes('all') || 
+                           appVehicles.some(v => {
+                               const modelPart = v.split('|')[0].trim().toLowerCase();
+                               const formVehName = formData.vehicleName.toLowerCase().trim();
+                               const formVehType = formData.vehicleType.toLowerCase().trim();
+                               return v === formVehName || modelPart === formVehName || v === formVehType || modelPart === formVehType;
+                           });
       setAppliedPromo(code); setOpenPromoDialog(false);
+      if (codeStr.toLowerCase() === 'senu15') {
+        sessionStorage.setItem('promo_claimed', 'true');
+        window.dispatchEvent(new CustomEvent('promo-updated'));
+      }
       const discText = code.discountType === 'Percentage' ? `${code.discountValue}%` : `LKR ${code.discountValue.toLocaleString()}`;
       const successMsg = isApplicable ? `Promo code applied! ${discText} discount added.` : `Promo code for ${code.applicableVehicle} applied! Note: Discount will count only when you select this vehicle.`;
       setSnackbarMessage(successMsg); setSnackbarSeverity('success'); setSnackbarOpen(true);
     } catch { setSnackbarMessage('Error validating promo code.'); setSnackbarSeverity('error'); setSnackbarOpen(true); }
     finally { setIsPromoLoading(false); }
   };
+
+  const handlePromoSubmit = async () => {
+    applyPromoCode(promoCodeInput);
+  };
+
+  useEffect(() => {
+    const handleApplyPromo = () => {
+      applyPromoCode('senu15');
+    };
+    window.addEventListener('apply-senu15', handleApplyPromo);
+    return () => window.removeEventListener('apply-senu15', handleApplyPromo);
+  }, [formData, rateCards]); // Add dependencies needed for applyPromoCode logic if any, but since it's a ref to state it might need careful handling.
+  // Actually, applyPromoCode uses formData from closure. So dependencies should include it.
 
   const handleViewDirections = () => { if (!pickupCoords || !dropoffCoords || !routeDistance) return; setOpenRouteViewer(true); };
   const handleAddPhone = () => { if (formData.additionalPhones.length >= 1) return; setFormData(prev => ({ ...prev, additionalPhones: [...prev.additionalPhones, ''] })); };
@@ -572,10 +607,10 @@ export function useHeroBooking() {
     if (routeDistance !== null) {
       const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
       const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
-      const bestMatch = (maxKMBelow !== null && !isBusDrop) ? sortedCards.find(c => c.km === maxKMBelow) : (formData.vehicleType === 'Bus' || distanceInKm === 0 ? null : sortedCards[0]);
+      const bestMatch = (maxKMBelow !== null && !isBusDrop) ? sortedCards.find(c => c.km === maxKMBelow) : (formData.vehicleType === 'Bus' ? (distanceInKm > 0 && distanceInKm < (sortedCards[0]?.km || 0) ? sortedCards[0] : null) : (distanceInKm === 0 ? null : sortedCards[0]));
       return bestMatch;
     }
-    return (formData.vehicleType === 'Bus' || distanceInKm === 0) ? null : sortedCards[0];
+    return (formData.vehicleType === 'Bus' ? (distanceInKm > 0 && distanceInKm < (sortedCards[0]?.km || 0) ? sortedCards[0] : null) : (distanceInKm === 0 ? null : sortedCards[0]));
   })();
 
   const minKmRequired = (() => {
@@ -833,7 +868,7 @@ export function useHeroBooking() {
     const cleanFormType = formData.tripType.toLowerCase().trim();
     const targetDays = Number(formData.numberOfDays) === 0 ? 1 : Number(formData.numberOfDays);
 
-    if (vType === 'Bus' && formData.tripType === 'Drop') return 0;
+    const isBusDrop = vType === 'Bus' && formData.tripType === 'Drop';
 
     const localDeterminedCategory = (() => {
       // Rule: Plains rates ONLY apply to Bus and Van
@@ -909,9 +944,9 @@ export function useHeroBooking() {
       if (routeDistance !== null) {
         const possibleKms = sortedCards.filter(c => c.km <= distanceInKm).map(c => c.km);
         const maxKMBelow = possibleKms.length > 0 ? Math.max(...possibleKms) : null;
-        matchedPkg = maxKMBelow !== null ? sortedCards.find(c => c.km === maxKMBelow) : (vType === 'Bus' || curDistKm === 0 ? null : sortedCards[0]);
+        matchedPkg = (maxKMBelow !== null && !isBusDrop) ? sortedCards.find(c => c.km === maxKMBelow) : (vType === 'Bus' ? (distanceInKm > 0 && distanceInKm < (sortedCards[0]?.km || 0) ? sortedCards[0] : null) : (distanceInKm === 0 ? null : sortedCards[0]));
       } else {
-        matchedPkg = (vType === 'Bus' || curDistKm === 0) ? null : sortedCards[0];
+        matchedPkg = (vType === 'Bus' ? (distanceInKm > 0 && distanceInKm < (sortedCards[0]?.km || 0) ? sortedCards[0] : null) : (distanceInKm === 0 ? null : sortedCards[0]));
       }
     }
 
@@ -1118,6 +1153,9 @@ export function useHeroBooking() {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} @ ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}${showSeconds ? ':00' : ''}`;
     };
 
+    const isMinPackageActive = matchedPkg && totalDistanceKm < matchedPkg.km;
+    const pdfDistanceKm = isMinPackageActive ? matchedPkg.km : totalDistanceKm;
+
     // --- Table 1: Trip Identification ---
     autoTable(doc, {
       startY: currentY,
@@ -1126,7 +1164,7 @@ export function useHeroBooking() {
         ['Reference Number', data.bookingRefNo || "N/A"],
         ['Journey Type', data.formData.tripType || "Drop"],
         ['Vehicle Model', `${data.formData.vehicleName || "Not Selected"} (${data.formData.maxPersons || 0} Seater)`],
-        ['Route Distance', `${totalDistanceKm} KM (Est. Total)`],
+        [isMinPackageActive ? 'Package Distance' : 'Route Distance', `${pdfDistanceKm} KM ${isMinPackageActive ? '(Min. Package)' : '(Est. Total)'}`],
         ['Package Hours', `${matchedPkg?.hrs || 0} Hours Allowance`],
         ['Start Date', formatDate(data.formData.dateTime)],
       ],
@@ -1280,6 +1318,8 @@ export function useHeroBooking() {
         const result = await response.json();
         setSubmittedBookingData({ formData: { ...formData }, totalPrice, rawTotalPrice, basePriceBeforeAdjustment, provinceAdjustmentAmount, seasonalAdjustmentAmount, appliedPromo, bookingRefNo: result.customId || result._id, nightSurcharge, matchedPackage, routeDistance, routeDuration, discount: discountAmount });
         setRequestSent(true);
+        sessionStorage.removeItem('promo_claimed');
+        window.dispatchEvent(new CustomEvent('promo-updated'));
         setFormData({ vehicleType: '', vehicleName: '', tripType: '', pickupLocation: '', dropoffLocation: '', dateTime: '', numberOfDays: '' as any, name: '', telephone: '', additionalPhones: [], email: '', remark: '', maxPersons: 0, maxBags: 0, additionalHours: 0, destinations: [] });
         setAppliedPromo(null); setPromoCodeInput(''); setHasPromoOption(null); setShowRemark(false);
         setPickupCoords(null); setDropoffCoords(null); setStopCoords({});
@@ -1305,7 +1345,7 @@ export function useHeroBooking() {
     // State
     formData, setFormData, routeResponse, minDateTime, openPromoDialog, setOpenPromoDialog,
     promoCodeInput, setPromoCodeInput, appliedPromo, hasPromoOption, setHasPromoOption,
-    isPromoLoading, emailError, phoneError, additionalPhoneErrors, requestSent, showRemark,
+    isPromoLoading, isOfferClaimed, emailError, phoneError, additionalPhoneErrors, requestSent, showRemark,
     setShowRemark, openAuthModal, setOpenAuthModal, showLoginAlert, setShowLoginAlert,
     openRouteViewer, setOpenRouteViewer, openNearbyViewer, setOpenNearbyViewer,
     openPolicyDialog, setOpenPolicyDialog, submittedBookingData, showCloseConfirm,
@@ -1329,7 +1369,7 @@ export function useHeroBooking() {
     provinceAdjustmentAmount, seasonalAdjustmentAmount, basePriceBeforeAdjustment, getPriceForVehicle, vehiclePricesMap, getMinPriceForCategory,
     vehicleDiscountsMap,
     rawTotalPrice, discountAmount, nightSurcharge, totalPrice, currentCategoryVehicles,
-    handleChange, handlePromoSubmit, handleViewDirections, handleAddPhone,
+    handleChange, handlePromoSubmit, applyPromoCode, handleViewDirections, handleAddPhone,
     handleRemovePhone, updateAdditionalPhone, handleVehicleCardClick,
     handleVehicleSelect, handleTripTypeSelect, handleRequestBooking,
     handleClosePersonalDialog, handleConfirmClose, downloadTripSummary, handleSendRequest,

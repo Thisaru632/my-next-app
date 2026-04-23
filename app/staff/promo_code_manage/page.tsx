@@ -57,7 +57,11 @@ interface PromoCode {
     createdAt: string;
 }
 
-const PromoCodeManagePage = () => {
+interface PromoCodeManageProps {
+    availableVehicles?: string[];
+}
+
+const PromoCodeManagePage = ({ availableVehicles }: PromoCodeManageProps) => {
     const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -95,11 +99,21 @@ const PromoCodeManagePage = () => {
         }
     };
 
-    const vehicleNames = [
-        'Alto', 'Wagon R', 'Aqua', 'Axio',
-        'KDH High Roof', 'KDH Flat Roof', 'Mini Van', 'Dual AC Van', 'Non-AC Van',
-        'AC 29 Seater', 'Non-AC 29 Seater',
-        'Vezel'
+    const vehicleNames = availableVehicles || [
+        'ALTO | 3 Seater', 
+        'WAGON R | 3 Seater', 
+        'AQUA | 4 Seater', 
+        'AXIO | 4 Seater',
+        'KDH HIGH ROOF VAN | 14 Seater', 
+        'KDH FLAT ROOF VAN | 9 Seater', 
+        'MINI VAN | 6 Seater', 
+        'DUAL AC VAN | 9 Seater', 
+        'NON AC VAN | 14 Seater',
+        'BUS | AC 29 Seater', 
+        'BUS | Non AC 29 Seater',
+        'BUS | AC 32 Seater', 
+        'BUS | Non AC 32 Seater',
+        'VEZEL | 4 Seater'
     ];
 
     useEffect(() => {

@@ -1375,7 +1375,7 @@ const RateCardManagePage = () => {
             )}
 
             {activeTab === 1 && <ProvinceManagePage />}
-            {activeTab === 2 && <PromoCodeManagePage />}
+            {activeTab === 2 && <PromoCodeManagePage availableVehicles={uniqueVehicles} />}
 
             {activeTab === 3 && (
                 <>

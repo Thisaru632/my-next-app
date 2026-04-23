@@ -10,10 +10,12 @@ import ServicesSection from "@/components/category";
 import FreedomPackages from "@/components/FreedomPackages";
 import DiscoverParadise from "@/components/packages";
 import Footer from "@/components/footer";
+import PromotionPopup from "@/components/PromotionPopup";
 
 export default function Home() {
   return (
     <>
+      <PromotionPopup />
       <HeroSection />
       
       <ScrollReveal delay={0.2}>
