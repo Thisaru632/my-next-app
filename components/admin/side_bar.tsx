@@ -16,6 +16,7 @@ import {
     DialogContentText,
     DialogActions,
     Button,
+    Badge,
 } from '@mui/material';
 import {
     Dashboard as DashboardIcon,
@@ -70,6 +71,38 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
 
     const [allowedItems, setAllowedItems] = React.useState<MenuItem[]>([]);
     const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false);
+    const [pendingRegCount, setPendingRegCount] = React.useState(0);
+    const [unpickedLeadsCount, setUnpickedLeadsCount] = React.useState(0);
+
+    const fetchPendingCount = async () => {
+        try {
+            const response = await fetch(`${API_ENDPOINTS.VEHICLE_REGISTRATIONS}/pending-count`);
+            if (response.ok) {
+                const data = await response.json();
+                setPendingRegCount(data.count || 0);
+            }
+        } catch (error) {}
+    };
+
+    const fetchUnpickedCount = async () => {
+        try {
+            const response = await fetch(`${API_ENDPOINTS.BOOKINGS}/unpicked-count`);
+            if (response.ok) {
+                const data = await response.json();
+                setUnpickedLeadsCount(data.count || 0);
+            }
+        } catch (error) {}
+    };
+
+    React.useEffect(() => {
+        fetchPendingCount();
+        fetchUnpickedCount();
+        const interval = setInterval(() => {
+            fetchPendingCount();
+            fetchUnpickedCount();
+        }, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
     React.useEffect(() => {
         const userStr = localStorage.getItem('staffUser');
@@ -129,7 +162,17 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                                 }}
                             >
                                 <ListItemIcon sx={{ color: 'inherit', minWidth: 40, opacity: isActive ? 1 : 0.7 }}>
-                                    {item.icon}
+                                    {item.text === 'Vehicle Registrations' ? (
+                                        <Badge badgeContent={pendingRegCount} color="error">
+                                            {item.icon}
+                                        </Badge>
+                                    ) : item.text === 'Lead Info' ? (
+                                        <Badge badgeContent={unpickedLeadsCount} color="error">
+                                            {item.icon}
+                                        </Badge>
+                                    ) : (
+                                        item.icon
+                                    )}
                                 </ListItemIcon>
                                 <ListItemText
                                     primary={item.text}

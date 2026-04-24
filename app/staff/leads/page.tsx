@@ -297,15 +297,15 @@ const LeadInfoPage: React.FC = () => {
   // Load leads data
   useEffect(() => {
     // Mark all as read when visiting this page
-    const markAllRead = async () => {
+    async function markAllRead() {
       try {
         await fetch(`${API_ENDPOINTS.AUTH}/notifications/mark-all-read`, { method: 'POST' });
       } catch (e) {
         console.error('Error marking all notifications as read:', e);
       }
-    };
+    }
 
-    const fetchLeads = async () => {
+    async function fetchLeads() {
       try {
         const [bookingsRes, contactsRes] = await Promise.all([
           fetch(API_ENDPOINTS.BOOKINGS),
