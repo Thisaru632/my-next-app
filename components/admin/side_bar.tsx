@@ -100,7 +100,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         const interval = setInterval(() => {
             fetchPendingCount();
             fetchUnpickedCount();
-        }, 30000);
+        }, 60000);
         return () => clearInterval(interval);
     }, []);
 

@@ -70,8 +70,8 @@ export default function BookingNotification() {
             }
         };
 
-        // Check every 30 seconds
-        const interval = setInterval(checkNewBookings, 30000);
+        // Check every 60 seconds
+        const interval = setInterval(checkNewBookings, 60000);
 
         // Initial check
         checkNewBookings();
