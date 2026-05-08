@@ -115,8 +115,8 @@ export function LocationInput({
       },
       (error) => {
         setLoading(false);
-        console.error("Geolocation error:", error.message || "Unknown error", `(Code: ${error.code})`);
-        alert("Unable to retrieve your location. Please check your browser permissions or ensure you are using HTTPS.");
+        console.error("Geolocation error:", error);
+        alert("Unable to retrieve your location. Please check your browser permissions.");
       }
     );
   };

@@ -51,19 +51,14 @@ const MapPicker: React.FC<MapPickerProps> = ({ open, onClose, onSelect, apiKey, 
 
   useEffect(() => {
     if (open && !initialLocation && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newPos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setMarkerPosition(newPos);
-          reverseGeocode(newPos.lat, newPos.lng);
-        },
-        (error) => {
-          console.error("MapPicker Geolocation error:", error.message || "Unknown error");
-        }
-      );
+      navigator.geolocation.getCurrentPosition((position) => {
+        const newPos = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setMarkerPosition(newPos);
+        reverseGeocode(newPos.lat, newPos.lng);
+      });
     }
   }, [open, initialLocation]);
 
