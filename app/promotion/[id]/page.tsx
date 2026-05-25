@@ -26,15 +26,13 @@ const PROMOTION_DETAILS: Record<string, PromotionDetail> = {
     discount: '15% OFF',
     description: 'Enjoy 15% off on our most popular budget hatchback. Perfect for quick city trips, daily commutes, and couples looking for a fuel-efficient ride.',
     promoCode: 'SENUWAGON',
-    passengers: 4,
+    passengers: 3,
     bags: 2,
     ac: true,
     conditions: [
-      'Minimum booking duration of 3 consecutive days.',
-      'Valid for city travel and plains only (strictly no steep mountain climbs or off-road driving).',
-      'Includes 100km per day of travel; additional mileage will be charged at LKR 80 per kilometer.',
-      'Chauffeur-driven package only (chauffeur accommodation to be provided if trip requires overnight stay).',
-      'Booking must be confirmed at least 24 hours in advance.'
+      '250 km වඩා වැඩි ගමන් සඳහා (return) චාරිකා සඳහා පමණක් මෙම මිල වලංගු වේ. (මෙම විශේෂ ප්‍රවර්ධන මිල අදාළ වන්නේ කිලෝමීටර් 250 ට වඩා වැඩි, ගොස් නැවත පැමිණෙන චාරිකා සඳහා පමණි)',
+      'දින කීපයක ගමන් වාරයක් නම් මිලෙහි සුළු වෙනස් වීමක් සිදු වේ. (ඔබේ ගමන සඳහා දින කිහිපයක් ගතවන්නේ නම්, අදාළ ගාස්තුවේ සුළු වෙනසක් සිදුවිය හැක).',
+      'Start වීම western (මෙම ගමන් වාර ආරම්භ වන්නේ බස්නාහිර පළාතෙනි).'
     ],
     specs: [
       { label: 'Transmission', value: 'Automatic' },
@@ -55,11 +53,9 @@ const PROMOTION_DETAILS: Record<string, PromotionDetail> = {
     bags: 1,
     ac: true,
     conditions: [
-      'No minimum booking days limitation (valid even for single-day bookings).',
-      'Applicable for short-distance excursions and daily town commutes.',
-      'Includes 100km per day of travel; additional mileage will be charged at LKR 70 per kilometer.',
-      'Rates exclude toll charges, parking fees, and fuel costs.',
-      'Self-drive option is available subject to valid license verification and LKR 25,000 security deposit.'
+      '250 km වඩා වැඩි ගමන් සඳහා (return) චාරිකා සඳහා පමණක් මෙම මිල වලංගු වේ. (මෙම විශේෂ ප්‍රවර්ධන මිල අදාළ වන්නේ කිලෝමීටර් 250 ට වඩා වැඩි, ගොස් නැවත පැමිණෙන චාරිකා සඳහා පමණි)',
+      'දින කීපයක ගමන් වාරයක් නම් මිලෙහි සුළු වෙනස් වීමක් සිදු වේ. (ඔබේ ගමන සඳහා දින කිහිපයක් ගතවන්නේ නම්, අදාළ ගාස්තුවේ සුළු වෙනසක් සිදුවිය හැක).',
+      'Start වීම western (මෙම ගමන් වාර ආරම්භ වන්නේ බස්නාහිර පළාතෙනි).'
     ],
     specs: [
       { label: 'Transmission', value: 'Manual' },
@@ -80,11 +76,9 @@ const PROMOTION_DETAILS: Record<string, PromotionDetail> = {
     bags: 5,
     ac: true,
     conditions: [
-      'Applicable on both Flat Roof and High Roof Toyota KDH Van options.',
-      'Minimum booking duration of 2 days.',
-      'Includes 100km per day of travel; additional mileage will be charged at LKR 120 per kilometer.',
-      'Experienced uniformed chauffeur is included in the package.',
-      'Chauffeur overnight allowance applies for journeys extending outside Colombo district.'
+      '250 km වඩා වැඩි ගමන් සඳහා (return) චාරිකා සඳහා පමණක් මෙම මිල වලංගු වේ. (මෙම විශේෂ ප්‍රවර්ධන මිල අදාළ වන්නේ කිලෝමීටර් 250 ට වඩා වැඩි, ගොස් නැවත පැමිණෙන චාරිකා සඳහා පමණි)',
+      'දින කීපයක ගමන් වාරයක් නම් මිලෙහි සුළු වෙනස් වීමක් සිදු වේ. (ඔබේ ගමන සඳහා දින කිහිපයක් ගතවන්නේ නම්, අදාළ ගාස්තුවේ සුළු වෙනසක් සිදුවිය හැක).',
+      'Start වීම western (මෙම ගමන් වාර ආරම්භ වන්නේ බස්නාහිර පළාතෙනි).'
     ],
     specs: [
       { label: 'Transmission', value: 'Manual / Auto' },
@@ -105,11 +99,9 @@ const PROMOTION_DETAILS: Record<string, PromotionDetail> = {
     bags: 10,
     ac: true,
     conditions: [
-      'Valid for 29-Seater and 32-Seater AC Luxury Coach Bus options.',
-      'Minimum booking duration of 2 days.',
-      'Covers islandwide tour itineraries, including hill country destinations.',
-      'Booking requests must be submitted at least 7 days before departure.',
-      'Chauffeur and luggage porter service are included.'
+      '250 km වඩා වැඩි ගමන් සඳහා (return) චාරිකා සඳහා පමණක් මෙම මිල වලංගු වේ. (මෙම විශේෂ ප්‍රවර්ධන මිල අදාළ වන්නේ කිලෝමීටර් 250 ට වඩා වැඩි, ගොස් නැවත පැමිණෙන චාරිකා සඳහා පමණි)',
+      'දින කීපයක ගමන් වාරයක් නම් මිලෙහි සුළු වෙනස් වීමක් සිදු වේ. (ඔබේ ගමන සඳහා දින කිහිපයක් ගතවන්නේ නම්, අදාළ ගාස්තුවේ සුළු වෙනසක් සිදුවිය හැක).',
+      'Start වීම western (මෙම ගමන් වාර ආරම්භ වන්නේ බස්නාහිර පළාතෙනි).'
     ],
     specs: [
       { label: 'Transmission', value: 'Manual' },

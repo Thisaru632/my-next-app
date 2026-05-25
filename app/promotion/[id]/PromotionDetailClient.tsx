@@ -14,6 +14,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { Snackbar, Alert, Dialog, DialogContent, TextField, Button, Box, Typography, IconButton } from '@mui/material';
+import { PolicyDialog } from '@/components/PolicyDialog';
 
 interface PromotionDetail {
   id: string;
@@ -45,6 +46,7 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
   const [nameError, setNameError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [policyOpen, setPolicyOpen] = useState(false);
 
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,33 +129,32 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
 
             {/* Right Column: Title, Description, Conditions, CTA */}
             <div className="content-column">
-              <div className="category-tag">Exclusive Deal</div>
-              
-              <h1 className="vehicle-title">{promo.name} Promotion</h1>
-              <h2 className="promotion-subtitle">{promo.title}</h2>
-              
-              <p className="promotion-desc">{promo.description}</p>
 
-              {/* Technical Specifications */}
+              {/* Facilities Section */}
               <div className="section-block">
-                <h3 className="section-title">Vehicle Specifications</h3>
-                <div className="specs-table">
-                  {promo.specs.map((spec, i) => (
-                    <div key={i} className="table-row">
-                      <span className="table-label">{spec.label}</span>
-                      <span className="table-value">{spec.value}</span>
-                    </div>
+                <h3 className="section-title">පහසුකම්</h3>
+                <ul className="conditions-list">
+                  {[
+                    '"Advance payment අවශ්ය නැත." (ගමනට පෙර අත්තිකාරම් මුදලක් හෝ කලින් මුදල් ගෙවීමක් අවශ්ය නොවේ).',
+                    '"Free Cancellation." (කිසිදු අමතර ගාස්තුවකින් තොරව වෙන්කරගත් ගමන් වාරය අවලංගු කිරීමේ හැකියාව ඇත).',
+                    '"ඉක්මන් Booking Support" (ඔබේ ගමන් වාර වෙන්කරවා ගැනීමේදී කිසිදු ප්රමාදයකින් තොරව, ඉතා ඉක්මනින් සහ කාර්යක්ෂමව ඔබට සහාය ලබා දෙනු ඇත).',
+                    '"Driver details කලින් ලබා දීම." (ගමන ආරම්භ කිරීමට පෙර ඔබට අදාළ රියදුරා පිළිබඳ තොරතුරු ලබා දෙනු ඇත).'
+                  ].map((facility, i) => (
+                    <li key={i} className="condition-item">
+                      <ShieldCheck style={{ width: '16px', height: '16px', minWidth: '16px', minHeight: '16px', flexShrink: 0, color: '#0d9488' }} className="condition-icon" />
+                      <span className="condition-text">{facility}</span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
 
               {/* Conditions Checklist */}
               <div className="section-block">
-                <h3 className="section-title">Promotion Conditions</h3>
+                <h3 className="section-title">අදාළ කොන්දේසි</h3>
                 <ul className="conditions-list">
                   {promo.conditions.map((condition, i) => (
                     <li key={i} className="condition-item">
-                      <ShieldCheck size={16} className="condition-icon" />
+                      <ShieldCheck style={{ width: '16px', height: '16px', minWidth: '16px', minHeight: '16px', flexShrink: 0, color: '#0d9488' }} className="condition-icon" />
                       <span className="condition-text">{condition}</span>
                     </li>
                   ))}
@@ -162,6 +163,24 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
 
               {/* CTA Booking Button */}
               <div className="booking-action-wrapper">
+                <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                  <a 
+                    onClick={() => setPolicyOpen(true)} 
+                    style={{ 
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontSize: '13px', 
+                      color: '#64748b', 
+                      textDecoration: 'underline', 
+                      cursor: 'pointer',
+                      fontWeight: 500,
+                      transition: 'color 0.2s'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#0d9488')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
+                  >
+                    Privacy Policies & Terms and Conditions
+                  </a>
+                </div>
                 <button 
                   onClick={() => {
                     setBookingName('');
@@ -404,6 +423,9 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
           {toastMessage}
         </Alert>
       </Snackbar>
+
+      {/* Policy Dialog */}
+      <PolicyDialog open={policyOpen} onClose={() => setPolicyOpen(false)} />
 
       {/* Styles */}
       <style jsx>{`
@@ -650,10 +672,14 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
           gap: 10px;
         }
 
-        .condition-icon {
-          color: #0d9488;
-          flex-shrink: 0;
-          margin-top: 1px;
+        :global(.condition-icon) {
+          color: #0d9488 !important;
+          width: 16px !important;
+          height: 16px !important;
+          min-width: 16px !important;
+          min-height: 16px !important;
+          flex-shrink: 0 !important;
+          margin-top: 1px !important;
         }
 
         .condition-text {

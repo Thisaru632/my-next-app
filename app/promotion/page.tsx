@@ -33,7 +33,7 @@ const PROMOTIONS: PromoCardProps[] = [
     description: 'Enjoy 15% off on our most popular budget hatchback. Perfect for quick city trips and couples.',
     promoCode: 'SENUWAGON',
     features: {
-      passengers: 4,
+      passengers: 3,
       bags: 2,
       ac: true
     },
@@ -246,8 +246,6 @@ export default function PromotionPage() {
                       <span className="spec-value">{promo.features.ac ? 'Air Con' : 'No AC'}</span>
                     </div>
                   </div>
-
-
 
                   {/* Action Footer */}
                   <div className="card-action-footer">
