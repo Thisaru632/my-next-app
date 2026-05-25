@@ -10,7 +10,7 @@ import { AccountCircle, Logout, Call } from "@mui/icons-material";
 
 const navLinks = [
   { label: "Home", href: "/" },
-  { label: "Promotion", href: "/promotion" },
+  // { label: "Promotion", href: "/promotion" },
   { label: "About Us", href: "/about_us" },
   { label: "Contact Us", href: "/contact" },
 ];
