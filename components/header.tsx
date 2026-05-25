@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
 import AuthModal from "./AuthModal";
 import ProfileModal from "./ProfileModal";
@@ -10,6 +10,7 @@ import { AccountCircle, Logout, Call } from "@mui/icons-material";
 
 const navLinks = [
   { label: "Home", href: "/" },
+  { label: "Promotion", href: "/promotion" },
   { label: "About Us", href: "/about_us" },
   { label: "Contact Us", href: "/contact" },
 ];
@@ -21,6 +22,7 @@ interface NavbarProps {
 
 export default function Navbar({ isHeroPage = true }: NavbarProps) {
   const { user, logout } = useUser();
+  const router = useRouter();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const pathname = usePathname();
@@ -72,28 +74,32 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
                 width={180}
                 height={70}
                 priority
-                className={`object-contain transition-all duration-300 w-full h-auto ${
-                  !isLightHeader ? "filter drop-shadow-[0_0_1px_rgba(0,0,0,0.8)]" : ""
-                }`}
+                className={`object-contain transition-all duration-300 w-full h-auto ${!isLightHeader ? "filter drop-shadow-[0_0_1px_rgba(0,0,0,0.8)]" : ""
+                  }`}
               />
             </div>
           </Link>
 
           {/* Desktop Links */}
           <ul className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <li key={link.label}>
-                <Link
-                  href={link.href}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${pathname === link.href
-                    ? `${activeBg} ${activeText}`
-                    : `${textColor} ${hoverBg} ${hoverText}`
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+
+              return (
+                <li key={link.label}>
+                  <Link
+                    href={link.href}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? `${activeBg} ${activeText}`
+                        : `${textColor} ${hoverBg} ${hoverText}`
                     }`}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              );
+            })}
 
             {/* Auth Button */}
             <li className="ml-2">
@@ -129,17 +135,16 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
 
             {/* Hotline Highlight Button */}
             <li className="ml-4 -mr-4">
-               <a 
-                href={`tel:0702787787`} 
-                className={`group flex items-center gap-2.5 px-4 py-2 rounded-full font-bold transition-all duration-300 shadow-md transform hover:scale-105 active:scale-95 ${
-                  isLightHeader 
-                    ? "bg-green-600 text-white hover:bg-green-700 shadow-green-200" 
-                    : "bg-white/20 text-white backdrop-blur-md border border-white/20 hover:bg-white/30"
-                }`}
+              <a
+                href={`tel:0702787787`}
+                className={`group flex items-center gap-2.5 px-4 py-2 rounded-full font-bold transition-all duration-300 shadow-md transform hover:scale-105 active:scale-95 ${isLightHeader
+                  ? "bg-green-600 text-white hover:bg-green-700 shadow-green-200"
+                  : "bg-white/20 text-white backdrop-blur-md border border-white/20 hover:bg-white/30"
+                  }`}
               >
                 <div className="relative flex items-center justify-center">
-                   <div className="absolute w-2 h-2 bg-green-400 rounded-full animate-ping opacity-75"></div>
-                   <div className="relative w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="absolute w-2 h-2 bg-green-400 rounded-full animate-ping opacity-75"></div>
+                  <div className="relative w-2 h-2 bg-green-500 rounded-full"></div>
                 </div>
                 <Call style={{ fontSize: '18px' }} />
                 <span className="text-sm font-black tracking-tight">0702787787</span>
@@ -149,15 +154,14 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
 
           {/* Mobile Auth & Hotline & Hamburger */}
           <div className="flex items-center gap-1.5 md:hidden">
-            <a 
-              href={`tel:0702787787`} 
-              className={`flex items-center justify-center w-9 h-9 rounded-full shadow-md transition-all active:scale-90 ${
-                isLightHeader ? "bg-green-600 text-white" : "bg-green-600 text-white"
-              }`}
+            <a
+              href={`tel:0702787787`}
+              className={`flex items-center justify-center w-9 h-9 rounded-full shadow-md transition-all active:scale-90 ${isLightHeader ? "bg-green-600 text-white" : "bg-green-600 text-white"
+                }`}
             >
               <Call style={{ fontSize: '18px' }} />
             </a>
-            
+
             {user ? (
               <div
                 className={`flex items-center justify-center w-9 h-9 rounded-full cursor-pointer ${isLightHeader ? "bg-green-50" : "bg-white/20 shadow-md"}`}
@@ -168,11 +172,10 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
             ) : (
               <button
                 onClick={() => setAuthModalOpen(true)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md transition-all active:scale-95 ${
-                  isLightHeader 
-                    ? "bg-green-600 text-white" 
-                    : "bg-green-600 text-white" /* Force green on mobile for better visibility */
-                }`}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md transition-all active:scale-95 ${isLightHeader
+                  ? "bg-green-600 text-white"
+                  : "bg-green-600 text-white" /* Force green on mobile for better visibility */
+                  }`}
               >
                 Login
               </button>
@@ -198,21 +201,26 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
       {/* Mobile Menu */}
       {isOpen && (
         <div className={`md:hidden ${isLightHeader ? "bg-white border-t border-gray-100" : "bg-black/80 backdrop-blur-md border-t border-white/10"} px-4 py-2`}>
-          {navLinks.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              onClick={() => {
-                setIsOpen(false);
-              }}
-              className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${pathname === link.href
-                ? `${activeBg} ${activeText}`
-                : `${isLightHeader ? "text-gray-700 hover:text-green-600 hover:bg-green-50" : "text-white/80 hover:text-green-400 hover:bg-green-500/10"}`
+          {navLinks.map((link) => {
+            const isActive = pathname === link.href;
+
+            return (
+              <Link
+                key={link.label}
+                href={link.href}
+                onClick={() => {
+                  setIsOpen(false);
+                }}
+                className={`block px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                  isActive
+                    ? `${activeBg} ${activeText}`
+                    : `${isLightHeader ? "text-gray-700 hover:text-green-600 hover:bg-green-50" : "text-white/80 hover:text-green-400 hover:bg-green-500/10"}`
                 }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
 
           {/* Mobile Auth Button */}
           <div className={`mt-4 pt-4 border-t ${isLightHeader ? "border-gray-100" : "border-white/10"}`}>

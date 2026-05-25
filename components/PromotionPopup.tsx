@@ -8,12 +8,38 @@ export default function PromotionPopup() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    // Small delay before showing the popup for better UX
-    const timer = setTimeout(() => {
+    // Listen for custom event to open the promotion popup
+    const handleOpenPromo = () => {
       setIsOpen(true);
-    }, 2000);
+    };
+    window.addEventListener('open-promo-popup', handleOpenPromo);
 
-    return () => clearTimeout(timer);
+    // Check if query parameter ?promo=true exists to open immediately
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasPromoParam = urlParams.get('promo') === 'true';
+    if (hasPromoParam) {
+      setIsOpen(true);
+      // Clean up the URL parameter without refreshing the page
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+
+    // Default auto-open behavior with a 2-second delay
+    // We only auto-open if the promo hasn't been claimed in the current session
+    // AND if we didn't just force open it via query param
+    const isClaimed = sessionStorage.getItem('promo_claimed') === 'true';
+    let timer: any = null;
+    
+    if (!isClaimed && !hasPromoParam) {
+      timer = setTimeout(() => {
+        setIsOpen(true);
+      }, 2000);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('open-promo-popup', handleOpenPromo);
+    };
   }, []);
 
   const handleClose = () => {
