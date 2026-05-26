@@ -82,6 +82,21 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
     }
   };
 
+  const handleOpenBookingDialog = () => {
+    setBookingName('');
+    setBookingPhone('');
+    setBookingSubmitted(false);
+    setNameError(null);
+    setPhoneError(null);
+    setBookingDialogOpen(true);
+  };
+
+  const handleImageClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth <= 1024) {
+      handleOpenBookingDialog();
+    }
+  };
+
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -188,7 +203,10 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
             
             {/* Left Column: Image & Badges */}
             <div className="image-column">
-              <div className={`image-wrapper ${promo.id === 'wagonr' ? 'is-banner-wrapper' : ''}`}>
+              <div 
+                onClick={handleImageClick}
+                className={`image-wrapper clickable-on-mobile ${promo.id === 'wagonr' ? 'is-banner-wrapper' : ''}`}
+              >
                 <Image
                   src={promo.image}
                   alt={promo.title}
@@ -282,14 +300,7 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
                   </a>
                 </div>
                 <button 
-                  onClick={() => {
-                    setBookingName('');
-                    setBookingPhone('');
-                    setBookingSubmitted(false);
-                    setNameError(null);
-                    setPhoneError(null);
-                    setBookingDialogOpen(true);
-                  }}
+                  onClick={handleOpenBookingDialog}
                   className="book-now-btn"
                 >
                   <TrendingUp size={16} />
@@ -610,6 +621,10 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
           transition: all 0.3s ease;
         }
 
+        .clickable-on-mobile {
+          cursor: default;
+        }
+
         .image-wrapper.is-banner-wrapper {
           flex-grow: 1;
           aspect-ratio: auto;
@@ -845,6 +860,10 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
 
           .vehicle-title {
             font-size: 32px;
+          }
+
+          .clickable-on-mobile {
+            cursor: pointer;
           }
         }
 
