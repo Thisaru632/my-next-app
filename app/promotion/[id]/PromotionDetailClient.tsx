@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Snackbar, Alert, Dialog, DialogContent, TextField, Button, Box, Typography, IconButton } from '@mui/material';
 import { PolicyDialog } from '@/components/PolicyDialog';
+import { API_ENDPOINTS } from '@/config/api';
 
 interface PromotionDetail {
   id: string;
@@ -48,7 +49,7 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [policyOpen, setPolicyOpen] = useState(false);
 
-  const handleBookingSubmit = (e: React.FormEvent) => {
+  const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     let hasError = false;
@@ -59,22 +60,85 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
     }
     
     const phoneTrimmed = bookingPhone.trim();
+    const cleanPhone = phoneTrimmed.replace(/[\s\-()]/g, '');
     if (!phoneTrimmed) {
       setPhoneError('Phone number is required');
       hasError = true;
-    } else if (!/^\+?[\d\s-]{9,15}$/.test(phoneTrimmed)) {
-      setPhoneError('Please enter a valid phone number');
+    } else if (!/^(?:\+94|0)?[0-9]{9,10}$/.test(cleanPhone)) {
+      setPhoneError('Please enter a valid Sri Lankan phone number (e.g. 07XXXXXXXX)');
       hasError = true;
     }
     
     if (hasError) return;
     
     setIsSubmitting(true);
-    // Simulate submission delay for premium feel
-    setTimeout(() => {
+    
+    // Construct booking request payload
+    let customerEmail = 'promotion@senutours.lk';
+    if (typeof window !== 'undefined') {
+      const customerStr = localStorage.getItem('customerUser');
+      if (customerStr) {
+        try {
+          const customer = JSON.parse(customerStr);
+          if (customer && customer.email) {
+            customerEmail = customer.email;
+          }
+        } catch (e) {
+          console.error('Error parsing customer user:', e);
+        }
+      }
+    }
+
+    const vehicleTypeMap: Record<string, string> = {
+      wagonr: 'Car',
+      alto: 'Car',
+      kdh: 'Van',
+      bus: 'Bus'
+    };
+
+    const payload = {
+      vehicleType: vehicleTypeMap[promo.id] || 'Car',
+      vehicleName: promo.name,
+      tripType: 'Return',
+      pickupLocation: 'Western Province',
+      dropoffLocation: 'Colombo',
+      destinations: [],
+      dateTime: new Date().toISOString(),
+      numberOfDays: 1,
+      maxPersons: promo.passengers || 3,
+      maxBags: promo.bags || 2,
+      name: bookingName.trim(),
+      telephone: cleanPhone,
+      additionalPhones: [],
+      email: customerEmail,
+      remark: 'Promotion Booking Request',
+      promoCode: promo.promoCode,
+      discount: 0,
+      totalPrice: 0,
+      discountPercentage: parseInt(promo.discount) || 15
+    };
+
+    try {
+      const response = await fetch(API_ENDPOINTS.BOOKINGS, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        setBookingSubmitted(true);
+      } else {
+        const errData = await response.json();
+        setPhoneError(errData.message || 'Failed to submit booking request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error submitting booking request:', error);
+      setPhoneError('Connection error. Please check your network.');
+    } finally {
       setIsSubmitting(false);
-      setBookingSubmitted(true);
-    }, 1000);
+    }
   };
 
   return (
@@ -129,16 +193,19 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
 
             {/* Right Column: Title, Description, Conditions, CTA */}
             <div className="content-column">
+              <span className="category-tag">{promo.name} Promotion</span>
+              <h1 className="vehicle-title">{promo.title}</h1>
+              {promo.description && <p className="promotion-desc">{promo.description}</p>}
 
               {/* Facilities Section */}
               <div className="section-block">
                 <h3 className="section-title">පහසුකම්</h3>
                 <ul className="conditions-list">
                   {[
-                    '"Advance payment අවශ්ය නැත." (ගමනට පෙර අත්තිකාරම් මුදලක් හෝ කලින් මුදල් ගෙවීමක් අවශ්ය නොවේ).',
-                    '"Free Cancellation." (කිසිදු අමතර ගාස්තුවකින් තොරව වෙන්කරගත් ගමන් වාරය අවලංගු කිරීමේ හැකියාව ඇත).',
-                    '"ඉක්මන් Booking Support" (ඔබේ ගමන් වාර වෙන්කරවා ගැනීමේදී කිසිදු ප්රමාදයකින් තොරව, ඉතා ඉක්මනින් සහ කාර්යක්ෂමව ඔබට සහාය ලබා දෙනු ඇත).',
-                    '"Driver details කලින් ලබා දීම." (ගමන ආරම්භ කිරීමට පෙර ඔබට අදාළ රියදුරා පිළිබඳ තොරතුරු ලබා දෙනු ඇත).'
+                    'ගමනට පෙර අත්තිකාරම් ගෙවීමක් අවශ්ය නැත.',
+                    'වෙන්කිරීම අවලංගු කළ හැක - අමතර ගාස්තුවක් නැත.',
+                    'ඉක්මන් වෙන්කිරීමේ සහාය - ගමනට අවශ්ය උපදෙස් ඉක්මනින්.',
+                    'ගමනට පෙර රියදුරු හා වාහන තොරතුරු ලබා දේ'
                   ].map((facility, i) => (
                     <li key={i} className="condition-item">
                       <ShieldCheck style={{ width: '16px', height: '16px', minWidth: '16px', minHeight: '16px', flexShrink: 0, color: '#0d9488' }} className="condition-icon" />
@@ -765,23 +832,26 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
           }
 
           .specs-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 8px;
           }
 
           .spec-tile {
-            flex-direction: row;
-            justify-content: space-between;
+            display: flex;
+            flex-direction: column;
             align-items: center;
-            padding: 12px 16px;
+            padding: 12px 6px;
+            text-align: center;
           }
 
           .spec-label {
-            margin-top: 0;
+            margin-top: 4px;
+            font-size: 8px;
           }
 
           .spec-val {
-            margin-top: 0;
+            margin-top: 2px;
+            font-size: 11px;
           }
 
           .specs-table {

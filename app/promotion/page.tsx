@@ -27,10 +27,10 @@ const PROMOTIONS: PromoCardProps[] = [
     id: 'wagonr',
     name: 'Wagon R',
     category: 'car',
-    title: 'Wagon R Urban Special',
+    title: 'දිගු ගමන් සඳහා විශ්වාසවන්ත සේවාව',
     image: '/wagonr-promo.jpg',
     discount: '15% OFF',
-    description: 'Enjoy 15% off on our most popular budget hatchback. Perfect for quick city trips and couples.',
+    description: '',
     promoCode: 'SENUWAGON',
     features: {
       passengers: 3,
@@ -226,7 +226,7 @@ export default function PromotionPage() {
                     <h3 className="card-title">{promo.title}</h3>
                   </div>
 
-                  <p className="card-description">{promo.description}</p>
+                  {promo.description && <p className="card-description">{promo.description}</p>}
 
                   {/* Specs Row */}
                   <div className="specs-row">

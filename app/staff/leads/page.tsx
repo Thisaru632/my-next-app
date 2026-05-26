@@ -58,6 +58,7 @@ import {
   TableChart as TableChartIcon,
   Map as MapIcon,
   Delete as DeleteIcon,
+  LocalOffer as LocalOfferIcon,
 } from '@mui/icons-material';
 
 // Types
@@ -248,14 +249,24 @@ const LeadInfoPage: React.FC = () => {
     }
 
     // Tab filter
+    const promoPageCodes = ['SENUWAGON', 'SENUALTO', 'SENUKDH', 'SENUBUS'];
     if (activeTab === 0) {
-      filtered = filtered.filter(lead => lead.source === 'Online Booking');
+      filtered = filtered.filter(lead => 
+        lead.source === 'Online Booking' && 
+        (!lead.promoCode || !promoPageCodes.includes(lead.promoCode.toUpperCase()))
+      );
     } else if (activeTab === 1) {
       filtered = filtered.filter(lead => lead.formType === 'Complaint');
     } else if (activeTab === 2) {
       filtered = filtered.filter(lead => lead.formType === 'General Inquiry' || lead.formType === 'General Enquiry');
     } else if (activeTab === 3) {
       filtered = filtered.filter(lead => lead.formType === 'Feedback');
+    } else if (activeTab === 4) {
+      filtered = filtered.filter(lead => 
+        lead.source === 'Online Booking' && 
+        lead.promoCode && 
+        promoPageCodes.includes(lead.promoCode.toUpperCase())
+      );
     }
 
     return filtered;
@@ -731,7 +742,7 @@ const LeadInfoPage: React.FC = () => {
                   },
                 }}
               >
-                {(activeTab === 0
+                {(activeTab === 0 || activeTab === 4
                   ? ['All', 'Confirmed', 'Pending', 'Sent Inquiry', 'Rejected', 'Cancelled']
                   : ['All', 'new', 'read', 'responded', 'archived']
                 ).map(
@@ -959,6 +970,7 @@ const LeadInfoPage: React.FC = () => {
           <Tab icon={<CancelIcon sx={{ color: activeTab === 1 ? '#ef4444' : 'inherit' }} />} label="Complaints" />
           <Tab icon={<MessageIcon sx={{ color: activeTab === 2 ? '#8b5cf6' : 'inherit' }} />} label="General Inquiries" />
           <Tab icon={<CheckCircleIcon sx={{ color: activeTab === 3 ? '#10b981' : 'inherit' }} />} label="Feedback" />
+          <Tab icon={<LocalOfferIcon sx={{ color: activeTab === 4 ? '#f59e0b' : 'inherit' }} />} label="Promotions" />
         </Tabs>
       </Box>
 
@@ -1010,16 +1022,19 @@ const LeadInfoPage: React.FC = () => {
                 <TableHead>
                   <TableRow>
                     {/* Shared header cell sx */}
-                    {[
-                      'Lead ID',
-                      'Lead Date & Time',
-                      ...(activeTab === 0 ? ['From → To'] : []),
-                      'Status',
-                      'Employee',
-                      'Type',
-                      'Form Type',
-                      'Action',
-                    ].map((header, idx) => (
+                    {(activeTab === 4
+                      ? ['Lead No', 'Promotion Type', 'Name', 'Phone Number', 'Status', 'Action']
+                      : [
+                          'Lead ID',
+                          'Lead Date & Time',
+                          ...(activeTab === 0 ? ['From → To'] : []),
+                          'Status',
+                          'Employee',
+                          'Type',
+                          'Form Type',
+                          'Action',
+                        ]
+                    ).map((header, idx) => (
                       <TableCell
                         key={header}
                         align={header === 'Action' ? 'center' : 'left'}
@@ -1046,6 +1061,200 @@ const LeadInfoPage: React.FC = () => {
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                     .map((lead, index) => {
                       const statusStyle = getStatusColor(lead.status);
+                      if (activeTab === 4) {
+                        return (
+                          <TableRow
+                            key={lead.id}
+                            sx={{
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: mode === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.02)',
+                                transform: 'scale(1.001)',
+                              },
+                              '&:not(:last-child)': {
+                                borderBottom: '1px solid',
+                                borderColor: 'divider',
+                              },
+                            }}
+                          >
+                            {/* Lead ID */}
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {!lead.isViewed && (
+                                  <Tooltip title="New Lead">
+                                    <Box
+                                      sx={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: '#ef4444',
+                                        boxShadow: '0 0 8px #ef4444',
+                                        flexShrink: 0
+                                      }}
+                                    />
+                                  </Tooltip>
+                                )}
+                                {duplicateLeadsIds.has(lead.id) && (
+                                  <Tooltip title="Potential Duplicate Lead">
+                                    <Box
+                                      sx={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: '#f59e0b',
+                                        boxShadow: '0 0 8px #f59e0b',
+                                        flexShrink: 0
+                                      }}
+                                    />
+                                  </Tooltip>
+                                )}
+                                <Typography
+                                  sx={{
+                                    fontWeight: 700,
+                                    color: '#3b82f6',
+                                    fontSize: '0.9375rem',
+                                  }}
+                                >
+                                  {lead.customId || lead.id}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+
+                            {/* Promotion Type */}
+                            <TableCell>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                <Typography sx={{ fontSize: '0.9375rem', color: 'text.primary', fontWeight: 600 }}>
+                                  {lead.vehicleName || 'N/A'}
+                                </Typography>
+                                {lead.promoCode && (
+                                  <Chip
+                                    label={lead.promoCode}
+                                    size="small"
+                                    sx={{
+                                      alignSelf: 'flex-start',
+                                      height: '18px',
+                                      fontSize: '0.65rem',
+                                      fontWeight: 800,
+                                      background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                                      color: '#92400e',
+                                      border: '1px solid #f59e0b',
+                                      '& .MuiChip-label': { px: 1 }
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                            </TableCell>
+
+                            {/* Name */}
+                            <TableCell>
+                              <Typography sx={{ fontSize: '0.9375rem', color: 'text.primary', fontWeight: 600 }}>
+                                {lead.customerName || 'N/A'}
+                              </Typography>
+                            </TableCell>
+
+                            {/* Phone Number */}
+                            <TableCell>
+                              <Typography sx={{ fontSize: '0.9375rem', color: 'text.primary', fontWeight: 600 }}>
+                                {lead.customerPhone || 'N/A'}
+                              </Typography>
+                            </TableCell>
+
+                            {/* Status */}
+                            <TableCell>
+                              <Chip
+                                icon={<statusStyle.IconComponent sx={{ fontSize: 16 }} />}
+                                label={statusStyle.label || lead.status}
+                                sx={{
+                                  background: `linear-gradient(135deg, ${statusStyle.bgColor} 0%, ${statusStyle.bgColor}cc 100%)`,
+                                  color: statusStyle.color,
+                                  fontWeight: 600,
+                                  fontSize: '0.8125rem',
+                                  borderRadius: '8px',
+                                  height: '28px',
+                                  '& .MuiChip-icon': {
+                                    color: statusStyle.color,
+                                  },
+                                }}
+                              />
+                            </TableCell>
+
+                            {/* Action */}
+                            <TableCell align="center">
+                              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                                <IconButton
+                                  onClick={() => handleViewClick(lead)}
+                                  title="View Details"
+                                  sx={{
+                                    background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                                    color: '#ffffff',
+                                    borderRadius: '10px',
+                                    padding: '8px',
+                                    transition: 'all 0.3s ease',
+                                    '&:hover': {
+                                      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                      transform: 'translateY(-2px)',
+                                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)',
+                                    },
+                                  }}
+                                >
+                                  <VisibilityIcon sx={{ fontSize: 20 }} />
+                                </IconButton>
+
+                                <IconButton
+                                  onClick={() => handlePickLead(lead)}
+                                  title={lead.employeeName ? `Already assigned to ${lead.employeeName}` : 'Pick Lead'}
+                                  disabled={!!lead.employeeName}
+                                  sx={{
+                                    background: lead.employeeName
+                                      ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
+                                      : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                    color: lead.employeeName ? 'text.disabled' : '#ffffff',
+                                    borderRadius: '10px',
+                                    padding: '8px',
+                                    transition: 'all 0.3s ease',
+                                    cursor: lead.employeeName ? 'not-allowed' : 'pointer',
+                                    '&:hover': {
+                                      background: lead.employeeName
+                                        ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
+                                        : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                                      transform: lead.employeeName ? 'none' : 'translateY(-2px)',
+                                      boxShadow: lead.employeeName ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.4)',
+                                    },
+                                    '&.Mui-disabled': {
+                                      background: mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)',
+                                      color: 'text.disabled',
+                                    },
+                                  }}
+                                >
+                                  <AssignmentIcon sx={{ fontSize: 20 }} />
+                                </IconButton>
+
+                                {isSuperAdmin && (
+                                  <IconButton
+                                    onClick={() => handleDeleteLead(lead)}
+                                    title="Delete Lead"
+                                    sx={{
+                                      background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                                      color: '#ffffff',
+                                      borderRadius: '10px',
+                                      padding: '8px',
+                                      transition: 'all 0.3s ease',
+                                      '&:hover': {
+                                        background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                                        transform: 'translateY(-2px)',
+                                        boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)',
+                                      },
+                                    }}
+                                  >
+                                    <DeleteIcon sx={{ fontSize: 20 }} />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
                       return (
                         <TableRow
                           key={lead.id}
@@ -1112,7 +1321,7 @@ const LeadInfoPage: React.FC = () => {
                           </TableCell>
 
                           {/* From → To */}
-                          {activeTab === 0 && (
+                          {(activeTab === 0 || activeTab === 4) && (
                             <TableCell>
                               {lead.source !== 'Contact Us' && (
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
