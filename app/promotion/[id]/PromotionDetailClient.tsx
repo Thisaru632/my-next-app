@@ -49,6 +49,39 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [policyOpen, setPolicyOpen] = useState(false);
 
+  const formatPhoneNumber = (value: string) => {
+    const clean = value.replace(/\D/g, '');
+    const limited = clean.slice(0, 10);
+    if (limited.length <= 3) {
+      return limited;
+    } else if (limited.length <= 6) {
+      return `${limited.slice(0, 3)} ${limited.slice(3)}`;
+    } else {
+      return `${limited.slice(0, 3)} ${limited.slice(3, 6)} ${limited.slice(6)}`;
+    }
+  };
+
+  const handlePhoneChange = (val: string) => {
+    const formatted = formatPhoneNumber(val);
+    setBookingPhone(formatted);
+    
+    const clean = formatted.replace(/\D/g, '');
+    if (clean === '') {
+      setPhoneError(null);
+    } else if (clean.length === 10) {
+      setPhoneError(null);
+    }
+  };
+
+  const handlePhoneBlur = () => {
+    const clean = bookingPhone.replace(/\D/g, '');
+    if (!bookingPhone.trim()) {
+      setPhoneError('Phone number is required');
+    } else if (clean.length !== 10) {
+      setPhoneError('Phone number must be exactly 10 digits (e.g. 077 192 0470)');
+    }
+  };
+
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -60,12 +93,12 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
     }
     
     const phoneTrimmed = bookingPhone.trim();
-    const cleanPhone = phoneTrimmed.replace(/[\s\-()]/g, '');
+    const cleanPhone = phoneTrimmed.replace(/\D/g, '');
     if (!phoneTrimmed) {
       setPhoneError('Phone number is required');
       hasError = true;
-    } else if (!/^(?:\+94|0)?[0-9]{9,10}$/.test(cleanPhone)) {
-      setPhoneError('Please enter a valid Sri Lankan phone number (e.g. 07XXXXXXXX)');
+    } else if (cleanPhone.length !== 10) {
+      setPhoneError('Phone number must be exactly 10 digits (e.g. 077 192 0470)');
       hasError = true;
     }
     
@@ -202,9 +235,9 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
                 <h3 className="section-title">පහසුකම්</h3>
                 <ul className="conditions-list">
                   {[
-                    'ගමනට පෙර අත්තිකාරම් ගෙවීමක් අවශ්ය නැත.',
+                    'ගමනට පෙර අත්තිකාරම් ගෙවීමක් අවශ්‍ය නැත.',
                     'වෙන්කිරීම අවලංගු කළ හැක - අමතර ගාස්තුවක් නැත.',
-                    'ඉක්මන් වෙන්කිරීමේ සහාය - ගමනට අවශ්ය උපදෙස් ඉක්මනින්.',
+                    'ඉක්මන් වෙන්කිරීමේ සහාය - ගමනට අවශ්‍ය උපදෙස් ඉක්මනින්.',
                     'ගමනට පෙර රියදුරු හා වාහන තොරතුරු ලබා දේ'
                   ].map((facility, i) => (
                     <li key={i} className="condition-item">
@@ -363,13 +396,11 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
                 label="Phone Number"
                 variant="outlined"
                 value={bookingPhone}
-                onChange={(e) => {
-                  setBookingPhone(e.target.value);
-                  if (phoneError) setPhoneError(null);
-                }}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                onBlur={handlePhoneBlur}
                 error={!!phoneError}
                 helperText={phoneError}
-                placeholder="Enter your phone number"
+                placeholder="e.g. 077 192 0470"
                 InputLabelProps={{ shrink: true }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
