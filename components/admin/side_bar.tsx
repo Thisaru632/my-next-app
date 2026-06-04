@@ -70,7 +70,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Manage Guides', icon: <FileUploadIcon />, path: '/staff/staff-guide/manage', key: 'staffGuideManage' },
         { text: 'Vehicle Registrations', icon: <DirectionsBusIcon />, path: '/staff/vehicle-registrations', key: 'vehicleRegistration' },
         { text: 'Cab Service', icon: <LocalTaxiIcon />, path: '/staff/cab-service', key: 'cabService' },
-        { text: 'Necessary Links', icon: <LinkIcon />, path: '/staff/links', key: 'dashboard' },
+        { text: 'Links', icon: <LinkIcon />, path: '/staff/links', key: 'dashboard' },
     ];
 
 
