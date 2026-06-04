@@ -30,7 +30,6 @@ import {
     Delete as DeleteIcon,
     Link as LinkIcon,
     OpenInNew as OpenInNewIcon,
-    Edit as EditIcon,
 } from '@mui/icons-material';
 import { API_ENDPOINTS } from '@/config/api';
 
@@ -88,16 +87,6 @@ const LinksManagePage = () => {
         setOpenDialog(true);
     };
 
-    const handleOpenEdit = (link: SavedLink) => {
-        setSelectedLink(link);
-        setFormData({
-            title: link.title,
-            url: link.url,
-            description: link.description || '',
-        });
-        setOpenDialog(true);
-    };
-
 
     const handleOpenDelete = (link: SavedLink) => {
         setSelectedLink(link);
@@ -116,10 +105,8 @@ const LinksManagePage = () => {
                 formattedUrl = 'https://' + formattedUrl;
             }
 
-            const url = selectedLink 
-                ? `${API_ENDPOINTS.LINKS}/${selectedLink._id}` 
-                : API_ENDPOINTS.LINKS;
-            const method = selectedLink ? 'PUT' : 'POST';
+            const url = API_ENDPOINTS.LINKS;
+            const method = 'POST';
 
             const res = await fetch(url, {
                 method,
@@ -132,10 +119,10 @@ const LinksManagePage = () => {
 
             if (!res.ok) {
                 const data = await res.json();
-                throw new Error(data.message || `Failed to ${selectedLink ? 'update' : 'save'} link`);
+                throw new Error(data.message || 'Failed to save link');
             }
 
-            setSuccess(`Link ${selectedLink ? 'updated' : 'added'} successfully!`);
+            setSuccess('Link added successfully!');
             setOpenDialog(false);
             fetchLinks();
             setTimeout(() => setSuccess(null), 3000);
@@ -307,11 +294,7 @@ const LinksManagePage = () => {
                                     </TableCell>
                                     <TableCell align="right">
                                         <Stack direction="row" spacing={1} justifyContent="flex-end">
-                                            <Tooltip title="Edit">
-                                                <IconButton size="small" onClick={() => handleOpenEdit(link)} sx={{ color: 'primary.main', bgcolor: 'rgba(59, 130, 246, 0.1)' }}>
-                                                    <EditIcon fontSize="small" />
-                                                </IconButton>
-                                            </Tooltip>
+
                                             <Tooltip title="Delete">
                                                 <IconButton size="small" onClick={() => handleOpenDelete(link)} sx={{ color: 'error.main', bgcolor: 'rgba(239, 68, 68, 0.1)' }}>
                                                     <DeleteIcon fontSize="small" />
@@ -333,7 +316,7 @@ const LinksManagePage = () => {
                 PaperProps={{ sx: { borderRadius: '24px', p: 1, minWidth: '450px' } }}
             >
                 <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>
-                    {selectedLink ? 'Edit Link' : 'Add New Link'}
+                    Add New Link
                 </DialogTitle>
                 <Divider sx={{ mx: 3 }} />
                 <DialogContent>
@@ -372,7 +355,7 @@ const LinksManagePage = () => {
                         disabled={!formData.title.trim() || !formData.url.trim()}
                         sx={{ borderRadius: '10px', textTransform: 'none', px: 4, fontWeight: 700 }}
                     >
-                        {selectedLink ? 'Update Link' : 'Add Link'}
+                        Add Link
                     </Button>
                 </DialogActions>
             </Dialog>
