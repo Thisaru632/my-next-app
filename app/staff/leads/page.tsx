@@ -36,6 +36,7 @@ import {
   Tab,
   Tooltip,
   Snackbar,
+  Popover,
 } from '@mui/material';
 import { API_ENDPOINTS } from '@/config/api';
 import {
@@ -76,6 +77,7 @@ interface Lead {
   customerName: string;
   tourDate: string;
   numberOfPassengers: number;
+  numberOfDays?: number;
   vehicleName: string;
   message?: string;
   customerPhone?: string;
@@ -102,16 +104,21 @@ interface Lead {
 // Mock data removed in favor of API fetching
 
 // Helper function to format date
-const formatDate = (dateString: string, includeTime = false): string => {
+const formatDate = (dateString: string, includeTime = false, isUtc = false): string => {
   if (!dateString) return 'N/A';
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return 'N/A';
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const base = `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  
+  const month = isUtc ? date.getUTCMonth() : date.getMonth();
+  const day = isUtc ? date.getUTCDate() : date.getDate();
+  const year = isUtc ? date.getUTCFullYear() : date.getFullYear();
+  
+  const base = `${months[month]} ${day}, ${year}`;
   if (!includeTime) return base;
   
-  let hours = date.getHours();
-  const minutes = date.getMinutes().toString().padStart(2, '0');
+  let hours = isUtc ? date.getUTCHours() : date.getHours();
+  const minutes = (isUtc ? date.getUTCMinutes() : date.getMinutes()).toString().padStart(2, '0');
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12;
   hours = hours ? hours : 12;
@@ -152,6 +159,7 @@ const isContactLead = (lead: Lead | null) =>
 const LeadInfoPage: React.FC = () => {
   const theme = useTheme();
   const { mode } = useThemeContext();
+  const [routePopoverAnchor, setRoutePopoverAnchor] = useState<HTMLButtonElement | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -256,17 +264,17 @@ const LeadInfoPage: React.FC = () => {
         (!lead.promoCode || !promoPageCodes.includes(lead.promoCode.toUpperCase()))
       );
     } else if (activeTab === 1) {
-      filtered = filtered.filter(lead => lead.formType === 'Complaint');
-    } else if (activeTab === 2) {
-      filtered = filtered.filter(lead => lead.formType === 'General Inquiry' || lead.formType === 'General Enquiry');
-    } else if (activeTab === 3) {
-      filtered = filtered.filter(lead => lead.formType === 'Feedback');
-    } else if (activeTab === 4) {
       filtered = filtered.filter(lead => 
         lead.source === 'Online Booking' && 
         lead.promoCode && 
         promoPageCodes.includes(lead.promoCode.toUpperCase())
       );
+    } else if (activeTab === 2) {
+      filtered = filtered.filter(lead => lead.formType === 'Complaint');
+    } else if (activeTab === 3) {
+      filtered = filtered.filter(lead => lead.formType === 'General Inquiry' || lead.formType === 'General Enquiry');
+    } else if (activeTab === 4) {
+      filtered = filtered.filter(lead => lead.formType === 'Feedback');
     }
 
     return filtered;
@@ -347,6 +355,7 @@ const LeadInfoPage: React.FC = () => {
               customerName: booking.name,
               tourDate: booking.dateTime,
               numberOfPassengers: booking.maxPersons || 0,
+              numberOfDays: booking.numberOfDays || (booking.tripType === 'Drop' ? 0 : 1),
               vehicleName: booking.vehicleName || 'N/A',
               message: booking.message,
               customerPhone: booking.telephone,
@@ -742,7 +751,7 @@ const LeadInfoPage: React.FC = () => {
                   },
                 }}
               >
-                {(activeTab === 0 || activeTab === 4
+                {(activeTab === 0 || activeTab === 1
                   ? ['All', 'Confirmed', 'Pending', 'Sent Inquiry', 'Rejected', 'Cancelled']
                   : ['All', 'new', 'read', 'responded', 'archived']
                 ).map(
@@ -967,10 +976,10 @@ const LeadInfoPage: React.FC = () => {
           }}
         >
           <Tab icon={<AssignmentIcon />} label="Booking Leads" />
-          <Tab icon={<CancelIcon sx={{ color: activeTab === 1 ? '#ef4444' : 'inherit' }} />} label="Complaints" />
-          <Tab icon={<MessageIcon sx={{ color: activeTab === 2 ? '#8b5cf6' : 'inherit' }} />} label="General Inquiries" />
-          <Tab icon={<CheckCircleIcon sx={{ color: activeTab === 3 ? '#10b981' : 'inherit' }} />} label="Feedback" />
-          <Tab icon={<LocalOfferIcon sx={{ color: activeTab === 4 ? '#f59e0b' : 'inherit' }} />} label="Promotions" />
+          <Tab icon={<LocalOfferIcon sx={{ color: activeTab === 1 ? '#f59e0b' : 'inherit' }} />} label="Promotions" />
+          <Tab icon={<CancelIcon sx={{ color: activeTab === 2 ? '#ef4444' : 'inherit' }} />} label="Complaints" />
+          <Tab icon={<MessageIcon sx={{ color: activeTab === 3 ? '#8b5cf6' : 'inherit' }} />} label="General Inquiries" />
+          <Tab icon={<CheckCircleIcon sx={{ color: activeTab === 4 ? '#10b981' : 'inherit' }} />} label="Feedback" />
         </Tabs>
       </Box>
 
@@ -1022,7 +1031,7 @@ const LeadInfoPage: React.FC = () => {
                 <TableHead>
                   <TableRow>
                     {/* Shared header cell sx */}
-                    {(activeTab === 4
+                    {(activeTab === 1
                       ? ['Lead No', 'Promotion Type', 'Name', 'Phone Number', 'Status', 'Action']
                       : [
                           'Lead ID',
@@ -1061,7 +1070,7 @@ const LeadInfoPage: React.FC = () => {
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                     .map((lead, index) => {
                       const statusStyle = getStatusColor(lead.status);
-                      if (activeTab === 4) {
+                      if (activeTab === 1) {
                         return (
                           <TableRow
                             key={lead.id}
@@ -1321,7 +1330,7 @@ const LeadInfoPage: React.FC = () => {
                           </TableCell>
 
                           {/* From → To */}
-                          {(activeTab === 0 || activeTab === 4) && (
+                          {(activeTab === 0 || activeTab === 1) && (
                             <TableCell>
                               {lead.source !== 'Contact Us' && (
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -1529,13 +1538,13 @@ const LeadInfoPage: React.FC = () => {
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
-        maxWidth="md"
+        maxWidth="xl"
         fullWidth
         PaperProps={{
           sx: {
             borderRadius: '16px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            maxWidth: 560,
+            maxWidth: 1200,
           },
         }}
       >
@@ -1593,521 +1602,698 @@ const LeadInfoPage: React.FC = () => {
                 </Alert>
               )}
 
-              {/* Lead Information Grid */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-
-                {/* Customer Name */}
-                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
-                    <PersonIcon sx={{ color: '#3b82f6', fontSize: 16 }} />
-                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Customer Name</Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
-                    {selectedLead.customerName}
-                  </Typography>
-                </Box>
-
-                {/* Lead ID */}
-                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                  <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Lead ID</Typography>
-                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: '#3b82f6' }}>
-                    {selectedLead.customId || selectedLead.id}
-                  </Typography>
-                </Box>
-
-                {/* Lead Date */}
-                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
-                    <CalendarIcon sx={{ color: '#8b5cf6', fontSize: 16 }} />
-                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Lead Date</Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
-                    {formatDate(selectedLead.leadDate)}
-                  </Typography>
-                </Box>
-
-                {/* Trip Start Time */}
-                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
-                    <CalendarIcon sx={{ color: '#10b981', fontSize: 16 }} />
-                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Trip Start Time</Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
-                    {formatDate(selectedLead.tourDate, true)}
-                  </Typography>
-                </Box>
-
-                {/* Number of Passengers */}
-                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
-                    <PeopleIcon sx={{ color: '#f59e0b', fontSize: 16 }} />
-                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Passengers</Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
-                    {selectedLead.numberOfPassengers} {selectedLead.numberOfPassengers === 1 ? 'Person' : 'People'}
-                  </Typography>
-                </Box>
-
-                {/* Vehicle Name */}
-                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
-                    <DirectionsCarIcon sx={{ color: '#ec4899', fontSize: 16 }} />
-                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Vehicle</Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
-                    {selectedLead.vehicleName}
-                  </Typography>
-                </Box>
-
-                {/* Phone */}
-                {selectedLead.customerPhone && (
-                  <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Phone</Typography>
-                    <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
-                      {selectedLead.customerPhone}
-                    </Typography>
-                    {selectedLead.additionalPhones && selectedLead.additionalPhones.length > 0 && selectedLead.additionalPhones.map((phone, idx) => (
-                      <Typography key={idx} sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
-                        {phone}
+              {activeTab === 1 ? (
+                /* Promotion Tab: Display ONLY phone number, name, promotion type, and status */
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+                    {/* Customer Name */}
+                    <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                        <PersonIcon sx={{ color: '#3b82f6', fontSize: 16 }} />
+                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Customer Name</Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                        {selectedLead.customerName}
                       </Typography>
-                    ))}
-                  </Box>
-                )}
+                    </Box>
 
-                {/* Email */}
-                {selectedLead.customerEmail && (
-                  <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                    <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Email</Typography>
-                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: 'text.primary', wordBreak: 'break-all' }}>
-                      {selectedLead.customerEmail}
-                    </Typography>
-                  </Box>
-                )}
+                    {/* Phone */}
+                    {selectedLead.customerPhone && (
+                      <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Phone</Typography>
+                        <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                          {selectedLead.customerPhone}
+                        </Typography>
+                        {selectedLead.additionalPhones && selectedLead.additionalPhones.length > 0 && selectedLead.additionalPhones.map((phone, idx) => (
+                          <Typography key={idx} sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
+                            {phone}
+                          </Typography>
+                        ))}
+                      </Box>
+                    )}
 
-                {/* Status */}
-                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                  <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Status</Typography>
-                  {(() => {
-                    const statusStyle = getStatusColor(selectedLead.status);
-                    return (
-                      <Chip
-                        icon={<statusStyle.IconComponent sx={{ fontSize: 14 }} />}
-                        label={statusStyle.label || selectedLead.status}
-                        sx={{
-                          background: mode === 'light'
-                            ? `linear-gradient(135deg, ${statusStyle.bgColor} 0%, ${statusStyle.bgColor}cc 100%)`
-                            : `linear-gradient(135deg, ${statusStyle.color}33 0%, ${statusStyle.color}1a 100%)`,
-                          color: statusStyle.color,
-                          fontWeight: 600,
-                          fontSize: '0.78rem',
-                          borderRadius: '6px',
-                          height: '26px',
-                          '& .MuiChip-icon': { color: statusStyle.color },
-                        }}
-                      />
-                    );
-                  })()}
+                    {/* Promotion Type */}
+                    <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                        <DirectionsCarIcon sx={{ color: '#ec4899', fontSize: 16 }} />
+                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Promotion Type</Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                        {selectedLead.vehicleName}
+                      </Typography>
+                      {selectedLead.promoCode && (
+                        <Chip
+                          label={selectedLead.promoCode}
+                          size="small"
+                          sx={{
+                            mt: 0.5,
+                            height: '18px',
+                            fontSize: '0.65rem',
+                            fontWeight: 800,
+                            background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                            color: '#92400e',
+                            border: '1px solid #f59e0b',
+                            '& .MuiChip-label': { px: 1 }
+                          }}
+                        />
+                      )}
+                    </Box>
+
+                    {/* Status */}
+                    <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                      <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Status</Typography>
+                      {(() => {
+                        const statusStyle = getStatusColor(selectedLead.status);
+                        return (
+                          <Chip
+                            icon={<statusStyle.IconComponent sx={{ fontSize: 14 }} />}
+                            label={statusStyle.label || selectedLead.status}
+                            sx={{
+                              background: mode === 'light'
+                                ? `linear-gradient(135deg, ${statusStyle.bgColor} 0%, ${statusStyle.bgColor}cc 100%)`
+                                : `linear-gradient(135deg, ${statusStyle.color}33 0%, ${statusStyle.color}1a 100%)`,
+                              color: statusStyle.color,
+                              fontWeight: 600,
+                              fontSize: '0.78rem',
+                              borderRadius: '6px',
+                              height: '26px',
+                              '& .MuiChip-icon': { color: statusStyle.color },
+                            }}
+                          />
+                        );
+                      })()}
+                    </Box>
+                  </Box>
                 </Box>
-
-                {/* Followed By */}
-                <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                  <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Followed By</Typography>
-                  <Typography sx={{
-                    fontSize: '0.95rem',
-                    fontWeight: 700,
-                    color: selectedLead.employeeName ? 'text.primary' : 'text.disabled',
-                    fontStyle: selectedLead.employeeName ? 'normal' : 'italic',
+              ) : (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr 1fr' }, gap: 3, mt: 2 }}>
+                  
+                  {/* Column 1 */}
+                  <Box sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 3,
+                    height: '100%',
+                    maxHeight: { xs: 'none', lg: '65vh' },
+                    overflowY: 'auto',
+                    pr: { xs: 0, lg: 1 },
+                    '&::-webkit-scrollbar': {
+                      width: '6px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      background: 'transparent',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: 'rgba(0,0,0,0.1)',
+                      borderRadius: '10px',
+                    },
+                    '&:hover::-webkit-scrollbar-thumb': {
+                      background: 'rgba(0,0,0,0.2)',
+                    }
                   }}>
-                    {selectedLead.employeeName || 'Not Assigned'}
-                  </Typography>
-                </Box>
-              </Box>
+                    
+                    {/* Contact Details */ }
+                    <Box sx={{ p: 2, borderRadius: '12px', background: mode === 'light' ? 'rgba(59, 130, 246, 0.05)' : 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 2, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <PersonIcon sx={{ fontSize: 18 }} /> Contact Details
+                      </Typography>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, rowGap: 2.5 }}>
+                        {/* Lead ID */}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.25 }}>Lead ID</Typography>
+                          <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: '#3b82f6' }}>
+                            {selectedLead.customId || selectedLead.id}
+                          </Typography>
+                        </Box>
 
-              {/* Matched Package Details — only for booking leads */}
-              {selectedLead.source !== 'Contact Us' && selectedLead.matchedPackage && (
-                <Box sx={{ mt: 2, p: 2, borderRadius: '12px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '1px solid #b7e4c7' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                    <TableChartIcon sx={{ color: '#16a34a', fontSize: 18 }} />
-                    <Typography sx={{ fontSize: '0.8rem', color: '#166534', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selected Package Details</Typography>
+                        {/* Customer Name */}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.25 }}>Customer Name</Typography>
+                          <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                            {selectedLead.customerName}
+                          </Typography>
+                        </Box>
+
+                        {/* Phone */}
+                        {selectedLead.customerPhone && (
+                          <Box>
+                            <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.25 }}>Phone No</Typography>
+                            <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                              {selectedLead.customerPhone}
+                            </Typography>
+                            {selectedLead.additionalPhones && selectedLead.additionalPhones.length > 0 && selectedLead.additionalPhones.map((phone, idx) => (
+                              <Typography key={idx} sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
+                                {phone}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+
+                        {/* Email */}
+                        {selectedLead.customerEmail && (
+                          <Box>
+                            <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.25 }}>Email</Typography>
+                            <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: 'text.primary', wordBreak: 'break-all' }}>
+                              {selectedLead.customerEmail}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+
+                    {/* Trip Details */}
+                    <Box sx={{ flexGrow: 1, p: 2, borderRadius: '12px', background: mode === 'light' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                      <Typography sx={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 2, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <DirectionsCarIcon sx={{ fontSize: 18 }} /> Trip Details
+                      </Typography>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, rowGap: 2.5 }}>
+                        {/* Trip Type */}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.25 }}>Trip Type</Typography>
+                          <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                            {selectedLead.formType}
+                          </Typography>
+                        </Box>
+
+                        {/* Day Count */}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.25 }}>Day Count</Typography>
+                          <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                            {selectedLead.numberOfDays ? `${selectedLead.numberOfDays} Days` : 'N/A'}
+                          </Typography>
+                        </Box>
+
+                        {/* Lead Date */}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.25 }}>Lead Date</Typography>
+                          <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                            {formatDate(selectedLead.leadDate)}
+                          </Typography>
+                        </Box>
+
+                        {/* Trip Start Time */}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.25 }}>Trip Start Time</Typography>
+                          <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                            {formatDate(selectedLead.tourDate, true, true)}
+                          </Typography>
+                        </Box>
+
+                        {/* Number of Passengers */}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.25 }}>Passengers</Typography>
+                          <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                            {selectedLead.numberOfPassengers} {selectedLead.numberOfPassengers === 1 ? 'Person' : 'People'}
+                          </Typography>
+                        </Box>
+
+                        {/* Vehicle Name */}
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.25 }}>Vehicle</Typography>
+                          <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: 'text.primary' }}>
+                            {selectedLead.vehicleName}
+                          </Typography>
+                        </Box>
+
+                        {/* Customer Remark */}
+                        {selectedLead.customerRemark && (
+                          <Box sx={{ gridColumn: { sm: 'span 2' }, mt: 0.5, p: 1.5, borderRadius: '8px', background: mode === 'light' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.2)', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
+                            <Typography sx={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Customer Remark</Typography>
+                            <Typography sx={{ fontSize: '0.9rem', color: 'text.primary', fontStyle: 'italic' }}>
+                              "{selectedLead.customerRemark}"
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+
+                      {/* Route Section — only for booking leads */}
+                      {selectedLead.source !== 'Contact Us' && (
+                      <Box sx={{ mt: 2, p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            <LocationOnIcon sx={{ color: '#0ea5e9', fontSize: 16 }} />
+                            <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Route</Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button 
+                              size="small" 
+                              onClick={(e) => setRoutePopoverAnchor(e.currentTarget)}
+                              sx={{
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                color: '#f59e0b',
+                                textTransform: 'uppercase',
+                                background: 'rgba(245, 158, 11, 0.08)',
+                                borderRadius: '6px',
+                                border: '1px solid rgba(245, 158, 11, 0.3)',
+                                px: 1.5,
+                                py: 0.5,
+                                '&:hover': {
+                                  background: '#f59e0b',
+                                  color: '#ffffff',
+                                }
+                              }}
+                            >
+                              View Route
+                            </Button>
+                            <Button 
+                              size="small" 
+                              onClick={() => handleViewLeadDirections(selectedLead)}
+                              startIcon={<MapIcon sx={{ fontSize: 16 }} />}
+                              sx={{
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                color: '#0ea5e9',
+                                textTransform: 'uppercase',
+                                background: 'rgba(14, 165, 233, 0.08)',
+                                borderRadius: '6px',
+                                border: '1px solid rgba(14,165,233,0.3)',
+                                px: 1.5,
+                                py: 0.5,
+                                '&:hover': {
+                                  background: '#0ea5e9',
+                                  color: '#ffffff',
+                                }
+                              }}
+                            >
+                              View Map
+                            </Button>
+                          </Box>
+                        </Box>
+
+                        {/* View All Locations Popover */}
+                        <Popover
+                          open={Boolean(routePopoverAnchor)}
+                          anchorEl={routePopoverAnchor}
+                          onClose={() => setRoutePopoverAnchor(null)}
+                          anchorOrigin={{
+                            vertical: 'bottom',
+                            horizontal: 'right',
+                          }}
+                          transformOrigin={{
+                            vertical: 'top',
+                            horizontal: 'right',
+                          }}
+                          PaperProps={{
+                            sx: {
+                              mt: 1,
+                              p: 2,
+                              borderRadius: '12px',
+                              minWidth: 250,
+                              maxWidth: 350,
+                              maxHeight: 400,
+                              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)'
+                            }
+                          }}
+                        >
+                          <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, mb: 2, color: 'text.primary', borderBottom: '1px solid', borderColor: 'divider', pb: 1 }}>All Locations</Typography>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                            <Box sx={{ display: 'flex', gap: 1.5 }}>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                <Box sx={{ width: 14, height: 14, borderRadius: '50%', background: '#22c55e', border: '2.5px solid white', boxShadow: '0 0 0 2px #22c55e', flexShrink: 0, mt: 0.25 }} />
+                                {((selectedLead.destinations || []).filter((d: string) => d.trim()).length > 0 || selectedLead.toLocation) && (
+                                  <Box sx={{ width: 2, flexGrow: 1, background: '#e2e8f0', my: 0.5, minHeight: '16px' }} />
+                                )}
+                              </Box>
+                              <Box sx={{ pb: ((selectedLead.destinations || []).filter((d: string) => d.trim()).length > 0 || selectedLead.toLocation) ? 2 : 0 }}>
+                                <Typography sx={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', mb: 0.25 }}>Pickup</Typography>
+                                <Typography sx={{ fontSize: '0.85rem', color: 'text.primary', lineHeight: 1.3 }}>{selectedLead.fromLocation}</Typography>
+                              </Box>
+                            </Box>
+                            {(selectedLead.destinations || []).filter((d: string) => d.trim()).map((dest: string, idx: number, arr: string[]) => (
+                              <Box key={idx} sx={{ display: 'flex', gap: 1.5 }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                  <Box sx={{ width: 14, height: 14, borderRadius: '50%', background: '#C9A961', border: '2.5px solid white', boxShadow: '0 0 0 2px #C9A961', flexShrink: 0, mt: 0.25 }} />
+                                  {(idx < arr.length - 1 || selectedLead.toLocation) && (
+                                    <Box sx={{ width: 2, flexGrow: 1, background: '#e2e8f0', my: 0.5, minHeight: '16px' }} />
+                                  )}
+                                </Box>
+                                <Box sx={{ pb: (idx < arr.length - 1 || selectedLead.toLocation) ? 2 : 0 }}>
+                                  <Typography sx={{ fontSize: '0.65rem', color: '#C9A961', fontWeight: 700, textTransform: 'uppercase', mb: 0.25 }}>Stop {idx + 1}</Typography>
+                                  <Typography sx={{ fontSize: '0.85rem', color: 'text.primary', lineHeight: 1.3 }}>{dest}</Typography>
+                                </Box>
+                              </Box>
+                            ))}
+                            {selectedLead.toLocation && (
+                              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                  <Box sx={{ width: 14, height: 14, borderRadius: '50%', background: '#ef4444', border: '2.5px solid white', boxShadow: '0 0 0 2px #ef4444', flexShrink: 0, mt: 0.25 }} />
+                                </Box>
+                                <Box>
+                                  <Typography sx={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', mb: 0.25 }}>Drop-off</Typography>
+                                  <Typography sx={{ fontSize: '0.85rem', color: 'text.primary', lineHeight: 1.3 }}>{selectedLead.toLocation}</Typography>
+                                </Box>
+                              </Box>
+                            )}
+                          </Box>
+                        </Popover>
+
+                        {/* The route timeline is now inside the View Route popover */}
+                      </Box>
+                    )}
+                    </Box>
                   </Box>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                    <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(22,101,52,0.1)' }}>
-                      <Typography sx={{ fontSize: '0.65rem', color: '#166534', fontWeight: 600, mb: 0.5, opacity: 0.8 }}>KM & HOURLY LIMIT</Typography>
-                      <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: '#065f46' }}>
-                        {selectedLead.matchedPackage.km} KM / {selectedLead.matchedPackage.hrs} HRS
-                      </Typography>
-                    </Box>
-                    <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(22,101,52,0.1)' }}>
-                      <Typography sx={{ fontSize: '0.65rem', color: '#166534', fontWeight: 600, mb: 0.5, opacity: 0.8 }}>BASE RATE (LKR)</Typography>
-                      <Typography sx={{ fontSize: '1.1rem', fontWeight: 900, color: '#166534' }}>
-                        {selectedLead.matchedPackage.rateAmount?.toLocaleString()}
-                      </Typography>
-                    </Box>
-                                    {/* Detailed Calculation Process — only if route distance is available */}
-                  {(selectedLead.routeDistance !== undefined && selectedLead.routeDistance > 0) ? (
-                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed rgba(22,101,52,0.3)' }}>
-                      <Typography sx={{ fontSize: '0.72rem', color: '#166534', fontWeight: 800, mb: 1.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Calculation Breakdown:
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
-                            Base {selectedLead.matchedPackage.km} KM Package:
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
-                            Rs. {selectedLead.matchedPackage.rateAmount?.toLocaleString()}
+
+                  {/* Column 2 */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
+
+                  {/* Matched Package Details — only for booking leads */}
+                  {selectedLead.source !== 'Contact Us' && selectedLead.matchedPackage && (
+                    <Box sx={{ flexGrow: 1, p: 2, borderRadius: '12px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', border: '1px solid #b7e4c7' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                        <TableChartIcon sx={{ color: '#16a34a', fontSize: 18 }} />
+                        <Typography sx={{ fontSize: '0.8rem', color: '#166534', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selected Package Details</Typography>
+                      </Box>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                        <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(22,101,52,0.1)' }}>
+                          <Typography sx={{ fontSize: '0.65rem', color: '#166534', fontWeight: 600, mb: 0.5, opacity: 0.8 }}>KM & HOURLY LIMIT</Typography>
+                          <Typography sx={{ fontSize: '0.95rem', fontWeight: 800, color: '#065f46' }}>
+                            {selectedLead.matchedPackage.km} KM / {selectedLead.matchedPackage.hrs} HRS
                           </Typography>
                         </Box>
-                        
+                        <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(22,101,52,0.1)' }}>
+                          <Typography sx={{ fontSize: '0.65rem', color: '#166534', fontWeight: 600, mb: 0.5, opacity: 0.8 }}>BASE RATE (LKR)</Typography>
+                          <Typography sx={{ fontSize: '1.1rem', fontWeight: 900, color: '#166534' }}>
+                            {selectedLead.matchedPackage.rateAmount?.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        {/* Detailed Calculation Process — only if route distance is available */}
+                        {(selectedLead.routeDistance !== undefined && selectedLead.routeDistance > 0) ? (
+                          <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed rgba(22,101,52,0.3)', gridColumn: 'span 2' }}>
+                            <Typography sx={{ fontSize: '0.72rem', color: '#166534', fontWeight: 800, mb: 1.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Calculation Breakdown:
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                                  Base {selectedLead.matchedPackage.km} KM Package:
+                                </Typography>
+                                <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                                  Rs. {selectedLead.matchedPackage.rateAmount?.toLocaleString()}
+                                </Typography>
+                              </Box>
+                              
+                              {(() => {
+                                 const actualKm = Math.ceil(selectedLead.routeDistance / 1000);
+                                 const pkgKm = selectedLead.matchedPackage.km;
+                                 const extraKm = Math.max(0, actualKm - pkgKm);
+                                 const rate = selectedLead.matchedPackage.extraKMRate || 0;
+                                 const extraCost = extraKm * rate;
+
+                                 if (extraKm > 0) {
+                                   return (
+                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                       <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                                         Extra Distance ({extraKm} KM × Rs. {rate}):
+                                       </Typography>
+                                       <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                                         + Rs. {extraCost.toLocaleString()}
+                                       </Typography>
+                                     </Box>
+                                   );
+                                 }
+                                 return null;
+                              })()}
+
+                              {/* Seasonal Adjustment */}
+                              {selectedLead.seasonalAdjustment !== undefined && selectedLead.seasonalAdjustment > 0 && (
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                                    Seasonal Price Adjustment:
+                                  </Typography>
+                                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                                    + Rs. {selectedLead.seasonalAdjustment.toLocaleString()}
+                                  </Typography>
+                                </Box>
+                              )}
+
+                              {/* Night Surcharge */}
+                              {selectedLead.nightSurcharge !== undefined && selectedLead.nightSurcharge > 0 && (
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                                    Night Surcharge:
+                                  </Typography>
+                                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                                    + Rs. {selectedLead.nightSurcharge.toLocaleString()}
+                                  </Typography>
+                                </Box>
+                              )}
+
+                              {/* Province Adjustment */}
+                              {selectedLead.provinceAdjustment !== undefined && selectedLead.provinceAdjustment > 0 && (
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                                    Province Surcharge:
+                                  </Typography>
+                                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                                    + Rs. {selectedLead.provinceAdjustment.toLocaleString()}
+                                  </Typography>
+                                </Box>
+                              )}
+
+                              <Box sx={{ mt: 1, pt: 1, borderTop: '1.5px solid rgba(22,101,52,0.2)' }}>
+                                {(() => {
+                                  const actualKm = Math.ceil(selectedLead.routeDistance / 1000);
+                                  const pkgKm = selectedLead.matchedPackage.km;
+                                  const extraKm = Math.max(0, actualKm - pkgKm);
+                                  const rate = selectedLead.matchedPackage.extraKMRate || 0;
+                                  const extraCost = extraKm * rate;
+                                  
+                                  const baseCost = selectedLead.matchedPackage.rateAmount || 0;
+                                  const seasonalAdj = selectedLead.seasonalAdjustment || 0;
+                                  const nightSurcharge = selectedLead.nightSurcharge || 0;
+                                  const provinceAdj = selectedLead.provinceAdjustment || 0;
+                                  
+                                  const tripPrice = baseCost + extraCost + seasonalAdj + nightSurcharge + provinceAdj;
+                                  const discountAmt = selectedLead.discount || 0;
+                                  const finalPrice = (selectedLead.totalPrice || 0) > 0 ? (selectedLead.totalPrice || 0) : Math.max(0, tripPrice - discountAmt);
+
+                                  return (
+                                    <Box sx={{ width: '100%' }}>
+                                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: discountAmt > 0 ? 0.5 : 0 }}>
+                                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: '#065f46' }}>
+                                          Trip Price:
+                                        </Typography>
+                                        <Typography sx={{ fontSize: '1.0rem', fontWeight: 800, color: '#065f46' }}>
+                                          Rs. {tripPrice.toLocaleString()}
+                                        </Typography>
+                                      </Box>
+                                      
+                                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: discountAmt > 0 ? '#ef4444' : '#166534' }}>
+                                          Discount {selectedLead.promoCode ? `(${selectedLead.promoCode})` : ''}:
+                                        </Typography>
+                                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: discountAmt > 0 ? '#ef4444' : '#166534' }}>
+                                          - Rs. {discountAmt.toLocaleString()}
+                                        </Typography>
+                                      </Box>
+
+                                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, pt: 1, borderTop: '1px dashed rgba(22,101,52,0.3)' }}>
+                                        <Typography sx={{ fontSize: '0.95rem', fontWeight: 900, color: '#065f46' }}>
+                                          Final Price:
+                                        </Typography>
+                                        <Typography sx={{ fontSize: '1.15rem', fontWeight: 900, color: '#065f46' }}>
+                                          Rs. {finalPrice.toLocaleString()}
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                  );
+                                })()}
+                              </Box>
+                              <Typography sx={{ fontSize: '0.85rem', color: '#065f46', mt: 1, fontWeight: 800, background: 'rgba(6, 95, 70, 0.08)', padding: '6px 10px', borderRadius: '6px', display: 'inline-block' }}>
+                                * Total Distance: {Math.ceil(selectedLead.routeDistance / 1000)} KM | Total Hours: {selectedLead.matchedPackage.hrs} HRS
+                              </Typography>
+                            </Box>
+                          </Box>
+                        ) : (
+                          <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed rgba(22,101,52,0.3)', textAlign: 'center', gridColumn: 'span 2' }}>
+                            <Typography sx={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic' }}>
+                              * Route distance and detailed mapping for this lead are not available in current record.
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+                  </Box>
+
+                  {/* Column 3 */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
+
+                  {/* Staff Remark Field */}
+                  <Box sx={{ p: 2, borderRadius: '12px', background: mode === 'light' ? 'rgba(245, 158, 11, 0.05)' : 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 2, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <MessageIcon sx={{ fontSize: 18 }} /> Staff Remark (Optional)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={3}
+                      disabled={!isSuperAdmin && (!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))}
+                      placeholder={
+                        isSuperAdmin
+                          ? "Enter or edit staff remarks..."
+                          : selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username)
+                            ? "You must pick this lead before entering remarks."
+                            : !!selectedLead.staffRemark
+                              ? "Remark is locked and cannot be edited."
+                              : "Enter any internal remarks or notes here..."
+                      }
+                      value={staffRemark}
+                      onChange={(e) => setStaffRemark(e.target.value)}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: '12px',
+                          fontSize: '0.875rem',
+                          backgroundColor: (!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))
+                            ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
+                            : (mode === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.02)'),
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            backgroundColor: (!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))
+                              ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
+                              : (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)'),
+                          },
+                          '&.Mui-focused': {
+                            backgroundColor: mode === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
+                          }
+                        },
+                        '& .Mui-disabled': {
+                          WebkitTextFillColor: mode === 'light' ? '#475569' : '#94a3b8',
+                          cursor: 'not-allowed'
+                        }
+                      }}
+                    />
+                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button
+                        variant="contained"
+                        onClick={() => handleLeadAction(selectedLead.status)}
+                        disabled={
+                          actionLoading ||
+                          (!isSuperAdmin && (!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))) ||
+                          staffRemark === (selectedLead.staffRemark || '')
+                        }
+                        sx={{
+                          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                          borderRadius: '10px',
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          boxShadow: '0 4px 14px rgba(30, 41, 59, 0.3)',
+                          px: 3,
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, #334155 0%, #475569 100%)',
+                            boxShadow: '0 6px 20px rgba(30, 41, 59, 0.4)',
+                          },
+                          '&:disabled': { background: '#e2e8f0', color: '#94a3b8', boxShadow: 'none' },
+                        }}
+                      >
+                        {actionLoading ? <CircularProgress size={20} color="inherit" /> : 'Save Remark'}
+                      </Button>
+                    </Box>
+                  </Box>
+
+                  {/* Staff Section (Moved to Bottom) */}
+                  <Box sx={{ flexGrow: 1, p: 2, borderRadius: '12px', background: 'rgba(139, 92, 246, 0.05)', border: '1px solid rgba(139, 92, 246, 0.1)' }}>
+                    <Typography sx={{ fontSize: '0.75rem', color: '#8b5cf6', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1.5, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <AssignmentIcon sx={{ fontSize: 18 }} /> Staff Section
+                    </Typography>
+                    
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+                      {/* Status */}
+                      <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Status</Typography>
                         {(() => {
-                           const actualKm = Math.ceil(selectedLead.routeDistance / 1000);
-                           const pkgKm = selectedLead.matchedPackage.km;
-                           const extraKm = Math.max(0, actualKm - pkgKm);
-                           const rate = selectedLead.matchedPackage.extraKMRate || 0;
-                           const extraCost = extraKm * rate;
-
-                           if (extraKm > 0) {
-                             return (
-                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                 <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
-                                   Extra Distance ({extraKm} KM × Rs. {rate}):
-                                 </Typography>
-                                 <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
-                                   + Rs. {extraCost.toLocaleString()}
-                                 </Typography>
-                               </Box>
-                             );
-                           }
-                           return null;
+                          const statusStyle = getStatusColor(selectedLead.status);
+                          return (
+                            <Chip
+                              icon={<statusStyle.IconComponent sx={{ fontSize: 14 }} />}
+                              label={statusStyle.label || selectedLead.status}
+                              sx={{
+                                background: mode === 'light'
+                                  ? `linear-gradient(135deg, ${statusStyle.bgColor} 0%, ${statusStyle.bgColor}cc 100%)`
+                                  : `linear-gradient(135deg, ${statusStyle.color}33 0%, ${statusStyle.color}1a 100%)`,
+                                color: statusStyle.color,
+                                fontWeight: 600,
+                                fontSize: '0.78rem',
+                                borderRadius: '6px',
+                                height: '26px',
+                                '& .MuiChip-icon': { color: statusStyle.color },
+                              }}
+                            />
+                          );
                         })()}
+                      </Box>
 
-                        {/* Seasonal Adjustment */}
-                        {selectedLead.seasonalAdjustment !== undefined && selectedLead.seasonalAdjustment > 0 && (
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
-                              Seasonal Price Adjustment:
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
-                              + Rs. {selectedLead.seasonalAdjustment.toLocaleString()}
-                            </Typography>
-                          </Box>
-                        )}
-
-                        {/* Night Surcharge */}
-                        {selectedLead.nightSurcharge !== undefined && selectedLead.nightSurcharge > 0 && (
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
-                              Night Surcharge:
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
-                              + Rs. {selectedLead.nightSurcharge.toLocaleString()}
-                            </Typography>
-                          </Box>
-                        )}
-
-                        {/* Province Adjustment */}
-                        {selectedLead.provinceAdjustment !== undefined && selectedLead.provinceAdjustment > 0 && (
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
-                              Province Surcharge:
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
-                              + Rs. {selectedLead.provinceAdjustment.toLocaleString()}
-                            </Typography>
-                          </Box>
-                        )}
-
-
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, pt: 1, borderTop: '1.5px solid rgba(22,101,52,0.2)' }}>
-                          <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: '#065f46' }}>
-                            Calculated Total:
-                          </Typography>
-                          <Typography sx={{ fontSize: '1.1rem', fontWeight: 900, color: '#065f46' }}>
-                            Rs. {((selectedLead.totalPrice || 0) > 0 ? selectedLead.totalPrice : (selectedLead.matchedPackage.rateAmount + (Math.max(0, Math.ceil(selectedLead.routeDistance / 1000) - selectedLead.matchedPackage.km) * (selectedLead.matchedPackage.extraKMRate || 0))))?.toLocaleString()}
-                          </Typography>
-                        </Box>
-                        <Typography sx={{ fontSize: '0.65rem', color: '#065f46', mt: 0.5, fontStyle: 'italic', fontWeight: 600, opacity: 0.8 }}>
-                          * Total distance used for calculation: {Math.ceil(selectedLead.routeDistance / 1000)} KM
+                      {/* Followed By */}
+                      <Box sx={{ p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
+                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 0.5 }}>Followed By</Typography>
+                        <Typography sx={{
+                          fontSize: '0.95rem',
+                          fontWeight: 700,
+                          color: selectedLead.employeeName ? 'text.primary' : 'text.disabled',
+                          fontStyle: selectedLead.employeeName ? 'normal' : 'italic',
+                        }}>
+                          {selectedLead.employeeName || 'Not Assigned'}
                         </Typography>
                       </Box>
                     </Box>
-                  ) : (
-                    <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed rgba(22,101,52,0.3)', textAlign: 'center' }}>
-                      <Typography sx={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic' }}>
-                        * Route distance and detailed mapping for this lead are not available in current record.
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>     </Box>
-              )}
 
-              {/* Promo Code & Discount — Decoupled from Package check */}
-              {selectedLead.source !== 'Contact Us' && selectedLead.promoCode && (
-                <Box sx={{ mt: 1.5, p: 2, borderRadius: '12px', background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', border: '1px solid #fed7aa' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                    <Chip label="PROMO APPLIED" size="small" color="error" sx={{ fontWeight: 800, fontSize: '0.65rem', height: '20px' }} />
-                    <Typography sx={{ fontSize: '0.8rem', color: '#9a3412', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Discount Information</Typography>
-                  </Box>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                    <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.6)', border: '1px solid #fdba74' }}>
-                      <Typography sx={{ fontSize: '0.65rem', color: '#9a3412', fontWeight: 600, mb: 0.5 }}>PROMO CODE</Typography>
-                      <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: '#c2410c', letterSpacing: '0.1em' }}>
-                        {selectedLead.promoCode}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ p: 1.5, borderRadius: '8px', background: 'rgba(255,255,255,0.6)', border: '1px solid #fdba74' }}>
-                      <Typography sx={{ fontSize: '0.65rem', color: '#9a3412', fontWeight: 600, mb: 0.5 }}>DISCOUNT SAVED</Typography>
-                      <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: '#ef4444' }}>
-                        LKR {selectedLead.discount?.toLocaleString()} ({(() => {
-                           if (selectedLead.discountPercentage && selectedLead.discountPercentage > 0) return `${selectedLead.discountPercentage}%`;
-                           // Fallback calculation for records that didn't have percentage saved
-                           const baseForDiscount = (selectedLead.totalPrice || 0) - (selectedLead.nightSurcharge || 0) + (selectedLead.discount || 0);
-                           if (baseForDiscount > 0) {
-                             const calcPercent = Math.round((selectedLead.discount! / baseForDiscount) * 100);
-                             if (calcPercent > 0) return `${calcPercent}%`;
-                           }
-                           return '10%'; // Ultimate fallback
-                        })()})
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-              )}
-
-              {/* Route Section — only for booking leads */}
-              {selectedLead.source !== 'Contact Us' && (
-                <Box sx={{ mt: 2, p: 1.5, borderRadius: '10px', background: 'background.default', border: '1px solid', borderColor: 'divider' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                        <LocationOnIcon sx={{ color: '#0ea5e9', fontSize: 16 }} />
-                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Route</Typography>
-                      </Box>
-                      <Button 
-                        size="small" 
-                        onClick={() => handleViewLeadDirections(selectedLead)}
-                        startIcon={<MapIcon sx={{ fontSize: 16 }} />}
-                        sx={{
-                          fontSize: '0.65rem',
-                          fontWeight: 700,
-                          color: '#0ea5e9',
+                    {/* Super Admin Controls (Nested) */}
+                    {isSuperAdmin && (
+                      <Box sx={{
+                        mt: 2,
+                        pt: 2,
+                        borderTop: '1px solid rgba(139, 92, 246, 0.2)'
+                      }}>
+                        <Typography sx={{
+                          fontSize: '0.72rem',
+                          color: '#3b82f6',
+                          fontWeight: 800,
                           textTransform: 'uppercase',
-                          background: 'rgba(14, 165, 233, 0.08)',
-                          borderRadius: '6px',
-                          border: '1px solid rgba(14,165,233,0.3)',
-                          px: 1.5,
-                          py: 0.5,
-                          '&:hover': {
-                            background: '#0ea5e9',
-                            color: '#ffffff',
-                          }
-                        }}
-                      >
-                        View Map
-                      </Button>
-                    </Box>
+                          letterSpacing: '0.06em',
+                          mb: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}>
+                          <AssignmentIcon sx={{ fontSize: 16 }} />
+                          Super Admin Controls
+                        </Typography>
 
-                  {/* Horizontal left-to-right timeline */}
-                  <Box sx={{ overflowX: 'auto', pb: 0.5 }}>
-                    <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', minWidth: 'max-content', pt: 0.5 }}>
+                        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'center' }}>
+                          <FormControl fullWidth size="small">
+                            <InputLabel sx={{ fontSize: '0.875rem' }}>Update Status</InputLabel>
+                            <Select
+                              value={selectedLead.status}
+                              label="Update Status"
+                              onChange={(e) => handleLeadAction(e.target.value)}
+                              sx={{
+                                borderRadius: '10px',
+                                fontSize: '0.875rem',
+                                fontWeight: 600,
+                                backgroundColor: mode === 'light' ? '#ffffff' : 'rgba(0,0,0,0.2)'
+                              }}
+                            >
+                              {(isContactLead(selectedLead)
+                                ? ['new', 'read', 'responded', 'archived', 'Ignored']
+                                : ['Confirmed', 'Pending', 'Sent Inquiry', 'Rejected', 'Cancelled', 'Ignored']
+                              ).map((status) => (
+                                <MenuItem key={status} value={status} sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                                  {status === 'new' ? 'New' :
+                                    status === 'read' ? 'Read' :
+                                      status === 'responded' ? 'Responded' :
+                                        status === 'archived' ? 'Archived' :
+                                          status}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
 
-                      {/* PICKUP */}
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 90 }}>
-                        <Typography sx={{ fontSize: '0.62rem', color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5, whiteSpace: 'nowrap' }}>Pickup</Typography>
-                        <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: '#22c55e', border: '2.5px solid', borderColor: 'background.paper', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #22c55e33', flexShrink: 0 }}>
-                          <Box sx={{ width: 7, height: 7, borderRadius: '50%', background: 'white' }} />
+
                         </Box>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary', mt: 0.5, textAlign: 'center', maxWidth: 85, wordBreak: 'break-word', lineHeight: 1.3 }}>{selectedLead.fromLocation}</Typography>
                       </Box>
-
-                      {/* Connector after pickup */}
-                      <Box sx={{ width: 36, height: 2, background: (selectedLead.destinations || []).filter((d: string) => d.trim()).length > 0 ? 'linear-gradient(to right, #22c55e, #C9A961)' : 'linear-gradient(to right, #22c55e, #ef4444)', borderRadius: '2px', mt: '10px', flexShrink: 0 }} />
-
-                      {/* INTERMEDIATE STOPS */}
-                      {(selectedLead.destinations || []).filter((d: string) => d.trim()).map((dest: string, idx: number, arr: string[]) => (
-                        <Box key={idx} sx={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
-                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 90 }}>
-                            <Typography sx={{ fontSize: '0.62rem', color: '#C9A961', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5, whiteSpace: 'nowrap' }}>Stop {idx + 1}</Typography>
-                            <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: '#C9A961', border: '2.5px solid', borderColor: 'background.paper', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #C9A96133', flexShrink: 0 }}>
-                              <Typography sx={{ fontSize: '0.55rem', color: 'white', fontWeight: 700, lineHeight: 1 }}>{idx + 1}</Typography>
-                            </Box>
-                            <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary', mt: 0.5, textAlign: 'center', maxWidth: 85, wordBreak: 'break-word', lineHeight: 1.3 }}>{dest}</Typography>
-                          </Box>
-                          {/* Connector after each stop */}
-                          <Box sx={{ width: 36, height: 2, background: idx === arr.length - 1 ? 'linear-gradient(to right, #C9A961, #ef4444)' : 'linear-gradient(to right, #C9A961, #C9A961)', borderRadius: '2px', mt: '10px', flexShrink: 0 }} />
-                        </Box>
-                      ))}
-
-                      {/* DROPOFF */}
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 90 }}>
-                        <Typography sx={{ fontSize: '0.62rem', color: '#ef4444', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5, whiteSpace: 'nowrap' }}>Drop-off</Typography>
-                        <Box sx={{ width: 22, height: 22, borderRadius: '50%', background: '#ef4444', border: '2.5px solid', borderColor: 'background.paper', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 3px #ef444433', flexShrink: 0 }}>
-                          <Box sx={{ width: 7, height: 7, borderRadius: '50%', background: 'white' }} />
-                        </Box>
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'text.primary', mt: 0.5, textAlign: 'center', maxWidth: 85, wordBreak: 'break-word', lineHeight: 1.3 }}>{selectedLead.toLocation}</Typography>
-                      </Box>
-
-                    </Box>
-                  </Box>
-                </Box>
-              )}
-              {/* Customer Remark Section */}
-              {selectedLead.customerRemark && (
-                <Box sx={{ mt: 3, p: 2, borderRadius: '12px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
-                  <Typography sx={{ fontSize: '0.72rem', color: '#2563eb', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', mb: 1 }}>
-                    Customer Remark
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.9rem', color: 'text.primary', fontStyle: 'italic' }}>
-                    "{selectedLead.customerRemark}"
-                  </Typography>
-                </Box>
-              )}
-
-              {/* Staff Remark Field */}
-              <Box sx={{ mt: 3 }}>
-                <Typography sx={{
-                  fontSize: '0.72rem',
-                  color: 'text.secondary',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  mb: 1
-                }}>
-                  Staff Remark (Optional)
-                </Typography>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={3}
-                  disabled={!isSuperAdmin && (!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))}
-                  placeholder={
-                    isSuperAdmin
-                      ? "Enter or edit staff remarks..."
-                      : selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username)
-                        ? "You must pick this lead before entering remarks."
-                        : !!selectedLead.staffRemark
-                          ? "Remark is locked and cannot be edited."
-                          : "Enter any internal remarks or notes here..."
-                  }
-                  value={staffRemark}
-                  onChange={(e) => setStaffRemark(e.target.value)}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '12px',
-                      fontSize: '0.875rem',
-                      backgroundColor: (!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))
-                        ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
-                        : (mode === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.02)'),
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        backgroundColor: (!!selectedLead.staffRemark || selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username))
-                          ? (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)')
-                          : (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.05)'),
-                      },
-                      '&.Mui-focused': {
-                        backgroundColor: mode === 'light' ? '#ffffff' : 'rgba(255,255,255,0.05)',
-                      }
-                    },
-                    '& .Mui-disabled': {
-                      WebkitTextFillColor: mode === 'light' ? '#475569' : '#94a3b8',
-                      cursor: 'not-allowed'
-                    }
-                  }}
-                />
-              </Box>
-
-              {/* Super Admin Edit Panel */}
-              {isSuperAdmin && (
-                <Box sx={{
-                  mt: 3,
-                  p: 2,
-                  borderRadius: '16px',
-                  background: mode === 'light' ? '#f8fafc' : 'rgba(59, 130, 246, 0.05)',
-                  border: '1px solid',
-                  borderColor: mode === 'light' ? '#e2e8f0' : 'rgba(59, 130, 246, 0.2)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
-                }}>
-                  <Typography sx={{
-                    fontSize: '0.72rem',
-                    color: '#3b82f6',
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    mb: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <AssignmentIcon sx={{ fontSize: 16 }} />
-                    Super Admin Controls
-                  </Typography>
-
-                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'center' }}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel sx={{ fontSize: '0.875rem' }}>Update Status</InputLabel>
-                      <Select
-                        value={selectedLead.status}
-                        label="Update Status"
-                        onChange={(e) => handleLeadAction(e.target.value)}
-                        sx={{
-                          borderRadius: '10px',
-                          fontSize: '0.875rem',
-                          fontWeight: 600,
-                          backgroundColor: mode === 'light' ? '#ffffff' : 'rgba(0,0,0,0.2)'
-                        }}
-                      >
-                        {(isContactLead(selectedLead)
-                          ? ['new', 'read', 'responded', 'archived', 'Ignored']
-                          : ['Confirmed', 'Pending', 'Sent Inquiry', 'Rejected', 'Cancelled', 'Ignored']
-                        ).map((status) => (
-                          <MenuItem key={status} value={status} sx={{ fontSize: '0.875rem', fontWeight: 600 }}>
-                            {status === 'new' ? 'New' :
-                              status === 'read' ? 'Read' :
-                                status === 'responded' ? 'Responded' :
-                                  status === 'archived' ? 'Archived' :
-                                    status}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={() => handleLeadAction(selectedLead.status)}
-                      disabled={actionLoading}
-                      sx={{
-                        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                        color: 'white',
-                        fontWeight: 700,
-                        textTransform: 'none',
-                        borderRadius: '10px',
-                        height: '40px',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #334155 0%, #475569 100%)',
-                        }
-                      }}
-                    >
-                      Update Remark Only
-                    </Button>
-
-                    {duplicateLeadsIds.has(selectedLead.id) && (
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        color="warning"
-                        onClick={() => handleLeadAction('Ignored')}
-                        disabled={actionLoading}
-                        sx={{
-                          fontWeight: 700,
-                          textTransform: 'none',
-                          borderRadius: '10px',
-                          height: '40px',
-                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
-                        }}
-                      >
-                        Ignore Duplicate
-                      </Button>
                     )}
+                  </Box>
                   </Box>
                 </Box>
               )}
@@ -2117,7 +2303,8 @@ const LeadInfoPage: React.FC = () => {
 
         <DialogActions
           sx={{
-            p: 2,
+            px: 2,
+            py: 1,
             background: 'background.default',
             borderTop: '1px solid',
             borderColor: 'divider',
@@ -2127,30 +2314,6 @@ const LeadInfoPage: React.FC = () => {
             flexDirection: 'column'
           }}
         >
-          {selectedLead && selectedLead.employeeName !== (currentUser?.fullName || currentUser?.username) && (
-            <Box sx={{ width: '100%', mb: 1, px: 2 }}>
-              <Alert
-                severity="warning"
-                icon={<AssignmentIcon fontSize="small" />}
-                action={
-                  <Button
-                    color="inherit"
-                    size="small"
-                    onClick={() => handlePickLead(selectedLead)}
-                    sx={{ fontWeight: 700 }}
-                  >
-                    Pick Now
-                  </Button>
-                }
-                sx={{
-                  borderRadius: '10px',
-                  '& .MuiAlert-message': { fontWeight: 600, fontSize: '0.85rem' }
-                }}
-              >
-                You must pick this lead to take actions.
-              </Alert>
-            </Box>
-          )}
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
             {/* ── CONTACT LEADS (Complaint / General Inquiry / Feedback) ── */}
             {isContactLead(selectedLead) && (
@@ -2168,7 +2331,7 @@ const LeadInfoPage: React.FC = () => {
                       textTransform: 'none',
                       fontSize: '0.9375rem',
                       px: 3,
-                      py: 1.5,
+                      py: 0.75,
                       boxShadow: '0 4px 14px rgba(59,130,246,0.4)',
                       transition: 'all 0.3s ease',
                       '&:hover': {
@@ -2196,7 +2359,7 @@ const LeadInfoPage: React.FC = () => {
                       textTransform: 'none',
                       fontSize: '0.9375rem',
                       px: 3,
-                      py: 1.5,
+                      py: 0.75,
                       boxShadow: '0 4px 14px rgba(14,165,233,0.4)',
                       transition: 'all 0.3s ease',
                       '&:hover': {
@@ -2224,7 +2387,7 @@ const LeadInfoPage: React.FC = () => {
                       textTransform: 'none',
                       fontSize: '0.9375rem',
                       px: 3,
-                      py: 1.5,
+                      py: 0.75,
                       boxShadow: '0 4px 14px rgba(16,185,129,0.4)',
                       transition: 'all 0.3s ease',
                       '&:hover': {
@@ -2254,7 +2417,7 @@ const LeadInfoPage: React.FC = () => {
                       textTransform: 'none',
                       fontSize: '0.9375rem',
                       px: 3,
-                      py: 1.5,
+                      py: 0.75,
                       transition: 'all 0.3s ease',
                       '&:hover': {
                         borderColor: '#dc2626',
@@ -2315,7 +2478,7 @@ const LeadInfoPage: React.FC = () => {
                 )}
 
                 {/* Confirm — shown when not already Confirmed */}
-                {selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && (
+                {!isSuperAdmin && selectedLead?.status !== 'Confirmed' && selectedLead?.status !== 'Cancelled' && (
                   <Button
                     onClick={() => handleLeadAction('Confirmed')}
                     disabled={actionLoading || selectedLead?.employeeName !== (currentUser?.fullName || currentUser?.username)}
@@ -2335,7 +2498,7 @@ const LeadInfoPage: React.FC = () => {
                 )}
 
                 {/* Reject — shown when not already Cancelled */}
-                {selectedLead?.status !== 'Cancelled' && selectedLead?.status !== 'Confirmed' && (
+                {!isSuperAdmin && selectedLead?.status !== 'Cancelled' && selectedLead?.status !== 'Confirmed' && (
                   <Button
                     onClick={() => handleLeadAction('Cancelled')}
                     disabled={actionLoading || selectedLead?.employeeName !== (currentUser?.fullName || currentUser?.username)}

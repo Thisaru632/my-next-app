@@ -17,6 +17,7 @@ import {
     DialogActions,
     Button,
     Badge,
+    Collapse,
 } from '@mui/material';
 import {
     Dashboard as DashboardIcon,
@@ -31,6 +32,9 @@ import {
     LocationCity as LocationCityIcon,
     LocalTaxi as LocalTaxiIcon,
     DirectionsBus as DirectionsBusIcon,
+    ExpandLess,
+    ExpandMore,
+    Link as LinkIcon,
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -66,6 +70,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Manage Guides', icon: <FileUploadIcon />, path: '/staff/staff-guide/manage', key: 'staffGuideManage' },
         { text: 'Vehicle Registrations', icon: <DirectionsBusIcon />, path: '/staff/vehicle-registrations', key: 'vehicleRegistration' },
         { text: 'Cab Service', icon: <LocalTaxiIcon />, path: '/staff/cab-service', key: 'cabService' },
+        { text: 'Necessary Links', icon: <LinkIcon />, path: '/staff/links', key: 'dashboard' },
     ];
 
 
@@ -73,6 +78,8 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false);
     const [pendingRegCount, setPendingRegCount] = React.useState(0);
     const [unpickedLeadsCount, setUnpickedLeadsCount] = React.useState(0);
+    const [webPortalOpen, setWebPortalOpen] = React.useState(true);
+    const [adminPortalOpen, setAdminPortalOpen] = React.useState(true);
 
     const fetchPendingCount = async () => {
         try {
@@ -129,6 +136,45 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         if (isMobile && onClose) onClose();
     };
 
+    const webPortalItems = ['Dashboard', 'Lead Info', 'CMS', 'Web Users', 'Rate Card Manage'];
+
+    const renderMenuItem = (item: MenuItem) => {
+        const isActive = pathname === item.path;
+        return (
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+                <ListItemButton
+                    onClick={() => handleNavigation(item.path)}
+                    sx={{
+                        borderRadius: 2,
+                        backgroundColor: isActive ? 'primary.main' : 'transparent',
+                        '&:hover': {
+                            backgroundColor: isActive ? 'primary.dark' : 'action.hover',
+                        },
+                        transition: 'all 0.2s',
+                    }}
+                >
+                    <ListItemIcon sx={{ color: 'inherit', minWidth: 40, opacity: isActive ? 1 : 0.7 }}>
+                        {item.text === 'Vehicle Registrations' ? (
+                            <Badge badgeContent={pendingRegCount} color="error">
+                                {item.icon}
+                            </Badge>
+                        ) : item.text === 'Lead Info' ? (
+                            <Badge badgeContent={unpickedLeadsCount} color="error">
+                                {item.icon}
+                            </Badge>
+                        ) : (
+                            item.icon
+                        )}
+                    </ListItemIcon>
+                    <ListItemText
+                        primary={item.text}
+                        primaryTypographyProps={{ fontSize: 14, fontWeight: isActive ? 600 : 400 }}
+                    />
+                </ListItemButton>
+            </ListItem>
+        );
+    };
+
     const drawerContent = (
         <>
             {/* Header/Logo Section */}
@@ -145,44 +191,39 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
             </Box>
 
             {/* Main Menu Items */}
-            <List sx={{ px: 2, py: 1, flexGrow: 1 }}>
-                {allowedItems.map((item) => {
-                    const isActive = pathname === item.path;
-                    return (
-                        <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-                            <ListItemButton
-                                onClick={() => handleNavigation(item.path)}
-                                sx={{
-                                    borderRadius: 2,
-                                    backgroundColor: isActive ? 'primary.main' : 'transparent',
-                                    '&:hover': {
-                                        backgroundColor: isActive ? 'primary.dark' : 'action.hover',
-                                    },
-                                    transition: 'all 0.2s',
-                                }}
-                            >
-                                <ListItemIcon sx={{ color: 'inherit', minWidth: 40, opacity: isActive ? 1 : 0.7 }}>
-                                    {item.text === 'Vehicle Registrations' ? (
-                                        <Badge badgeContent={pendingRegCount} color="error">
-                                            {item.icon}
-                                        </Badge>
-                                    ) : item.text === 'Lead Info' ? (
-                                        <Badge badgeContent={unpickedLeadsCount} color="error">
-                                            {item.icon}
-                                        </Badge>
-                                    ) : (
-                                        item.icon
-                                    )}
-                                </ListItemIcon>
-                                <ListItemText
-                                    primary={item.text}
-                                    primaryTypographyProps={{ fontSize: 14, fontWeight: isActive ? 600 : 400 }}
-                                />
-                            </ListItemButton>
-                        </ListItem>
-                    );
-                })}
-            </List>
+            <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 1 }}>
+                <ListItemButton onClick={() => setWebPortalOpen(!webPortalOpen)} sx={{ py: 0.5, px: 3, borderRadius: 2, mx: 1, mb: 0.5 }}>
+                    <ListItemText 
+                        primary="Web Portal" 
+                        primaryTypographyProps={{ variant: 'overline', color: 'text.secondary', fontWeight: 'bold', lineHeight: 2 }} 
+                    />
+                    {webPortalOpen ? <ExpandLess sx={{ color: 'text.secondary' }} /> : <ExpandMore sx={{ color: 'text.secondary' }} />}
+                </ListItemButton>
+                <Collapse in={webPortalOpen} timeout="auto" unmountOnExit>
+                    <List sx={{ px: 2, pt: 0, pb: 1 }}>
+                        {allowedItems
+                            .filter(item => webPortalItems.includes(item.text))
+                            .map(renderMenuItem)}
+                    </List>
+                </Collapse>
+
+                <Divider sx={{ my: 1, mx: 2 }} />
+
+                <ListItemButton onClick={() => setAdminPortalOpen(!adminPortalOpen)} sx={{ py: 0.5, px: 3, borderRadius: 2, mx: 1, mb: 0.5 }}>
+                    <ListItemText 
+                        primary="Admin Portal" 
+                        primaryTypographyProps={{ variant: 'overline', color: 'text.secondary', fontWeight: 'bold', lineHeight: 2 }} 
+                    />
+                    {adminPortalOpen ? <ExpandLess sx={{ color: 'text.secondary' }} /> : <ExpandMore sx={{ color: 'text.secondary' }} />}
+                </ListItemButton>
+                <Collapse in={adminPortalOpen} timeout="auto" unmountOnExit>
+                    <List sx={{ px: 2, pt: 0, pb: 1 }}>
+                        {allowedItems
+                            .filter(item => !webPortalItems.includes(item.text))
+                            .map(renderMenuItem)}
+                    </List>
+                </Collapse>
+            </Box>
 
             {/* Logout Section at Bottom */}
             <Divider sx={{ borderColor: 'divider' }} />
