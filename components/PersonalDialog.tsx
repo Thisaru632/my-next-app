@@ -449,7 +449,12 @@ export const PersonalDialog: React.FC<PersonalDialogProps> = ({
             )}
 
             <button
-              onClick={handleSendRequest}
+              onClick={() => {
+                if (typeof window !== 'undefined' && typeof (window as any).fbq === 'function') {
+                  (window as any).fbq('track', 'Lead');
+                }
+                handleSendRequest();
+              }}
               style={{
                 padding: '1.1rem',
                 background: 'linear-gradient(135deg, #0d9488 0%, #0891b2 100%)',
