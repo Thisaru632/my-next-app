@@ -11,43 +11,29 @@ const HERO_DESTINATIONS = [
     name: "Galle Fort",
     label: "Heritage",
     description: "Centuries of history preserved in stone walls.",
-    bg: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.webp",
+    bg: "/Galle/galle fort.webp",
     tall: true,
   },
   {
-    name: "Dutch Hospital",
-    label: "Landmark",
-    description: "Restored colonial architecture with modern vibes.",
-    bg: "/destination/galle/matt-dany-FOYmbDX-sTs-unsplash.webp",
-    tall: false,
-  },
-  {
-    name: "Lighthouse",
-    label: "Iconic",
-    description: "The guardian of the southern coast since 1848.",
-    bg: "/destination/galle/matt-dany-iitTkHI4Tqw-unsplash.webp",
-    tall: false,
-  },
-  {
-    name: "Beachfront",
+    name: "Hikkaduwa",
     label: "Coastal",
-    description: "Where the Indian Ocean meets the golden sands.",
-    bg: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.webp",
-    tall: true,
-  },
-  {
-    name: "Old Streets",
-    label: "Culture",
-    description: "Winding cobblestone paths filled with charm.",
-    bg: "/destination/galle/sarmat-batagov-VB-ugSBaVzA-unsplash.webp",
+    description: "Vibrant coral reefs and energetic beach life.",
+    bg: "/Galle/hikkaduwa.jpg",
     tall: false,
   },
   {
-    name: "Pagoda",
+    name: "Unawatuna",
+    label: "Relaxation",
+    description: "A stunning crescent-shaped bay with turquoise waters.",
+    bg: "/Galle/unawatuna.jpg",
+    tall: false,
+  },
+  {
+    name: "Japanese Peace Pagoda",
     label: "Peace",
     description: "Quiet reflection overlooking the vast blue sea.",
-    bg: "/destination/galle/sarmat-batagov-ehxQ3o8FKTs-unsplash.webp",
-    tall: false,
+    bg: "/Galle/pagoda.jpg",
+    tall: true,
   },
 ];
 
@@ -86,32 +72,49 @@ const THINGS_TO_DO = [
 
 const PLACES_TO_VISIT = [
   {
-    name: "One Day Galle Tour",
+    name: "3 Person Galle Tour",
     desc: "Experience the essential highlights of Galle in a perfectly curated day. From the colonial grandeur of the Fort to the iconic lighthouse and vibrant local markets, see the best of the southern coast.",
     image: "/destination/galle/matt-dany-iitTkHI4Tqw-unsplash.webp",
-    days: "1 Day",
-    itinerary: ["Galle Fort Heritage Walk", "Ramparts Sunset", "Old Dutch Hospital", "Galle Lighthouse"]
+    days: "3 Persons",
+    vehicle: "Wagon R",
+    price: "Rs 12,000",
+    itinerary: ["Hikkaduwa", "Galle Fort", "Unawatuna", "Japanese Peace Pagoda"]
   },
   {
-    name: "Two Day Galle Tour",
+    name: "4 Person Galle Tour",
     desc: "A balanced blend of history and coastal relaxation. Dive deeper into the local culture and enjoy the pristine hidden beaches surrounding the historic city center.",
     image: "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.webp",
-    days: "2 Days",
-    itinerary: ["Japanese Peace Pagoda", "Rumassala Jungle Beach", "Sea Turtle Hatchery", "Stilt Fishing Experience"]
+    days: "4 Persons",
+    vehicle: "Aqua",
+    price: "Rs 18,000",
+    itinerary: ["Hikkaduwa", "Galle Fort", "Unawatuna", "Japanese Peace Pagoda"]
   },
   {
-    name: "Three Day Galle Tour",
+    name: "6 Person Galle Tour",
     desc: "The complete southern experience. Explore the rich maritime history, lush tea estates, and the sophisticated dining scene that makes Galle a premier global destination.",
     image: "/destination/galle/zoshua-colah-bYdRfOLE2JU-unsplash.webp",
-    days: "3 Days",
-    itinerary: ["Handunugoda Tea Estate", "Maritime Archeology Museum", "Coastal Village Tour", "Premium Beach Club Access"]
+    days: "6 Persons",
+    vehicle: "Mini Van",
+    price: "Rs 27,000",
+    itinerary: ["Hikkaduwa", "Galle Fort", "Unawatuna", "Japanese Peace Pagoda"]
   },
   {
-    name: "Four Day Galle Tour",
+    name: "9 Person Galle Tour",
     desc: "The ultimate colonial retreat. A luxurious deep dive into the south coast's heritage, including day trips to nearby gems and exclusive private tours.",
     image: "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.webp",
-    days: "4 Days",
-    itinerary: ["Mirissa Whale Watching", "Koggala Lake Boat Safari", "Antique Mansion Tour", "Luxury Fine Dining Experience"]
+    days: "9 Persons",
+    vehicle: "KDH Flat Roof",
+    price: "Rs 39,000",
+    itinerary: ["Hikkaduwa", "Galle Fort", "Unawatuna", "Japanese Peace Pagoda"]
+  },
+  {
+    name: "14 Person Galle Tour",
+    desc: "An expansive journey designed for larger groups. Enjoy the best of Galle's culture, heritage, and scenery with exclusive group arrangements and private guides.",
+    image: "/destination/galle/sarmat-batagov-VB-ugSBaVzA-unsplash.webp",
+    days: "14 Persons",
+    vehicle: "KDH High Roof",
+    price: "Rs 60,000",
+    itinerary: ["Hikkaduwa", "Galle Fort", "Unawatuna", "Japanese Peace Pagoda"]
   },
 ];
 
@@ -175,11 +178,109 @@ function DestCard({ dest, index, inView }: { dest: any; index: number; inView: b
   );
 }
 
+const TOUR_ROUTE = [
+  {
+    name: "Hikkaduwa",
+    desc: "A vibrant coastal town famous for its lively beach culture, coral sanctuary, and thrilling water sports.",
+    images: [
+      "/Galle/hikkaduwa.jpg",
+      "/destination/galle/polina-kneis-KcqxBAqYk2M-unsplash.webp"
+    ]
+  },
+  {
+    name: "Galle Fort",
+    desc: "A living UNESCO World Heritage site, offering winding cobblestone streets, Dutch colonial architecture, and chic boutiques.",
+    images: [
+      "/Galle/galle fort.webp",
+      "/destination/galle/chathura-indika-LAj-XlHP6Rs-unsplash.webp"
+    ]
+  },
+  {
+    name: "Galle Lighthouse",
+    desc: "An iconic landmark standing tall on the fort's ramparts, providing breathtaking views of the Indian Ocean.",
+    images: [
+      "/destination/galle/matt-dany-iitTkHI4Tqw-unsplash.webp",
+      "/destination/galle/matt-dany-FOYmbDX-sTs-unsplash.webp"
+    ]
+  },
+  {
+    name: "Unawatuna",
+    desc: "A stunning palm-fringed, crescent-shaped bay known for its calm turquoise waters and relaxed coastal vibe.",
+    images: [
+      "/Galle/unawatuna.jpg",
+      "/destination/galle/sarmat-batagov-ehxQ3o8FKTs-unsplash.webp"
+    ]
+  },
+  {
+    name: "Japanese Peace Pagoda",
+    desc: "A serene Buddhist stupa nestled on the Rumassala hill, offering panoramic views of the bay and a sense of deep tranquility.",
+    images: [
+      "/Galle/pagoda.jpg",
+      "/destination/galle/sarmat-batagov-VB-ugSBaVzA-unsplash.webp"
+    ]
+  }
+];
+
+function RouteSlider({ images }: { images: string[] }) {
+  const [current, setCurrent] = useState(0);
+
+  const nextSlide = () => setCurrent((prev) => (prev + 1) % images.length);
+  const prevSlide = () => setCurrent((prev) => (prev - 1 + images.length) % images.length);
+
+  return (
+    <div className="route-slider relative w-full h-[300px] sm:h-[400px] rounded-2xl overflow-hidden shadow-xl group">
+      <AnimatePresence initial={false} mode="wait">
+        <motion.div
+          key={current}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="absolute inset-0"
+        >
+          <Image src={images[current]} alt="Location image" fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+        </motion.div>
+      </AnimatePresence>
+      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between p-4 z-10">
+        <button onClick={prevSlide} className="w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition text-gray-800">
+          <ChevronLeft size={20} />
+        </button>
+        <button onClick={nextSlide} className="w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition text-gray-800">
+          <ChevronRight size={20} />
+        </button>
+      </div>
+      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+        {images.map((_, i) => (
+          <div key={i} className={`h-1.5 rounded-full transition-all ${i === current ? "w-6 bg-white" : "w-2 bg-white/50"}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function GalleDestinationPage() {
   const [inView, setInView] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mobileDestGridRef = useRef<HTMLDivElement>(null);
   const [activePlace, setActivePlace] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (typeof window !== "undefined" && window.innerWidth <= 640) {
+      interval = setInterval(() => {
+        if (mobileDestGridRef.current) {
+          const { scrollLeft, scrollWidth, clientWidth } = mobileDestGridRef.current;
+          if (scrollLeft + clientWidth >= scrollWidth - 10) {
+            mobileDestGridRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+          } else {
+            mobileDestGridRef.current.scrollBy({ left: clientWidth * 0.85, behavior: 'smooth' });
+          }
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -226,7 +327,7 @@ export default function GalleDestinationPage() {
       <style>{`
         .magical-section {
           background: #ffffff;
-          padding: 100px 4% 80px;
+          padding: 20px 4% 80px;
           position: relative;
           overflow: hidden;
         }
@@ -285,7 +386,7 @@ export default function GalleDestinationPage() {
         }
         .dest-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(3, 1fr);
           gap: 14px;
           margin-bottom: 14px;
         }
@@ -555,7 +656,7 @@ export default function GalleDestinationPage() {
 
         /* ── PLACES WITH SENU (Dynamic Carousel) ── */
         .senu-section {
-          padding: 120px 5%;
+          padding: 120px 5% 40px;
           background: #ffffff;
           overflow: hidden;
         }
@@ -775,146 +876,175 @@ export default function GalleDestinationPage() {
             .dest-grid { grid-template-columns: repeat(2, 1fr); }
             .dest-tall { height: 300px; }
             .dest-card { height: 300px; }
-            .senu-inner { grid-template-columns: 1fr; gap: 50px; }
-            .senu-visual { position: static; }
+            .senu-inner { display: flex; flex-direction: column; gap: 40px; }
+            .senu-content { display: contents; }
+            .senu-content > .section-eyebrow-small { order: 1; }
+            .senu-content > h2 { order: 2; margin-bottom: 10px; }
+            .senu-visual { order: 3; position: static; width: 100%; height: auto; }
+            .senu-carousel-container { height: 450px !important; }
+            .active-place-meta { order: 4; margin-top: 20px; }
         }
         @media (max-width: 640px) {
             .magical-hero { padding-top: 60px; }
             .magical-heading { font-size: 2.2rem; }
-            .dest-grid { grid-template-columns: 1fr; }
-            .dest-col { flex-direction: column; }
-            .dest-tall, .dest-card { height: 260px; }
+            .dest-grid { 
+               display: flex; 
+               overflow-x: auto; 
+               scroll-snap-type: x mandatory; 
+               gap: 16px; 
+               padding-bottom: 20px;
+               -ms-overflow-style: none; 
+               scrollbar-width: none;
+            }
+            .dest-grid::-webkit-scrollbar { display: none; }
+            .dest-col { display: contents; }
+            .dest-tall, .dest-card { 
+               height: 260px; 
+               flex: 0 0 85vw; 
+               scroll-snap-align: center; 
+            }
+
+            .senu-section { padding: 60px 5% 10px; }
+            .magical-section { padding: 10px 4% 80px; }
+            .senu-inner { gap: 15px; }
+            .senu-visual { height: auto; }
+            .senu-carousel-container { height: 440px !important; margin: 0; }
+            .carousel-card { width: 260px !important; height: 380px !important; }
+            .nav-btn { width: 36px !important; height: 36px !important; }
+            .nav-btn.prev { left: -10px !important; }
+            .nav-btn.next { right: -10px !important; }
+            .card-title-small { font-size: 1.2rem; }
+            .senu-content > h2 { font-size: 2rem; margin-bottom: 0; }
+            .active-place-meta { margin-top: 5px; display: flex; flex-direction: column; }
+            .active-place-meta .itinerary-box { order: -1; margin-bottom: 20px; }
+            .active-place-name, .active-place-desc { display: none; }
+        }
+
+        /* ── TOUR ROUTE SECTION ── */
+        .tour-route-section {
+          padding: 100px 5%;
+          background: #fafafa;
+          position: relative;
+        }
+        .tour-route-header {
+          text-align: center;
+          margin-bottom: 80px;
+        }
+        .tour-route-title {
+          font-family: 'Playfair Display', serif;
+          font-size: clamp(2rem, 4vw, 3.5rem);
+          color: #111;
+          margin-bottom: 16px;
+        }
+        .tour-route-subtitle {
+          font-family: 'Montserrat', sans-serif;
+          color: #666;
+          max-width: 600px;
+          margin: 0 auto;
+          line-height: 1.6;
+        }
+        .timeline-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          position: relative;
+        }
+        .timeline-line {
+          position: absolute;
+          left: 50%;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background: rgba(13, 148, 136, 0.2);
+          transform: translateX(-50%);
+        }
+        .timeline-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 100px;
+          position: relative;
+        }
+        .timeline-item:last-child {
+          margin-bottom: 0;
+        }
+        .timeline-content {
+          width: 45%;
+        }
+        .timeline-slider {
+          width: 45%;
+        }
+        .timeline-item:nth-child(even) {
+          flex-direction: row-reverse;
+        }
+        .timeline-item:nth-child(even) .timeline-content {
+          text-align: right;
+        }
+        .timeline-dot {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #0d9488;
+          border: 4px solid #fafafa;
+          z-index: 2;
+          box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
+        }
+        .timeline-step {
+          font-family: 'Montserrat', sans-serif;
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #0d9488;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          margin-bottom: 12px;
+          display: block;
+        }
+        .timeline-title {
+          font-family: 'Playfair Display', serif;
+          font-size: 2rem;
+          color: #111;
+          margin-bottom: 16px;
+        }
+        .timeline-desc {
+          font-family: 'Montserrat', sans-serif;
+          color: #555;
+          line-height: 1.7;
+          font-size: 1rem;
+        }
+        @media (max-width: 768px) {
+          .timeline-line {
+            left: 20px;
+          }
+          .timeline-item, .timeline-item:nth-child(even) {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .timeline-item:nth-child(even) .timeline-content {
+            text-align: left;
+          }
+          .timeline-content, .timeline-slider {
+            width: 100%;
+            padding-left: 50px;
+          }
+          .timeline-slider {
+            margin-top: 30px;
+          }
+          .timeline-dot {
+            left: 20px;
+            top: 20px;
+          }
         }
       `}</style>
-
-      {/* ── Top Hero Section (Exactly as MagicalDestinations) ── */}
-      <section ref={sectionRef} className="magical-section">
-        <div
-          className="magical-header"
-          style={{
-            opacity: inView ? 1 : 0,
-            transform: inView ? "translateY(0)" : "translateY(20px)",
-            transition: "opacity 0.8s ease, transform 0.8s ease",
-          }}
-        >
-          <div className="magical-eyebrow-row">
-            <div className="magical-rule" />
-            <span className="magical-eyebrow">Magical destinations</span>
-            <div className="magical-rule" />
-          </div>
-
-          <h2 className="magical-heading">
-            Ramparts, Reefs,{" "}
-            <em>Heritage,</em>{" "}
-            <span className="heading-accent">Treasures</span>
-          </h2>
-
-          <p className="magical-sub">
-            Galle awaits with its timeless Dutch colonial legacy, winding cobblestone streets,
-            and the golden shores of the Indian Ocean—a perfect blend of history and coastal charm.
-          </p>
-        </div>
-
-        <div className="dest-grid">
-          <div className="dest-col">
-            <DestCard dest={HERO_DESTINATIONS[0]} index={0} inView={inView} />
-          </div>
-          <div className="dest-col">
-            <DestCard dest={HERO_DESTINATIONS[1]} index={1} inView={inView} />
-            <DestCard dest={HERO_DESTINATIONS[2]} index={2} inView={inView} />
-          </div>
-          <div className="dest-col">
-            <DestCard dest={HERO_DESTINATIONS[3]} index={3} inView={inView} />
-          </div>
-          <div className="dest-col">
-            <DestCard dest={HERO_DESTINATIONS[4]} index={4} inView={inView} />
-            <DestCard dest={HERO_DESTINATIONS[5]} index={5} inView={inView} />
-          </div>
-        </div>
-      </section>
-
-      {/* ── Description ── */}
-      <section className="galle-desc-section">
-        <div className="desc-container">
-          <h2 className="desc-title">Galle Heritage</h2>
-          <p className="desc-text">
-            Galle is a jewel of Sri Lanka, where history and the ocean meet in a beautiful dance.
-            The iconic Galle Fort, a UNESCO World Heritage site, is a living museum of colonial architecture,
-            with its winding cobblestone streets, charming boutiques, and historic ramparts.
-          </p>
-          <p className="desc-text">
-            Beyond the fort, you'll find golden beaches, vibrant local markets, and a sense of timelessness
-            that makes Galle one of the most beloved destinations on the island. Experience the perfect
-            blend of culture, heritage, and coastal beauty.
-          </p>
-        </div>
-      </section>
-
-      {/* ── Destination Video Section ── */}
-      <section className="destination-video-section">
-        <div className="video-container">
-          <iframe
-            src="https://www.youtube.com/embed/nE1E1U8GvL8?si=9kX5Xl_0x3H5T4-y&autoplay=0&mute=1&loop=1&playlist=nE1E1U8GvL8"
-            title="Things to do in Galle Sri Lanka"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          ></iframe>
-        </div>
-      </section>
-
-      {/* ── Things to Do (Slider with Arrows) ── */}
-      <section className="things-section">
-        <div className="section-header">
-          <span className="section-eyebrow-small">Top Activities</span>
-          <h2 className="section-heading">Things to Do in Galle</h2>
-        </div>
-
-        <div className="things-slider-container">
-          <button className="slider-arrow arrow-left" onClick={() => scroll('left')}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-
-          <div className="things-grid" ref={scrollRef}>
-            {THINGS_TO_DO.map((item, i) => (
-              <motion.div
-                key={i}
-                className="thing-card"
-                whileHover={{ y: -8 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              >
-                <div className="thing-img-box relative overflow-hidden">
-                  <Image
-                    src={item.image}
-                    alt={item.title}
-                    fill
-                    className="object-cover"
-                    sizes="320px"
-                  />
-                </div>
-                <div className="thing-content">
-                  <h3 className="thing-title">{item.title}</h3>
-                  <p className="thing-desc">{item.desc}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <button className="slider-arrow arrow-right" onClick={() => scroll('right')}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </button>
-        </div>
-      </section>
 
       {/* ── Places with Senu (Interactive Carousel) ── */}
       <section className="senu-section">
         <div className="senu-inner">
           <div className="senu-content">
             <span className="section-eyebrow-small">Expert Picks</span>
-            <h2>Places we must travel in Galle <em>with Senu</em></h2>
+            <h2>Galle Tour Packages <em>with Senu</em></h2>
 
             <div className={`active-place-meta active`}>
               <h3 className="active-place-name">{PLACES_TO_VISIT[activePlace].name}</h3>
@@ -927,6 +1057,9 @@ export default function GalleDestinationPage() {
                     <div key={idx} className="itinerary-item">{place}</div>
                   ))}
                 </div>
+                <button className="mt-6 w-full py-3 bg-[#0a937c] text-white rounded font-bold uppercase tracking-wider text-sm hover:bg-[#087a66] transition-colors shadow-md" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                  See Tour Details
+                </button>
               </div>
             </div>
 
@@ -934,7 +1067,7 @@ export default function GalleDestinationPage() {
           </div>
 
           <div className="senu-visual">
-            <div className="relative w-full h-[600px] flex items-center justify-center overflow-visible">
+            <div className="senu-carousel-container relative w-full h-[600px] flex items-center justify-center overflow-visible">
               <AnimatePresence>
                 {PLACES_TO_VISIT.map((place, i) => {
                   const pos = getPosition(i);
@@ -971,7 +1104,11 @@ export default function GalleDestinationPage() {
                       <div className="card-overlay">
                         <span className="day-count">{place.days}</span>
                         <h4 className="card-title-small">{place.name}</h4>
-                        <button className="request-btn">Select a Vehicle and Request Booking</button>
+                        <div style={{ fontFamily: "'Montserrat', sans-serif" }} className="flex justify-between items-center mb-4 text-xs font-semibold opacity-90">
+                          <span>{place.vehicle}</span>
+                          <span className="text-teal-400">{place.price}</span>
+                        </div>
+                        <button className="request-btn">Request Booking</button>
                       </div>
                     </motion.div>
                   );
@@ -987,6 +1124,69 @@ export default function GalleDestinationPage() {
               </button>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── Top Hero Section (Exactly as MagicalDestinations) ── */}
+      <section ref={sectionRef} className="magical-section">
+        <div
+          className="magical-header"
+          style={{
+            opacity: inView ? 1 : 0,
+            transform: inView ? "translateY(0)" : "translateY(20px)",
+            transition: "opacity 0.8s ease, transform 0.8s ease",
+          }}
+        >
+          <div className="magical-eyebrow-row">
+            <div className="magical-rule" />
+            <span className="magical-eyebrow">Magical destinations</span>
+            <div className="magical-rule" />
+          </div>
+
+          <h2 className="magical-heading">
+            Visit most beautiful places in Galle{" "}
+            <span className="heading-accent">with us</span>
+          </h2>
+
+
+        </div>
+
+        <div className="dest-grid" ref={mobileDestGridRef}>
+          <div className="dest-col">
+            <DestCard dest={HERO_DESTINATIONS[0]} index={0} inView={inView} />
+          </div>
+          <div className="dest-col">
+            <DestCard dest={HERO_DESTINATIONS[1]} index={1} inView={inView} />
+            <DestCard dest={HERO_DESTINATIONS[2]} index={2} inView={inView} />
+          </div>
+          <div className="dest-col">
+            <DestCard dest={HERO_DESTINATIONS[3]} index={3} inView={inView} />
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── Tour Route Section ── */}
+      <section className="tour-route-section">
+        <div className="tour-route-header">
+          <h2 className="tour-route-title">The Tour Route</h2>
+          <p className="tour-route-subtitle">Follow our perfectly curated journey through the most beautiful spots in Galle and its surrounding coastal gems.</p>
+        </div>
+        <div className="timeline-container">
+          <div className="timeline-line"></div>
+          {TOUR_ROUTE.map((stop, i) => (
+            <div key={i} className="timeline-item">
+              <div className="timeline-dot"></div>
+              <div className="timeline-content">
+                <span className="timeline-step">Stop 0{i + 1}</span>
+                <h3 className="timeline-title">{stop.name}</h3>
+                <p className="timeline-desc">{stop.desc}</p>
+              </div>
+              <div className="timeline-slider">
+                <RouteSlider images={stop.images} />
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
