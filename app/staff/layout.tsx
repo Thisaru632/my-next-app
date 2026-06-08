@@ -60,10 +60,11 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
         }
 
         // 1-hour absolute expiry check (from login)
-        if (expiry && Date.now() > parseInt(expiry)) {
-            handleLogout();
-            return;
-        }
+        // Disabled to stop auto logout process
+        // if (expiry && Date.now() > parseInt(expiry)) {
+        //     handleLogout();
+        //     return;
+        // }
 
         if (token && isAuthPage) {
             router.push('/staff');
@@ -89,6 +90,8 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
     }, [pathname, router, isAuthPage]);
 
     // --- Idle Timeout Logic (Dynamic Based on Role) ---
+    // Disabled to stop auto logout process
+    /*
     useEffect(() => {
         if (isAuthPage || !isAuthenticated) return;
 
@@ -128,6 +131,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
             });
         };
     }, [isAuthenticated, isAuthPage]);
+    */
 
     // --- Heartbeat Logic (Every 1 minute) ---
     useEffect(() => {
