@@ -339,9 +339,11 @@ export function useHeroBooking() {
   const handleChange = (field: string, value: string | any) => {
     if (field === 'dateTime' && value) {
       const selectedTime = new Date(value).getTime();
-      const minLeadTime = new Date().getTime() + (2 * 60 * 60 * 1000);
+      const isToday = new Date(value).toDateString() === new Date().toDateString();
+      const leadTimeHours = isToday ? 2.5 : 2;
+      const minLeadTime = new Date().getTime() + (leadTimeHours * 60 * 60 * 1000);
       if (selectedTime < minLeadTime) {
-        setSnackbarMessage('Bookings must be made at least 2 hours in advance.'); setSnackbarSeverity('warning'); setSnackbarOpen(true);
+        setSnackbarMessage(`Bookings must be made at least ${leadTimeHours} hours in advance.`); setSnackbarSeverity('warning'); setSnackbarOpen(true);
         const minDate = new Date(minLeadTime - (new Date().getTimezoneOffset() * 60000));
         value = minDate.toISOString().slice(0, 16);
       }
@@ -492,8 +494,10 @@ export function useHeroBooking() {
     }
     if (routeLoading) { setSnackbarMessage('Please wait while we calculate the route distance...'); setSnackbarSeverity('info'); setSnackbarOpen(true); return; }
     const selectedTime = new Date(formData.dateTime).getTime();
-    const minLeadTime = new Date().getTime() + (2 * 60 * 60 * 1000);
-    if (selectedTime < minLeadTime) { setSnackbarMessage('Sorry, your selected time is too soon. Please select a time at least 2 hours from now.'); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
+    const isToday = new Date(formData.dateTime).toDateString() === new Date().toDateString();
+    const leadTimeHours = isToday ? 2.5 : 2;
+    const minLeadTime = new Date().getTime() + (leadTimeHours * 60 * 60 * 1000);
+    if (selectedTime < minLeadTime) { setSnackbarMessage(`Sorry, your selected time is too soon. Please select a time at least ${leadTimeHours} hours from now.`); setSnackbarSeverity('error'); setSnackbarOpen(true); return; }
     const distanceInKm = routeDistance ? (routeDistance / 1000) : 0;
     if (blockedProvinceName) {
       setShowProvinceBlockDialog(true);

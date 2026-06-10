@@ -37,7 +37,9 @@ export function CustomCalendar({
       days.push(<div key={`empty-${i}`} style={{ width: '100%', aspectRatio: '1/1' }} />);
     }
 
-    const minDateObj = new Date(minDate.split('T')[0]);
+    const minDateStr = minDate.split('T')[0];
+    const [minYear, minMonth, minDay] = minDateStr.split('-').map(Number);
+    const minDateObj = new Date(minYear, minMonth - 1, minDay);
     const selectedDateObj = selectedDate ? new Date(selectedDate) : null;
 
     for (let d = 1; d <= numDays; d++) {

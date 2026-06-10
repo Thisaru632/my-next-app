@@ -23,10 +23,6 @@ import { AppBar, Toolbar, Slide } from '@mui/material';
 import { TransitionProps } from '@mui/material/transitions';
 import { API_ENDPOINTS } from '@/config/api';
 
-const SRI_LANKA_PROVINCES = [
-    'Western', 'Central', 'Southern', 'North Western', 
-    'Sabaragamuwa', 'North Central', 'Uva', 'Eastern', 'Northern'
-];
 
 import {
     Dialog,
@@ -50,10 +46,15 @@ import {
     CheckCircle as CheckCircleIcon,
     Clear as ClearIcon,
 } from '@mui/icons-material';
-import { GoogleMap, useJsApiLoader, DrawingManager, Circle, Polygon, Autocomplete, Marker, Polyline } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Circle, Polygon, Autocomplete, Marker, Polyline } from '@react-google-maps/api';
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyD-hNAm1fnevgihbvtPVY8O0SuzOzK_Msc";
-const LIBRARIES: ("places" | "geometry" | "drawing" | "visualization")[] = ["places", "geometry", "drawing"];
+const LIBRARIES: ("places" | "geometry" | "visualization")[] = ["places", "geometry"];
+
+const SRI_LANKA_PROVINCES = [
+    'Western', 'Central', 'Southern', 'North Western', 
+    'Sabaragamuwa', 'North Central', 'Uva', 'Eastern', 'Northern'
+];
 
 const mapContainerStyle = {
     width: '100%',
@@ -98,7 +99,12 @@ const ProvinceManagePage = () => {
     const [isDrawingMode, setIsDrawingMode] = useState(false);
     const [drawingPoints, setDrawingPoints] = useState<google.maps.LatLngLiteral[]>([]);
 
-    const { isLoaded } = useJsApiLoader({ id: 'google-map-script', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LIBRARIES });
+    const { isLoaded, loadError } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+        libraries: LIBRARIES,
+        version: '3.64'
+    });
 
     useEffect(() => {
         fetchGlobalSettings();
@@ -111,13 +117,13 @@ const ProvinceManagePage = () => {
             if (response.ok) {
                 const data = await response.json();
                 if (data.blockedProvinces !== undefined) {
-                    setBlockedProvinces(data.blockedProvinces);
+                    setBlockedProvinces(data.blockedProvinces || []);
                 }
                 if (data.provinceAdjustments !== undefined) {
-                    setProvinceAdjustments(data.provinceAdjustments);
+                    setProvinceAdjustments(data.provinceAdjustments || {});
                 }
                 if (data.classifiedAreas !== undefined) {
-                    setClassifiedAreas(data.classifiedAreas);
+                    setClassifiedAreas(data.classifiedAreas || []);
                 }
             } else {
                 setError('Failed to fetch global settings');
@@ -439,10 +445,10 @@ const ProvinceManagePage = () => {
                                 
                                 <Stack direction="row" spacing={2} alignItems="center">
                                     <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#8b5cf6' }} /> Mountain
+                                        <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#8b5cf6', display: 'inline-block' }} /> Mountain
                                     </Typography>
                                     <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#22c55e' }} /> Plain
+                                        <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#22c55e', display: 'inline-block' }} /> Plain
                                     </Typography>
 
                                     <Button
@@ -511,25 +517,7 @@ const ProvinceManagePage = () => {
                                             fullscreenControl: true,
                                         }}
                                     >
-                                        {/* SINGLE Drawing manager for freehand marking */}
-                                        <DrawingManager
-                                            drawingMode={null}
-                                            onPolygonComplete={handlePolygonComplete}
-                                            options={{
-                                                drawingControl: false,
-                                                drawingControlOptions: {
-                                                    position: google.maps.ControlPosition.TOP_CENTER,
-                                                    drawingModes: [google.maps.drawing.OverlayType.POLYGON]
-                                                },
-                                                polygonOptions: {
-                                                    fillColor: '#3b82f6',
-                                                    strokeColor: '#3b82f6',
-                                                    strokeWeight: 2,
-                                                    clickable: true,
-                                                    zIndex: 1
-                                                }
-                                            }}
-                                        />
+                                        {/* SINGLE Drawing manager for freehand marking REMOVED */}
 
                                         {/* Manual Drawing Points & Lines */}
                                         {isDrawingMode && drawingPoints.map((point, index) => (
@@ -878,10 +866,10 @@ const ProvinceManagePage = () => {
                         </Typography>
                         <Stack direction="row" spacing={2} alignItems="center">
                             <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'white' }}>
-                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#8b5cf6' }} /> Mountain
+                                <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#8b5cf6', display: 'inline-block' }} /> Mountain
                             </Typography>
                             <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'white' }}>
-                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#22c55e' }} /> Plain
+                                <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#22c55e', display: 'inline-block' }} /> Plain
                             </Typography>
                             <IconButton color="inherit" onClick={() => setIsMapFullScreen(false)}>
                                 <CloseIcon />
@@ -946,24 +934,7 @@ const ProvinceManagePage = () => {
                                 fullscreenControl: true,
                             }}
                         >
-                            <DrawingManager
-                                drawingMode={null}
-                                onPolygonComplete={handlePolygonComplete}
-                                options={{
-                                    drawingControl: false,
-                                    drawingControlOptions: {
-                                        position: google.maps.ControlPosition.TOP_CENTER,
-                                        drawingModes: [google.maps.drawing.OverlayType.POLYGON]
-                                    },
-                                    polygonOptions: {
-                                        fillColor: '#3b82f6',
-                                        strokeColor: '#3b82f6',
-                                        strokeWeight: 2,
-                                        clickable: true,
-                                        zIndex: 1
-                                    }
-                                }}
-                            />
+
 
                             {/* Manual Drawing Points & Lines (Full Screen) */}
                             {isDrawingMode && drawingPoints.map((point, index) => (
