@@ -41,6 +41,7 @@ import {
   Phone as PhoneIcon,
   CalendarToday as CalendarIcon,
   Verified as VerifiedIcon,
+  Share as ShareIcon,
 } from '@mui/icons-material';
 
 import { API_ENDPOINTS, API_BASE_URL } from '@/config/api';
@@ -126,6 +127,27 @@ const SuperTeamPage = () => {
     });
   };
 
+  const handleStatusChange = async (id: string, newStatus: 'Approved' | 'Rejected') => {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.SUPER_TEAM}/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      
+      if (response.ok) {
+        setMembers(members.map(member => 
+          member._id === id ? { ...member, status: newStatus } : member
+        ));
+        setSelectedMember(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
   return (
     <Box sx={{ p: 0 }}>
       {/* Header */}
@@ -134,7 +156,22 @@ const SuperTeamPage = () => {
           <Box sx={{ p: 1, bgcolor: 'primary.main', borderRadius: 2, color: 'white' }}>
             <BusIcon />
           </Box>
-          <Typography variant="h5" fontWeight="bold">Super Team Members</Typography>
+          <Box>
+            <Typography variant="h5" fontWeight="bold">Super Team Members</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ bgcolor: '#f1f5f9', px: 1.5, py: 0.5, borderRadius: 1 }}>
+                https://senutours.lk/super-team
+              </Typography>
+              <Tooltip title="Copy Link">
+                <IconButton size="small" onClick={() => {
+                  navigator.clipboard.writeText('https://senutours.lk/super-team');
+                  alert('Link copied to clipboard!');
+                }}>
+                  <ShareIcon fontSize="small" color="primary" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
         </Box>
       </Box>
 
@@ -361,8 +398,37 @@ const SuperTeamPage = () => {
 
               </Grid>
             </DialogContent>
-            <DialogActions sx={{ p: 2 }}>
-              <Button onClick={() => setOpenDialog(false)}>Close</Button>
+            <DialogActions sx={{ p: 2, px: 4, display: 'flex', justifyContent: 'space-between', bgcolor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+              <Box>
+                {selectedMember.status === 'Pending' ? (
+                  <>
+                    <Button 
+                      variant="contained" 
+                      color="success" 
+                      sx={{ mr: 1.5, fontWeight: 'bold' }}
+                      onClick={() => handleStatusChange(selectedMember._id, 'Approved')}
+                    >
+                      Approve
+                    </Button>
+                    <Button 
+                      variant="contained" 
+                      color="error"
+                      sx={{ fontWeight: 'bold' }}
+                      onClick={() => handleStatusChange(selectedMember._id, 'Rejected')}
+                    >
+                      Reject
+                    </Button>
+                  </>
+                ) : (
+                  <Chip 
+                    label={`Current Status: ${selectedMember.status}`} 
+                    color={selectedMember.status === 'Approved' ? 'success' : 'error'} 
+                    variant="outlined" 
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                )}
+              </Box>
+              <Button onClick={() => setOpenDialog(false)} variant="outlined">Close</Button>
             </DialogActions>
           </>
         )}
