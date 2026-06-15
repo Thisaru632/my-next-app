@@ -69,6 +69,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Staff Guide', icon: <MenuBookIcon />, path: '/staff/staff-guide', key: 'dashboard' }, // Always allow if they have dashboard access
         { text: 'Manage Guides', icon: <FileUploadIcon />, path: '/staff/staff-guide/manage', key: 'staffGuideManage' },
         { text: 'Vehicle Registrations', icon: <DirectionsBusIcon />, path: '/staff/vehicle-registrations', key: 'vehicleRegistration' },
+        { text: 'Super Team', icon: <DirectionsBusIcon />, path: '/staff/super-team', key: 'dashboard' },
         { text: 'Cab Service', icon: <LocalTaxiIcon />, path: '/staff/cab-service', key: 'cabService' },
         { text: 'Links', icon: <LinkIcon />, path: '/staff/links', key: 'dashboard' },
     ];
@@ -136,7 +137,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         if (isMobile && onClose) onClose();
     };
 
-    const webPortalItems = ['Dashboard', 'Lead Info', 'CMS', 'Web Users', 'Rate Card Manage'];
+    const webPortalItems = ['Dashboard', 'Lead Info', 'CMS', 'Web Users', 'Rate Card Manage', 'Super Team'];
 
     const renderMenuItem = (item: MenuItem) => {
         const isActive = pathname === item.path;

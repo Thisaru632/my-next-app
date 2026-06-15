@@ -1,4 +1,4 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'; // Default to local for dev, use env for prod
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'; // Default to local for dev, use env for prod
 
 export const API_ENDPOINTS = {
     BOOKINGS: `${API_BASE_URL}/api/bookings`,
@@ -15,5 +15,6 @@ export const API_ENDPOINTS = {
     SIMS: `${API_BASE_URL}/api/sims`,
     VEHICLE_REGISTRATIONS: `${API_BASE_URL}/api/vehicle-registrations`,
     LINKS: `${API_BASE_URL}/api/links`,
+    SUPER_TEAM: `${API_BASE_URL}/api/super-team`,
 };
 

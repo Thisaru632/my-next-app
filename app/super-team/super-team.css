@@ -1,0 +1,359 @@
+/* Scoped styles for Super Team Page */
+.superTeamWrapper {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #1e293b;
+  line-height: 1.4;
+  font-size: 10pt;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  padding-top: 100px;
+}
+
+.superTeamWrapper .super-team-page {
+  max-width: 100%;
+  margin: 0 auto;
+  background-color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.superTeamWrapper * {
+  box-sizing: border-box;
+}
+
+.superTeamWrapper .brand-hero {
+  background: linear-gradient(135deg, #0a2540 0%, #1e3a8a 100%);
+  color: #ffffff;
+  padding: 30px 35px;
+  position: relative;
+  border-bottom: 6px solid #4ade80;
+}
+
+.superTeamWrapper .brand-pill {
+  background-color: #4ade80;
+  color: #0a2540;
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 8.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.superTeamWrapper .brand-main-title {
+  font-size: 24pt;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.superTeamWrapper .brand-sub-title {
+  font-size: 13pt;
+  font-weight: 600;
+  color: #93c5fd;
+  margin: 4px 0 0 0;
+  text-transform: uppercase;
+}
+
+.superTeamWrapper .version-tag {
+  position: absolute;
+  bottom: 15px;
+  right: 35px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 8pt;
+  color: #ffffff;
+}
+
+.superTeamWrapper .wrapper {
+  padding: 30px 35px;
+  background-color: #f8fafc;
+}
+
+.superTeamWrapper .purpose-panel {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 15px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  border-left: 6px solid #0a2540;
+  background-image: linear-gradient(to right, #f0fdf4, #ffffff 25%);
+}
+
+.superTeamWrapper .purpose-panel h3 {
+  margin-top: 0;
+  color: #0a2540;
+  font-size: 12pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.superTeamWrapper .purpose-panel p {
+  margin: 0 0 6px 0;
+  font-size: 10.5pt;
+  color: #0a2540;
+  font-weight: 600;
+}
+
+.superTeamWrapper .purpose-panel p:last-child { margin-bottom: 0; }
+
+.superTeamWrapper .section-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 15px 20px;
+  margin-bottom: 15px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  border-top: 3px solid #e2e8f0;
+  page-break-inside: avoid;
+}
+
+.superTeamWrapper .section-card.prime {
+  border-top: 3px solid #0a2540;
+}
+
+.superTeamWrapper h2 {
+  color: #0a2540;
+  font-size: 11pt;
+  font-weight: 800;
+  margin-top: 0;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.superTeamWrapper table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 15px 0;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.superTeamWrapper th {
+  background: #0a2540;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 10px 15px;
+  font-size: 10pt;
+  border-bottom: 3px solid #4ade80;
+  text-align: left;
+}
+
+.superTeamWrapper td {
+  padding: 8px 15px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  font-size: 10pt;
+}
+
+.superTeamWrapper tr:last-child td {
+  border-bottom: none;
+}
+
+.superTeamWrapper tr:nth-child(even) td {
+  background-color: #f8fafc;
+}
+
+.superTeamWrapper .light-green-badge-box {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 5px solid #4ade80;
+  padding: 10px 15px;
+  margin: 10px 0;
+  border-radius: 4px;
+  color: #14532d;
+  font-weight: 600;
+}
+
+.superTeamWrapper .critical-warning-card {
+  background: #ffffff;
+  border: 1px solid #fee2e2;
+  border-left: 6px solid #ef4444;
+  padding: 18px;
+  margin: 20px 0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.05);
+  page-break-inside: avoid;
+}
+
+.superTeamWrapper .critical-warning-card h4 {
+  margin: 0 0 8px 0;
+  color: #991b1b;
+  font-size: 11pt;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.superTeamWrapper .critical-ul {
+  padding-left: 18px;
+  margin: 8px 0;
+}
+
+.superTeamWrapper .critical-ul li {
+  color: #b91c1c;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.superTeamWrapper .clean-list {
+  padding-left: 0;
+  list-style: none;
+  margin: 0;
+}
+
+.superTeamWrapper .clean-list li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 6px;
+  color: #334155;
+}
+
+.superTeamWrapper .clean-list li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #22c55e;
+  font-weight: 900;
+  font-size: 11pt;
+}
+
+.superTeamWrapper .execution-container {
+  margin-top: 30px;
+  page-break-inside: avoid;
+}
+
+.superTeamWrapper .signature-profile-badge {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 18px;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+  border: 1px solid #e2e8f0;
+  page-break-inside: avoid;
+}
+
+.superTeamWrapper .tab-indicator {
+  padding: 4px 12px;
+  font-size: 9pt;
+  font-weight: 700;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.superTeamWrapper .tab-indicator.navy { background-color: #0a2540; color: #ffffff; }
+.superTeamWrapper .tab-indicator.green { background-color: #4ade80; color: #0a2540; }
+.superTeamWrapper .tab-indicator.slate { background-color: #475569; color: #ffffff; }
+
+.superTeamWrapper .form-row-layout {
+  display: flex;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.superTeamWrapper .form-row-layout:last-child {
+  margin-bottom: 0;
+}
+
+.superTeamWrapper .form-row-label {
+  width: 180px;
+  font-weight: 700;
+  color: #475569;
+  font-size: 9.5pt;
+}
+
+.superTeamWrapper .form-row-line {
+  flex-grow: 1;
+  border-bottom: 1px solid #cbd5e1;
+  height: 24px;
+  background-color: #f8fafc;
+}
+
+.superTeamWrapper .form-row-input {
+  flex-grow: 1;
+  border: none;
+  border-bottom: 1px solid #cbd5e1;
+  height: 24px;
+  background-color: #f8fafc;
+  outline: none;
+  font-family: inherit;
+  font-size: 10pt;
+  color: #1e293b;
+  padding: 0 8px;
+}
+
+.superTeamWrapper .form-row-input:focus {
+  border-bottom-color: #4ade80;
+  background-color: #ffffff;
+}
+
+.superTeamWrapper .form-file-input {
+  flex-grow: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 6px;
+  background-color: #f8fafc;
+  font-family: inherit;
+  font-size: 9.5pt;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.superTeamWrapper .form-file-input:hover {
+  border-color: #94a3b8;
+}
+
+.superTeamWrapper .form-file-input:focus {
+  outline: none;
+  border-color: #4ade80;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.2);
+}
+
+.superTeamWrapper .form-file-input::file-selector-button {
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 4px 12px;
+  background-color: #ffffff;
+  color: #475569;
+  font-weight: 600;
+  margin-right: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.superTeamWrapper .form-file-input::file-selector-button:hover {
+  background-color: #f1f5f9;
+}
+
+@media (max-width: 768px) {
+  .superTeamWrapper .form-row-layout {
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 15px;
+  }
+  
+  .superTeamWrapper .form-row-label {
+    width: 100%;
+    margin-bottom: 6px;
+  }
+  
+  .superTeamWrapper .form-file-input,
+  .superTeamWrapper .form-row-input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media print {
+  .superTeamWrapper .super-team-page {
+    box-shadow: none;
+    max-width: 100%;
+  }
+}
