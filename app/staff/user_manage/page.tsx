@@ -234,6 +234,7 @@ const UserManagementPage: React.FC = () => {
 
     const fetchUsers = async () => {
         try {
+            console.log('Fetching users... (cache busted)');
             setLoading(true);
             const token = localStorage.getItem('staffToken');
             const response = await fetch(`${API_ENDPOINTS.AUTH}/users`, {
@@ -271,9 +272,11 @@ const UserManagementPage: React.FC = () => {
                 setCurrentUsers(allMapped.filter(u => u.dbStatus === 'active'));
                 setNewUsers(allMapped.filter(u => u.dbStatus === 'pending'));
                 setRejectedUsers(allMapped.filter(u => u.dbStatus === 'rejected'));
-            } else if (response.status === 403 || response.status === 401) {
-                // If not authorized, redirect to dashboard or show error
-                window.location.href = '/staff/dashboard';
+            } else if (response.status === 401) {
+                // If token is invalid/expired, redirect to login
+                window.location.href = '/staff/login';
+            } else if (response.status === 403) {
+                console.error('Not authorized to view users');
             }
         } catch (error) {
             console.error('Error fetching users:', error);
@@ -1328,6 +1331,7 @@ const UserManagementPage: React.FC = () => {
                         disabled={!passDialog.newPass}
                         sx={{ backgroundColor: '#f59e0b', color: 'white', textTransform: 'none', '&:hover': { backgroundColor: '#d97706' } }}
                     >
+
                         Update Password
                     </Button>
                 </DialogActions>

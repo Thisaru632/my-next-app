@@ -23,10 +23,22 @@ export default function SuperTeamPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
-    setFormData(prev => ({ ...prev, [field]: e.target.value }));
+    let value = e.target.value;
+
+    if (field === 'ownerPhone' || field === 'driverPhone') {
+      // Allow only numbers
+      value = value.replace(/[^0-9]/g, '');
+    } else if (field === 'ownerName' || field === 'driverName') {
+      // Allow only letters (English, Sinhala, Tamil) and spaces
+      value = value.replace(/[^a-zA-Z\u0D80-\u0DFF\u0B80-\u0BFF\s]/g, '');
+    }
+
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
     if (!formData.ownerName || !formData.ownerNIC || !formData.ownerPhone || 
         !formData.driverName || !formData.driverNIC || !formData.driverPhone || !formData.driverLicenseNo) {
       alert("කරුණාකර සියලුම පෙළ තොරතුරු පුරවන්න (Please fill all text fields).");
@@ -79,6 +91,7 @@ export default function SuperTeamPage() {
         </div>
 
         {/* Main Wrapper Frame */}
+        <form onSubmit={handleSubmit}>
         <div className="wrapper">
           {/* Purpose Panel */}
           <div className="purpose-panel">
@@ -529,11 +542,11 @@ export default function SuperTeamPage() {
               </div>
               <div className="form-row-layout">
                 <div className="form-row-label">හැඳුනුම්පත් පිටපත - ඉදිරිපස (NIC Front)</div>
-                <input type="file" className="form-file-input" onChange={e => setOwnerNicFrontFile(e.target.files?.[0] || null)} />
+                <input type="file" accept="image/*,application/pdf" className="form-file-input" onChange={e => setOwnerNicFrontFile(e.target.files?.[0] || null)} />
               </div>
               <div className="form-row-layout">
                 <div className="form-row-label">හැඳුනුම්පත් පිටපත - පිටුපස (NIC Back)</div>
-                <input type="file" className="form-file-input" onChange={e => setOwnerNicBackFile(e.target.files?.[0] || null)} />
+                <input type="file" accept="image/*,application/pdf" className="form-file-input" onChange={e => setOwnerNicBackFile(e.target.files?.[0] || null)} />
               </div>
 
             </div>
@@ -561,11 +574,11 @@ export default function SuperTeamPage() {
               </div>
               <div className="form-row-layout">
                 <div className="form-row-label">හැඳුනුම්පත් / බලපත්‍ර පිටපත - ඉදිරිපස (Front)</div>
-                <input type="file" className="form-file-input" onChange={e => setDriverDocFrontFile(e.target.files?.[0] || null)} />
+                <input type="file" accept="image/*,application/pdf" className="form-file-input" onChange={e => setDriverDocFrontFile(e.target.files?.[0] || null)} />
               </div>
               <div className="form-row-layout">
                 <div className="form-row-label">හැඳුනුම්පත් / බලපත්‍ර පිටපත - පිටුපස (Back)</div>
-                <input type="file" className="form-file-input" onChange={e => setDriverDocBackFile(e.target.files?.[0] || null)} />
+                <input type="file" accept="image/*,application/pdf" className="form-file-input" onChange={e => setDriverDocBackFile(e.target.files?.[0] || null)} />
               </div>
 
             </div>
@@ -577,7 +590,7 @@ export default function SuperTeamPage() {
         {/* Action Button Section */}
         <div style={{ padding: "20px", textAlign: "center", backgroundColor: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
           <button 
-            onClick={handleSubmit} 
+            type="submit"
             disabled={isSubmitting}
             style={{
               backgroundColor: isSubmitting ? "#94a3b8" : "#0a2540",
@@ -595,6 +608,7 @@ export default function SuperTeamPage() {
             {isSubmitting ? "සුරකිමින් පවතී... (Saving...)" : "තොරතුරු සුරකින්න (Save Details)"}
           </button>
         </div>
+        </form>
 
         {/* Solid Brand Ground Bar */}
         <div
