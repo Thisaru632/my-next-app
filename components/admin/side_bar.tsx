@@ -35,6 +35,7 @@ import {
     ExpandLess,
     ExpandMore,
     Link as LinkIcon,
+    Gavel as GavelIcon,
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -72,6 +73,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Super Team', icon: <DirectionsBusIcon />, path: '/staff/super-team', key: 'dashboard' },
         { text: 'Cab Service', icon: <LocalTaxiIcon />, path: '/staff/cab-service', key: 'cabService' },
         { text: 'Links', icon: <LinkIcon />, path: '/staff/links', key: 'dashboard' },
+        { text: 'Tenders', icon: <GavelIcon />, path: 'https://tender-monitoring-tau.vercel.app/', key: 'dashboard' },
     ];
 
 
@@ -133,7 +135,11 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     }, []);
 
     const handleNavigation = (path: string) => {
-        router.push(path);
+        if (path.startsWith('http')) {
+            window.open(path, '_blank');
+        } else {
+            router.push(path);
+        }
         if (isMobile && onClose) onClose();
     };
 
