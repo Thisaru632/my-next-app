@@ -36,8 +36,9 @@ export default function SuperTeamPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: any) => {
     if (e) e.preventDefault();
+    if (isSubmitting) return;
 
     if (!formData.ownerName || !formData.ownerNIC || !formData.ownerPhone || 
         !formData.driverName || !formData.driverNIC || !formData.driverPhone || !formData.driverLicenseNo) {
@@ -590,7 +591,8 @@ export default function SuperTeamPage() {
         {/* Action Button Section */}
         <div style={{ padding: "20px", textAlign: "center", backgroundColor: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
           <button 
-            type="submit"
+            type="button"
+            onClick={handleSubmit}
             disabled={isSubmitting}
             style={{
               backgroundColor: isSubmitting ? "#94a3b8" : "#0a2540",
