@@ -7,6 +7,7 @@
   background-color: #f8fafc;
   min-height: 100vh;
   padding-top: 100px;
+  overflow-x: hidden;
 }
 
 .superTeamWrapper .super-team-page {
@@ -333,6 +334,37 @@
 }
 
 @media (max-width: 768px) {
+  .superTeamWrapper {
+    padding-top: 60px;
+  }
+  
+  .superTeamWrapper .brand-hero {
+    padding: 20px 15px;
+  }
+  
+  .superTeamWrapper .brand-main-title {
+    font-size: 18pt;
+  }
+
+  .superTeamWrapper .version-tag {
+    bottom: 10px;
+    right: 10px;
+  }
+
+  .superTeamWrapper .wrapper {
+    padding: 15px 10px;
+  }
+
+  .superTeamWrapper .section-card {
+    padding: 15px;
+  }
+  
+  .superTeamWrapper table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
   .superTeamWrapper .form-row-layout {
     flex-direction: column;
     align-items: stretch;
@@ -348,6 +380,10 @@
   .superTeamWrapper .form-row-input {
     width: 100%;
     box-sizing: border-box;
+  }
+
+  .superTeamWrapper .signature-profile-badge {
+    padding: 12px;
   }
 }
 

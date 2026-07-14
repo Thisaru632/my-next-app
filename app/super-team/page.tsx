@@ -4,6 +4,68 @@ import React, { useState } from "react";
 import "./super-team.css";
 import { API_ENDPOINTS } from "../../config/api";
 
+const compressImage = async (file: File): Promise<File> => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      return resolve(file);
+    }
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+        }
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const newFileName = (file.name || 'image').replace(/\.[^/.]+$/, "") + ".jpg";
+              try {
+                resolve(new File([blob], newFileName, { type: 'image/jpeg', lastModified: Date.now() }));
+              } catch (e) {
+                // Fallback if browser doesn't support File constructor
+                const fallbackBlob: any = blob;
+                fallbackBlob.name = newFileName;
+                fallbackBlob.lastModified = Date.now();
+                resolve(fallbackBlob as File);
+              }
+            } else {
+              resolve(file);
+            }
+          },
+          'image/jpeg',
+          0.8
+        );
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+};
+
 export default function SuperTeamPage() {
   const [formData, setFormData] = useState({
     ownerName: "",
@@ -37,7 +99,7 @@ export default function SuperTeamPage() {
   };
 
   const handleSubmit = async (e?: any) => {
-    if (e) e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (isSubmitting) return;
 
     if (!formData.ownerName || !formData.ownerNIC || !formData.ownerPhone || 
@@ -53,12 +115,17 @@ export default function SuperTeamPage() {
 
     setIsSubmitting(true);
     try {
+      const processedOwnerNicFront = await compressImage(ownerNicFrontFile);
+      const processedOwnerNicBack = await compressImage(ownerNicBackFile);
+      const processedDriverDocFront = await compressImage(driverDocFrontFile);
+      const processedDriverDocBack = await compressImage(driverDocBackFile);
+
       const data = new FormData();
       Object.entries(formData).forEach(([key, value]) => data.append(key, value));
-      data.append('ownerNicFrontFile', ownerNicFrontFile);
-      data.append('ownerNicBackFile', ownerNicBackFile);
-      data.append('driverDocFrontFile', driverDocFrontFile);
-      data.append('driverDocBackFile', driverDocBackFile);
+      data.append('ownerNicFrontFile', processedOwnerNicFront);
+      data.append('ownerNicBackFile', processedOwnerNicBack);
+      data.append('driverDocFrontFile', processedDriverDocFront);
+      data.append('driverDocBackFile', processedDriverDocBack);
 
       const response = await fetch(API_ENDPOINTS.SUPER_TEAM, {
         method: "POST",
@@ -591,8 +658,7 @@ export default function SuperTeamPage() {
         {/* Action Button Section */}
         <div style={{ padding: "20px", textAlign: "center", backgroundColor: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
           <button 
-            type="button"
-            onClick={handleSubmit}
+            type="submit"
             disabled={isSubmitting}
             style={{
               backgroundColor: isSubmitting ? "#94a3b8" : "#0a2540",
