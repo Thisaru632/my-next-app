@@ -51,6 +51,10 @@ export default function StaffGuidePage() {
         setLoading(true);
         try {
             const token = localStorage.getItem('staffToken');
+            if (!token) {
+                window.location.href = '/staff/login';
+                return;
+            }
             const res = await fetch(API_ENDPOINTS.STAFF_GUIDES, {
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -59,8 +63,12 @@ export default function StaffGuidePage() {
             if (res.ok) {
                 const data = await res.json();
                 setGuides(data);
+            } else if (res.status === 401) {
+                localStorage.removeItem('staffToken');
+                window.location.href = '/staff/login';
             } else {
-                setError('Failed to fetch guides');
+                const data = await res.json().catch(() => ({}));
+                setError(data.message || 'Failed to fetch guides');
             }
         } catch (err) {
             setError('An error occurred while fetching guides');
