@@ -1160,18 +1160,27 @@ export function useHeroBooking() {
     const isMinPackageActive = matchedPkg && totalDistanceKm < matchedPkg.km;
     const pdfDistanceKm = isMinPackageActive ? matchedPkg.km : totalDistanceKm;
 
+    const addHours = Number(data.formData.additionalHours) || 0;
+
     // --- Table 1: Trip Identification ---
+    const tripConfigBody: (string[])[] = [
+      ['Reference Number', data.bookingRefNo || "N/A"],
+      ['Journey Type', data.formData.tripType || "Drop"],
+      ['Vehicle Model', `${data.formData.vehicleName || "Not Selected"} (${data.formData.maxPersons || 0} Seater)`],
+      [isMinPackageActive ? 'Package Distance' : 'Route Distance', `${pdfDistanceKm} KM ${isMinPackageActive ? '(Min. Package)' : '(Est. Total)'}`],
+      ['Package Hours', `${matchedPkg?.hrs || 0} Hours Allowance`],
+    ];
+
+    if (addHours > 0) {
+      tripConfigBody.push(['Additional Hours', `${addHours} Extra Hour(s)`]);
+    }
+
+    tripConfigBody.push(['Start Date', formatDate(data.formData.dateTime)]);
+
     autoTable(doc, {
       startY: currentY,
       head: [['TRIP CONFIGURATION', 'VALUE']],
-      body: [
-        ['Reference Number', data.bookingRefNo || "N/A"],
-        ['Journey Type', data.formData.tripType || "Drop"],
-        ['Vehicle Model', `${data.formData.vehicleName || "Not Selected"} (${data.formData.maxPersons || 0} Seater)`],
-        [isMinPackageActive ? 'Package Distance' : 'Route Distance', `${pdfDistanceKm} KM ${isMinPackageActive ? '(Min. Package)' : '(Est. Total)'}`],
-        ['Package Hours', `${matchedPkg?.hrs || 0} Hours Allowance`],
-        ['Start Date', formatDate(data.formData.dateTime)],
-      ],
+      body: tripConfigBody,
       theme: 'grid',
       headStyles: { fillColor: secondaryColor, textColor: 255, fontStyle: 'bold' },
       styles: { fontSize: 9, cellPadding: 3 },
@@ -1225,10 +1234,16 @@ export function useHeroBooking() {
 
     // --- Table 3: Pricing Summary ---
     const extraKm = Math.max(0, totalDistanceKm - (matchedPkg?.km || 0));
+    const extraHrCost = (addHours > 0 && matchedPkg?.extraHrRate1) ? addHours * matchedPkg.extraHrRate1 : 0;
+    const basePackageRate = (data.totalPrice || 0) > 0 ? (data.totalPrice + (data.discount || 0) - extraHrCost) : 0;
 
-    const pricingRows = [
-      ['Standard Package Rate', (data.formData.vehicleType === 'SUV' || (data.totalPrice || 0) === 0) ? "Price on Request" : `Rs. ${(data.totalPrice + (data.discount || 0)).toLocaleString()}`],
+    const pricingRows: (string[])[] = [
+      ['Standard Package Rate', (data.formData.vehicleType === 'SUV' || (data.totalPrice || 0) === 0) ? "Price on Request" : `Rs. ${basePackageRate.toLocaleString()}`],
     ];
+
+    if (addHours > 0 && matchedPkg?.extraHrRate1) {
+      pricingRows.push(['Additional Hours', `+ Rs. ${extraHrCost.toLocaleString()} (${addHours}h @ Rs. ${matchedPkg.extraHrRate1}/h)`]);
+    }
 
     if (data.appliedPromo) {
       pricingRows.push(['Promo Discount', `- Rs. ${data.discount?.toLocaleString()}`]);
