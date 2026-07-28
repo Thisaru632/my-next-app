@@ -2025,9 +2025,23 @@ const LeadInfoPage: React.FC = () => {
                                  const kmRate = selectedLead.matchedPackage.extraKMRate || 0;
                                  const extraKmCost = extraKm * kmRate;
 
-                                 const extraHours = selectedLead.additionalHours || 0;
+                                 let extraHours = selectedLead.additionalHours || 0;
                                  const hrRate = selectedLead.matchedPackage.extraHrRate1 || 0;
-                                 const extraHrCost = extraHours * hrRate;
+                                 let extraHrCost = extraHours * hrRate;
+
+                                 if (extraHours === 0 && selectedLead.totalPrice > 0 && hrRate > 0) {
+                                     const baseCost = selectedLead.matchedPackage.rateAmount || 0;
+                                     const seasonalAdj = selectedLead.seasonalAdjustment || 0;
+                                     const nightSurcharge = selectedLead.nightSurcharge || 0;
+                                     const provinceAdj = selectedLead.provinceAdjustment || 0;
+                                     const accountedPrice = baseCost + extraKmCost + seasonalAdj + nightSurcharge + provinceAdj;
+                                     const diff = selectedLead.totalPrice - accountedPrice;
+                                     
+                                     if (diff > 0 && diff % hrRate === 0) {
+                                         extraHrCost = diff;
+                                         extraHours = diff / hrRate;
+                                     }
+                                 }
 
                                  return (
                                    <>
@@ -2099,14 +2113,24 @@ const LeadInfoPage: React.FC = () => {
                                   const kmRate = selectedLead.matchedPackage.extraKMRate || 0;
                                   const extraKmCost = extraKm * kmRate;
                                   
-                                  const extraHours = selectedLead.additionalHours || 0;
+                                  let extraHours = selectedLead.additionalHours || 0;
                                   const hrRate = selectedLead.matchedPackage.extraHrRate1 || 0;
-                                  const extraHrCost = extraHours * hrRate;
+                                  let extraHrCost = extraHours * hrRate;
                                   
                                   const baseCost = selectedLead.matchedPackage.rateAmount || 0;
                                   const seasonalAdj = selectedLead.seasonalAdjustment || 0;
                                   const nightSurcharge = selectedLead.nightSurcharge || 0;
                                   const provinceAdj = selectedLead.provinceAdjustment || 0;
+                                  
+                                  if (extraHours === 0 && selectedLead.totalPrice > 0 && hrRate > 0) {
+                                      const accountedPrice = baseCost + extraKmCost + seasonalAdj + nightSurcharge + provinceAdj;
+                                      const diff = selectedLead.totalPrice - accountedPrice;
+                                      
+                                      if (diff > 0 && diff % hrRate === 0) {
+                                          extraHrCost = diff;
+                                          extraHours = diff / hrRate;
+                                      }
+                                  }
                                   
                                   const tripPrice = baseCost + extraKmCost + extraHrCost + seasonalAdj + nightSurcharge + provinceAdj;
                                   const discountAmt = selectedLead.discount || 0;
