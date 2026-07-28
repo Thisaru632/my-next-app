@@ -93,6 +93,7 @@ interface Lead {
   discount?: number;
   routeDistance?: number;
   routeDuration?: number;
+  additionalHours?: number;
   totalPrice?: number;
   provinceAdjustment?: number;
   seasonalAdjustment?: number;
@@ -372,6 +373,7 @@ const LeadInfoPage: React.FC = () => {
               discount: booking.discount || 0,
               routeDistance: booking.routeDistance || 0,
               routeDuration: booking.routeDuration || 0,
+              additionalHours: booking.additionalHours || 0,
               totalPrice: booking.totalPrice || 0,
               provinceAdjustment: booking.provinceAdjustment || 0,
               seasonalAdjustment: booking.seasonalAdjustment || 0,
@@ -1997,22 +1999,37 @@ const LeadInfoPage: React.FC = () => {
                                  const actualKm = Math.ceil(selectedLead.routeDistance / 1000);
                                  const pkgKm = selectedLead.matchedPackage.km;
                                  const extraKm = Math.max(0, actualKm - pkgKm);
-                                 const rate = selectedLead.matchedPackage.extraKMRate || 0;
-                                 const extraCost = extraKm * rate;
+                                 const kmRate = selectedLead.matchedPackage.extraKMRate || 0;
+                                 const extraKmCost = extraKm * kmRate;
 
-                                 if (extraKm > 0) {
-                                   return (
-                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                       <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
-                                         Extra Distance ({extraKm} KM × Rs. {rate}):
-                                       </Typography>
-                                       <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
-                                         + Rs. {extraCost.toLocaleString()}
-                                       </Typography>
-                                     </Box>
-                                   );
-                                 }
-                                 return null;
+                                 const extraHours = selectedLead.additionalHours || 0;
+                                 const hrRate = selectedLead.matchedPackage.extraHrRate1 || 0;
+                                 const extraHrCost = extraHours * hrRate;
+
+                                 return (
+                                   <>
+                                     {extraKm > 0 && (
+                                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                         <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                                           Extra Distance ({extraKm} KM × Rs. {kmRate}):
+                                         </Typography>
+                                         <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                                           + Rs. {extraKmCost.toLocaleString()}
+                                         </Typography>
+                                       </Box>
+                                     )}
+                                     {extraHours > 0 && (
+                                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                                         <Typography sx={{ fontSize: '0.82rem', color: '#166534', fontWeight: 500 }}>
+                                           Extra Hours ({extraHours} HRS × Rs. {hrRate}):
+                                         </Typography>
+                                         <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#166534' }}>
+                                           + Rs. {extraHrCost.toLocaleString()}
+                                         </Typography>
+                                       </Box>
+                                     )}
+                                   </>
+                                 );
                               })()}
 
                               {/* Seasonal Adjustment */}
@@ -2056,15 +2073,19 @@ const LeadInfoPage: React.FC = () => {
                                   const actualKm = Math.ceil(selectedLead.routeDistance / 1000);
                                   const pkgKm = selectedLead.matchedPackage.km;
                                   const extraKm = Math.max(0, actualKm - pkgKm);
-                                  const rate = selectedLead.matchedPackage.extraKMRate || 0;
-                                  const extraCost = extraKm * rate;
+                                  const kmRate = selectedLead.matchedPackage.extraKMRate || 0;
+                                  const extraKmCost = extraKm * kmRate;
+                                  
+                                  const extraHours = selectedLead.additionalHours || 0;
+                                  const hrRate = selectedLead.matchedPackage.extraHrRate1 || 0;
+                                  const extraHrCost = extraHours * hrRate;
                                   
                                   const baseCost = selectedLead.matchedPackage.rateAmount || 0;
                                   const seasonalAdj = selectedLead.seasonalAdjustment || 0;
                                   const nightSurcharge = selectedLead.nightSurcharge || 0;
                                   const provinceAdj = selectedLead.provinceAdjustment || 0;
                                   
-                                  const tripPrice = baseCost + extraCost + seasonalAdj + nightSurcharge + provinceAdj;
+                                  const tripPrice = baseCost + extraKmCost + extraHrCost + seasonalAdj + nightSurcharge + provinceAdj;
                                   const discountAmt = selectedLead.discount || 0;
                                   const finalPrice = (selectedLead.totalPrice || 0) > 0 ? (selectedLead.totalPrice || 0) : Math.max(0, tripPrice - discountAmt);
 
