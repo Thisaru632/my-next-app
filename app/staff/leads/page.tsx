@@ -2029,13 +2029,13 @@ const LeadInfoPage: React.FC = () => {
                                  const hrRate = selectedLead.matchedPackage.extraHrRate1 || 0;
                                  let extraHrCost = extraHours * hrRate;
 
-                                 if (extraHours === 0 && selectedLead.totalPrice > 0 && hrRate > 0) {
+                                 if (extraHours === 0 && (selectedLead.totalPrice ?? 0) > 0 && hrRate > 0) {
                                      const baseCost = selectedLead.matchedPackage.rateAmount || 0;
                                      const seasonalAdj = selectedLead.seasonalAdjustment || 0;
                                      const nightSurcharge = selectedLead.nightSurcharge || 0;
                                      const provinceAdj = selectedLead.provinceAdjustment || 0;
                                      const accountedPrice = baseCost + extraKmCost + seasonalAdj + nightSurcharge + provinceAdj;
-                                     const diff = selectedLead.totalPrice - accountedPrice;
+                                     const diff = (selectedLead.totalPrice ?? 0) - accountedPrice;
                                      
                                      if (diff > 0 && diff % hrRate === 0) {
                                          extraHrCost = diff;
@@ -2122,9 +2122,9 @@ const LeadInfoPage: React.FC = () => {
                                   const nightSurcharge = selectedLead.nightSurcharge || 0;
                                   const provinceAdj = selectedLead.provinceAdjustment || 0;
                                   
-                                  if (extraHours === 0 && selectedLead.totalPrice > 0 && hrRate > 0) {
+                                  if (extraHours === 0 && (selectedLead.totalPrice ?? 0) > 0 && hrRate > 0) {
                                       const accountedPrice = baseCost + extraKmCost + seasonalAdj + nightSurcharge + provinceAdj;
-                                      const diff = selectedLead.totalPrice - accountedPrice;
+                                      const diff = (selectedLead.totalPrice ?? 0) - accountedPrice;
                                       
                                       if (diff > 0 && diff % hrRate === 0) {
                                           extraHrCost = diff;
