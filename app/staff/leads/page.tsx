@@ -1335,19 +1335,42 @@ const LeadInfoPage: React.FC = () => {
                           {(activeTab === 0 || activeTab === 1) && (
                             <TableCell>
                               {lead.source !== 'Contact Us' && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <Typography
-                                    sx={{ fontSize: '0.9375rem', color: 'text.primary', fontWeight: 600 }}
-                                  >
-                                    {lead.fromLocation}
+                                lead.formType === 'Return' ? (
+                                  <Typography sx={{ fontSize: '0.9375rem', color: 'text.primary', fontWeight: 600 }}>
+                                    {(() => {
+                                      const getTwoWords = (str: string) => {
+                                        if (!str) return '';
+                                        const words = str.trim().split(/\s+/);
+                                        return words.length > 2 ? words.slice(0, 2).join(' ') : str;
+                                      };
+                                      
+                                      const pickup = getTwoWords(lead.fromLocation);
+                                      const validDests = (lead.destinations || []).filter((d: string) => d.trim());
+                                      
+                                      if (validDests.length > 0) {
+                                        const stops = validDests.map((d: string) => getTwoWords(d)).join(', ');
+                                        return `${pickup} and ${stops}`;
+                                      } else {
+                                        const dest = getTwoWords(lead.toLocation);
+                                        return `${pickup} and ${dest}`;
+                                      }
+                                    })()}
                                   </Typography>
-                                  <Typography sx={{ color: 'text.disabled', fontSize: '0.875rem' }}>→</Typography>
-                                  <Typography
-                                    sx={{ fontSize: '0.9375rem', color: 'text.primary', fontWeight: 600 }}
-                                  >
-                                    {lead.toLocation}
-                                  </Typography>
-                                </Box>
+                                ) : (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Typography
+                                      sx={{ fontSize: '0.9375rem', color: 'text.primary', fontWeight: 600 }}
+                                    >
+                                      {lead.fromLocation}
+                                    </Typography>
+                                    <Typography sx={{ color: 'text.disabled', fontSize: '0.875rem' }}>→</Typography>
+                                    <Typography
+                                      sx={{ fontSize: '0.9375rem', color: 'text.primary', fontWeight: 600 }}
+                                    >
+                                      {lead.toLocation}
+                                    </Typography>
+                                  </Box>
+                                )
                               )}
                             </TableCell>
                           )}
