@@ -36,6 +36,8 @@ import {
     ExpandMore,
     Link as LinkIcon,
     Gavel as GavelIcon,
+    AccessTime as AccessTimeIcon,
+    Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -62,6 +64,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
 
     const menuItems: MenuItem[] = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/staff', key: 'dashboard' },
+        { text: 'Clock in /out', icon: <AccessTimeIcon />, path: '/staff/clock-in-out', key: 'dashboard' },
         { text: 'Lead Info', icon: <PeopleIcon />, path: '/staff/leads', key: 'leads' },
         { text: 'CMS', icon: <ArticleIcon />, path: '/staff/cms', key: 'cms' },
         { text: 'User Manage', icon: <ManageAccountsIcon />, path: '/staff/user_manage', key: 'userManagement' },
@@ -72,6 +75,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Vehicle Registrations', icon: <DirectionsBusIcon />, path: '/staff/vehicle-registrations', key: 'vehicleRegistration' },
         { text: 'Super Team', icon: <DirectionsBusIcon />, path: '/staff/super-team', key: 'dashboard' },
         { text: 'Cab Service', icon: <LocalTaxiIcon />, path: '/staff/cab-service', key: 'cabService' },
+        { text: 'Attendance Sheet', icon: <AssignmentIcon />, path: '/staff/attendance-sheet', key: 'dashboard' },
         { text: 'Links', icon: <LinkIcon />, path: '/staff/links', key: 'dashboard' },
         { text: 'Tenders', icon: <GavelIcon />, path: 'https://tender-monitoring-tau.vercel.app/', key: 'dashboard' },
     ];
@@ -83,6 +87,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     const [unpickedLeadsCount, setUnpickedLeadsCount] = React.useState(0);
     const [webPortalOpen, setWebPortalOpen] = React.useState(true);
     const [adminPortalOpen, setAdminPortalOpen] = React.useState(true);
+    const [hrOpen, setHrOpen] = React.useState(true);
 
     const fetchPendingCount = async () => {
         try {
@@ -144,6 +149,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     };
 
     const webPortalItems = ['Dashboard', 'Lead Info', 'CMS', 'Web Users', 'Rate Card Manage', 'Super Team'];
+    const hrItems = ['Attendance Sheet'];
 
     const renderMenuItem = (item: MenuItem) => {
         const isActive = pathname === item.path;
@@ -226,8 +232,24 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                 <Collapse in={adminPortalOpen} timeout="auto" unmountOnExit>
                     <List sx={{ px: 2, pt: 0, pb: 1 }}>
                         {allowedItems
-                            .filter(item => !webPortalItems.includes(item.text))
+                            .filter(item => !webPortalItems.includes(item.text) && !hrItems.includes(item.text))
                             .map(renderMenuItem)}
+
+                        {/* HR Dropdown Section inside Admin Portal */}
+                        <ListItemButton onClick={() => setHrOpen(!hrOpen)} sx={{ py: 0.5, px: 2, borderRadius: 2, mt: 1, mb: 0.5, backgroundColor: 'action.hover' }}>
+                            <ListItemText 
+                                primary="HR Section" 
+                                primaryTypographyProps={{ variant: 'overline', color: 'primary.main', fontWeight: 'bold', lineHeight: 2 }} 
+                            />
+                            {hrOpen ? <ExpandLess sx={{ color: 'primary.main' }} /> : <ExpandMore sx={{ color: 'primary.main' }} />}
+                        </ListItemButton>
+                        <Collapse in={hrOpen} timeout="auto" unmountOnExit>
+                            <List sx={{ pl: 1, pt: 0, pb: 0 }}>
+                                {allowedItems
+                                    .filter(item => hrItems.includes(item.text))
+                                    .map(renderMenuItem)}
+                            </List>
+                        </Collapse>
                     </List>
                 </Collapse>
             </Box>

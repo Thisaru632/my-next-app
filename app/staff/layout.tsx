@@ -24,6 +24,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
     const [mobileOpen, setMobileOpen] = useState(false);
 
     const isAuthPage = pathname === '/staff/login' || pathname === '/staff/signup';
+    const isPublicPage = isAuthPage || pathname === '/staff/clock-in-out';
 
     const handleDrawerToggle = () => {
         setMobileOpen(!mobileOpen);
@@ -51,22 +52,16 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         const token = localStorage.getItem('staffToken');
-        const expiry = localStorage.getItem('staffTokenExpiry');
+        const isAuth = pathname === '/staff/login' || pathname === '/staff/signup';
+        const isPublic = isAuth || pathname === '/staff/clock-in-out';
 
-        // Initial session check
-        if (!token && !isAuthPage) {
+        // Initial session check: allow public pages including clock-in-out without token
+        if (!token && !isPublic) {
             router.push('/staff/login');
             return;
         }
 
-        // 1-hour absolute expiry check (from login)
-        // Disabled to stop auto logout process
-        // if (expiry && Date.now() > parseInt(expiry)) {
-        //     handleLogout();
-        //     return;
-        // }
-
-        if (token && isAuthPage) {
+        if (token && isAuth) {
             router.push('/staff');
             return;
         }
@@ -74,7 +69,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
         setIsAuthenticated(!!token);
         setLoading(false);
 
-        if (token && !isAuthPage) {
+        if (token && !isAuth) {
             try {
                 const userStr = localStorage.getItem('staffUser');
                 if (userStr) {
@@ -87,7 +82,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
                 }
             } catch (e) { }
         }
-    }, [pathname, router, isAuthPage]);
+    }, [pathname, router]);
 
     // --- Idle Timeout Logic (Dynamic Based on Role) ---
     // Disabled to stop auto logout process
@@ -158,6 +153,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
         return () => clearInterval(heartbeatInterval);
     }, [isAuthenticated, isAuthPage]);
 
+    const hideLayout = isAuthPage || (pathname === '/staff/clock-in-out' && !isAuthenticated);
 
     return (
         <ThemeContextProvider>
@@ -165,7 +161,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
                 <Box sx={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default' }}>
                     <CircularProgress />
                 </Box>
-            ) : isAuthPage ? (
+            ) : hideLayout ? (
                 <>
                     <CssBaseline />
                     {children}

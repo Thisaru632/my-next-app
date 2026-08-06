@@ -44,6 +44,7 @@ import {
     History as HistoryIcon,
     Key as KeyIcon,
     Visibility as ViewIcon,
+    Edit as EditIcon,
 } from '@mui/icons-material';
 import { API_ENDPOINTS } from '@/config/api';
 import { CircularProgress } from '@mui/material';
@@ -65,6 +66,7 @@ interface Permission {
 
 interface CurrentUser {
     id: string; // Changed from number to string for MongoDB compatibility
+    eNo: string;
     name: string;
     email: string;
     role: string;
@@ -76,6 +78,7 @@ interface CurrentUser {
 
 interface NewUser {
     id: string; // Changed from number to string
+    eNo: string;
     name: string;
     email: string;
     requestedRole: string;
@@ -89,6 +92,7 @@ interface NewUser {
 const initialCurrentUsers: CurrentUser[] = [
     {
         id: '1',
+        eNo: 'E-001',
         name: 'Sarah Mitchell',
         email: 'sarah.m@company.com',
         role: 'Admin',
@@ -99,6 +103,7 @@ const initialCurrentUsers: CurrentUser[] = [
     },
     {
         id: '2',
+        eNo: 'E-002',
         name: 'James Carter',
         email: 'j.carter@company.com',
         role: 'Editor',
@@ -109,6 +114,7 @@ const initialCurrentUsers: CurrentUser[] = [
     },
     {
         id: '3',
+        eNo: 'E-003',
         name: 'Priya Sharma',
         email: 'p.sharma@company.com',
         role: 'Viewer',
@@ -119,6 +125,7 @@ const initialCurrentUsers: CurrentUser[] = [
     },
     {
         id: '4',
+        eNo: 'E-004',
         name: 'Tom Nguyen',
         email: 't.nguyen@company.com',
         role: 'Editor',
@@ -132,6 +139,7 @@ const initialCurrentUsers: CurrentUser[] = [
 const initialNewUsers: NewUser[] = [
     {
         id: '101',
+        eNo: 'E-101',
         name: 'Lena Fischer',
         email: 'lena.fischer@gmail.com',
         requestedRole: 'Editor',
@@ -141,6 +149,7 @@ const initialNewUsers: NewUser[] = [
     },
     {
         id: '102',
+        eNo: 'E-102',
         name: 'Carlos Mendez',
         email: 'c.mendez@outlook.com',
         requestedRole: 'Viewer',
@@ -150,6 +159,7 @@ const initialNewUsers: NewUser[] = [
     },
     {
         id: '103',
+        eNo: 'E-103',
         name: 'Aisha Okonkwo',
         email: 'aisha.ok@corp.io',
         requestedRole: 'Admin',
@@ -162,6 +172,7 @@ const initialNewUsers: NewUser[] = [
 const initialRejectedUsers: NewUser[] = [
     {
         id: '201',
+        eNo: 'E-201',
         name: 'John Doe',
         email: 'john.doe@example.com',
         requestedRole: 'Viewer',
@@ -243,8 +254,9 @@ const UserManagementPage: React.FC = () => {
             if (response.ok) {
                 const data = await response.json();
 
-                const allMapped: any[] = data.map((user: any) => ({
+                const allMapped: any[] = data.map((user: any, index: number) => ({
                     id: user._id,
+                    eNo: user.eNo || `E-${String(index + 1).padStart(3, '0')}`,
                     name: user.fullName || user.username,
                     email: user.email,
                     role: user.role === 'superadmin' ? 'SuperAdmin' : user.role === 'admin' ? 'Admin' : 'Staff',
@@ -285,9 +297,35 @@ const UserManagementPage: React.FC = () => {
         }
     };
 
+    const [loggedInUserEmail, setLoggedInUserEmail] = useState<string>('');
+
     React.useEffect(() => {
         fetchUsers();
+        try {
+            const userStr = localStorage.getItem('staffUser');
+            if (userStr) {
+                const parsed = JSON.parse(userStr);
+                setLoggedInUserEmail(parsed.email?.toLowerCase() || '');
+            }
+        } catch (e) {
+            console.error('Error reading staffUser:', e);
+        }
     }, []);
+
+    const isSpecialUser = loggedInUserEmail.trim().toLowerCase() === 'thisarudilhara2@gmail.com';
+
+    const isSuperAdminDisabled = (user: CurrentUser) => {
+        if (isSpecialUser) return false;
+        return user.role === 'SuperAdmin';
+    };
+
+    // Edit user dialog (E NO & Name)
+    const [editDialog, setEditDialog] = useState<{ open: boolean; user: CurrentUser | null; eNo: string; name: string }>({
+        open: false,
+        user: null,
+        eNo: '',
+        name: ''
+    });
 
     // Delete dialog
     const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; user: CurrentUser | null }>({ open: false, user: null });
@@ -313,6 +351,38 @@ const UserManagementPage: React.FC = () => {
     const [rejectDialog, setRejectDialog] = useState<{ open: boolean; user: NewUser | null }>({ open: false, user: null });
 
     // ── Handlers: Current Users ──
+    const openEditDialog = (user: CurrentUser) => {
+        setEditDialog({ open: true, user, eNo: user.eNo || '', name: user.name || '' });
+    };
+
+    const handleEditSave = async () => {
+        if (editDialog.user) {
+            try {
+                const token = localStorage.getItem('staffToken');
+                const res = await fetch(`${API_ENDPOINTS.AUTH}/users/${editDialog.user.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        eNo: editDialog.eNo,
+                        fullName: editDialog.name
+                    })
+                });
+                if (res.ok) {
+                    fetchUsers();
+                } else {
+                    const errData = await res.json();
+                    alert(`Failed to update user: ${errData.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('User update failed:', error);
+            }
+        }
+        setEditDialog({ open: false, user: null, eNo: '', name: '' });
+    };
+
     const handleDeleteConfirm = async () => {
         if (deleteDialog.user) {
             try {
@@ -346,6 +416,9 @@ const UserManagementPage: React.FC = () => {
                 if (res.ok) {
                     alert('Password updated successfully');
                     setPassDialog({ ...passDialog, open: false, newPass: '' });
+                } else {
+                    const errData = await res.json();
+                    alert(`Failed to update password: ${errData.message || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error('Password reset failed:', error);
@@ -484,19 +557,22 @@ const UserManagementPage: React.FC = () => {
     const filteredCurrentUsers = currentUsers.filter(
         (u) =>
             u.name.toLowerCase().includes(search.toLowerCase()) ||
-            u.email.toLowerCase().includes(search.toLowerCase())
+            u.email.toLowerCase().includes(search.toLowerCase()) ||
+            (u.eNo && u.eNo.toLowerCase().includes(search.toLowerCase()))
     );
 
     const filteredNewUsers = newUsers.filter(
         (u) =>
             u.name.toLowerCase().includes(search.toLowerCase()) ||
-            u.email.toLowerCase().includes(search.toLowerCase())
+            u.email.toLowerCase().includes(search.toLowerCase()) ||
+            (u.eNo && u.eNo.toLowerCase().includes(search.toLowerCase()))
     );
 
     const filteredRejectedUsers = rejectedUsers.filter(
         (u) =>
             u.name.toLowerCase().includes(search.toLowerCase()) ||
-            u.email.toLowerCase().includes(search.toLowerCase())
+            u.email.toLowerCase().includes(search.toLowerCase()) ||
+            (u.eNo && u.eNo.toLowerCase().includes(search.toLowerCase()))
     );
 
     // ─── Render ─────────────────────────────────────────────────────────────────
@@ -725,7 +801,7 @@ const UserManagementPage: React.FC = () => {
                             <Table sx={{ minWidth: 650 }}>
                                 <TableHead>
                                     <TableRow>
-                                        {['User', 'Role', 'Status', 'Joined', 'Permissions', 'Actions'].map((h) => (
+                                        {['User', 'Role', 'Status', 'Joined', 'E NO', 'Permissions', 'Actions'].map((h) => (
                                             <TableCell
                                                 key={h}
                                                 sx={{
@@ -746,7 +822,7 @@ const UserManagementPage: React.FC = () => {
                                 <TableBody>
                                     {filteredCurrentUsers.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} align="center" sx={{ color: '#94a3b8', py: 6, borderColor: '#f1f5f9' }}>
+                                            <TableCell colSpan={7} align="center" sx={{ color: '#94a3b8', py: 6, borderColor: '#f1f5f9' }}>
                                                 No users found.
                                             </TableCell>
                                         </TableRow>
@@ -797,6 +873,22 @@ const UserManagementPage: React.FC = () => {
                                                 {/* Joined */}
                                                 <TableCell sx={{ color: '#64748b', fontSize: 13 }}>{user.joinedDate}</TableCell>
 
+                                                {/* E NO */}
+                                                <TableCell>
+                                                    <Chip
+                                                        label={user.eNo}
+                                                        size="small"
+                                                        sx={{
+                                                            fontWeight: 700,
+                                                            fontSize: '0.75rem',
+                                                            backgroundColor: '#f1f5f9',
+                                                            color: '#334155',
+                                                            borderRadius: '6px',
+                                                            border: '1px solid #cbd5e1'
+                                                        }}
+                                                    />
+                                                </TableCell>
+
                                                 {/* Permissions summary */}
                                                 <TableCell>
                                                     <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
@@ -812,11 +904,23 @@ const UserManagementPage: React.FC = () => {
                                                 {/* Actions */}
                                                 <TableCell>
                                                     <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                                        <Tooltip title={user.role === 'SuperAdmin' ? "Super Admin permissions cannot be changed" : "Edit Permissions"}>
+                                                        <Tooltip title={isSuperAdminDisabled(user) ? "Super Admin details cannot be changed" : "Edit E NO & Name"}>
                                                             <span>
                                                                 <IconButton
                                                                     size="small"
-                                                                    disabled={user.role === 'SuperAdmin'}
+                                                                    disabled={isSuperAdminDisabled(user)}
+                                                                    onClick={() => openEditDialog(user)}
+                                                                    sx={{ color: '#0ea5e9', '&:hover': { backgroundColor: '#e0f2fe' } }}
+                                                                >
+                                                                    <EditIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </span>
+                                                        </Tooltip>
+                                                        <Tooltip title={isSuperAdminDisabled(user) ? "Super Admin permissions cannot be changed" : "Edit Permissions"}>
+                                                            <span>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    disabled={isSuperAdminDisabled(user)}
                                                                     onClick={() => openPermDialog(user)}
                                                                     sx={{ color: '#3b82f6', '&:hover': { backgroundColor: '#eff6ff' } }}
                                                                 >
@@ -824,11 +928,11 @@ const UserManagementPage: React.FC = () => {
                                                                 </IconButton>
                                                             </span>
                                                         </Tooltip>
-                                                        <Tooltip title={user.role === 'SuperAdmin' ? "Super Admin cannot be deleted" : "Delete User"}>
+                                                        <Tooltip title={isSuperAdminDisabled(user) ? "Super Admin cannot be deleted" : "Delete User"}>
                                                             <span>
                                                                 <IconButton
                                                                     size="small"
-                                                                    disabled={user.role === 'SuperAdmin'}
+                                                                    disabled={isSuperAdminDisabled(user)}
                                                                     onClick={() => setDeleteDialog({ open: true, user })}
                                                                     sx={{ color: '#ef4444', '&:hover': { backgroundColor: '#fef2f2' } }}
                                                                 >
@@ -880,7 +984,7 @@ const UserManagementPage: React.FC = () => {
                         <Table sx={{ minWidth: 650 }}>
                             <TableHead>
                                 <TableRow>
-                                    {['Applicant', 'Requested Role', 'Request Date', 'Reason', 'Actions'].map((h) => (
+                                    {['Applicant', 'Requested Role', 'Request Date', 'E NO', 'Reason', 'Actions'].map((h) => (
                                         <TableCell
                                             key={h}
                                             sx={{
@@ -901,7 +1005,7 @@ const UserManagementPage: React.FC = () => {
                             <TableBody>
                                 {filteredNewUsers.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} align="center" sx={{ color: '#94a3b8', py: 6, borderColor: '#f1f5f9' }}>
+                                        <TableCell colSpan={6} align="center" sx={{ color: '#94a3b8', py: 6, borderColor: '#f1f5f9' }}>
                                             No pending requests.
                                         </TableCell>
                                     </TableRow>
@@ -935,6 +1039,22 @@ const UserManagementPage: React.FC = () => {
 
                                             {/* Date */}
                                             <TableCell sx={{ color: '#64748b', fontSize: 13 }}>{user.requestDate}</TableCell>
+
+                                            {/* E NO */}
+                                            <TableCell>
+                                                <Chip
+                                                    label={user.eNo}
+                                                    size="small"
+                                                    sx={{
+                                                        fontWeight: 700,
+                                                        fontSize: '0.75rem',
+                                                        backgroundColor: '#f1f5f9',
+                                                        color: '#334155',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid #cbd5e1'
+                                                    }}
+                                                />
+                                            </TableCell>
 
                                             {/* Reason */}
                                             <TableCell>
@@ -1010,7 +1130,7 @@ const UserManagementPage: React.FC = () => {
                         <Table sx={{ minWidth: 650 }}>
                             <TableHead>
                                 <TableRow>
-                                    {['Rejected User', 'Requested Role', 'Request Date', 'Reason', 'Actions'].map((h) => (
+                                    {['Rejected User', 'Requested Role', 'Request Date', 'E NO', 'Reason', 'Actions'].map((h) => (
                                         <TableCell
                                             key={h}
                                             sx={{
@@ -1031,7 +1151,7 @@ const UserManagementPage: React.FC = () => {
                             <TableBody>
                                 {filteredRejectedUsers.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} align="center" sx={{ color: '#94a3b8', py: 6, borderColor: '#f1f5f9' }}>
+                                        <TableCell colSpan={6} align="center" sx={{ color: '#94a3b8', py: 6, borderColor: '#f1f5f9' }}>
                                             No rejected requests.
                                         </TableCell>
                                     </TableRow>
@@ -1065,6 +1185,22 @@ const UserManagementPage: React.FC = () => {
 
                                             {/* Date */}
                                             <TableCell sx={{ color: '#64748b', fontSize: 13 }}>{user.requestDate}</TableCell>
+
+                                            {/* E NO */}
+                                            <TableCell>
+                                                <Chip
+                                                    label={user.eNo}
+                                                    size="small"
+                                                    sx={{
+                                                        fontWeight: 700,
+                                                        fontSize: '0.75rem',
+                                                        backgroundColor: '#f1f5f9',
+                                                        color: '#334155',
+                                                        borderRadius: '6px',
+                                                        border: '1px solid #cbd5e1'
+                                                    }}
+                                                />
+                                            </TableCell>
 
                                             {/* Reason */}
                                             <TableCell>
@@ -1104,6 +1240,73 @@ const UserManagementPage: React.FC = () => {
 
                 <Box sx={{ height: 16 }} />
             </Paper>
+
+            {/* ── Edit User Details Dialog (E NO & Name) ── */}
+            <Dialog
+                open={editDialog.open}
+                onClose={() => setEditDialog({ open: false, user: null, eNo: '', name: '' })}
+                PaperProps={{ sx: { backgroundColor: 'background.paper', color: 'text.primary', borderRadius: 4, border: '1px solid', borderColor: 'divider', width: '95%', maxWidth: 450, m: 2 } }}
+            >
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 700, color: 'text.primary' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <EditIcon sx={{ color: '#0ea5e9' }} />
+                        Edit User Details
+                    </Box>
+                    <IconButton size="small" onClick={() => setEditDialog({ open: false, user: null, eNo: '', name: '' })}
+                        sx={{ color: '#94a3b8', '&:hover': { backgroundColor: '#f1f5f9' } }}>
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </DialogTitle>
+
+                <Divider sx={{ borderColor: '#334155' }} />
+
+                <DialogContent sx={{ pt: 3, pb: 2 }}>
+                    {editDialog.user && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                            <Avatar sx={{ bgcolor: avatarColors[editDialog.user.avatar] || '#3b82f6', width: 40, height: 40, fontWeight: 700 }}>
+                                {editDialog.user.avatar}
+                            </Avatar>
+                            <Box>
+                                <Typography sx={{ color: 'text.primary', fontWeight: 600 }}>{editDialog.user.name}</Typography>
+                                <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>{editDialog.user.email}</Typography>
+                            </Box>
+                        </Box>
+                    )}
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                        <TextField
+                            fullWidth
+                            label="E NO"
+                            placeholder="e.g. E-001"
+                            value={editDialog.eNo}
+                            onChange={(e) => setEditDialog(prev => ({ ...prev, eNo: e.target.value }))}
+                            variant="outlined"
+                            size="small"
+                        />
+                        <TextField
+                            fullWidth
+                            label="User Name"
+                            placeholder="Enter full name"
+                            value={editDialog.name}
+                            onChange={(e) => setEditDialog(prev => ({ ...prev, name: e.target.value }))}
+                            variant="outlined"
+                            size="small"
+                        />
+                    </Box>
+                </DialogContent>
+
+                <Divider sx={{ borderColor: '#f1f5f9' }} />
+                <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+                    <Button onClick={() => setEditDialog({ open: false, user: null, eNo: '', name: '' })}
+                        sx={{ color: '#64748b', textTransform: 'none', '&:hover': { backgroundColor: '#f1f5f9' } }}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleEditSave} variant="contained"
+                        sx={{ backgroundColor: '#0ea5e9', color: 'white', textTransform: 'none', '&:hover': { backgroundColor: '#0284c7' } }}>
+                        Save Changes
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* ── Delete Confirmation Dialog ── */}
             <Dialog
