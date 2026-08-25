@@ -69,8 +69,8 @@ interface MonthlyAttendanceRecord {
     daysAbsent: number;
     shortLeaves: number;
     leaves: number;
-    totalHours: number;
-    otHours: number;
+    totalHours: number | string;
+    otHours: number | string;
 }
 
 const calculateHourCount = (clockInStr: string, clockOutStr: string) => {
@@ -135,46 +135,74 @@ export default function AttendanceSheetPage() {
     const [savingEdit, setSavingEdit] = useState(false);
 
     useEffect(() => {
-        fetchAttendanceData();
-    }, []);
+        fetchAttendanceData(selectedMonth);
+    }, [selectedMonth]);
 
-    const fetchAttendanceData = async () => {
+    const fetchAttendanceData = async (targetMonth = selectedMonth) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('staffToken');
+            
+            // 1. Fetch Daily Staff Attendance logs (Tab 0: Daily Staff Attendance)
             const response = await fetch(`${API_ENDPOINTS.AUTH}/attendance`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
+            let dailyData: any[] = [];
             if (response.ok) {
-                const data = await response.json();
-                setRecords(data);
+                dailyData = await response.json();
+                setRecords(dailyData);
+            }
 
-                const generatedMonthly: MonthlyAttendanceRecord[] = data.map((r: any, i: number) => {
-                    const isClockedIn = r.status === 'Clocked In';
-                    const daysPresent = isClockedIn ? 22 : 20;
-                    const daysAbsent = 22 - daysPresent;
-                    const shortLeaves = i % 2;
-                    const leaves = daysAbsent;
-                    const totalHours = daysPresent * 8.5;
-                    const otHours = Math.round((i * 2.5 + 4) * 10) / 10;
-                    return {
-                        id: r.id,
-                        eNo: r.eNo,
-                        name: r.name,
-                        email: r.email,
-                        avatar: r.avatar,
-                        month: 'August 2026',
-                        totalDays: 22,
-                        daysPresent,
-                        daysAbsent,
-                        shortLeaves,
-                        leaves,
-                        totalHours,
-                        otHours,
-                    };
+            // 2. Fetch User-Wise Monthly Attendance (Tab 1: User Wise Monthly Attendance)
+            let monthlyLoaded = false;
+            try {
+                const monthlyRes = await fetch(`${API_ENDPOINTS.AUTH}/monthly-attendance?month=${targetMonth}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
-                setMonthlyRecords(generatedMonthly);
+                if (monthlyRes.ok) {
+                    const monthlyList = await monthlyRes.json();
+                    if (Array.isArray(monthlyList) && monthlyList.length > 0) {
+                        setMonthlyRecords(monthlyList);
+                        monthlyLoaded = true;
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching monthly attendance endpoint:', err);
+            }
+
+            // Fallback: If monthly endpoint fails or is not available, deduplicate dailyData so each user has ONLY 1 row
+            if (!monthlyLoaded && dailyData.length > 0) {
+                const uniqueMap = new Map();
+                dailyData.forEach((r: any, i: number) => {
+                    const key = (r.eNo || r.email || r.name || '').toLowerCase().trim();
+                    if (!uniqueMap.has(key)) {
+                        const isClockedIn = r.status === 'Clocked In';
+                        const daysPresent = isClockedIn ? 22 : 20;
+                        const daysAbsent = 22 - daysPresent;
+                        const shortLeaves = i % 2;
+                        const leaves = daysAbsent;
+                        const hrs = calculateHourCount(r.clockInTime, r.clockOutTime);
+                        const totalHours = hrs === '-' ? '0 hrs' : hrs;
+                        const otHours = '0 hrs';
+                        uniqueMap.set(key, {
+                            id: r.id,
+                            eNo: r.eNo,
+                            name: r.name,
+                            email: r.email,
+                            avatar: r.avatar,
+                            month: 'August 2026',
+                            totalDays: 22,
+                            daysPresent,
+                            daysAbsent,
+                            shortLeaves,
+                            leaves,
+                            totalHours,
+                            otHours,
+                        });
+                    }
+                });
+                setMonthlyRecords(Array.from(uniqueMap.values()));
             }
         } catch (error) {
             console.error('Error loading attendance data:', error);
@@ -702,15 +730,19 @@ export default function AttendanceSheetPage() {
                                                         {row.leaves} Days
                                                     </TableCell>
 
-                                                    {/* Total Hours */}
+                                                     {/* Total Hours */}
                                                     <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
-                                                        {row.totalHours} hrs
+                                                        {typeof row.totalHours === 'string'
+                                                            ? (row.totalHours.includes('h') || row.totalHours.includes('m') || row.totalHours.includes('hrs') ? row.totalHours : `${row.totalHours} hrs`)
+                                                            : `${row.totalHours} hrs`}
                                                     </TableCell>
 
                                                     {/* OT Hours */}
                                                     <TableCell>
                                                         <Chip
-                                                            label={`${row.otHours} hrs`}
+                                                            label={typeof row.otHours === 'string'
+                                                                ? (row.otHours.includes('h') || row.otHours.includes('m') || row.otHours.includes('hrs') ? row.otHours : `${row.otHours} hrs`)
+                                                                : `${row.otHours} hrs`}
                                                             size="small"
                                                             sx={{
                                                                 backgroundColor: '#eff6ff',
