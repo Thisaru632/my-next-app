@@ -41,6 +41,7 @@ import {
     ShowChart as ShowChartIcon,
     Edit as EditIcon,
     LocationOn as LocationIcon,
+    Visibility as ViewIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
@@ -53,6 +54,8 @@ interface AttendanceRecord {
     role: string;
     avatar: string;
     date: string;
+    clockInDate?: string;
+    clockOutDate?: string;
     clockInTime: string;
     clockOutTime: string;
     clockInLocation?: string;
@@ -127,6 +130,13 @@ export default function AttendanceSheetPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [selectedMonth, setSelectedMonth] = useState('2026-08');
+    const [selectedDailyDate, setSelectedDailyDate] = useState(() => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    });
     const [selectedUserFilter, setSelectedUserFilter] = useState('ALL');
 
     // Edit Dialog States
@@ -251,19 +261,59 @@ export default function AttendanceSheetPage() {
                 const data = await response.json();
                 alert(data.message || 'Failed to update attendance record');
             }
-        } catch (error) {
-            console.error('Error updating attendance record:', error);
-            alert('Failed to update attendance record');
         } finally {
             setSavingEdit(false);
         }
     };
 
-    const filteredDailyRecords = records.filter(r =>
-        r.name.toLowerCase().includes(search.toLowerCase()) ||
-        r.email.toLowerCase().includes(search.toLowerCase()) ||
-        r.eNo.toLowerCase().includes(search.toLowerCase())
-    );
+    // View User Monthly Logs States
+    const [viewLogsOpen, setViewLogsOpen] = useState(false);
+    const [selectedUserLogs, setSelectedUserLogs] = useState<MonthlyAttendanceRecord | null>(null);
+    const [userLogs, setUserLogs] = useState<AttendanceRecord[]>([]);
+    const [loadingUserLogs, setLoadingUserLogs] = useState(false);
+
+    const handleOpenViewLogs = async (userRow: MonthlyAttendanceRecord) => {
+        setSelectedUserLogs(userRow);
+        setViewLogsOpen(true);
+        setLoadingUserLogs(true);
+        try {
+            const token = localStorage.getItem('staffToken');
+            const response = await fetch(`${API_ENDPOINTS.AUTH}/attendance?month=${selectedMonth}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const allLogs: AttendanceRecord[] = await response.json();
+                const filtered = allLogs.filter(r => {
+                    const sameUser = (r.eNo && userRow.eNo && r.eNo.toLowerCase() === userRow.eNo.toLowerCase()) ||
+                        (r.email && userRow.email && r.email.toLowerCase() === userRow.email.toLowerCase()) ||
+                        (r.name && userRow.name && r.name.toLowerCase() === userRow.name.toLowerCase());
+                    return sameUser;
+                });
+                setUserLogs(filtered);
+            } else {
+                const filtered = records.filter(r => {
+                    const sameUser = (r.eNo && userRow.eNo && r.eNo.toLowerCase() === userRow.eNo.toLowerCase()) ||
+                        (r.email && userRow.email && r.email.toLowerCase() === userRow.email.toLowerCase()) ||
+                        (r.name && userRow.name && r.name.toLowerCase() === userRow.name.toLowerCase());
+                    const matchesMonth = !selectedMonth || !r.date || r.date.startsWith(selectedMonth);
+                    return sameUser && matchesMonth;
+                });
+                setUserLogs(filtered);
+            }
+        } catch (err) {
+            console.error('Error fetching user monthly logs:', err);
+        } finally {
+            setLoadingUserLogs(false);
+        }
+    };
+
+    const filteredDailyRecords = records.filter(r => {
+        const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
+            r.email.toLowerCase().includes(search.toLowerCase()) ||
+            r.eNo.toLowerCase().includes(search.toLowerCase());
+        const matchesDate = !selectedDailyDate || (r.date && r.date.startsWith(selectedDailyDate));
+        return matchesSearch && matchesDate;
+    });
 
     const filteredMonthlyRecords = monthlyRecords.filter(r => {
         const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -409,20 +459,31 @@ export default function AttendanceSheetPage() {
                                 Daily Staff Logs
                             </Typography>
 
-                            <TextField
-                                size="small"
-                                placeholder="Search by name or E NO..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <SearchIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
-                                        </InputAdornment>
-                                    ),
-                                }}
-                                sx={{ width: { xs: '100%', sm: 280 } }}
-                            />
+                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <TextField
+                                    type="date"
+                                    size="small"
+                                    label="Select Date"
+                                    value={selectedDailyDate}
+                                    onChange={(e) => setSelectedDailyDate(e.target.value)}
+                                    InputLabelProps={{ shrink: true }}
+                                    sx={{ width: 170 }}
+                                />
+                                <TextField
+                                    size="small"
+                                    placeholder="Search by name or E NO..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    InputProps={{
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                    sx={{ width: { xs: '100%', sm: 260 } }}
+                                />
+                            </Box>
                         </Box>
 
                         <Divider sx={{ borderColor: 'divider' }} />
@@ -436,7 +497,7 @@ export default function AttendanceSheetPage() {
                                 <Table sx={{ minWidth: 650 }}>
                                     <TableHead>
                                         <TableRow>
-                                            {['E NO', 'Staff Member', 'Date', 'Clock In', 'Clock Out', 'Location', 'Hour Count', 'Status', 'Action'].map((h) => (
+                                            {['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Status', 'Action'].map((h) => (
                                                 <TableCell
                                                     key={h}
                                                     align={h === 'Action' ? 'center' : 'left'}
@@ -458,7 +519,7 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredDailyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={9} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={10} align="center" sx={{ color: '#94a3b8', py: 6 }}>
                                                     No attendance records found.
                                                 </TableCell>
                                             </TableRow>
@@ -493,14 +554,19 @@ export default function AttendanceSheetPage() {
                                                         {row.name}
                                                     </TableCell>
 
-                                                    {/* Date */}
-                                                    <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>
-                                                        {row.date}
+                                                    {/* Clock In Date */}
+                                                    <TableCell sx={{ color: 'text.secondary', fontSize: 13, fontWeight: 500 }}>
+                                                        {row.clockInDate || row.date}
                                                     </TableCell>
 
                                                     {/* Clock In */}
                                                     <TableCell sx={{ color: '#10b981', fontWeight: 600, fontSize: 13 }}>
                                                         {row.clockInTime}
+                                                    </TableCell>
+
+                                                    {/* Clock Out Date */}
+                                                    <TableCell sx={{ color: 'text.secondary', fontSize: 13, fontWeight: 500 }}>
+                                                        {row.clockOutDate || (row.status === 'Clocked Out' ? (row.date || '-') : '-')}
                                                     </TableCell>
 
                                                     {/* Clock Out */}
@@ -674,7 +740,7 @@ export default function AttendanceSheetPage() {
                                 <Table sx={{ minWidth: 700 }}>
                                     <TableHead>
                                         <TableRow>
-                                            {['E NO', 'Staff Member', 'Month', 'Total Days', 'Days Present', 'Days Absent', 'Short Leave', 'Leaves', 'Total Hours', 'OT Hours'].map((h) => (
+                                            {['E NO', 'Staff Member', 'Month', 'Total Hours', 'Worked Hours', 'OT Hours', 'Action'].map((h) => (
                                                 <TableCell
                                                     key={h}
                                                     sx={{
@@ -695,7 +761,7 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredMonthlyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={10} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={7} align="center" sx={{ color: '#94a3b8', py: 6 }}>
                                                     No monthly attendance records found.
                                                 </TableCell>
                                             </TableRow>
@@ -735,32 +801,12 @@ export default function AttendanceSheetPage() {
                                                         {row.month}
                                                     </TableCell>
 
-                                                    {/* Total Days */}
-                                                    <TableCell sx={{ fontWeight: 600, fontSize: 13 }}>
-                                                        {row.totalDays} Days
+                                                    {/* Total Hours */}
+                                                    <TableCell sx={{ color: 'text.secondary', fontWeight: 600, fontSize: 13 }}>
+                                                        {typeof row.totalDays === 'number' ? `${row.totalDays * 9} hrs` : '198 hrs'}
                                                     </TableCell>
 
-                                                    {/* Days Present */}
-                                                    <TableCell sx={{ color: '#10b981', fontWeight: 600, fontSize: 13 }}>
-                                                        {row.daysPresent} Days
-                                                    </TableCell>
-
-                                                    {/* Days Absent */}
-                                                    <TableCell sx={{ color: row.daysAbsent > 0 ? '#ef4444' : '#64748b', fontWeight: 600, fontSize: 13 }}>
-                                                        {row.daysAbsent} Days
-                                                    </TableCell>
-
-                                                    {/* Short Leave */}
-                                                    <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
-                                                        {row.shortLeaves}
-                                                    </TableCell>
-
-                                                    {/* Leaves */}
-                                                    <TableCell sx={{ color: row.leaves > 0 ? '#f59e0b' : 'text.secondary', fontWeight: 600, fontSize: 13 }}>
-                                                        {row.leaves} Days
-                                                    </TableCell>
-
-                                                     {/* Total Hours */}
+                                                    {/* Worked Hours */}
                                                     <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
                                                         {typeof row.totalHours === 'string'
                                                             ? (row.totalHours.includes('h') || row.totalHours.includes('m') || row.totalHours.includes('hrs') ? row.totalHours : `${row.totalHours} hrs`)
@@ -783,6 +829,31 @@ export default function AttendanceSheetPage() {
                                                             }}
                                                         />
                                                     </TableCell>
+
+                                                    {/* Action */}
+                                                    <TableCell>
+                                                        <Button
+                                                            variant="outlined"
+                                                            size="small"
+                                                            startIcon={<ViewIcon sx={{ fontSize: 16 }} />}
+                                                            onClick={() => handleOpenViewLogs(row)}
+                                                            sx={{
+                                                                borderRadius: '8px',
+                                                                textTransform: 'none',
+                                                                fontSize: '0.75rem',
+                                                                fontWeight: 600,
+                                                                borderColor: '#cbd5e1',
+                                                                color: '#334155',
+                                                                '&:hover': {
+                                                                    borderColor: '#3b82f6',
+                                                                    backgroundColor: '#eff6ff',
+                                                                    color: '#2563eb',
+                                                                },
+                                                            }}
+                                                        >
+                                                            View
+                                                        </Button>
+                                                    </TableCell>
                                                 </TableRow>
                                             ))
                                         )}
@@ -793,6 +864,93 @@ export default function AttendanceSheetPage() {
                     </Paper>
                 </>
             )}
+
+            {/* View User Monthly Clock In/Out Logs Dialog */}
+            <Dialog
+                open={viewLogsOpen}
+                onClose={() => setViewLogsOpen(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    sx: { borderRadius: 3, p: 1 }
+                }}
+            >
+                <DialogTitle component="div" sx={{ fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography component="span" variant="h6" fontWeight="bold">
+                        Monthly Clock In/Out Records ({selectedUserLogs?.eNo ? `${selectedUserLogs?.eNo} - ` : ''}{selectedUserLogs?.name})
+                    </Typography>
+                    <Chip
+                        label={selectedUserLogs?.month}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        sx={{ fontWeight: 600 }}
+                    />
+                </DialogTitle>
+                <DialogContent dividers>
+                    {loadingUserLogs ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                            <CircularProgress sx={{ color: '#3b82f6' }} />
+                        </Box>
+                    ) : userLogs.length === 0 ? (
+                        <Box sx={{ textAlign: 'center', py: 4, color: '#94a3b8' }}>
+                            No clock-in/out records found for this user in {selectedUserLogs?.month}.
+                        </Box>
+                    ) : (
+                        <TableContainer sx={{ maxHeight: 400 }}>
+                            <Table size="small" stickyHeader>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell sx={{ fontWeight: 700 }}>Clock In Date</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Clock In</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Clock Out Date</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Clock Out</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Location</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Hour Count</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {userLogs.map((log) => {
+                                        const hrs = calculateHourCount(log.clockInTime, log.clockOutTime);
+                                        return (
+                                            <TableRow key={log.id} hover>
+                                                <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>{log.clockInDate || log.date}</TableCell>
+                                                <TableCell sx={{ fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
+                                                    {log.clockInTime || '-'}
+                                                </TableCell>
+                                                <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>{log.clockOutDate || (log.status === 'Clocked Out' ? (log.date || '-') : '-')}</TableCell>
+                                                <TableCell sx={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>
+                                                    {log.clockOutTime || '-'}
+                                                </TableCell>
+                                                <TableCell sx={{ fontSize: 12, color: 'text.secondary', maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    {log.clockInLocation || log.clockOutLocation || '-'}
+                                                </TableCell>
+                                                <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>
+                                                    {hrs === '-' ? '0 hrs' : hrs}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Chip
+                                                        label={log.status}
+                                                        size="small"
+                                                        color={log.status === 'Clocked In' ? 'success' : 'default'}
+                                                        sx={{ fontSize: '0.7rem', fontWeight: 700 }}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setViewLogsOpen(false)} variant="contained" sx={{ textTransform: 'none', borderRadius: 2 }}>
+                        Close
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Edit Attendance Record Dialog */}
             <Dialog
