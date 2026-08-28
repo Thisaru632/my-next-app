@@ -12,16 +12,60 @@ import {
     InputAdornment,
     IconButton,
 } from '@mui/material';
-import { Lock, Eye, EyeOff, UserCheck, Clock, CheckCircle, MapPin, AlertCircle } from 'lucide-react';
+import { Lock, Eye, EyeOff, UserCheck, Clock, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { API_ENDPOINTS } from '@/config/api';
+
+const getDeviceLocation = (): Promise<string> => {
+    return new Promise((resolve) => {
+        if (typeof window === 'undefined' || !navigator.geolocation) {
+            resolve('Location Not Supported');
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    const response = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+                    );
+                    if (response.ok) {
+                        const data = await response.json();
+                        const address = data.display_name || data.address?.suburb || data.address?.city || data.address?.town || '';
+                        if (address) {
+                            const shortAddress = address.split(',').slice(0, 3).join(',').trim();
+                            resolve(`${shortAddress} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Reverse geocoding failed:', e);
+                }
+                resolve(`Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`);
+            },
+            (error) => {
+                console.warn('Geolocation error:', error);
+                if (error.code === error.PERMISSION_DENIED) {
+                    resolve('Permission Denied');
+                } else if (error.code === error.POSITION_UNAVAILABLE) {
+                    resolve('Position Unavailable');
+                } else if (error.code === error.TIMEOUT) {
+                    resolve('Timed Out');
+                } else {
+                    resolve('Location Error');
+                }
+            },
+            { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+        );
+    });
+};
 
 export default function ClockInOutPage() {
     const [eNo, setENo] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [locationStatus, setLocationStatus] = useState('');
     const [isAlreadyClockedIn, setIsAlreadyClockedIn] = useState(false);
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
@@ -29,36 +73,6 @@ export default function ClockInOutPage() {
         isClockedIn: false,
         time: null,
     });
-
-    // Helper to request device GPS coordinates via HTML5 Geolocation
-    const getCurrentLocation = (): Promise<{ latitude: number; longitude: number }> => {
-        return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
-                reject(new Error('Geolocation is not supported by your browser. Please use a modern browser.'));
-                return;
-            }
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    resolve({
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                    });
-                },
-                (err) => {
-                    let msg = 'Failed to retrieve location.';
-                    if (err.code === err.PERMISSION_DENIED) {
-                        msg = 'Location permission denied! You must grant browser location access to Clock In / Out at the office.';
-                    } else if (err.code === err.POSITION_UNAVAILABLE) {
-                        msg = 'GPS location unavailable. Please make sure location services are turned on.';
-                    } else if (err.code === err.TIMEOUT) {
-                        msg = 'Location request timed out. Please try again.';
-                    }
-                    reject(new Error(msg));
-                },
-                { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-            );
-        });
-    };
 
     // Auto-fill logged-in user eNo if available in localStorage
     useEffect(() => {
@@ -108,7 +122,6 @@ export default function ClockInOutPage() {
         e.preventDefault();
         setError('');
         setSuccessMessage('');
-        setLocationStatus('');
 
         if (!eNo.trim()) {
             setError('Please enter your E NO');
@@ -121,25 +134,19 @@ export default function ClockInOutPage() {
         }
 
         setLoading(true);
-        setLocationStatus('📍 Verifying office location...');
+
+        // Get user location
+        const location = await getDeviceLocation();
+
+        const endpoint = isAlreadyClockedIn ? `${API_ENDPOINTS.AUTH}/clock-out` : `${API_ENDPOINTS.AUTH}/clock-in`;
 
         try {
-            // Get GPS coordinates from browser
-            const coords = await getCurrentLocation();
-
-            const endpoint = isAlreadyClockedIn ? `${API_ENDPOINTS.AUTH}/clock-out` : `${API_ENDPOINTS.AUTH}/clock-in`;
-
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    eNo: eNo.trim(),
-                    password,
-                    latitude: coords.latitude,
-                    longitude: coords.longitude,
-                }),
+                body: JSON.stringify({ eNo: eNo.trim(), password, location }),
             });
 
             const data = await response.json();
@@ -163,7 +170,6 @@ export default function ClockInOutPage() {
             setError(err.message || 'Action failed');
         } finally {
             setLoading(false);
-            setLocationStatus('');
         }
     };
 
@@ -220,25 +226,12 @@ export default function ClockInOutPage() {
                             <Typography variant="h4" fontWeight="800" sx={{ color: '#1e293b', letterSpacing: '-0.02em' }} gutterBottom>
                                 Clock in /out
                             </Typography>
-                            <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500, mb: 1.5 }}>
+                            <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
                                 {isAlreadyClockedIn
                                     ? 'You are currently clocked in. Enter password to clock out.'
                                     : 'Welcome back! Please enter your details.'}
                             </Typography>
-                            
-                            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, px: 2, py: 0.75, borderRadius: 3, bgcolor: '#e0f2fe', border: '1px solid #bae6fd' }}>
-                                <MapPin size={16} color="#0284c7" />
-                                <Typography variant="caption" sx={{ color: '#0369a1', fontWeight: 700, fontSize: '0.78rem' }}>
-                                    Office Location Verification Active
-                                </Typography>
-                            </Box>
                         </Box>
-
-                        {locationStatus && (
-                            <Alert severity="info" icon={<MapPin size={20} />} sx={{ mb: 3, borderRadius: 2 }}>
-                                {locationStatus}
-                            </Alert>
-                        )}
 
                         {successMessage && (
                             <Alert

@@ -40,6 +40,7 @@ import {
     CalendarToday as CalendarIcon,
     ShowChart as ShowChartIcon,
     Edit as EditIcon,
+    LocationOn as LocationIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
@@ -54,6 +55,8 @@ interface AttendanceRecord {
     date: string;
     clockInTime: string;
     clockOutTime: string;
+    clockInLocation?: string;
+    clockOutLocation?: string;
     status: 'Clocked In' | 'Clocked Out';
 }
 
@@ -140,18 +143,22 @@ export default function AttendanceSheetPage() {
 
     const fetchAttendanceData = async (targetMonth = selectedMonth) => {
         setLoading(true);
+        let dailyData: any[] = [];
         try {
             const token = localStorage.getItem('staffToken');
             
             // 1. Fetch Daily Staff Attendance logs (Tab 0: Daily Staff Attendance)
-            const response = await fetch(`${API_ENDPOINTS.AUTH}/attendance`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            try {
+                const response = await fetch(`${API_ENDPOINTS.AUTH}/attendance`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
 
-            let dailyData: any[] = [];
-            if (response.ok) {
-                dailyData = await response.json();
-                setRecords(dailyData);
+                if (response.ok) {
+                    dailyData = await response.json();
+                    setRecords(dailyData);
+                }
+            } catch (err) {
+                console.warn('Daily attendance fetch network error:', err);
             }
 
             // 2. Fetch User-Wise Monthly Attendance (Tab 1: User Wise Monthly Attendance)
@@ -168,7 +175,7 @@ export default function AttendanceSheetPage() {
                     }
                 }
             } catch (err) {
-                console.error('Error fetching monthly attendance endpoint:', err);
+                console.warn('Error fetching monthly attendance endpoint:', err);
             }
 
             // Fallback: If monthly endpoint fails or is not available, deduplicate dailyData so each user has ONLY 1 row
@@ -429,7 +436,7 @@ export default function AttendanceSheetPage() {
                                 <Table sx={{ minWidth: 650 }}>
                                     <TableHead>
                                         <TableRow>
-                                            {['E NO', 'Staff Member', 'Date', 'Clock In', 'Clock Out', 'Hour Count', 'Status', 'Action'].map((h) => (
+                                            {['E NO', 'Staff Member', 'Date', 'Clock In', 'Clock Out', 'Location', 'Hour Count', 'Status', 'Action'].map((h) => (
                                                 <TableCell
                                                     key={h}
                                                     align={h === 'Action' ? 'center' : 'left'}
@@ -451,7 +458,7 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredDailyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={8} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={9} align="center" sx={{ color: '#94a3b8', py: 6 }}>
                                                     No attendance records found.
                                                 </TableCell>
                                             </TableRow>
@@ -499,6 +506,29 @@ export default function AttendanceSheetPage() {
                                                     {/* Clock Out */}
                                                     <TableCell sx={{ color: row.clockOutTime === 'Active Session' ? '#3b82f6' : 'text.secondary', fontSize: 13, fontWeight: row.clockOutTime === 'Active Session' ? 600 : 400 }}>
                                                         {row.clockOutTime}
+                                                    </TableCell>
+
+                                                    {/* Location */}
+                                                    <TableCell sx={{ fontSize: 12, maxWidth: 220 }}>
+                                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+                                                            {row.clockInLocation ? (
+                                                                <Typography variant="caption" sx={{ color: '#059669', display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 500, fontSize: '0.725rem' }}>
+                                                                    <LocationIcon sx={{ fontSize: 13, color: '#10b981' }} />
+                                                                    <span><strong>In:</strong> {row.clockInLocation}</span>
+                                                                </Typography>
+                                                            ) : null}
+                                                            {row.clockOutLocation ? (
+                                                                <Typography variant="caption" sx={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 500, fontSize: '0.725rem' }}>
+                                                                    <LocationIcon sx={{ fontSize: 13, color: '#3b82f6' }} />
+                                                                    <span><strong>Out:</strong> {row.clockOutLocation}</span>
+                                                                </Typography>
+                                                            ) : null}
+                                                            {!row.clockInLocation && !row.clockOutLocation && (
+                                                                <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                                                                    Not Recorded
+                                                                </Typography>
+                                                            )}
+                                                        </Box>
                                                     </TableCell>
 
                                                     {/* Hour Count */}
