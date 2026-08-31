@@ -75,7 +75,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Vehicle Registrations', icon: <DirectionsBusIcon />, path: '/staff/vehicle-registrations', key: 'vehicleRegistration' },
         { text: 'Super Team', icon: <DirectionsBusIcon />, path: '/staff/super-team', key: 'dashboard' },
         { text: 'Cab Service', icon: <LocalTaxiIcon />, path: '/staff/cab-service', key: 'cabService' },
-        { text: 'Attendance Sheet', icon: <AssignmentIcon />, path: '/staff/attendance-sheet', key: 'dashboard' },
+        { text: 'Attendance Sheet', icon: <AssignmentIcon />, path: '/staff/attendance-sheet', key: 'hrSection' },
         { text: 'Links', icon: <LinkIcon />, path: '/staff/links', key: 'dashboard' },
         { text: 'Tenders', icon: <GavelIcon />, path: 'https://tender-monitoring-tau.vercel.app/', key: 'dashboard' },
     ];
@@ -236,20 +236,24 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                             .map(renderMenuItem)}
 
                         {/* HR Dropdown Section inside Admin Portal */}
-                        <ListItemButton onClick={() => setHrOpen(!hrOpen)} sx={{ py: 0.5, px: 2, borderRadius: 2, mt: 1, mb: 0.5, backgroundColor: 'action.hover' }}>
-                            <ListItemText 
-                                primary="HR Section" 
-                                primaryTypographyProps={{ variant: 'overline', color: 'primary.main', fontWeight: 'bold', lineHeight: 2 }} 
-                            />
-                            {hrOpen ? <ExpandLess sx={{ color: 'primary.main' }} /> : <ExpandMore sx={{ color: 'primary.main' }} />}
-                        </ListItemButton>
-                        <Collapse in={hrOpen} timeout="auto" unmountOnExit>
-                            <List sx={{ pl: 1, pt: 0, pb: 0 }}>
-                                {allowedItems
-                                    .filter(item => hrItems.includes(item.text))
-                                    .map(renderMenuItem)}
-                            </List>
-                        </Collapse>
+                        {allowedItems.some(item => hrItems.includes(item.text)) && (
+                            <>
+                                <ListItemButton onClick={() => setHrOpen(!hrOpen)} sx={{ py: 0.5, px: 2, borderRadius: 2, mt: 1, mb: 0.5, backgroundColor: 'action.hover' }}>
+                                    <ListItemText 
+                                        primary="HR Section" 
+                                        primaryTypographyProps={{ variant: 'overline', color: 'primary.main', fontWeight: 'bold', lineHeight: 2 }} 
+                                    />
+                                    {hrOpen ? <ExpandLess sx={{ color: 'primary.main' }} /> : <ExpandMore sx={{ color: 'primary.main' }} />}
+                                </ListItemButton>
+                                <Collapse in={hrOpen} timeout="auto" unmountOnExit>
+                                    <List sx={{ pl: 1, pt: 0, pb: 0 }}>
+                                        {allowedItems
+                                            .filter(item => hrItems.includes(item.text))
+                                            .map(renderMenuItem)}
+                                    </List>
+                                </Collapse>
+                            </>
+                        )}
                     </List>
                 </Collapse>
             </Box>

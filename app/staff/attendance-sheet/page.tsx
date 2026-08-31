@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     Box,
     Paper,
@@ -123,6 +124,7 @@ const calculateHourCount = (clockInStr: string, clockOutStr: string) => {
 };
 
 export default function AttendanceSheetPage() {
+    const router = useRouter();
     const { mode } = useThemeContext();
     const [tabValue, setTabValue] = useState(0);
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -146,6 +148,21 @@ export default function AttendanceSheetPage() {
     const [editClockOut, setEditClockOut] = useState('');
     const [editStatus, setEditStatus] = useState<'Clocked In' | 'Clocked Out'>('Clocked In');
     const [savingEdit, setSavingEdit] = useState(false);
+
+    useEffect(() => {
+        const userStr = localStorage.getItem('staffUser');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                const isSuperAdmin = user.role === 'superadmin';
+                const hasHrPermission = user.permissions?.hrSection;
+                if (!isSuperAdmin && !hasHrPermission) {
+                    router.push('/staff');
+                    return;
+                }
+            } catch (e) {}
+        }
+    }, [router]);
 
     useEffect(() => {
         fetchAttendanceData(selectedMonth);

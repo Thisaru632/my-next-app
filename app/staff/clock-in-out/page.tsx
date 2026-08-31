@@ -16,10 +16,14 @@ import { Lock, Eye, EyeOff, UserCheck, Clock, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { API_ENDPOINTS } from '@/config/api';
 
-const getDeviceLocation = (): Promise<string> => {
+const getDeviceLocation = (): Promise<{ success: boolean; location: string; error?: string }> => {
     return new Promise((resolve) => {
         if (typeof window === 'undefined' || !navigator.geolocation) {
-            resolve('Location Not Supported');
+            resolve({
+                success: false,
+                location: '',
+                error: 'Location services are not supported by your browser.',
+            });
             return;
         }
 
@@ -35,28 +39,38 @@ const getDeviceLocation = (): Promise<string> => {
                         const address = data.display_name || data.address?.suburb || data.address?.city || data.address?.town || '';
                         if (address) {
                             const shortAddress = address.split(',').slice(0, 3).join(',').trim();
-                            resolve(`${shortAddress} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+                            resolve({
+                                success: true,
+                                location: `${shortAddress} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+                            });
                             return;
                         }
                     }
                 } catch (e) {
                     console.warn('Reverse geocoding failed:', e);
                 }
-                resolve(`Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`);
+                resolve({
+                    success: true,
+                    location: `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`,
+                });
             },
             (error) => {
                 console.warn('Geolocation error:', error);
+                let msg = 'Location access is required. Please turn on location services on your device to clock in or out.';
                 if (error.code === error.PERMISSION_DENIED) {
-                    resolve('Permission Denied');
+                    msg = 'Location permission denied. Please allow location access in your browser settings to clock in or out.';
                 } else if (error.code === error.POSITION_UNAVAILABLE) {
-                    resolve('Position Unavailable');
+                    msg = 'Position unavailable. Please turn on GPS / location services on your device to clock in or out.';
                 } else if (error.code === error.TIMEOUT) {
-                    resolve('Timed Out');
-                } else {
-                    resolve('Location Error');
+                    msg = 'Location request timed out. Please make sure location is turned on and try again.';
                 }
+                resolve({
+                    success: false,
+                    location: '',
+                    error: msg,
+                });
             },
-            { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
         );
     });
 };
@@ -73,6 +87,21 @@ export default function ClockInOutPage() {
         isClockedIn: false,
         time: null,
     });
+
+    // Request location prompt on mount when entering page
+    useEffect(() => {
+        if (typeof window !== 'undefined' && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                () => {},
+                (err) => {
+                    if (err.code === err.PERMISSION_DENIED) {
+                        setError('Location permission denied. Please enable location access to clock in or clock out.');
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        }
+    }, []);
 
     // Auto-fill logged-in user eNo if available in localStorage
     useEffect(() => {
@@ -135,8 +164,15 @@ export default function ClockInOutPage() {
 
         setLoading(true);
 
-        // Get user location
-        const location = await getDeviceLocation();
+        // Request & verify user location
+        const locResult = await getDeviceLocation();
+        if (!locResult.success) {
+            setError(locResult.error || 'Location access is required. Please enable location on your device to clock in or out.');
+            setLoading(false);
+            return;
+        }
+
+        const location = locResult.location;
 
         const endpoint = isAlreadyClockedIn ? `${API_ENDPOINTS.AUTH}/clock-out` : `${API_ENDPOINTS.AUTH}/clock-in`;
 
