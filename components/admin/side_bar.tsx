@@ -65,6 +65,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     const menuItems: MenuItem[] = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/staff', key: 'dashboard' },
         { text: 'Clock in /out', icon: <AccessTimeIcon />, path: '/staff/clock-in-out', key: 'dashboard' },
+        { text: 'View My Attendance', icon: <AssignmentIcon />, path: '/staff/my-attendance', key: 'dashboard' },
         { text: 'Lead Info', icon: <PeopleIcon />, path: '/staff/leads', key: 'leads' },
         { text: 'CMS', icon: <ArticleIcon />, path: '/staff/cms', key: 'cms' },
         { text: 'User Manage', icon: <ManageAccountsIcon />, path: '/staff/user_manage', key: 'userManagement' },
@@ -87,6 +88,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     const [unpickedLeadsCount, setUnpickedLeadsCount] = React.useState(0);
     const [webPortalOpen, setWebPortalOpen] = React.useState(true);
     const [adminPortalOpen, setAdminPortalOpen] = React.useState(true);
+    const [myAttendanceOpen, setMyAttendanceOpen] = React.useState(true);
     const [hrOpen, setHrOpen] = React.useState(true);
 
     const fetchPendingCount = async () => {
@@ -149,6 +151,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     };
 
     const webPortalItems = ['Dashboard', 'Lead Info', 'CMS', 'Web Users', 'Rate Card Manage', 'Super Team'];
+    const myAttendanceItems = ['Clock in /out', 'View My Attendance', 'My Attendance'];
     const hrItems = ['Attendance Sheet'];
 
     const renderMenuItem = (item: MenuItem) => {
@@ -232,8 +235,28 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                 <Collapse in={adminPortalOpen} timeout="auto" unmountOnExit>
                     <List sx={{ px: 2, pt: 0, pb: 1 }}>
                         {allowedItems
-                            .filter(item => !webPortalItems.includes(item.text) && !hrItems.includes(item.text))
+                            .filter(item => !webPortalItems.includes(item.text) && !hrItems.includes(item.text) && !myAttendanceItems.includes(item.text))
                             .map(renderMenuItem)}
+
+                        {/* My Attendance Dropdown Section inside Admin Portal */}
+                        {allowedItems.some(item => myAttendanceItems.includes(item.text)) && (
+                            <>
+                                <ListItemButton onClick={() => setMyAttendanceOpen(!myAttendanceOpen)} sx={{ py: 0.5, px: 2, borderRadius: 2, mt: 1, mb: 0.5, backgroundColor: 'action.hover' }}>
+                                    <ListItemText 
+                                        primary="My Attendance" 
+                                        primaryTypographyProps={{ variant: 'overline', color: 'primary.main', fontWeight: 'bold', lineHeight: 2 }} 
+                                    />
+                                    {myAttendanceOpen ? <ExpandLess sx={{ color: 'primary.main' }} /> : <ExpandMore sx={{ color: 'primary.main' }} />}
+                                </ListItemButton>
+                                <Collapse in={myAttendanceOpen} timeout="auto" unmountOnExit>
+                                    <List sx={{ pl: 1, pt: 0, pb: 0 }}>
+                                        {allowedItems
+                                            .filter(item => myAttendanceItems.includes(item.text))
+                                            .map(renderMenuItem)}
+                                    </List>
+                                </Collapse>
+                            </>
+                        )}
 
                         {/* HR Dropdown Section inside Admin Portal */}
                         {allowedItems.some(item => hrItems.includes(item.text)) && (

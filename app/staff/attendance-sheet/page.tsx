@@ -123,6 +123,74 @@ const calculateHourCount = (clockInStr: string, clockOutStr: string) => {
     }
 };
 
+const calculateOtHours = (clockInStr: string, clockOutStr: string) => {
+    if (!clockInStr || !clockOutStr || clockOutStr === 'Active Session' || clockOutStr === '-') {
+        return '-';
+    }
+
+    try {
+        const parseTime = (timeStr: string) => {
+            const date = new Date();
+            const match = timeStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
+            if (!match) return null;
+            let hours = parseInt(match[1], 10);
+            const minutes = parseInt(match[2], 10);
+            const seconds = match[3] ? parseInt(match[3], 10) : 0;
+            const ampm = match[4] ? match[4].toUpperCase() : null;
+
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+
+            date.setHours(hours, minutes, seconds, 0);
+            return date;
+        };
+
+        const inTime = parseTime(clockInStr);
+        const outTime = parseTime(clockOutStr);
+
+        if (!inTime || !outTime) return '-';
+
+        let diffMs = outTime.getTime() - inTime.getTime();
+        if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+
+        const totalMinutes = Math.floor(diffMs / (1000 * 60));
+        if (totalMinutes <= 540) {
+            return '0 hrs';
+        }
+
+        const otMins = totalMinutes - 540;
+        const hrs = Math.floor(otMins / 60);
+        const mins = otMins % 60;
+
+        if (hrs === 0) return `${mins}m`;
+        if (mins === 0) return `${hrs}h`;
+        return `${hrs}h ${mins}m`;
+    } catch (e) {
+        return '-';
+    }
+};
+
+const getCurrentYearMonth = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+};
+
+const getMonthOptions = () => {
+    const options = [];
+    const d = new Date();
+    for (let i = 0; i < 12; i++) {
+        const date = new Date(d.getFullYear(), d.getMonth() - i, 1);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const val = `${year}-${month}`;
+        const label = date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        options.push({ value: val, label });
+    }
+    return options;
+};
+
 export default function AttendanceSheetPage() {
     const router = useRouter();
     const { mode } = useThemeContext();
@@ -131,7 +199,8 @@ export default function AttendanceSheetPage() {
     const [monthlyRecords, setMonthlyRecords] = useState<MonthlyAttendanceRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [selectedMonth, setSelectedMonth] = useState('2026-08');
+    const [selectedMonth, setSelectedMonth] = useState(getCurrentYearMonth);
+    const monthOptions = React.useMemo(() => getMonthOptions(), []);
     const [selectedDailyDate, setSelectedDailyDate] = useState(() => {
         const d = new Date();
         const year = d.getFullYear();
@@ -225,7 +294,7 @@ export default function AttendanceSheetPage() {
                             name: r.name,
                             email: r.email,
                             avatar: r.avatar,
-                            month: 'August 2026',
+                            month: new Date(targetMonth + '-01').toLocaleString('en-US', { month: 'long', year: 'numeric' }),
                             totalDays: 22,
                             daysPresent,
                             daysAbsent,
@@ -514,7 +583,7 @@ export default function AttendanceSheetPage() {
                                 <Table sx={{ minWidth: 650 }}>
                                     <TableHead>
                                         <TableRow>
-                                            {['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Status', 'Action'].map((h) => (
+                                            {['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'OT Hours', 'Status', 'Action'].map((h) => (
                                                 <TableCell
                                                     key={h}
                                                     align={h === 'Action' ? 'center' : 'left'}
@@ -536,7 +605,7 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredDailyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={10} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={11} align="center" sx={{ color: '#94a3b8', py: 6 }}>
                                                     No attendance records found.
                                                 </TableCell>
                                             </TableRow>
@@ -619,6 +688,11 @@ export default function AttendanceSheetPage() {
                                                         {calculateHourCount(row.clockInTime, row.clockOutTime)}
                                                     </TableCell>
 
+                                                    {/* OT Hours */}
+                                                    <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                        {calculateOtHours(row.clockInTime, row.clockOutTime)}
+                                                    </TableCell>
+
                                                     {/* Status */}
                                                     <TableCell>
                                                         <Chip
@@ -677,18 +751,15 @@ export default function AttendanceSheetPage() {
                     >
                         <Grid container spacing={2} alignItems="center">
                             <Grid size={{ xs: 12, sm: 4 }}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel>Select Month</InputLabel>
-                                    <Select
-                                        value={selectedMonth}
-                                        label="Select Month"
-                                        onChange={(e) => setSelectedMonth(e.target.value)}
-                                    >
-                                        <MenuItem value="2026-08">August 2026</MenuItem>
-                                        <MenuItem value="2026-07">July 2026</MenuItem>
-                                        <MenuItem value="2026-06">June 2026</MenuItem>
-                                    </Select>
-                                </FormControl>
+                                <TextField
+                                    fullWidth
+                                    type="month"
+                                    size="small"
+                                    label="Select Month & Year"
+                                    value={selectedMonth}
+                                    onChange={(e) => setSelectedMonth(e.target.value)}
+                                    InputLabelProps={{ shrink: true }}
+                                />
                             </Grid>
 
                             <Grid size={{ xs: 12, sm: 4 }}>
