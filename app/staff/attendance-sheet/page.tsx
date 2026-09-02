@@ -213,7 +213,9 @@ export default function AttendanceSheetPage() {
     // Edit Dialog States
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
+    const [editClockInDate, setEditClockInDate] = useState('');
     const [editClockIn, setEditClockIn] = useState('');
+    const [editClockOutDate, setEditClockOutDate] = useState('');
     const [editClockOut, setEditClockOut] = useState('');
     const [editStatus, setEditStatus] = useState<'Clocked In' | 'Clocked Out'>('Clocked In');
     const [savingEdit, setSavingEdit] = useState(false);
@@ -245,7 +247,7 @@ export default function AttendanceSheetPage() {
             
             // 1. Fetch Daily Staff Attendance logs (Tab 0: Daily Staff Attendance)
             try {
-                const response = await fetch(`${API_ENDPOINTS.AUTH}/attendance`, {
+                const response = await fetch(`${API_ENDPOINTS.AUTH}/attendance?all=true`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -316,9 +318,11 @@ export default function AttendanceSheetPage() {
 
     const handleOpenEdit = (record: AttendanceRecord) => {
         setSelectedRecord(record);
-        setEditClockIn(record.clockInTime);
-        setEditClockOut(record.clockOutTime);
-        setEditStatus(record.status);
+        setEditClockInDate(record.clockInDate || record.date || '');
+        setEditClockIn(record.clockInTime || '');
+        setEditClockOutDate(record.clockOutDate || (record.status === 'Clocked Out' ? (record.date || '') : ''));
+        setEditClockOut(record.clockOutTime || '');
+        setEditStatus(record.status || 'Clocked In');
         setEditDialogOpen(true);
     };
 
@@ -334,7 +338,10 @@ export default function AttendanceSheetPage() {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
+                    date: editClockInDate,
+                    clockInDate: editClockInDate,
                     clockInTime: editClockIn,
+                    clockOutDate: editClockOutDate,
                     clockOutTime: editClockOut,
                     status: editStatus,
                 }),
@@ -409,7 +416,7 @@ export default function AttendanceSheetPage() {
         return matchesSearch && matchesUser;
     });
 
-    const clockedInCount = records.filter(r => r.status === 'Clocked In').length;
+    const clockedInCount = filteredDailyRecords.filter(r => r.status === 'Clocked In').length;
 
     return (
         <Box
@@ -490,7 +497,7 @@ export default function AttendanceSheetPage() {
                     <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
                         {[
                             { label: 'Currently Clocked In', value: clockedInCount, color: '#10b981', icon: <ClockIcon /> },
-                            { label: 'Clocked Out', value: records.length - clockedInCount, color: '#64748b', icon: <CheckCircleIcon /> },
+                            { label: 'Clocked Out', value: filteredDailyRecords.length - clockedInCount, color: '#64748b', icon: <CheckCircleIcon /> },
                         ].map((stat) => (
                             <Box
                                 key={stat.label}
@@ -1057,10 +1064,28 @@ export default function AttendanceSheetPage() {
                     <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <TextField
                             fullWidth
+                            type="date"
+                            label="Clock In Date"
+                            value={editClockInDate}
+                            onChange={(e) => setEditClockInDate(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            size="small"
+                        />
+                        <TextField
+                            fullWidth
                             label="Clock In Time"
                             value={editClockIn}
                             onChange={(e) => setEditClockIn(e.target.value)}
                             placeholder="e.g. 08:30 AM"
+                            size="small"
+                        />
+                        <TextField
+                            fullWidth
+                            type="date"
+                            label="Clock Out Date"
+                            value={editClockOutDate}
+                            onChange={(e) => setEditClockOutDate(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
                             size="small"
                         />
                         <TextField

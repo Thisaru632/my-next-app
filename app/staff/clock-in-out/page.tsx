@@ -139,6 +139,18 @@ export default function ClockInOutPage() {
                 if (res.ok) {
                     const data = await res.json();
                     setIsAlreadyClockedIn(data.isClockedIn);
+                    if (data.isClockedIn && data.record) {
+                        const rec = data.record;
+                        const dateStr = rec.date ? ` (${rec.date})` : '';
+                        const activeTime = rec.clockInTime ? `${rec.clockInTime}${dateStr}` : null;
+                        const newStatus = { isClockedIn: true, time: activeTime };
+                        setClockStatus(newStatus);
+                        localStorage.setItem('staff_clock_status', JSON.stringify(newStatus));
+                    } else if (!data.isClockedIn) {
+                        const newStatus = { isClockedIn: false, time: null };
+                        setClockStatus(newStatus);
+                        localStorage.setItem('staff_clock_status', JSON.stringify(newStatus));
+                    }
                 }
             } catch (e) { }
         };
