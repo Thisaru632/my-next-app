@@ -157,25 +157,33 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     const renderMenuItem = (item: MenuItem) => {
         const isActive = pathname === item.path;
         return (
-            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.25 }}>
                 <ListItemButton
                     onClick={() => handleNavigation(item.path)}
                     sx={{
-                        borderRadius: 2,
-                        backgroundColor: isActive ? 'primary.main' : 'transparent',
+                        borderRadius: '8px',
+                        py: 0.75,
+                        px: 1.5,
+                        backgroundColor: isActive ? 'action.selected' : 'transparent',
                         '&:hover': {
-                            backgroundColor: isActive ? 'primary.dark' : 'action.hover',
+                            backgroundColor: isActive ? 'action.selected' : 'action.hover',
                         },
-                        transition: 'all 0.2s',
+                        transition: 'all 0.15s ease-in-out',
                     }}
                 >
-                    <ListItemIcon sx={{ color: 'inherit', minWidth: 40, opacity: isActive ? 1 : 0.7 }}>
+                    <ListItemIcon
+                        sx={{
+                            color: isActive ? 'primary.main' : 'text.secondary',
+                            minWidth: 32,
+                            '& .MuiSvgIcon-root': { fontSize: 18 }
+                        }}
+                    >
                         {item.text === 'Vehicle Registrations' ? (
-                            <Badge badgeContent={pendingRegCount} color="error">
+                            <Badge badgeContent={pendingRegCount} color="error" sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16, px: 0.5 } }}>
                                 {item.icon}
                             </Badge>
                         ) : item.text === 'Lead Info' ? (
-                            <Badge badgeContent={unpickedLeadsCount} color="error">
+                            <Badge badgeContent={unpickedLeadsCount} color="error" sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16, px: 0.5 } }}>
                                 {item.icon}
                             </Badge>
                         ) : (
@@ -184,7 +192,12 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                     </ListItemIcon>
                     <ListItemText
                         primary={item.text}
-                        primaryTypographyProps={{ fontSize: 14, fontWeight: isActive ? 600 : 400 }}
+                        primaryTypographyProps={{
+                            fontSize: '13.5px',
+                            fontWeight: isActive ? 600 : 450,
+                            color: isActive ? 'primary.main' : 'text.primary',
+                            letterSpacing: '-0.01em',
+                        }}
                     />
                 </ListItemButton>
             </ListItem>
@@ -195,28 +208,27 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         <>
             {/* Header/Logo Section */}
             <Box sx={{
-                p: 3,
+                p: 2.5,
                 textAlign: 'center',
-                borderBottom: '2px solid',
-                borderImage: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
-                borderImageSlice: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
             }}>
-                <Typography variant="h6" fontWeight="bold" color="inherit" sx={{ letterSpacing: '0.05em' }}>
+                <Typography variant="h6" fontWeight="700" color="inherit" sx={{ fontSize: '1rem', letterSpacing: '0.02em' }}>
                     Admin Portal
                 </Typography>
             </Box>
 
             {/* Main Menu Items */}
             <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 1 }}>
-                <ListItemButton onClick={() => setWebPortalOpen(!webPortalOpen)} sx={{ py: 0.5, px: 3, borderRadius: 2, mx: 1, mb: 0.5 }}>
+                <ListItemButton onClick={() => setWebPortalOpen(!webPortalOpen)} sx={{ py: 0.75, px: 2, borderRadius: '8px', mx: 1, mb: 0.25, justifyContent: 'space-between' }}>
                     <ListItemText 
                         primary="Web Portal" 
-                        primaryTypographyProps={{ variant: 'overline', color: 'text.secondary', fontWeight: 'bold', lineHeight: 2 }} 
+                        primaryTypographyProps={{ fontSize: '13.5px', color: 'text.primary', fontWeight: 600, letterSpacing: '-0.01em' }} 
                     />
-                    {webPortalOpen ? <ExpandLess sx={{ color: 'text.secondary' }} /> : <ExpandMore sx={{ color: 'text.secondary' }} />}
+                    {webPortalOpen ? <ExpandLess sx={{ color: 'text.secondary', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'text.secondary', fontSize: 18 }} />}
                 </ListItemButton>
                 <Collapse in={webPortalOpen} timeout="auto" unmountOnExit>
-                    <List sx={{ px: 2, pt: 0, pb: 1 }}>
+                    <List sx={{ px: 1.5, pt: 0, pb: 0.5 }}>
                         {allowedItems
                             .filter(item => webPortalItems.includes(item.text))
                             .map(renderMenuItem)}
@@ -225,15 +237,15 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
 
                 <Divider sx={{ my: 1, mx: 2 }} />
 
-                <ListItemButton onClick={() => setAdminPortalOpen(!adminPortalOpen)} sx={{ py: 0.5, px: 3, borderRadius: 2, mx: 1, mb: 0.5 }}>
+                <ListItemButton onClick={() => setAdminPortalOpen(!adminPortalOpen)} sx={{ py: 0.75, px: 2, borderRadius: '8px', mx: 1, mb: 0.25, justifyContent: 'space-between' }}>
                     <ListItemText 
                         primary="Admin Portal" 
-                        primaryTypographyProps={{ variant: 'overline', color: 'text.secondary', fontWeight: 'bold', lineHeight: 2 }} 
+                        primaryTypographyProps={{ fontSize: '13.5px', color: 'text.primary', fontWeight: 600, letterSpacing: '-0.01em' }} 
                     />
-                    {adminPortalOpen ? <ExpandLess sx={{ color: 'text.secondary' }} /> : <ExpandMore sx={{ color: 'text.secondary' }} />}
+                    {adminPortalOpen ? <ExpandLess sx={{ color: 'text.secondary', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'text.secondary', fontSize: 18 }} />}
                 </ListItemButton>
                 <Collapse in={adminPortalOpen} timeout="auto" unmountOnExit>
-                    <List sx={{ px: 2, pt: 0, pb: 1 }}>
+                    <List sx={{ px: 1.5, pt: 0, pb: 0.5 }}>
                         {allowedItems
                             .filter(item => !webPortalItems.includes(item.text) && !hrItems.includes(item.text) && !myAttendanceItems.includes(item.text))
                             .map(renderMenuItem)}
@@ -241,12 +253,12 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                         {/* My Attendance Dropdown Section inside Admin Portal */}
                         {allowedItems.some(item => myAttendanceItems.includes(item.text)) && (
                             <>
-                                <ListItemButton onClick={() => setMyAttendanceOpen(!myAttendanceOpen)} sx={{ py: 0.5, px: 2, borderRadius: 2, mt: 1, mb: 0.5, backgroundColor: 'action.hover' }}>
+                                <ListItemButton onClick={() => setMyAttendanceOpen(!myAttendanceOpen)} sx={{ py: 0.5, px: 1.5, borderRadius: '8px', mt: 0.5, mb: 0.25, backgroundColor: 'action.hover' }}>
                                     <ListItemText 
                                         primary="My Attendance" 
-                                        primaryTypographyProps={{ variant: 'overline', color: 'primary.main', fontWeight: 'bold', lineHeight: 2 }} 
+                                        primaryTypographyProps={{ fontSize: '13px', color: 'primary.main', fontWeight: 600 }} 
                                     />
-                                    {myAttendanceOpen ? <ExpandLess sx={{ color: 'primary.main' }} /> : <ExpandMore sx={{ color: 'primary.main' }} />}
+                                    {myAttendanceOpen ? <ExpandLess sx={{ color: 'primary.main', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'primary.main', fontSize: 18 }} />}
                                 </ListItemButton>
                                 <Collapse in={myAttendanceOpen} timeout="auto" unmountOnExit>
                                     <List sx={{ pl: 1, pt: 0, pb: 0 }}>
@@ -261,12 +273,12 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                         {/* HR Dropdown Section inside Admin Portal */}
                         {allowedItems.some(item => hrItems.includes(item.text)) && (
                             <>
-                                <ListItemButton onClick={() => setHrOpen(!hrOpen)} sx={{ py: 0.5, px: 2, borderRadius: 2, mt: 1, mb: 0.5, backgroundColor: 'action.hover' }}>
+                                <ListItemButton onClick={() => setHrOpen(!hrOpen)} sx={{ py: 0.5, px: 1.5, borderRadius: '8px', mt: 0.5, mb: 0.25, backgroundColor: 'action.hover' }}>
                                     <ListItemText 
                                         primary="HR Section" 
-                                        primaryTypographyProps={{ variant: 'overline', color: 'primary.main', fontWeight: 'bold', lineHeight: 2 }} 
+                                        primaryTypographyProps={{ fontSize: '13px', color: 'primary.main', fontWeight: 600 }} 
                                     />
-                                    {hrOpen ? <ExpandLess sx={{ color: 'primary.main' }} /> : <ExpandMore sx={{ color: 'primary.main' }} />}
+                                    {hrOpen ? <ExpandLess sx={{ color: 'primary.main', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'primary.main', fontSize: 18 }} />}
                                 </ListItemButton>
                                 <Collapse in={hrOpen} timeout="auto" unmountOnExit>
                                     <List sx={{ pl: 1, pt: 0, pb: 0 }}>
@@ -283,22 +295,24 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
 
             {/* Logout Section at Bottom */}
             <Divider sx={{ borderColor: 'divider' }} />
-            <List sx={{ px: 2, py: 1 }}>
+            <List sx={{ px: 1.5, py: 1 }}>
                 <ListItem disablePadding>
                     <ListItemButton
                         onClick={() => setLogoutDialogOpen(true)}
                         sx={{
-                            borderRadius: 2,
+                            borderRadius: '8px',
+                            py: 0.75,
+                            px: 1.5,
                             '&:hover': { backgroundColor: 'action.hover' },
                             transition: 'all 0.2s',
                         }}
                     >
-                        <ListItemIcon sx={{ color: 'inherit', minWidth: 40, opacity: 0.7 }}>
+                        <ListItemIcon sx={{ color: 'text.secondary', minWidth: 32, '& .MuiSvgIcon-root': { fontSize: 18 } }}>
                             <LogoutIcon />
                         </ListItemIcon>
                         <ListItemText
                             primary="Logout"
-                            primaryTypographyProps={{ fontSize: 14 }}
+                            primaryTypographyProps={{ fontSize: '13.5px', fontWeight: 500, color: 'text.primary' }}
                         />
                     </ListItemButton>
                 </ListItem>

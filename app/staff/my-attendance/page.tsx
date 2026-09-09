@@ -16,6 +16,7 @@ import {
     Divider,
     CircularProgress,
     Grid,
+    Tooltip,
 } from '@mui/material';
 import {
     AccessTime as ClockIcon,
@@ -144,6 +145,60 @@ const calculateOtHours = (clockInStr: string, clockOutStr: string) => {
     } catch (e) {
         return '-';
     }
+};
+
+const calculateLessHours = (clockInStr: string, clockOutStr: string) => {
+    if (!clockInStr || !clockOutStr || clockOutStr === 'Active Session' || clockOutStr === '-') {
+        return '-';
+    }
+
+    try {
+        const parseTime = (timeStr: string) => {
+            const date = new Date();
+            const match = timeStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
+            if (!match) return null;
+            let hours = parseInt(match[1], 10);
+            const minutes = parseInt(match[2], 10);
+            const seconds = match[3] ? parseInt(match[3], 10) : 0;
+            const ampm = match[4] ? match[4].toUpperCase() : null;
+
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+
+            date.setHours(hours, minutes, seconds, 0);
+            return date;
+        };
+
+        const inTime = parseTime(clockInStr);
+        const outTime = parseTime(clockOutStr);
+
+        if (!inTime || !outTime) return '-';
+
+        let diffMs = outTime.getTime() - inTime.getTime();
+        if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+
+        const totalMinutes = Math.floor(diffMs / (1000 * 60));
+        if (totalMinutes >= 540) {
+            return '0 hrs';
+        }
+
+        const lessMins = 540 - totalMinutes;
+        const hrs = Math.floor(lessMins / 60);
+        const mins = lessMins % 60;
+
+        if (hrs === 0) return `${mins}m`;
+        if (mins === 0) return `${hrs}h`;
+        return `${hrs}h ${mins}m`;
+    } catch (e) {
+        return '-';
+    }
+};
+
+const formatShortLocation = (loc?: string) => {
+    if (!loc) return '';
+    const words = loc.trim().split(/\s+/);
+    if (words.length <= 3) return loc;
+    return words.slice(0, 3).join(' ') + '...';
 };
 
 export default function ViewMyAttendancePage() {
@@ -333,7 +388,7 @@ export default function ViewMyAttendancePage() {
                         icon: <ShowChartIcon />,
                     },
                     {
-                        label: 'OT Hours',
+                        label: 'Extra Hours',
                         value: summary.otHours,
                         color: '#f59e0b',
                         icon: <CheckCircleIcon />,
@@ -402,7 +457,7 @@ export default function ViewMyAttendancePage() {
                         <Table sx={{ minWidth: 650 }}>
                             <TableHead>
                                 <TableRow>
-                                    {['Date', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Hours Worked', 'OT Hours', 'Location', 'Status'].map(
+                                    {['Date', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Hours Worked', 'Extra Hours', 'Less Hours', 'Location', 'Status'].map(
                                         (h) => (
                                             <TableCell
                                                 key={h}
@@ -425,7 +480,7 @@ export default function ViewMyAttendancePage() {
                             <TableBody>
                                 {myRecords.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                        <TableCell colSpan={10} align="center" sx={{ color: '#94a3b8', py: 6 }}>
                                             No attendance logs found for this month.
                                         </TableCell>
                                     </TableRow>
@@ -480,44 +535,61 @@ export default function ViewMyAttendancePage() {
                                                 {calculateOtHours(row.clockInTime, row.clockOutTime)}
                                             </TableCell>
 
+                                            {/* Less Hours */}
+                                            <TableCell sx={{ fontWeight: 600, color: '#dc2626', fontSize: 13 }}>
+                                                {calculateLessHours(row.clockInTime, row.clockOutTime)}
+                                            </TableCell>
+
                                             {/* Location */}
                                             <TableCell sx={{ fontSize: 12, maxWidth: 220 }}>
                                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
                                                     {row.clockInLocation ? (
-                                                        <Typography
-                                                            variant="caption"
-                                                            sx={{
-                                                                color: '#059669',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: 0.5,
-                                                                fontWeight: 500,
-                                                                fontSize: '0.725rem',
-                                                            }}
-                                                        >
-                                                            <LocationIcon sx={{ fontSize: 13, color: '#10b981' }} />
-                                                            <span>
-                                                                <strong>In:</strong> {row.clockInLocation}
-                                                            </span>
-                                                        </Typography>
+                                                        <Tooltip title={row.clockInLocation} arrow placement="top">
+                                                            <Typography
+                                                                variant="caption"
+                                                                sx={{
+                                                                    color: '#059669',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 0.5,
+                                                                    fontWeight: 500,
+                                                                    fontSize: '0.725rem',
+                                                                    cursor: 'pointer',
+                                                                    whiteSpace: 'nowrap',
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                }}
+                                                            >
+                                                                <LocationIcon sx={{ fontSize: 13, color: '#10b981', flexShrink: 0 }} />
+                                                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    <strong>In:</strong> {formatShortLocation(row.clockInLocation)}
+                                                                </span>
+                                                            </Typography>
+                                                        </Tooltip>
                                                     ) : null}
                                                     {row.clockOutLocation ? (
-                                                        <Typography
-                                                            variant="caption"
-                                                            sx={{
-                                                                color: '#dc2626',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: 0.5,
-                                                                fontWeight: 500,
-                                                                fontSize: '0.725rem',
-                                                            }}
-                                                        >
-                                                            <LocationIcon sx={{ fontSize: 13, color: '#ef4444' }} />
-                                                            <span>
-                                                                <strong>Out:</strong> {row.clockOutLocation}
-                                                            </span>
-                                                        </Typography>
+                                                        <Tooltip title={row.clockOutLocation} arrow placement="top">
+                                                            <Typography
+                                                                variant="caption"
+                                                                sx={{
+                                                                    color: '#dc2626',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 0.5,
+                                                                    fontWeight: 500,
+                                                                    fontSize: '0.725rem',
+                                                                    cursor: 'pointer',
+                                                                    whiteSpace: 'nowrap',
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                }}
+                                                            >
+                                                                <LocationIcon sx={{ fontSize: 13, color: '#ef4444', flexShrink: 0 }} />
+                                                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    <strong>Out:</strong> {formatShortLocation(row.clockOutLocation)}
+                                                                </span>
+                                                            </Typography>
+                                                        </Tooltip>
                                                     ) : null}
                                                     {!row.clockInLocation && !row.clockOutLocation && (
                                                         <Typography variant="caption" sx={{ color: '#94a3b8' }}>

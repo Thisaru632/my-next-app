@@ -43,6 +43,7 @@ import {
     Edit as EditIcon,
     LocationOn as LocationIcon,
     Visibility as ViewIcon,
+    FileDownload as DownloadIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
@@ -61,7 +62,7 @@ interface AttendanceRecord {
     clockOutTime: string;
     clockInLocation?: string;
     clockOutLocation?: string;
-    status: 'Clocked In' | 'Clocked Out';
+    status: 'Clocked In' | 'Clocked Out' | 'Not Clocked In';
 }
 
 interface MonthlyAttendanceRecord {
@@ -78,7 +79,45 @@ interface MonthlyAttendanceRecord {
     leaves: number;
     totalHours: number | string;
     otHours: number | string;
+    lessHours?: number | string;
+    actualOtOrLossHours?: number | string;
 }
+
+const parseHoursToMinutes = (str: string | number | undefined): number => {
+    if (!str || str === '0 hrs' || str === '0' || str === '-') return 0;
+    if (typeof str === 'number') return str * 60;
+    
+    let totalMins = 0;
+    const hMatch = String(str).match(/(\d+)\s*h/i);
+    const mMatch = String(str).match(/(\d+)\s*m/i);
+    const hrsMatch = String(str).match(/(\d+)\s*hrs/i);
+    
+    if (hMatch) totalMins += parseInt(hMatch[1], 10) * 60;
+    if (mMatch) totalMins += parseInt(mMatch[1], 10);
+    if (!hMatch && !mMatch && hrsMatch) totalMins += parseInt(hrsMatch[1], 10) * 60;
+    
+    return totalMins;
+};
+
+const calculateActualOtOrLoss = (otHours: string | number | undefined, lessHours: string | number | undefined, actualOtOrLoss?: string | number): string => {
+    if (actualOtOrLoss && typeof actualOtOrLoss === 'string') return actualOtOrLoss;
+    const otMins = parseHoursToMinutes(otHours);
+    const lessMins = parseHoursToMinutes(lessHours);
+    const netMins = otMins - lessMins;
+    
+    if (netMins === 0) return '0 hrs';
+    
+    const absMins = Math.abs(netMins);
+    const hrs = Math.floor(absMins / 60);
+    const mins = Math.round(absMins % 60);
+    
+    let res = '';
+    if (hrs > 0 && mins > 0) res = `${hrs}h ${mins}m`;
+    else if (hrs > 0) res = `${hrs}h`;
+    else res = `${mins}m`;
+    
+    return netMins > 0 ? `+${res}` : `-${res}`;
+};
 
 const calculateHourCount = (clockInStr: string, clockOutStr: string) => {
     if (!clockInStr || !clockOutStr || clockOutStr === 'Active Session' || clockOutStr === '-') {
@@ -168,6 +207,60 @@ const calculateOtHours = (clockInStr: string, clockOutStr: string) => {
     } catch (e) {
         return '-';
     }
+};
+
+const calculateLessHours = (clockInStr: string, clockOutStr: string) => {
+    if (!clockInStr || !clockOutStr || clockOutStr === 'Active Session' || clockOutStr === '-') {
+        return '-';
+    }
+
+    try {
+        const parseTime = (timeStr: string) => {
+            const date = new Date();
+            const match = timeStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
+            if (!match) return null;
+            let hours = parseInt(match[1], 10);
+            const minutes = parseInt(match[2], 10);
+            const seconds = match[3] ? parseInt(match[3], 10) : 0;
+            const ampm = match[4] ? match[4].toUpperCase() : null;
+
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+
+            date.setHours(hours, minutes, seconds, 0);
+            return date;
+        };
+
+        const inTime = parseTime(clockInStr);
+        const outTime = parseTime(clockOutStr);
+
+        if (!inTime || !outTime) return '-';
+
+        let diffMs = outTime.getTime() - inTime.getTime();
+        if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+
+        const totalMinutes = Math.floor(diffMs / (1000 * 60));
+        if (totalMinutes >= 540) {
+            return '0 hrs';
+        }
+
+        const lessMins = 540 - totalMinutes;
+        const hrs = Math.floor(lessMins / 60);
+        const mins = lessMins % 60;
+
+        if (hrs === 0) return `${mins}m`;
+        if (mins === 0) return `${hrs}h`;
+        return `${hrs}h ${mins}m`;
+    } catch (e) {
+        return '-';
+    }
+};
+
+const formatShortLocation = (loc?: string) => {
+    if (!loc) return '';
+    const words = loc.trim().split(/\s+/);
+    if (words.length <= 3) return loc;
+    return words.slice(0, 3).join(' ') + '...';
 };
 
 const getCurrentYearMonth = () => {
@@ -282,9 +375,13 @@ export default function AttendanceSheetPage() {
                 dailyData.forEach((r: any, i: number) => {
                     const key = (r.eNo || r.email || r.name || '').toLowerCase().trim();
                     if (!uniqueMap.has(key)) {
-                        const isClockedIn = r.status === 'Clocked In';
-                        const daysPresent = isClockedIn ? 22 : 20;
-                        const daysAbsent = 22 - daysPresent;
+                        const userDailyLogs = dailyData.filter((log: any) => {
+                            const logKey = (log.eNo || log.email || log.name || '').toLowerCase().trim();
+                            return logKey === key && log.status !== 'Not Clocked In' && log.clockInTime && log.clockInTime !== '-';
+                        });
+                        const uniqueDates = new Set(userDailyLogs.map((log: any) => log.date || log.clockInDate));
+                        const daysPresent = uniqueDates.size;
+                        const daysAbsent = Math.max(0, 22 - daysPresent);
                         const shortLeaves = i % 2;
                         const leaves = daysAbsent;
                         const hrs = calculateHourCount(r.clockInTime, r.clockOutTime);
@@ -318,11 +415,11 @@ export default function AttendanceSheetPage() {
 
     const handleOpenEdit = (record: AttendanceRecord) => {
         setSelectedRecord(record);
-        setEditClockInDate(record.clockInDate || record.date || '');
-        setEditClockIn(record.clockInTime || '');
-        setEditClockOutDate(record.clockOutDate || (record.status === 'Clocked Out' ? (record.date || '') : ''));
-        setEditClockOut(record.clockOutTime || '');
-        setEditStatus(record.status || 'Clocked In');
+        setEditClockInDate(record.clockInDate && record.clockInDate !== '-' ? record.clockInDate : (record.date && record.date !== '-' ? record.date : selectedDailyDate));
+        setEditClockIn(record.clockInTime && record.clockInTime !== '-' ? record.clockInTime : '08:30 AM');
+        setEditClockOutDate(record.clockOutDate && record.clockOutDate !== '-' ? record.clockOutDate : selectedDailyDate);
+        setEditClockOut(record.clockOutTime && record.clockOutTime !== '-' ? record.clockOutTime : '05:30 PM');
+        setEditStatus(record.status === 'Not Clocked In' ? 'Clocked In' : (record.status || 'Clocked In'));
         setEditDialogOpen(true);
     };
 
@@ -338,6 +435,9 @@ export default function AttendanceSheetPage() {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
+                    eNo: selectedRecord.eNo,
+                    fullName: selectedRecord.name,
+                    email: selectedRecord.email,
                     date: editClockInDate,
                     clockInDate: editClockInDate,
                     clockInTime: editClockIn,
@@ -400,13 +500,96 @@ export default function AttendanceSheetPage() {
         }
     };
 
-    const filteredDailyRecords = records.filter(r => {
-        const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
-            r.email.toLowerCase().includes(search.toLowerCase()) ||
-            r.eNo.toLowerCase().includes(search.toLowerCase());
-        const matchesDate = !selectedDailyDate || (r.date && r.date.startsWith(selectedDailyDate));
-        return matchesSearch && matchesDate;
-    });
+    const dailyDisplayRecords = React.useMemo(() => {
+        const staffMap = new Map<string, { id: string; eNo: string; name: string; email: string; avatar?: string }>();
+
+        monthlyRecords.forEach(m => {
+            const key = (m.eNo || m.email || m.name || '').toLowerCase().trim();
+            if (key && !staffMap.has(key)) {
+                staffMap.set(key, {
+                    id: m.id,
+                    eNo: m.eNo || 'N/A',
+                    name: m.name || 'Staff Member',
+                    email: m.email || '',
+                    avatar: m.avatar || '',
+                });
+            }
+        });
+
+        records.forEach(r => {
+            const key = (r.eNo || r.email || r.name || '').toLowerCase().trim();
+            if (key && !staffMap.has(key)) {
+                staffMap.set(key, {
+                    id: r.id,
+                    eNo: r.eNo || 'N/A',
+                    name: r.name || 'Staff Member',
+                    email: r.email || '',
+                    avatar: r.avatar || '',
+                });
+            }
+        });
+
+        const allStaffList = Array.from(staffMap.values());
+        const logsForSelectedDate = records.filter(r => r.date && r.date.startsWith(selectedDailyDate));
+
+        const matchedLogIds = new Set<string>();
+        const resultList: AttendanceRecord[] = [];
+
+        allStaffList.forEach(staff => {
+            const staffENo = (staff.eNo || '').toLowerCase().trim();
+            const staffEmail = (staff.email || '').toLowerCase().trim();
+            const staffName = (staff.name || '').toLowerCase().trim();
+
+            const matchedLog = logsForSelectedDate.find(r => {
+                const rENo = (r.eNo || '').toLowerCase().trim();
+                const rEmail = (r.email || '').toLowerCase().trim();
+                const rName = (r.name || '').toLowerCase().trim();
+
+                return (staffENo && staffENo !== 'n/a' && rENo === staffENo) ||
+                       (staffEmail && rEmail === staffEmail) ||
+                       (staffName && rName === staffName);
+            });
+
+            if (matchedLog) {
+                matchedLogIds.add(matchedLog.id);
+                resultList.push(matchedLog);
+            } else {
+                resultList.push({
+                    id: `staff_${staff.id || staff.eNo}_${selectedDailyDate}`,
+                    eNo: staff.eNo || 'N/A',
+                    name: staff.name || 'Staff Member',
+                    email: staff.email || '',
+                    role: 'staff',
+                    avatar: staff.avatar || '',
+                    date: selectedDailyDate,
+                    clockInDate: '-',
+                    clockOutDate: '-',
+                    clockInTime: '-',
+                    clockOutTime: '-',
+                    clockInLocation: '',
+                    clockOutLocation: '',
+                    status: 'Not Clocked In' as any,
+                });
+            }
+        });
+
+        logsForSelectedDate.forEach(log => {
+            if (!matchedLogIds.has(log.id)) {
+                resultList.push(log);
+            }
+        });
+
+        return resultList;
+    }, [records, monthlyRecords, selectedDailyDate]);
+
+    const filteredDailyRecords = React.useMemo(() => {
+        return dailyDisplayRecords.filter(r => {
+            const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
+                r.email.toLowerCase().includes(search.toLowerCase()) ||
+                r.eNo.toLowerCase().includes(search.toLowerCase());
+            return matchesSearch;
+        });
+    }, [dailyDisplayRecords, search]);
 
     const filteredMonthlyRecords = monthlyRecords.filter(r => {
         const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -416,7 +599,86 @@ export default function AttendanceSheetPage() {
         return matchesSearch && matchesUser;
     });
 
-    const clockedInCount = filteredDailyRecords.filter(r => r.status === 'Clocked In').length;
+    const clockedInCount = dailyDisplayRecords.filter(r => r.status === 'Clocked In').length;
+    const clockedOutCount = dailyDisplayRecords.filter(r => r.status === 'Clocked Out').length;
+
+    const downloadCSV = (filename: string, csvContent: string) => {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
+    const handleDownloadDailyCSV = () => {
+        const headers = ['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location In', 'Location Out', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status'];
+
+        const rows = filteredDailyRecords.map(r => {
+            const inLoc = r.clockInLocation ? r.clockInLocation.replace(/"/g, '""') : '';
+            const outLoc = r.clockOutLocation ? r.clockOutLocation.replace(/"/g, '""') : '';
+            const hrs = calculateHourCount(r.clockInTime, r.clockOutTime);
+            const extraHrs = calculateOtHours(r.clockInTime, r.clockOutTime);
+            const lessHrs = calculateLessHours(r.clockInTime, r.clockOutTime);
+
+            return [
+                `"${r.eNo || ''}"`,
+                `"${r.name || ''}"`,
+                `"${r.clockInDate || r.date || ''}"`,
+                `"${r.clockInTime || ''}"`,
+                `"${r.clockOutDate || ''}"`,
+                `"${r.clockOutTime || ''}"`,
+                `"${inLoc}"`,
+                `"${outLoc}"`,
+                `"${hrs}"`,
+                `"${extraHrs}"`,
+                `"${lessHrs}"`,
+                `"${r.status || ''}"`
+            ].join(',');
+        });
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        downloadCSV(`Daily_Staff_Attendance_${selectedDailyDate || 'sheet'}.csv`, csvContent);
+    };
+
+    const handleDownloadMonthlyCSV = () => {
+        const headers = ['E NO', 'Staff Member', 'Month', 'Days', 'Total Hours', 'Worked Hours', 'Extra Hours', 'Less Hours', 'Actual OT or Loss Hours'];
+
+        const rows = filteredMonthlyRecords.map(r => {
+            const daysStr = typeof r.daysPresent === 'number' ? `${r.daysPresent}` : '0';
+            const totalHrs = typeof r.totalDays === 'number' ? `${r.totalDays * 9} hrs` : '198 hrs';
+            const workedHrs = typeof r.totalHours === 'string'
+                ? (r.totalHours.includes('h') || r.totalHours.includes('m') || r.totalHours.includes('hrs') ? r.totalHours : `${r.totalHours} hrs`)
+                : `${r.totalHours} hrs`;
+            const extraHrs = typeof r.otHours === 'string'
+                ? (r.otHours.includes('h') || r.otHours.includes('m') || r.otHours.includes('hrs') ? r.otHours : `${r.otHours} hrs`)
+                : `${r.otHours} hrs`;
+            const lessHrs = typeof r.lessHours === 'string'
+                ? (r.lessHours.includes('h') || r.lessHours.includes('m') || r.lessHours.includes('hrs') ? r.lessHours : `${r.lessHours} hrs`)
+                : `${r.lessHours || '0'} hrs`;
+            const actualOtLoss = calculateActualOtOrLoss(r.otHours, r.lessHours, r.actualOtOrLossHours);
+
+            return [
+                `"${r.eNo || ''}"`,
+                `"${r.name || ''}"`,
+                `"${r.month || ''}"`,
+                `"${daysStr}"`,
+                `"${totalHrs}"`,
+                `"${workedHrs}"`,
+                `"${extraHrs}"`,
+                `"${lessHrs}"`,
+                `"${actualOtLoss}"`
+            ].join(',');
+        });
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        downloadCSV(`Monthly_Staff_Attendance_${selectedMonth || 'summary'}.csv`, csvContent);
+    };
 
     return (
         <Box
@@ -553,6 +815,26 @@ export default function AttendanceSheetPage() {
                             </Typography>
 
                             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    startIcon={<DownloadIcon sx={{ fontSize: 18 }} />}
+                                    onClick={handleDownloadDailyCSV}
+                                    sx={{
+                                        borderRadius: '8px',
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        borderColor: '#cbd5e1',
+                                        color: '#334155',
+                                        '&:hover': {
+                                            borderColor: '#3b82f6',
+                                            backgroundColor: '#eff6ff',
+                                            color: '#2563eb',
+                                        },
+                                    }}
+                                >
+                                    Download CSV
+                                </Button>
                                 <TextField
                                     type="date"
                                     size="small"
@@ -590,7 +872,7 @@ export default function AttendanceSheetPage() {
                                 <Table sx={{ minWidth: 650 }}>
                                     <TableHead>
                                         <TableRow>
-                                            {['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'OT Hours', 'Status', 'Action'].map((h) => (
+                                            {['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status', 'Action'].map((h) => (
                                                 <TableCell
                                                     key={h}
                                                     align={h === 'Action' ? 'center' : 'left'}
@@ -612,14 +894,14 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredDailyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={11} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={12} align="center" sx={{ color: '#94a3b8', py: 6 }}>
                                                     No attendance records found.
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            filteredDailyRecords.map((row) => (
+                                            filteredDailyRecords.map((row, idx) => (
                                                 <TableRow
-                                                    key={row.id}
+                                                    key={`daily_row_${row.id}_${row.eNo}_${idx}`}
                                                     sx={{
                                                         '&:hover': { backgroundColor: 'action.hover' },
                                                         '& td': { borderColor: 'divider' },
@@ -671,16 +953,52 @@ export default function AttendanceSheetPage() {
                                                     <TableCell sx={{ fontSize: 12, maxWidth: 220 }}>
                                                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
                                                             {row.clockInLocation ? (
-                                                                <Typography variant="caption" sx={{ color: '#059669', display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 500, fontSize: '0.725rem' }}>
-                                                                    <LocationIcon sx={{ fontSize: 13, color: '#10b981' }} />
-                                                                    <span><strong>In:</strong> {row.clockInLocation}</span>
-                                                                </Typography>
+                                                                <Tooltip title={row.clockInLocation} arrow placement="top">
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        sx={{
+                                                                            color: '#059669',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: 0.5,
+                                                                            fontWeight: 500,
+                                                                            fontSize: '0.725rem',
+                                                                            cursor: 'pointer',
+                                                                            whiteSpace: 'nowrap',
+                                                                            overflow: 'hidden',
+                                                                            textOverflow: 'ellipsis',
+                                                                        }}
+                                                                    >
+                                                                        <LocationIcon sx={{ fontSize: 13, color: '#10b981', flexShrink: 0 }} />
+                                                                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                            <strong>In:</strong> {formatShortLocation(row.clockInLocation)}
+                                                                        </span>
+                                                                    </Typography>
+                                                                </Tooltip>
                                                             ) : null}
                                                             {row.clockOutLocation ? (
-                                                                <Typography variant="caption" sx={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: 0.5, fontWeight: 500, fontSize: '0.725rem' }}>
-                                                                    <LocationIcon sx={{ fontSize: 13, color: '#3b82f6' }} />
-                                                                    <span><strong>Out:</strong> {row.clockOutLocation}</span>
-                                                                </Typography>
+                                                                <Tooltip title={row.clockOutLocation} arrow placement="top">
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        sx={{
+                                                                            color: '#2563eb',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: 0.5,
+                                                                            fontWeight: 500,
+                                                                            fontSize: '0.725rem',
+                                                                            cursor: 'pointer',
+                                                                            whiteSpace: 'nowrap',
+                                                                            overflow: 'hidden',
+                                                                            textOverflow: 'ellipsis',
+                                                                        }}
+                                                                    >
+                                                                        <LocationIcon sx={{ fontSize: 13, color: '#3b82f6', flexShrink: 0 }} />
+                                                                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                            <strong>Out:</strong> {formatShortLocation(row.clockOutLocation)}
+                                                                        </span>
+                                                                    </Typography>
+                                                                </Tooltip>
                                                             ) : null}
                                                             {!row.clockInLocation && !row.clockOutLocation && (
                                                                 <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
@@ -700,14 +1018,19 @@ export default function AttendanceSheetPage() {
                                                         {calculateOtHours(row.clockInTime, row.clockOutTime)}
                                                     </TableCell>
 
+                                                    {/* Less Hours */}
+                                                    <TableCell sx={{ color: '#dc2626', fontWeight: 600, fontSize: 13 }}>
+                                                        {calculateLessHours(row.clockInTime, row.clockOutTime)}
+                                                    </TableCell>
+
                                                     {/* Status */}
                                                     <TableCell>
                                                         <Chip
                                                             label={row.status}
                                                             size="small"
                                                             sx={{
-                                                                backgroundColor: row.status === 'Clocked In' ? '#dcfce7' : '#f1f5f9',
-                                                                color: row.status === 'Clocked In' ? '#15803d' : '#64748b',
+                                                                backgroundColor: row.status === 'Clocked In' ? '#dcfce7' : row.status === 'Clocked Out' ? '#f1f5f9' : '#fff7ed',
+                                                                color: row.status === 'Clocked In' ? '#15803d' : row.status === 'Clocked Out' ? '#64748b' : '#c2410c',
                                                                 fontWeight: 600,
                                                                 fontSize: '0.75rem',
                                                             }}
@@ -778,11 +1101,11 @@ export default function AttendanceSheetPage() {
                                         onChange={(e) => setSelectedUserFilter(e.target.value)}
                                     >
                                         <MenuItem value="ALL">All Staff Members</MenuItem>
-                                        {records.map((r) => (
-                                            <MenuItem key={r.id} value={r.id}>
-                                                {r.name} ({r.eNo})
-                                            </MenuItem>
-                                        ))}
+                                        {monthlyRecords.map((r, idx) => (
+                                             <MenuItem key={`user_filter_${r.id}_${idx}`} value={r.id}>
+                                                 {r.name} ({r.eNo})
+                                             </MenuItem>
+                                         ))}
                                     </Select>
                                 </FormControl>
                             </Grid>
@@ -818,10 +1141,30 @@ export default function AttendanceSheetPage() {
                             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05)',
                         }}
                     >
-                        <Box sx={{ p: 3 }}>
+                        <Box sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
                             <Typography variant="h6" fontWeight="bold">
                                 Monthly Attendance Summary ({selectedMonth})
                             </Typography>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<DownloadIcon sx={{ fontSize: 18 }} />}
+                                onClick={handleDownloadMonthlyCSV}
+                                sx={{
+                                    borderRadius: '8px',
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    borderColor: '#cbd5e1',
+                                    color: '#334155',
+                                    '&:hover': {
+                                        borderColor: '#3b82f6',
+                                        backgroundColor: '#eff6ff',
+                                        color: '#2563eb',
+                                    },
+                                }}
+                            >
+                                Download CSV
+                            </Button>
                         </Box>
 
                         <Divider sx={{ borderColor: 'divider' }} />
@@ -835,7 +1178,7 @@ export default function AttendanceSheetPage() {
                                 <Table sx={{ minWidth: 700 }}>
                                     <TableHead>
                                         <TableRow>
-                                            {['E NO', 'Staff Member', 'Month', 'Total Hours', 'Worked Hours', 'OT Hours', 'Action'].map((h) => (
+                                            {['E NO', 'Staff Member', 'Month', 'Days', 'Total Hours', 'Worked Hours', 'Extra Hours', 'Less Hours', 'Actual OT or Loss Hours', 'Action'].map((h) => (
                                                 <TableCell
                                                     key={h}
                                                     sx={{
@@ -856,14 +1199,14 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredMonthlyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={7} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={10} align="center" sx={{ color: '#94a3b8', py: 6 }}>
                                                     No monthly attendance records found.
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            filteredMonthlyRecords.map((row) => (
+                                            filteredMonthlyRecords.map((row, idx) => (
                                                 <TableRow
-                                                    key={row.id}
+                                                    key={`monthly_row_${row.id}_${row.eNo}_${idx}`}
                                                     sx={{
                                                         '&:hover': { backgroundColor: 'action.hover' },
                                                         '& td': { borderColor: 'divider' },
@@ -896,6 +1239,22 @@ export default function AttendanceSheetPage() {
                                                         {row.month}
                                                     </TableCell>
 
+                                                    {/* Days */}
+                                                    <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                        <Chip
+                                                            label={`${row.daysPresent || 0} ${row.daysPresent === 1 ? 'day' : 'days'}`}
+                                                            size="small"
+                                                            sx={{
+                                                                fontWeight: 700,
+                                                                fontSize: '0.75rem',
+                                                                backgroundColor: '#f1f5f9',
+                                                                color: '#334155',
+                                                                borderRadius: '6px',
+                                                                border: '1px solid #cbd5e1',
+                                                            }}
+                                                        />
+                                                    </TableCell>
+
                                                     {/* Total Hours */}
                                                     <TableCell sx={{ color: 'text.secondary', fontWeight: 600, fontSize: 13 }}>
                                                         {typeof row.totalDays === 'number' ? `${row.totalDays * 9} hrs` : '198 hrs'}
@@ -923,6 +1282,47 @@ export default function AttendanceSheetPage() {
                                                                 border: '1px solid #bfdbfe',
                                                             }}
                                                         />
+                                                    </TableCell>
+
+                                                    {/* Less Hours */}
+                                                    <TableCell>
+                                                        <Chip
+                                                            label={typeof row.lessHours === 'string'
+                                                                ? (row.lessHours.includes('h') || row.lessHours.includes('m') || row.lessHours.includes('hrs') ? row.lessHours : `${row.lessHours} hrs`)
+                                                                : `${row.lessHours || '0'} hrs`}
+                                                            size="small"
+                                                            sx={{
+                                                                backgroundColor: '#fef2f2',
+                                                                color: '#dc2626',
+                                                                fontWeight: 700,
+                                                                fontSize: '0.75rem',
+                                                                border: '1px solid #fecaca',
+                                                            }}
+                                                        />
+                                                    </TableCell>
+
+                                                    {/* Actual OT or Loss Hours */}
+                                                    <TableCell>
+                                                        {(() => {
+                                                            const val = calculateActualOtOrLoss(row.otHours, row.lessHours, row.actualOtOrLossHours);
+                                                            const isPositive = val.startsWith('+');
+                                                            const isNegative = val.startsWith('-');
+
+                                                            return (
+                                                                <Chip
+                                                                    label={val}
+                                                                    size="small"
+                                                                    sx={{
+                                                                        backgroundColor: isPositive ? '#f0fdf4' : isNegative ? '#fff1f2' : '#f8fafc',
+                                                                        color: isPositive ? '#15803d' : isNegative ? '#e11d48' : '#64748b',
+                                                                        fontWeight: 700,
+                                                                        fontSize: '0.75rem',
+                                                                        border: '1px solid',
+                                                                        borderColor: isPositive ? '#bbf7d0' : isNegative ? '#fecdd3' : '#e2e8f0',
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })()}
                                                     </TableCell>
 
                                                     {/* Action */}
@@ -1002,14 +1402,16 @@ export default function AttendanceSheetPage() {
                                         <TableCell sx={{ fontWeight: 700 }}>Clock Out</TableCell>
                                         <TableCell sx={{ fontWeight: 700 }}>Location</TableCell>
                                         <TableCell sx={{ fontWeight: 700 }}>Hour Count</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Extra Hours</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Less Hours</TableCell>
                                         <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {userLogs.map((log) => {
+                                    {userLogs.map((log, idx) => {
                                         const hrs = calculateHourCount(log.clockInTime, log.clockOutTime);
                                         return (
-                                            <TableRow key={log.id} hover>
+                                            <TableRow key={`user_log_${log.id}_${idx}`} hover>
                                                 <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>{log.clockInDate || log.date}</TableCell>
                                                 <TableCell sx={{ fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
                                                     {log.clockInTime || '-'}
@@ -1019,10 +1421,22 @@ export default function AttendanceSheetPage() {
                                                     {log.clockOutTime || '-'}
                                                 </TableCell>
                                                 <TableCell sx={{ fontSize: 12, color: 'text.secondary', maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                    {log.clockInLocation || log.clockOutLocation || '-'}
+                                                    {log.clockInLocation || log.clockOutLocation ? (
+                                                        <Tooltip title={log.clockInLocation || log.clockOutLocation} arrow placement="top">
+                                                            <span style={{ cursor: 'pointer' }}>
+                                                                {formatShortLocation(log.clockInLocation || log.clockOutLocation)}
+                                                            </span>
+                                                        </Tooltip>
+                                                    ) : '-'}
                                                 </TableCell>
                                                 <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>
                                                     {hrs === '-' ? '0 hrs' : hrs}
+                                                </TableCell>
+                                                <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>
+                                                    {calculateOtHours(log.clockInTime, log.clockOutTime)}
+                                                </TableCell>
+                                                <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>
+                                                    {calculateLessHours(log.clockInTime, log.clockOutTime)}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Chip
