@@ -163,35 +163,42 @@ const compareENo = (a?: string, b?: string): number => {
     return cleanA.localeCompare(cleanB, undefined, { numeric: true, sensitivity: 'base' });
 };
 
-const calculateHourCount = (clockInStr: string, clockOutStr: string) => {
+const parseDateTimeHelper = (timeStr: string, dateStr?: string) => {
+    const match = timeStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
+    if (!match) return null;
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const seconds = match[3] ? parseInt(match[3], 10) : 0;
+    const ampm = match[4] ? match[4].toUpperCase() : null;
+
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+
+    let date = new Date();
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
+        const [y, m, d] = dateStr.trim().split('-').map(Number);
+        date = new Date(y, m - 1, d);
+    }
+    date.setHours(hours, minutes, seconds, 0);
+    return date;
+};
+
+const calculateHourCount = (clockInStr: string, clockOutStr: string, clockInDateStr?: string, clockOutDateStr?: string) => {
     if (!clockInStr || !clockOutStr || clockOutStr === 'Active Session' || clockOutStr === '-') {
         return '-';
     }
 
     try {
-        const parseTime = (timeStr: string) => {
-            const date = new Date();
-            const match = timeStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
-            if (!match) return null;
-            let hours = parseInt(match[1], 10);
-            const minutes = parseInt(match[2], 10);
-            const seconds = match[3] ? parseInt(match[3], 10) : 0;
-            const ampm = match[4] ? match[4].toUpperCase() : null;
-
-            if (ampm === 'PM' && hours < 12) hours += 12;
-            if (ampm === 'AM' && hours === 12) hours = 0;
-
-            date.setHours(hours, minutes, seconds, 0);
-            return date;
-        };
-
-        const inTime = parseTime(clockInStr);
-        const outTime = parseTime(clockOutStr);
+        const inTime = parseDateTimeHelper(clockInStr, clockInDateStr);
+        const outTime = parseDateTimeHelper(clockOutStr, clockOutDateStr);
 
         if (!inTime || !outTime) return '-';
 
         let diffMs = outTime.getTime() - inTime.getTime();
-        if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+        if (diffMs < 0 && (!clockInDateStr || !clockOutDateStr || clockInDateStr === clockOutDateStr || clockOutDateStr === '-')) {
+            diffMs += 24 * 60 * 60 * 1000;
+        }
+        if (diffMs < 0) return '-';
 
         const totalMinutes = Math.floor(diffMs / (1000 * 60));
         const hrs = Math.floor(totalMinutes / 60);
@@ -206,35 +213,22 @@ const calculateHourCount = (clockInStr: string, clockOutStr: string) => {
     }
 };
 
-const calculateOtHours = (clockInStr: string, clockOutStr: string) => {
+const calculateOtHours = (clockInStr: string, clockOutStr: string, clockInDateStr?: string, clockOutDateStr?: string) => {
     if (!clockInStr || !clockOutStr || clockOutStr === 'Active Session' || clockOutStr === '-') {
         return '-';
     }
 
     try {
-        const parseTime = (timeStr: string) => {
-            const date = new Date();
-            const match = timeStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
-            if (!match) return null;
-            let hours = parseInt(match[1], 10);
-            const minutes = parseInt(match[2], 10);
-            const seconds = match[3] ? parseInt(match[3], 10) : 0;
-            const ampm = match[4] ? match[4].toUpperCase() : null;
-
-            if (ampm === 'PM' && hours < 12) hours += 12;
-            if (ampm === 'AM' && hours === 12) hours = 0;
-
-            date.setHours(hours, minutes, seconds, 0);
-            return date;
-        };
-
-        const inTime = parseTime(clockInStr);
-        const outTime = parseTime(clockOutStr);
+        const inTime = parseDateTimeHelper(clockInStr, clockInDateStr);
+        const outTime = parseDateTimeHelper(clockOutStr, clockOutDateStr);
 
         if (!inTime || !outTime) return '-';
 
         let diffMs = outTime.getTime() - inTime.getTime();
-        if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+        if (diffMs < 0 && (!clockInDateStr || !clockOutDateStr || clockInDateStr === clockOutDateStr || clockOutDateStr === '-')) {
+            diffMs += 24 * 60 * 60 * 1000;
+        }
+        if (diffMs < 0) return '-';
 
         const totalMinutes = Math.floor(diffMs / (1000 * 60));
         if (totalMinutes <= 540) {
@@ -253,35 +247,22 @@ const calculateOtHours = (clockInStr: string, clockOutStr: string) => {
     }
 };
 
-const calculateLessHours = (clockInStr: string, clockOutStr: string) => {
+const calculateLessHours = (clockInStr: string, clockOutStr: string, clockInDateStr?: string, clockOutDateStr?: string) => {
     if (!clockInStr || !clockOutStr || clockOutStr === 'Active Session' || clockOutStr === '-') {
         return '-';
     }
 
     try {
-        const parseTime = (timeStr: string) => {
-            const date = new Date();
-            const match = timeStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
-            if (!match) return null;
-            let hours = parseInt(match[1], 10);
-            const minutes = parseInt(match[2], 10);
-            const seconds = match[3] ? parseInt(match[3], 10) : 0;
-            const ampm = match[4] ? match[4].toUpperCase() : null;
-
-            if (ampm === 'PM' && hours < 12) hours += 12;
-            if (ampm === 'AM' && hours === 12) hours = 0;
-
-            date.setHours(hours, minutes, seconds, 0);
-            return date;
-        };
-
-        const inTime = parseTime(clockInStr);
-        const outTime = parseTime(clockOutStr);
+        const inTime = parseDateTimeHelper(clockInStr, clockInDateStr);
+        const outTime = parseDateTimeHelper(clockOutStr, clockOutDateStr);
 
         if (!inTime || !outTime) return '-';
 
         let diffMs = outTime.getTime() - inTime.getTime();
-        if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+        if (diffMs < 0 && (!clockInDateStr || !clockOutDateStr || clockInDateStr === clockOutDateStr || clockOutDateStr === '-')) {
+            diffMs += 24 * 60 * 60 * 1000;
+        }
+        if (diffMs < 0) return '-';
 
         const totalMinutes = Math.floor(diffMs / (1000 * 60));
         if (totalMinutes >= 540) {
@@ -547,9 +528,25 @@ export default function AttendanceSheetPage() {
     const dailyDisplayRecords = React.useMemo(() => {
         const staffMap = new Map<string, { id: string; eNo: string; name: string; email: string; avatar?: string }>();
 
+        const findStaffInMap = (eNo?: string, email?: string) => {
+            const cleanE = (eNo || '').toLowerCase().trim();
+            const cleanEm = (email || '').toLowerCase().trim();
+            for (const [_, s] of staffMap.entries()) {
+                const sE = (s.eNo || '').toLowerCase().trim();
+                const sEm = (s.email || '').toLowerCase().trim();
+                if ((cleanE && cleanE !== 'n/a' && sE && sE !== 'n/a' && sE === cleanE) ||
+                    (cleanEm && sEm && sEm === cleanEm)) {
+                    return s;
+                }
+            }
+            return null;
+        };
+
         monthlyRecords.forEach(m => {
-            const key = (m.eNo || m.email || m.name || '').toLowerCase().trim();
-            if (key && !staffMap.has(key)) {
+            const cleanE = (m.eNo || '').toLowerCase().trim();
+            const cleanEm = (m.email || '').toLowerCase().trim();
+            const key = cleanE && cleanE !== 'n/a' ? cleanE : (cleanEm || m.name || '').toLowerCase().trim();
+            if (key && !findStaffInMap(m.eNo, m.email)) {
                 staffMap.set(key, {
                     id: m.id,
                     eNo: m.eNo || 'N/A',
@@ -561,8 +558,11 @@ export default function AttendanceSheetPage() {
         });
 
         records.forEach(r => {
-            const key = (r.eNo || r.email || r.name || '').toLowerCase().trim();
-            if (key && !staffMap.has(key)) {
+            const cleanE = (r.eNo || '').toLowerCase().trim();
+            const cleanEm = (r.email || '').toLowerCase().trim();
+            const key = cleanE && cleanE !== 'n/a' ? cleanE : (cleanEm || r.name || '').toLowerCase().trim();
+            const existing = findStaffInMap(r.eNo, r.email);
+            if (key && !existing) {
                 staffMap.set(key, {
                     id: r.id,
                     eNo: r.eNo || 'N/A',
@@ -570,6 +570,8 @@ export default function AttendanceSheetPage() {
                     email: r.email || '',
                     avatar: r.avatar || '',
                 });
+            } else if (existing && (existing.eNo === 'N/A' || existing.eNo.includes('@')) && cleanE && cleanE !== 'n/a' && !cleanE.includes('@')) {
+                existing.eNo = r.eNo;
             }
         });
 
@@ -584,7 +586,7 @@ export default function AttendanceSheetPage() {
             const staffEmail = (staff.email || '').toLowerCase().trim();
             const staffName = (staff.name || '').toLowerCase().trim();
 
-            const matchedLog = logsForSelectedDate.find(r => {
+            const matchedLogs = logsForSelectedDate.filter(r => {
                 const rENo = (r.eNo || '').toLowerCase().trim();
                 const rEmail = (r.email || '').toLowerCase().trim();
                 const rName = (r.name || '').toLowerCase().trim();
@@ -594,9 +596,17 @@ export default function AttendanceSheetPage() {
                        (staffName && rName === staffName);
             });
 
-            if (matchedLog) {
-                matchedLogIds.add(matchedLog.id);
-                resultList.push(matchedLog);
+            if (matchedLogs.length > 0) {
+                matchedLogs.forEach(log => {
+                    matchedLogIds.add(log.id);
+                    resultList.push({
+                        ...log,
+                        name: log.name || staff.name,
+                        eNo: (log.eNo && log.eNo !== 'N/A' && !log.eNo.includes('@')) ? log.eNo : staff.eNo,
+                        email: log.email || staff.email,
+                        avatar: log.avatar || staff.avatar || '',
+                    });
+                });
             } else {
                 resultList.push({
                     id: `staff_${staff.id || staff.eNo}_${selectedDailyDate}`,
@@ -623,7 +633,14 @@ export default function AttendanceSheetPage() {
             }
         });
 
-        resultList.sort((a, b) => compareENo(a.eNo, b.eNo));
+        // Sort by eNo first, then chronologically by 24h clockInTime for multiple records of the same staff
+        resultList.sort((a, b) => {
+            const cmp = compareENo(a.eNo, b.eNo);
+            if (cmp !== 0) return cmp;
+            const timeA = time12To24(a.clockInTime);
+            const timeB = time12To24(b.clockInTime);
+            return timeA.localeCompare(timeB);
+        });
 
         return resultList;
     }, [records, monthlyRecords, selectedDailyDate]);
@@ -672,9 +689,9 @@ export default function AttendanceSheetPage() {
         const rows = filteredDailyRecords.map(r => {
             const inLoc = r.clockInLocation ? r.clockInLocation.replace(/"/g, '""') : '';
             const outLoc = r.clockOutLocation ? r.clockOutLocation.replace(/"/g, '""') : '';
-            const hrs = calculateHourCount(r.clockInTime, r.clockOutTime);
-            const extraHrs = calculateOtHours(r.clockInTime, r.clockOutTime);
-            const lessHrs = calculateLessHours(r.clockInTime, r.clockOutTime);
+            const hrs = calculateHourCount(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
+            const extraHrs = calculateOtHours(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
+            const lessHrs = calculateLessHours(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
 
             return [
                 `"${r.eNo || ''}"`,
@@ -1060,17 +1077,17 @@ export default function AttendanceSheetPage() {
 
                                                     {/* Hour Count */}
                                                     <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
-                                                        {calculateHourCount(row.clockInTime, row.clockOutTime)}
+                                                        {calculateHourCount(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate)}
                                                     </TableCell>
 
                                                     {/* OT Hours */}
                                                     <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
-                                                        {calculateOtHours(row.clockInTime, row.clockOutTime)}
+                                                        {calculateOtHours(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate)}
                                                     </TableCell>
 
                                                     {/* Less Hours */}
                                                     <TableCell sx={{ color: '#dc2626', fontWeight: 600, fontSize: 13 }}>
-                                                        {calculateLessHours(row.clockInTime, row.clockOutTime)}
+                                                        {calculateLessHours(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate)}
                                                     </TableCell>
 
                                                     {/* Status */}
