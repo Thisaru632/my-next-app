@@ -38,6 +38,8 @@ import {
     Gavel as GavelIcon,
     AccessTime as AccessTimeIcon,
     Assignment as AssignmentIcon,
+    CalendarMonth as CalendarMonthIcon,
+    EventNote as EventNoteIcon,
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -77,6 +79,8 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Super Team', icon: <DirectionsBusIcon />, path: '/staff/super-team', key: 'dashboard' },
         { text: 'Cab Service', icon: <LocalTaxiIcon />, path: '/staff/cab-service', key: 'cabService' },
         { text: 'Attendance Sheet', icon: <AssignmentIcon />, path: '/staff/attendance-sheet', key: 'hrSection' },
+        { text: 'Staff Working Schedule', icon: <CalendarMonthIcon />, path: '/staff/working-schedule', key: 'hrSection' },
+        { text: 'Leave Management', icon: <EventNoteIcon />, path: '/staff/leave-management', key: 'hrSection' },
         { text: 'Links', icon: <LinkIcon />, path: '/staff/links', key: 'dashboard' },
         { text: 'Tenders', icon: <GavelIcon />, path: 'https://tender-monitoring-tau.vercel.app/', key: 'dashboard' },
     ];
@@ -152,7 +156,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
 
     const webPortalItems = ['Dashboard', 'Lead Info', 'CMS', 'Web Users', 'Rate Card Manage', 'Super Team'];
     const myAttendanceItems = ['Clock in /out', 'View My Attendance', 'My Attendance'];
-    const hrItems = ['Attendance Sheet'];
+    const hrItems = ['Attendance Sheet', 'Staff Working Schedule', 'Leave Management'];
 
     const renderMenuItem = (item: MenuItem) => {
         const isActive = pathname === item.path;

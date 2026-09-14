@@ -86,6 +86,7 @@ interface MonthlyAttendanceRecord {
 const parseHoursToMinutes = (str: string | number | undefined): number => {
     if (!str || str === '0 hrs' || str === '0' || str === '-') return 0;
     if (typeof str === 'number') return str * 60;
+    if (typeof str === 'string' && !isNaN(Number(str))) return Number(str) * 60;
     
     let totalMins = 0;
     const hMatch = String(str).match(/(\d+)\s*h/i);
@@ -99,8 +100,7 @@ const parseHoursToMinutes = (str: string | number | undefined): number => {
     return totalMins;
 };
 
-const calculateActualOtOrLoss = (otHours: string | number | undefined, lessHours: string | number | undefined, actualOtOrLoss?: string | number): string => {
-    if (actualOtOrLoss && typeof actualOtOrLoss === 'string') return actualOtOrLoss;
+const calculateActualOtOrLoss = (otHours: string | number | undefined, lessHours: string | number | undefined): string => {
     const otMins = parseHoursToMinutes(otHours);
     const lessMins = parseHoursToMinutes(lessHours);
     const netMins = otMins - lessMins;
@@ -117,6 +117,50 @@ const calculateActualOtOrLoss = (otHours: string | number | undefined, lessHours
     else res = `${mins}m`;
     
     return netMins > 0 ? `+${res}` : `-${res}`;
+};
+
+const time12To24 = (time12?: string): string => {
+    if (!time12 || time12 === '-' || time12 === 'Active Session') return '';
+    const match = String(time12).match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
+    if (!match) {
+        if (/^\d{2}:\d{2}(?::\d{2})?$/.test(String(time12).trim())) return String(time12).trim();
+        return '';
+    }
+    let h = parseInt(match[1], 10);
+    const m = match[2].padStart(2, '0');
+    const s = match[3] ? match[3].padStart(2, '0') : '00';
+    const ampm = match[4] ? match[4].toUpperCase() : null;
+
+    if (ampm === 'PM' && h < 12) h += 12;
+    if (ampm === 'AM' && h === 12) h = 0;
+
+    const hh = String(h).padStart(2, '0');
+    return `${hh}:${m}:${s}`;
+};
+
+const time24To12 = (time24?: string): string => {
+    if (!time24) return '';
+    const parts = String(time24).split(':');
+    if (parts.length < 2) return time24;
+    let h = parseInt(parts[0], 10);
+    const m = parts[1].padStart(2, '0');
+    const s = parts[2] ? parts[2].padStart(2, '0') : '00';
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    if (h === 0) h = 12;
+    const hh = String(h).padStart(2, '0');
+    return `${hh}:${m}:${s} ${ampm}`;
+};
+
+const compareENo = (a?: string, b?: string): number => {
+    const cleanA = (a || '').trim();
+    const cleanB = (b || '').trim();
+    const isInvalidA = !cleanA || cleanA.toLowerCase() === 'n/a' || cleanA === '-';
+    const isInvalidB = !cleanB || cleanB.toLowerCase() === 'n/a' || cleanB === '-';
+    if (isInvalidA && isInvalidB) return 0;
+    if (isInvalidA) return 1;
+    if (isInvalidB) return -1;
+    return cleanA.localeCompare(cleanB, undefined, { numeric: true, sensitivity: 'base' });
 };
 
 const calculateHourCount = (clockInStr: string, clockOutStr: string) => {
@@ -579,6 +623,8 @@ export default function AttendanceSheetPage() {
             }
         });
 
+        resultList.sort((a, b) => compareENo(a.eNo, b.eNo));
+
         return resultList;
     }, [records, monthlyRecords, selectedDailyDate]);
 
@@ -591,13 +637,17 @@ export default function AttendanceSheetPage() {
         });
     }, [dailyDisplayRecords, search]);
 
-    const filteredMonthlyRecords = monthlyRecords.filter(r => {
-        const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
-            r.email.toLowerCase().includes(search.toLowerCase()) ||
-            r.eNo.toLowerCase().includes(search.toLowerCase());
-        const matchesUser = selectedUserFilter === 'ALL' || r.id === selectedUserFilter;
-        return matchesSearch && matchesUser;
-    });
+    const filteredMonthlyRecords = React.useMemo(() => {
+        return monthlyRecords
+            .filter(r => {
+                const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
+                    r.email.toLowerCase().includes(search.toLowerCase()) ||
+                    r.eNo.toLowerCase().includes(search.toLowerCase());
+                const matchesUser = selectedUserFilter === 'ALL' || r.id === selectedUserFilter;
+                return matchesSearch && matchesUser;
+            })
+            .sort((a, b) => compareENo(a.eNo, b.eNo));
+    }, [monthlyRecords, search, selectedUserFilter]);
 
     const clockedInCount = dailyDisplayRecords.filter(r => r.status === 'Clocked In').length;
     const clockedOutCount = dailyDisplayRecords.filter(r => r.status === 'Clocked Out').length;
@@ -661,7 +711,7 @@ export default function AttendanceSheetPage() {
             const lessHrs = typeof r.lessHours === 'string'
                 ? (r.lessHours.includes('h') || r.lessHours.includes('m') || r.lessHours.includes('hrs') ? r.lessHours : `${r.lessHours} hrs`)
                 : `${r.lessHours || '0'} hrs`;
-            const actualOtLoss = calculateActualOtOrLoss(r.otHours, r.lessHours, r.actualOtOrLossHours);
+            const actualOtLoss = calculateActualOtOrLoss(r.otHours, r.lessHours);
 
             return [
                 `"${r.eNo || ''}"`,
@@ -1304,7 +1354,7 @@ export default function AttendanceSheetPage() {
                                                     {/* Actual OT or Loss Hours */}
                                                     <TableCell>
                                                         {(() => {
-                                                            const val = calculateActualOtOrLoss(row.otHours, row.lessHours, row.actualOtOrLossHours);
+                                                            const val = calculateActualOtOrLoss(row.otHours, row.lessHours);
                                                             const isPositive = val.startsWith('+');
                                                             const isNegative = val.startsWith('-');
 
@@ -1487,10 +1537,22 @@ export default function AttendanceSheetPage() {
                         />
                         <TextField
                             fullWidth
+                            type="time"
                             label="Clock In Time"
-                            value={editClockIn}
-                            onChange={(e) => setEditClockIn(e.target.value)}
-                            placeholder="e.g. 08:30 AM"
+                            value={time12To24(editClockIn)}
+                            onChange={(e) => setEditClockIn(time24To12(e.target.value))}
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{ step: 1 }}
+                            onClick={(e) => {
+                                try {
+                                    (e.target as any).showPicker?.();
+                                } catch (err) {}
+                            }}
+                            sx={{
+                                '& input::-webkit-calendar-picker-indicator': {
+                                    cursor: 'pointer',
+                                },
+                            }}
                             size="small"
                         />
                         <TextField
@@ -1504,10 +1566,22 @@ export default function AttendanceSheetPage() {
                         />
                         <TextField
                             fullWidth
+                            type="time"
                             label="Clock Out Time"
-                            value={editClockOut}
-                            onChange={(e) => setEditClockOut(e.target.value)}
-                            placeholder="e.g. 05:30 PM or Active Session"
+                            value={time12To24(editClockOut)}
+                            onChange={(e) => setEditClockOut(time24To12(e.target.value))}
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{ step: 1 }}
+                            onClick={(e) => {
+                                try {
+                                    (e.target as any).showPicker?.();
+                                } catch (err) {}
+                            }}
+                            sx={{
+                                '& input::-webkit-calendar-picker-indicator': {
+                                    cursor: 'pointer',
+                                },
+                            }}
                             size="small"
                         />
                         <FormControl fullWidth size="small">
