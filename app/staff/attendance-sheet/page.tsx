@@ -41,6 +41,7 @@ import {
     CalendarToday as CalendarIcon,
     ShowChart as ShowChartIcon,
     Edit as EditIcon,
+    Delete as DeleteIcon,
     LocationOn as LocationIcon,
     Visibility as ViewIcon,
     FileDownload as DownloadIcon,
@@ -328,6 +329,8 @@ export default function AttendanceSheetPage() {
     });
     const [selectedUserFilter, setSelectedUserFilter] = useState('ALL');
 
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
     // Edit Dialog States
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
@@ -338,14 +341,20 @@ export default function AttendanceSheetPage() {
     const [editStatus, setEditStatus] = useState<'Clocked In' | 'Clocked Out'>('Clocked In');
     const [savingEdit, setSavingEdit] = useState(false);
 
+    // Delete Confirmation States
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [recordToDelete, setRecordToDelete] = useState<AttendanceRecord | null>(null);
+    const [deletingRecord, setDeletingRecord] = useState(false);
+
     useEffect(() => {
         const userStr = localStorage.getItem('staffUser');
         if (userStr) {
             try {
                 const user = JSON.parse(userStr);
-                const isSuperAdmin = user.role === 'superadmin';
+                const superAdmin = (user.role || '').toLowerCase() === 'superadmin';
+                setIsSuperAdmin(superAdmin);
                 const hasHrPermission = user.permissions?.hrSection;
-                if (!isSuperAdmin && !hasHrPermission) {
+                if (!superAdmin && !hasHrPermission) {
                     router.push('/staff');
                     return;
                 }
@@ -481,6 +490,45 @@ export default function AttendanceSheetPage() {
             }
         } finally {
             setSavingEdit(false);
+        }
+    };
+
+    const handleOpenDelete = (record: AttendanceRecord) => {
+        setRecordToDelete(record);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!recordToDelete) return;
+        if (recordToDelete.id.startsWith('staff_') || recordToDelete.status === 'Not Clocked In') {
+            alert('No attendance record exists to delete for this staff member.');
+            setDeleteDialogOpen(false);
+            return;
+        }
+
+        setDeletingRecord(true);
+        try {
+            const token = localStorage.getItem('staffToken');
+            const response = await fetch(`${API_ENDPOINTS.AUTH}/attendance/${recordToDelete.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                setDeleteDialogOpen(false);
+                setRecordToDelete(null);
+                fetchAttendanceData();
+            } else {
+                const data = await response.json();
+                alert(data.message || 'Failed to delete attendance record');
+            }
+        } catch (error) {
+            console.error('Error deleting attendance record:', error);
+            alert('Failed to delete attendance record. Please try again.');
+        } finally {
+            setDeletingRecord(false);
         }
     };
 
@@ -1106,19 +1154,39 @@ export default function AttendanceSheetPage() {
 
                                                     {/* Action */}
                                                     <TableCell align="center">
-                                                        <Tooltip title="Edit Attendance Record">
-                                                            <IconButton
-                                                                size="small"
-                                                                color="primary"
-                                                                onClick={() => handleOpenEdit(row)}
-                                                                sx={{
-                                                                    borderRadius: 1.5,
-                                                                    '&:hover': { backgroundColor: 'rgba(59, 130, 246, 0.1)' },
-                                                                }}
-                                                            >
-                                                                <EditIcon fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                                                            <Tooltip title="Edit Attendance Record">
+                                                                <IconButton
+                                                                    size="small"
+                                                                    color="primary"
+                                                                    onClick={() => handleOpenEdit(row)}
+                                                                    sx={{
+                                                                        borderRadius: 1.5,
+                                                                        '&:hover': { backgroundColor: 'rgba(59, 130, 246, 0.1)' },
+                                                                    }}
+                                                                >
+                                                                    <EditIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                            {isSuperAdmin && (
+                                                                <Tooltip title={row.id?.startsWith('staff_') || row.status === 'Not Clocked In' ? "No attendance record to delete" : "Delete Attendance Record"}>
+                                                                    <span>
+                                                                        <IconButton
+                                                                            size="small"
+                                                                            color="error"
+                                                                            disabled={row.id?.startsWith('staff_') || row.status === 'Not Clocked In'}
+                                                                            onClick={() => handleOpenDelete(row)}
+                                                                            sx={{
+                                                                                borderRadius: 1.5,
+                                                                                '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+                                                                            }}
+                                                                        >
+                                                                            <DeleteIcon fontSize="small" />
+                                                                        </IconButton>
+                                                                    </span>
+                                                                </Tooltip>
+                                                            )}
+                                                        </Box>
                                                     </TableCell>
                                                 </TableRow>
                                             ))
@@ -1629,6 +1697,53 @@ export default function AttendanceSheetPage() {
                         }}
                     >
                         Save Changes
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Delete Attendance Confirmation Dialog */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={() => !deletingRecord && setDeleteDialogOpen(false)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{
+                    sx: { borderRadius: 3, p: 1 }
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 'bold', color: 'error.main' }}>
+                    Delete Attendance Record
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                        Are you sure you want to delete the attendance record for{' '}
+                        <strong>{recordToDelete?.name}</strong> ({recordToDelete?.eNo}) on{' '}
+                        <strong>{recordToDelete?.clockInDate || recordToDelete?.date}</strong>?
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        This action cannot be undone. The attendance log will be permanently deleted and the staff member's status for this date will be reset.
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, pt: 0 }}>
+                    <Button
+                        onClick={() => setDeleteDialogOpen(false)}
+                        color="inherit"
+                        disabled={deletingRecord}
+                        sx={{ textTransform: 'none' }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleDeleteConfirm}
+                        variant="contained"
+                        color="error"
+                        disabled={deletingRecord}
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                        }}
+                    >
+                        {deletingRecord ? 'Deleting...' : 'Delete Record'}
                     </Button>
                 </DialogActions>
             </Dialog>
