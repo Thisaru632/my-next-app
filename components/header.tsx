@@ -13,6 +13,7 @@ const navLinks = [
   // { label: "Promotion", href: "/promotion" },
   { label: "About Us", href: "/about_us" },
   { label: "Contact Us", href: "/contact" },
+  { label: "Privacy and Policies", href: "/privacy-and-policies" },
 ];
 
 
@@ -83,7 +84,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
           {/* Desktop Links */}
           <ul className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => {
-              const isActive = pathname === link.href;
+              const isActive = pathname === link.href || (link.href.startsWith('/privacy-and-policies') && pathname.startsWith('/privacy-and-policies'));
 
               return (
                 <li key={link.label}>
@@ -202,7 +203,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
       {isOpen && (
         <div className={`md:hidden ${isLightHeader ? "bg-white border-t border-gray-100" : "bg-black/80 backdrop-blur-md border-t border-white/10"} px-4 py-2`}>
           {navLinks.map((link) => {
-            const isActive = pathname === link.href;
+            const isActive = pathname === link.href || (link.href.startsWith('/privacy-and-policies') && pathname.startsWith('/privacy-and-policies'));
 
             return (
               <Link
