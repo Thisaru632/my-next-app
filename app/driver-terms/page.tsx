@@ -152,7 +152,7 @@ export default function DriverTermsPage() {
   return (
     <main className="min-h-screen bg-[#faf8f5] pt-28 md:pt-32 pb-20 text-gray-800 font-sans">
       {/* Top Breadcrumb */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200/80 pb-4">
           <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-gray-500">
             <Link href="/" className="hover:text-green-600 transition-colors">
@@ -165,7 +165,7 @@ export default function DriverTermsPage() {
       </div>
 
       {/* Hero Header Section */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#071d24] via-[#0d313d] to-[#0a2540] text-white p-6 sm:p-10 md:p-12 shadow-xl shadow-gray-900/10 border border-emerald-900/30">
           <div className="absolute top-0 right-0 -mt-10 -mr-10 w-80 h-80 bg-green-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-emerald-400/10 rounded-full blur-2xl pointer-events-none" />
@@ -195,125 +195,115 @@ export default function DriverTermsPage() {
         </div>
       </section>
 
-      {/* Main Content Layout */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Main 10 Sections Column (8 cols) */}
-          <div className="lg:col-span-8 space-y-6">
-            {agreementSections.map((section) => (
-              <article
-                key={section.id}
-                id={section.id}
-                className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-gray-200/90 shadow-sm hover:shadow-md transition-shadow duration-200 scroll-mt-28"
+      {/* Table of Contents Section (පටුන) - Displayed at the top after title card */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 print:hidden">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-gray-200/80 shadow-sm">
+          <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2">
+            <FileText size={20} className="text-green-600" />
+            පටුන (Table of Contents)
+          </h3>
+          <nav className="space-y-1 sm:space-y-1.5">
+            {agreementSections.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:text-green-700 hover:bg-green-50 transition-colors group"
               >
-                <div className="flex items-center gap-3 pb-4 mb-5 border-b border-gray-100">
-                  <div className="w-9 h-9 rounded-xl bg-green-50 border border-green-200 flex items-center justify-center flex-shrink-0 text-green-700 font-bold text-xs">
-                    {section.number}
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
-                    {section.title}
-                  </h2>
+                <span className="truncate pr-2">{s.title}</span>
+                <ChevronRight size={16} className="text-gray-300 group-hover:text-green-600 flex-shrink-0 transition-transform group-hover:translate-x-0.5" />
+              </a>
+            ))}
+          </nav>
+        </div>
+      </section>
+
+      {/* Main Content Layout */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="space-y-6">
+          {agreementSections.map((section) => (
+            <article
+              key={section.id}
+              id={section.id}
+              className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-8 border border-gray-200/90 shadow-sm hover:shadow-md transition-shadow duration-200 scroll-mt-28"
+            >
+              <div className="flex items-center gap-3 pb-4 mb-5 border-b border-gray-100">
+                <div className="w-9 h-9 rounded-xl bg-green-50 border border-green-200 flex items-center justify-center flex-shrink-0 text-green-700 font-bold text-xs">
+                  {section.number}
                 </div>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
+                  {section.title}
+                </h2>
+              </div>
 
-                <div className="space-y-4">
-                  {section.points.map((point, pIdx) => {
-                    if (typeof point === 'string') {
-                      return (
-                        <div key={pIdx} className="flex items-start gap-3 text-sm sm:text-[15px] text-gray-700 leading-relaxed">
-                          <CheckCircle2 size={17} className="text-green-600 mt-1 flex-shrink-0" />
-                          <span>{point}</span>
-                        </div>
-                      );
-                    }
-
+              <div className="space-y-4">
+                {section.points.map((point, pIdx) => {
+                  if (typeof point === 'string') {
                     return (
-                      <div key={pIdx} className="bg-gray-50/80 rounded-xl p-4 sm:p-5 border border-gray-100">
-                        <div className="flex items-start gap-3 text-sm sm:text-[15px] text-gray-900 font-semibold mb-2">
-                          <CheckCircle2 size={17} className="text-green-600 mt-1 flex-shrink-0" />
-                          <span>{point.text}</span>
-                        </div>
-                        <ul className="pl-8 space-y-2 mb-2">
-                          {point.subPoints.map((sub, sIdx) => (
-                            <li key={sIdx} className="list-disc text-sm text-gray-700 leading-relaxed">
-                              {sub}
-                            </li>
-                          ))}
-                        </ul>
-                        {point.footer && (
-                          <div className="pl-8 text-sm font-semibold text-gray-900 pt-1">
-                            {point.footer}
-                          </div>
-                        )}
+                      <div key={pIdx} className="flex items-start gap-3 text-sm sm:text-[15px] text-gray-700 leading-relaxed">
+                        <CheckCircle2 size={17} className="text-green-600 mt-1 flex-shrink-0" />
+                        <span>{point}</span>
                       </div>
                     );
-                  })}
-                </div>
-              </article>
-            ))}
+                  }
 
-            {/* අවසන් අනුමැතිය (Final Approval) Box */}
-            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl sm:rounded-3xl p-6 sm:p-8 border-2 border-green-200 shadow-sm">
-              <div className="flex items-start gap-4">
-                <div className="flex-1">
-                  <h3 className="text-lg sm:text-xl font-black text-emerald-950 mb-1">
-                    අවසන් අනුමැතිය
-                  </h3>
-                  <p className="text-xs sm:text-sm text-emerald-800 font-medium mb-4">
-                    ලියාපදිංචිය Submit කිරීමට පෙර, කරුණාකර පහත කොටුව සලකුණු කරන්න.
-                  </p>
-
-                  <div
-                    onClick={() => setIsAgreed(!isAgreed)}
-                    className="flex items-start gap-3 p-4 bg-white rounded-xl border border-green-300/80 shadow-sm cursor-pointer hover:bg-green-50/50 transition-colors select-none mb-4"
-                  >
-                    <div className="text-green-600 mt-0.5 flex-shrink-0">
-                      {isAgreed ? (
-                        <CheckSquare size={22} className="text-green-600" />
-                      ) : (
-                        <Square size={22} className="text-gray-400" />
+                  return (
+                    <div key={pIdx} className="bg-gray-50/80 rounded-xl p-4 sm:p-5 border border-gray-100">
+                      <div className="flex items-start gap-3 text-sm sm:text-[15px] text-gray-900 font-semibold mb-2">
+                        <CheckCircle2 size={17} className="text-green-600 mt-1 flex-shrink-0" />
+                        <span>{point.text}</span>
+                      </div>
+                      <ul className="pl-8 space-y-2 mb-2">
+                        {point.subPoints.map((sub, sIdx) => (
+                          <li key={sIdx} className="list-disc text-sm text-gray-700 leading-relaxed">
+                            {sub}
+                          </li>
+                        ))}
+                      </ul>
+                      {point.footer && (
+                        <div className="pl-8 text-sm font-semibold text-gray-900 pt-1">
+                          {point.footer}
+                        </div>
                       )}
                     </div>
-                    <span className="text-sm font-bold text-gray-900 leading-relaxed">
-                      මම Senu Cabs &amp; Tours – මාලබේ Driver Registration User Agreement සහ අදාළ Driver Rules කියවා, තේරුම්ගෙන, ඒවාට එකඟ වෙමි.
-                    </span>
-                  </div>
+                  );
+                })}
+              </div>
+            </article>
+          ))}
 
-                  <p className="text-xs sm:text-sm text-gray-700 leading-relaxed bg-white/70 p-4 rounded-xl border border-green-100">
-                    මෙම කොටුව සලකුණු කර “I Agree &amp; Submit” තෝරා ගැනීමෙන්, මම ලබා දී ඇති සියලු තොරතුරු හා ලේඛන සත්‍ය හා වලංගු බවත්, ශ්‍රී ලංකාවේ අදාළ නීති, Senu Cabs &amp; Tours නියමයන්, ආරක්ෂක නියමයන්, ගාස්තු නියමයන් සහ රියදුරු වගකීම් පිළිපැදීමට එකඟ වන බවත් තහවුරු කරමි.
-                  </p>
+          {/* අවසන් අනුමැතිය (Final Approval) Box */}
+          <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl sm:rounded-3xl p-6 sm:p-8 border-2 border-green-200 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="flex-1">
+                <h3 className="text-lg sm:text-xl font-black text-emerald-950 mb-1">
+                  අවසන් අනුමැතිය
+                </h3>
+                <p className="text-xs sm:text-sm text-emerald-800 font-medium mb-4">
+                  ලියාපදිංචිය Submit කිරීමට පෙර, කරුණාකර පහත කොටුව සලකුණු කරන්න.
+                </p>
+
+                <div
+                  onClick={() => setIsAgreed(!isAgreed)}
+                  className="flex items-start gap-3 p-4 bg-white rounded-xl border border-green-300/80 shadow-sm cursor-pointer hover:bg-green-50/50 transition-colors select-none mb-4"
+                >
+                  <div className="text-green-600 mt-0.5 flex-shrink-0">
+                    {isAgreed ? (
+                      <CheckSquare size={22} className="text-green-600" />
+                    ) : (
+                      <Square size={22} className="text-gray-400" />
+                    )}
+                  </div>
+                  <span className="text-sm font-bold text-gray-900 leading-relaxed">
+                    මම Senu Cabs &amp; Tours – මාලබේ Driver Registration User Agreement සහ අදාළ Driver Rules කියවා, තේරුම්ගෙන, ඒවාට එකඟ වෙමි.
+                  </span>
                 </div>
+
+                <p className="text-xs sm:text-sm text-gray-700 leading-relaxed bg-white/70 p-4 rounded-xl border border-green-100">
+                  මෙම කොටුව සලකුණු කර “I Agree &amp; Submit” තෝරා ගැනීමෙන්, මම ලබා දී ඇති සියලු තොරතුරු හා ලේඛන සත්‍ය හා වලංගු බවත්, ශ්‍රී ලංකාවේ අදාළ නීති, Senu Cabs &amp; Tours නියමයන්, ආරක්ෂක නියමයන්, ගාස්තු නියමයන් සහ රියදුරු වගකීම් පිළිපැදීමට එකඟ වන බවත් තහවුරු කරමි.
+                </p>
               </div>
             </div>
           </div>
-
-          {/* Quick Table of Contents Sidebar (4 cols) */}
-          <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-28">
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-6 border border-gray-200/80 shadow-sm print:hidden">
-              <h3 className="text-base font-bold text-gray-900 mb-4 pb-3 border-b border-gray-100 flex items-center gap-2">
-                <FileText size={18} className="text-green-600" />
-                පටුන (Table of Contents)
-              </h3>
-              <nav className="space-y-1.5">
-                {agreementSections.map((s) => (
-                  <a
-                    key={s.id}
-                    href={`#${s.id}`}
-                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:text-green-700 hover:bg-green-50 transition-colors group"
-                  >
-                    <span className="truncate pr-2">{s.title}</span>
-                    <ChevronRight size={14} className="text-gray-300 group-hover:text-green-600 flex-shrink-0 transition-transform group-hover:translate-x-0.5" />
-                  </a>
-                ))}
-              </nav>
-            </div>
-
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-6 border border-gray-200/80 shadow-sm text-xs text-gray-600 print:hidden">
-              <h4 className="font-bold text-gray-900 mb-2">Senu Cabs &amp; Tours – මාලබේ</h4>
-              <p className="leading-relaxed text-gray-500">
-                Driver Registration Agreement • නිල රියදුරු ලියාපදිංචි ගිවිසුම
-              </p>
-            </div>
-          </aside>
         </div>
       </section>
 
