@@ -6,8 +6,13 @@ import Navbar from '@/components/header';
 export default function ConditionalNavbar() {
   const pathname = usePathname();
 
-  // Don't show navbar if we're in the staff section or on the vehicle registration page
-  if (pathname.startsWith('/staff') || pathname === '/vehicle-registration') {
+  // Don't show navbar if we're in the staff section, vehicle registration, or privacy and policies pages
+  if (
+    pathname.startsWith('/staff') ||
+    pathname === '/vehicle-registration' ||
+    pathname.startsWith('/privacy-and-policies') ||
+    pathname.startsWith('/driver-terms')
+  ) {
     return null;
   }
 

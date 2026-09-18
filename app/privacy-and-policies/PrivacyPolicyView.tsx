@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Footer from '@/components/footer';
 import {
   FileText,
   ChevronRight,
@@ -166,7 +165,7 @@ export default function PrivacyPolicyView({ initialTab }: PrivacyPolicyViewProps
   };
 
   return (
-    <main className="min-h-screen bg-[#faf8f5] pt-28 md:pt-32 pb-20 text-gray-800 font-sans">
+    <main className="min-h-screen bg-[#faf8f5] pt-8 sm:pt-10 pb-20 text-gray-800 font-sans">
       {/* Top Breadcrumb */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200/80 pb-4">
@@ -426,10 +425,6 @@ export default function PrivacyPolicyView({ initialTab }: PrivacyPolicyViewProps
         </section>
       )}
 
-      {/* Footer */}
-      <div className="mt-20 print:hidden">
-        <Footer />
-      </div>
     </main>
   );
 }
