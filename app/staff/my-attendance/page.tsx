@@ -24,9 +24,11 @@ import {
     CalendarToday as CalendarIcon,
     LocationOn as LocationIcon,
     ShowChart as ShowChartIcon,
+    TrendingDown as TrendingDownIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
+import { checkIfUserIsOnLeave, getMonthlyLeaveDaysForUser } from '../attendance-sheet/page';
 
 interface AttendanceRecord {
     id: string;
@@ -46,8 +48,10 @@ interface AttendanceRecord {
 interface MonthlySummary {
     daysPresent: number;
     daysAbsent: number;
+    leaveDays: number;
     totalHours: string;
     otHours: string;
+    lessHours: string;
 }
 
 const getCurrentYearMonth = () => {
@@ -208,8 +212,10 @@ export default function ViewMyAttendancePage() {
     const [summary, setSummary] = useState<MonthlySummary>({
         daysPresent: 0,
         daysAbsent: 0,
+        leaveDays: 0,
         totalHours: '0 hrs',
         otHours: '0 hrs',
+        lessHours: '0 hrs',
     });
     const [loading, setLoading] = useState(true);
     const [userInfo, setUserInfo] = useState<{ name: string; eNo: string; email: string } | null>(null);
@@ -273,20 +279,62 @@ export default function ViewMyAttendancePage() {
                     return matchENo || matchEmail;
                 });
 
+                let totalFallbackLessMinutes = 0;
+                userDailyLogs.forEach((l) => {
+                    if (!l.clockInTime || !l.clockOutTime || l.clockOutTime === 'Active Session' || l.clockOutTime === '-') return;
+                    try {
+                        const parseTime = (timeStr: string) => {
+                            const match = timeStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
+                            if (!match) return null;
+                            let hours = parseInt(match[1], 10);
+                            const minutes = parseInt(match[2], 10);
+                            const ampm = match[4] ? match[4].toUpperCase() : null;
+                            if (ampm === 'PM' && hours < 12) hours += 12;
+                            if (ampm === 'AM' && hours === 12) hours = 0;
+                            return hours * 60 + minutes;
+                        };
+                        const inMins = parseTime(l.clockInTime);
+                        const outMins = parseTime(l.clockOutTime);
+                        if (inMins !== null && outMins !== null) {
+                            let diff = outMins - inMins;
+                            if (diff < 0) diff += 1440;
+                            if (diff > 0 && diff < 540) {
+                                totalFallbackLessMinutes += (540 - diff);
+                            }
+                        }
+                    } catch (_) {}
+                });
+
+                const formatFallbackMinutes = (mins: number) => {
+                    if (mins <= 0) return '0 hrs';
+                    const hrs = Math.floor(mins / 60);
+                    const m = mins % 60;
+                    if (hrs === 0) return `${m}m`;
+                    if (m === 0) return `${hrs}h`;
+                    return `${hrs}h ${m}m`;
+                };
+
+                const resolvedLessHours = myMonthlyRow?.lessHours || formatFallbackMinutes(totalFallbackLessMinutes);
+                const calculatedLeaveDays = getMonthlyLeaveDaysForUser(userInfo.eNo, selectedMonth, userInfo.email, userInfo.name);
+
                 if (myMonthlyRow) {
                     setSummary({
                         daysPresent: myMonthlyRow.daysPresent || 0,
                         daysAbsent: myMonthlyRow.daysAbsent || 0,
+                        leaveDays: calculatedLeaveDays,
                         totalHours: myMonthlyRow.totalHours || '0 hrs',
                         otHours: myMonthlyRow.otHours || '0 hrs',
+                        lessHours: resolvedLessHours,
                     });
                 } else {
                     const uniqueDates = new Set(userDailyLogs.map((l) => l.date));
                     setSummary({
                         daysPresent: uniqueDates.size,
                         daysAbsent: Math.max(0, 22 - uniqueDates.size),
+                        leaveDays: calculatedLeaveDays,
                         totalHours: `${userDailyLogs.length * 8} hrs`,
                         otHours: '0 hrs',
+                        lessHours: formatFallbackMinutes(totalFallbackLessMinutes),
                     });
                 }
             }
@@ -297,7 +345,11 @@ export default function ViewMyAttendancePage() {
         }
     };
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayIsLeave = userInfo ? checkIfUserIsOnLeave(userInfo.eNo, todayStr, userInfo.email, userInfo.name) : false;
     const isCurrentlyClockedIn = myRecords.some((r) => r.status === 'Clocked In');
+    const displayStatus = isCurrentlyClockedIn ? 'Clocked In' : (todayIsLeave ? 'On Leave (Day Off)' : 'Clocked Out');
+    const displayStatusColor = isCurrentlyClockedIn ? '#10b981' : (todayIsLeave ? '#f59e0b' : '#64748b');
 
     return (
         <Box
@@ -367,18 +419,24 @@ export default function ViewMyAttendancePage() {
             </Paper>
 
             {/* Stats Cards Row */}
-            <Grid container spacing={2} sx={{ mb: 4 }}>
+            <Grid container spacing={2} columns={{ xs: 12, sm: 12, md: 12 }} sx={{ mb: 4 }}>
                 {[
                     {
                         label: 'Status',
-                        value: isCurrentlyClockedIn ? 'Clocked In' : 'Clocked Out',
-                        color: isCurrentlyClockedIn ? '#10b981' : '#64748b',
-                        icon: <ClockIcon />,
+                        value: displayStatus,
+                        color: displayStatusColor,
+                        icon: todayIsLeave && !isCurrentlyClockedIn ? <CalendarIcon /> : <ClockIcon />,
                     },
                     {
                         label: 'Days Present',
                         value: `${summary.daysPresent} Days`,
                         color: '#3b82f6',
+                        icon: <CalendarIcon />,
+                    },
+                    {
+                        label: 'Leave Days',
+                        value: `${summary.leaveDays} Days`,
+                        color: '#f59e0b',
                         icon: <CalendarIcon />,
                     },
                     {
@@ -390,11 +448,17 @@ export default function ViewMyAttendancePage() {
                     {
                         label: 'Extra Hours',
                         value: summary.otHours,
-                        color: '#f59e0b',
+                        color: '#10b981',
                         icon: <CheckCircleIcon />,
                     },
+                    {
+                        label: 'Less Hours',
+                        value: summary.lessHours,
+                        color: '#ef4444',
+                        icon: <TrendingDownIcon />,
+                    },
                 ].map((stat) => (
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.label}>
+                    <Grid size={{ xs: 12, sm: 6, md: 2 }} key={stat.label}>
                         <Paper
                             elevation={0}
                             sx={{

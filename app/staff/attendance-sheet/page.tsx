@@ -63,7 +63,7 @@ interface AttendanceRecord {
     clockOutTime: string;
     clockInLocation?: string;
     clockOutLocation?: string;
-    status: 'Clocked In' | 'Clocked Out' | 'Not Clocked In';
+    status: 'Clocked In' | 'Clocked Out' | 'Not Clocked In' | 'Leave';
 }
 
 interface MonthlyAttendanceRecord {
@@ -310,6 +310,164 @@ const getMonthOptions = () => {
     return options;
 };
 
+// Designated Call Center staff E NOs
+const CALL_CENTER_ENOS = new Set([
+    'e113', 'e129', 'e134', 'e114', 'e118', 'e139',
+    'e141', 'e123', 'e155', 'e156', 'e158', 'e157'
+]);
+
+// Official Call Center Daily Roster baseline (Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6)
+const OFFICIAL_CALL_CENTER_ROSTER: Record<string, { shiftType: string }[]> = {
+    e113: [ { shiftType: 'FullDay' }, { shiftType: 'Morning' }, { shiftType: 'FullDay' }, { shiftType: 'Morning' }, { shiftType: 'FullDay' }, { shiftType: 'Morning' }, { shiftType: 'Off' } ],
+    e129: [ { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Off' }, { shiftType: 'Evening' }, { shiftType: 'Morning' } ],
+    e134: [ { shiftType: 'Morning' }, { shiftType: 'Off' }, { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'FullDay' } ],
+    e114: [ { shiftType: 'Evening' }, { shiftType: 'Morning' }, { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'Off' }, { shiftType: 'Evening' } ],
+    e118: [ { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Off' } ],
+    e139: [ { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Off' }, { shiftType: 'Morning' }, { shiftType: 'Morning' } ],
+    e141: [ { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Off' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' } ],
+    e123: [ { shiftType: 'Evening' }, { shiftType: 'Morning' }, { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'Off' }, { shiftType: 'Evening' } ],
+    e155: [ { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Off' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' } ],
+    e156: [ { shiftType: 'Off' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' } ],
+    e158: [ { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'Off' }, { shiftType: 'Evening' }, { shiftType: 'Evening' }, { shiftType: 'Evening' } ],
+    e157: [ { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Off' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' }, { shiftType: 'Morning' } ],
+};
+
+/**
+ * Checks if a specific staff member is scheduled on Leave (Off Duty) for a specific date (YYYY-MM-DD).
+ * Follows priority:
+ * 1. Temporarily customized schedules saved in localStorage ('staff_callcenter_future_schedules')
+ * 2. Live working schedules saved in localStorage ('staff_callcenter_schedules')
+ * 3. Official Call Center roster baseline
+ * 4. Admin staff baseline (Saturday & Sunday Off)
+ */
+export const checkIfUserIsOnLeave = (
+    eNo?: string,
+    dateStr?: string,
+    email?: string,
+    name?: string
+): boolean => {
+    if (!dateStr) return false;
+    const cleanE = (eNo || '').toLowerCase().trim();
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const cleanName = (name || '').toLowerCase().trim();
+
+    const matchesEntry = (entry: any) => {
+        if (!entry) return false;
+        const entryENo = (entry.eNo || '').toLowerCase().trim();
+        const entryEmail = (entry.staffEmail || entry.email || '').toLowerCase().trim();
+        const entryName = (entry.staffName || entry.name || '').toLowerCase().trim();
+
+        if (cleanE && cleanE !== 'n/a' && cleanE !== '-' && entryENo && entryENo !== 'n/a' && entryENo !== '-' && entryENo === cleanE) {
+            return true;
+        }
+        if (cleanEmail && entryEmail && entryEmail === cleanEmail) {
+            return true;
+        }
+        if (cleanName && entryName && entryName === cleanName) {
+            return true;
+        }
+        return false;
+    };
+
+    // 1. Check Temporarily Customized Schedules from localStorage ('staff_callcenter_future_schedules')
+    try {
+        const futureStr = typeof window !== 'undefined' ? localStorage.getItem('staff_callcenter_future_schedules') : null;
+        if (futureStr) {
+            const futureList = JSON.parse(futureStr);
+            if (Array.isArray(futureList)) {
+                const entry = futureList.find(
+                    (s: any) => s.date === dateStr && matchesEntry(s)
+                );
+                if (entry) {
+                    return entry.shiftType === 'Off';
+                }
+            }
+        }
+    } catch (_) {}
+
+    // 2. Check Live Call Center schedules from localStorage ('staff_callcenter_schedules')
+    try {
+        const liveStr = typeof window !== 'undefined' ? localStorage.getItem('staff_callcenter_schedules') : null;
+        if (liveStr) {
+            const liveList = JSON.parse(liveStr);
+            if (Array.isArray(liveList)) {
+                const entry = liveList.find(
+                    (s: any) => s.date === dateStr && matchesEntry(s)
+                );
+                if (entry) {
+                    return entry.shiftType === 'Off';
+                }
+            }
+        }
+    } catch (_) {}
+
+    // 3. Check Admin schedules from localStorage ('staff_admin_schedules')
+    try {
+        const adminStr = typeof window !== 'undefined' ? localStorage.getItem('staff_admin_schedules') : null;
+        if (adminStr) {
+            const adminList = JSON.parse(adminStr);
+            if (Array.isArray(adminList)) {
+                const entry = adminList.find(
+                    (s: any) => s.date === dateStr && matchesEntry(s)
+                );
+                if (entry) {
+                    return entry.shiftType === 'Off';
+                }
+            }
+        }
+    } catch (_) {}
+
+    // 4. Fallback to Official Call Center baseline roster
+    if (cleanE && OFFICIAL_CALL_CENTER_ROSTER[cleanE]) {
+        const officialShifts = OFFICIAL_CALL_CENTER_ROSTER[cleanE];
+        const d = new Date(dateStr + 'T00:00:00');
+        const dayOfWeek = (d.getDay() + 6) % 7; // Mon=0, ..., Sun=6
+        const def = officialShifts[dayOfWeek];
+        if (def) {
+            return def.shiftType === 'Off';
+        }
+    }
+
+    // 5. Admin staff baseline (Saturday=5, Sunday=6 are Off/Leave days)
+    if (!CALL_CENTER_ENOS.has(cleanE)) {
+        const d = new Date(dateStr + 'T00:00:00');
+        const dayOfWeek = (d.getDay() + 6) % 7;
+        return dayOfWeek >= 5;
+    }
+
+    return false;
+};
+
+/**
+ * Calculates total leave days for a user in a given month (YYYY-MM)
+ * by evaluating each individual date against the temporarily customized schedule.
+ */
+export const getMonthlyLeaveDaysForUser = (
+    eNo?: string,
+    yearMonth?: string,
+    email?: string,
+    name?: string
+): number => {
+    if (!yearMonth) return 0;
+
+    const [yearStr, monthStr] = yearMonth.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    if (isNaN(year) || isNaN(month)) return 0;
+
+    const daysInMonth = new Date(year, month, 0).getDate();
+    let leaveCount = 0;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        if (checkIfUserIsOnLeave(eNo, dateStr, email, name)) {
+            leaveCount++;
+        }
+    }
+
+    return leaveCount;
+};
+
 export default function AttendanceSheetPage() {
     const router = useRouter();
     const { mode } = useThemeContext();
@@ -395,7 +553,11 @@ export default function AttendanceSheetPage() {
                 if (monthlyRes.ok) {
                     const monthlyList = await monthlyRes.json();
                     if (Array.isArray(monthlyList) && monthlyList.length > 0) {
-                        setMonthlyRecords(monthlyList);
+                        const enrichedMonthly = monthlyList.map((m: any) => ({
+                            ...m,
+                            leaves: getMonthlyLeaveDaysForUser(m.eNo, targetMonth, m.email, m.name)
+                        }));
+                        setMonthlyRecords(enrichedMonthly);
                         monthlyLoaded = true;
                     }
                 }
@@ -417,7 +579,7 @@ export default function AttendanceSheetPage() {
                         const daysPresent = uniqueDates.size;
                         const daysAbsent = Math.max(0, 22 - daysPresent);
                         const shortLeaves = i % 2;
-                        const leaves = daysAbsent;
+                        const leaves = getMonthlyLeaveDaysForUser(r.eNo, targetMonth, r.email, r.name);
                         const hrs = calculateHourCount(r.clockInTime, r.clockOutTime);
                         const totalHours = hrs === '-' ? '0 hrs' : hrs;
                         const otHours = '0 hrs';
@@ -453,7 +615,7 @@ export default function AttendanceSheetPage() {
         setEditClockIn(record.clockInTime && record.clockInTime !== '-' ? record.clockInTime : '08:30 AM');
         setEditClockOutDate(record.clockOutDate && record.clockOutDate !== '-' ? record.clockOutDate : selectedDailyDate);
         setEditClockOut(record.clockOutTime && record.clockOutTime !== '-' ? record.clockOutTime : '05:30 PM');
-        setEditStatus(record.status === 'Not Clocked In' ? 'Clocked In' : (record.status || 'Clocked In'));
+        setEditStatus(record.status === 'Clocked Out' ? 'Clocked Out' : 'Clocked In');
         setEditDialogOpen(true);
     };
 
@@ -644,15 +806,20 @@ export default function AttendanceSheetPage() {
                        (staffName && rName === staffName);
             });
 
+            const isLeave = checkIfUserIsOnLeave(staff.eNo, selectedDailyDate, staff.email, staff.name);
+
             if (matchedLogs.length > 0) {
                 matchedLogs.forEach(log => {
                     matchedLogIds.add(log.id);
+                    const notClockedIn = !log.clockInTime || log.clockInTime === '-' || log.status === 'Not Clocked In';
+                    const userIsLeave = notClockedIn && (isLeave || checkIfUserIsOnLeave(log.eNo, selectedDailyDate, log.email, log.name));
                     resultList.push({
                         ...log,
                         name: log.name || staff.name,
                         eNo: (log.eNo && log.eNo !== 'N/A' && !log.eNo.includes('@')) ? log.eNo : staff.eNo,
                         email: log.email || staff.email,
                         avatar: log.avatar || staff.avatar || '',
+                        status: (userIsLeave ? 'Leave' : (notClockedIn ? 'Not Clocked In' : (log.status || 'Clocked In'))) as any,
                     });
                 });
             } else {
@@ -670,14 +837,19 @@ export default function AttendanceSheetPage() {
                     clockOutTime: '-',
                     clockInLocation: '',
                     clockOutLocation: '',
-                    status: 'Not Clocked In' as any,
+                    status: (isLeave ? 'Leave' : 'Not Clocked In') as any,
                 });
             }
         });
 
         logsForSelectedDate.forEach(log => {
             if (!matchedLogIds.has(log.id)) {
-                resultList.push(log);
+                const notClockedIn = !log.clockInTime || log.clockInTime === '-' || log.status === 'Not Clocked In';
+                const userIsLeave = notClockedIn && checkIfUserIsOnLeave(log.eNo, selectedDailyDate, log.email, log.name);
+                resultList.push({
+                    ...log,
+                    status: (userIsLeave ? 'Leave' : log.status) as any,
+                });
             }
         });
 
@@ -716,6 +888,8 @@ export default function AttendanceSheetPage() {
 
     const clockedInCount = dailyDisplayRecords.filter(r => r.status === 'Clocked In').length;
     const clockedOutCount = dailyDisplayRecords.filter(r => r.status === 'Clocked Out').length;
+    const onLeaveCount = dailyDisplayRecords.filter(r => r.status === 'Leave').length;
+    const notClockedInCount = dailyDisplayRecords.filter(r => r.status === 'Not Clocked In').length;
 
     const downloadCSV = (filename: string, csvContent: string) => {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -762,10 +936,11 @@ export default function AttendanceSheetPage() {
     };
 
     const handleDownloadMonthlyCSV = () => {
-        const headers = ['E NO', 'Staff Member', 'Month', 'Days', 'Total Hours', 'Worked Hours', 'Extra Hours', 'Less Hours', 'Actual OT or Loss Hours'];
+        const headers = ['E NO', 'Staff Member', 'Month', 'Days Present', 'Leave Days', 'Total Hours', 'Worked Hours', 'Extra Hours', 'Less Hours', 'Actual OT or Loss Hours'];
 
         const rows = filteredMonthlyRecords.map(r => {
             const daysStr = typeof r.daysPresent === 'number' ? `${r.daysPresent}` : '0';
+            const leaveDaysStr = typeof r.leaves === 'number' ? `${r.leaves}` : '0';
             const totalHrs = typeof r.totalDays === 'number' ? `${r.totalDays * 9} hrs` : '198 hrs';
             const workedHrs = typeof r.totalHours === 'string'
                 ? (r.totalHours.includes('h') || r.totalHours.includes('m') || r.totalHours.includes('hrs') ? r.totalHours : `${r.totalHours} hrs`)
@@ -783,6 +958,7 @@ export default function AttendanceSheetPage() {
                 `"${r.name || ''}"`,
                 `"${r.month || ''}"`,
                 `"${daysStr}"`,
+                `"${leaveDaysStr}"`,
                 `"${totalHrs}"`,
                 `"${workedHrs}"`,
                 `"${extraHrs}"`,
@@ -874,7 +1050,9 @@ export default function AttendanceSheetPage() {
                     <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
                         {[
                             { label: 'Currently Clocked In', value: clockedInCount, color: '#10b981', icon: <ClockIcon /> },
-                            { label: 'Clocked Out', value: filteredDailyRecords.length - clockedInCount, color: '#64748b', icon: <CheckCircleIcon /> },
+                            { label: 'Clocked Out', value: clockedOutCount, color: '#3b82f6', icon: <CheckCircleIcon /> },
+                            { label: 'On Leave (Scheduled Off)', value: onLeaveCount, color: '#f59e0b', icon: <CalendarIcon /> },
+                            { label: 'Not Clocked In', value: notClockedInCount, color: '#ef4444', icon: <ClockIcon /> },
                         ].map((stat) => (
                             <Box
                                 key={stat.label}
@@ -1018,7 +1196,14 @@ export default function AttendanceSheetPage() {
                                                 <TableRow
                                                     key={`daily_row_${row.id}_${row.eNo}_${idx}`}
                                                     sx={{
-                                                        '&:hover': { backgroundColor: 'action.hover' },
+                                                        backgroundColor: row.status === 'Leave'
+                                                            ? (mode === 'light' ? 'rgba(254, 243, 199, 0.22)' : 'rgba(245, 158, 11, 0.06)')
+                                                            : undefined,
+                                                        '&:hover': {
+                                                            backgroundColor: row.status === 'Leave'
+                                                                ? (mode === 'light' ? 'rgba(254, 243, 199, 0.42)' : 'rgba(245, 158, 11, 0.12)')
+                                                                : 'action.hover'
+                                                        },
                                                         '& td': { borderColor: 'divider' },
                                                         transition: 'background 0.15s',
                                                     }}
@@ -1116,8 +1301,15 @@ export default function AttendanceSheetPage() {
                                                                 </Tooltip>
                                                             ) : null}
                                                             {!row.clockInLocation && !row.clockOutLocation && (
-                                                                <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
-                                                                    Not Recorded
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{
+                                                                        color: row.status === 'Leave' ? '#b45309' : '#94a3b8',
+                                                                        fontStyle: row.status === 'Leave' ? 'normal' : 'italic',
+                                                                        fontWeight: row.status === 'Leave' ? 600 : 400,
+                                                                    }}
+                                                                >
+                                                                    {row.status === 'Leave' ? 'Scheduled Off Day' : 'Not Recorded'}
                                                                 </Typography>
                                                             )}
                                                         </Box>
@@ -1141,12 +1333,26 @@ export default function AttendanceSheetPage() {
                                                     {/* Status */}
                                                     <TableCell>
                                                         <Chip
-                                                            label={row.status}
+                                                            label={row.status === 'Leave' ? 'On Leave' : row.status}
                                                             size="small"
+                                                            icon={row.status === 'Leave' ? <CalendarIcon sx={{ fontSize: '13px !important', color: '#92400e !important' }} /> : undefined}
                                                             sx={{
-                                                                backgroundColor: row.status === 'Clocked In' ? '#dcfce7' : row.status === 'Clocked Out' ? '#f1f5f9' : '#fff7ed',
-                                                                color: row.status === 'Clocked In' ? '#15803d' : row.status === 'Clocked Out' ? '#64748b' : '#c2410c',
-                                                                fontWeight: 600,
+                                                                backgroundColor: row.status === 'Clocked In'
+                                                                    ? '#dcfce7'
+                                                                    : row.status === 'Clocked Out'
+                                                                    ? '#f1f5f9'
+                                                                    : row.status === 'Leave'
+                                                                    ? '#fef3c7'
+                                                                    : '#fff7ed',
+                                                                color: row.status === 'Clocked In'
+                                                                    ? '#15803d'
+                                                                    : row.status === 'Clocked Out'
+                                                                    ? '#64748b'
+                                                                    : row.status === 'Leave'
+                                                                    ? '#92400e'
+                                                                    : '#c2410c',
+                                                                border: row.status === 'Leave' ? '1px solid #fde68a' : undefined,
+                                                                fontWeight: 700,
                                                                 fontSize: '0.75rem',
                                                             }}
                                                         />
@@ -1169,7 +1375,7 @@ export default function AttendanceSheetPage() {
                                                                 </IconButton>
                                                             </Tooltip>
                                                             {isSuperAdmin && (
-                                                                <Tooltip title={row.id?.startsWith('staff_') || row.status === 'Not Clocked In' ? "No attendance record to delete" : "Delete Attendance Record"}>
+                                                                <Tooltip title={row.id?.startsWith('staff_') || row.status === 'Not Clocked In' || row.status === 'Leave' ? "No attendance record to delete" : "Delete Attendance Record"}>
                                                                     <span>
                                                                         <IconButton
                                                                             size="small"
@@ -1313,7 +1519,7 @@ export default function AttendanceSheetPage() {
                                 <Table sx={{ minWidth: 700 }}>
                                     <TableHead>
                                         <TableRow>
-                                            {['E NO', 'Staff Member', 'Month', 'Days', 'Total Hours', 'Worked Hours', 'Extra Hours', 'Less Hours', 'Actual OT or Loss Hours', 'Action'].map((h) => (
+                                            {['E NO', 'Staff Member', 'Month', 'Days Present', 'Leave Days', 'Total Hours', 'Worked Hours', 'Extra Hours', 'Less Hours', 'Actual OT or Loss Hours', 'Action'].map((h) => (
                                                 <TableCell
                                                     key={h}
                                                     sx={{
@@ -1334,7 +1540,7 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredMonthlyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={10} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={11} align="center" sx={{ color: '#94a3b8', py: 6 }}>
                                                     No monthly attendance records found.
                                                 </TableCell>
                                             </TableRow>
@@ -1374,7 +1580,7 @@ export default function AttendanceSheetPage() {
                                                         {row.month}
                                                     </TableCell>
 
-                                                    {/* Days */}
+                                                    {/* Days Present */}
                                                     <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
                                                         <Chip
                                                             label={`${row.daysPresent || 0} ${row.daysPresent === 1 ? 'day' : 'days'}`}
@@ -1386,6 +1592,22 @@ export default function AttendanceSheetPage() {
                                                                 color: '#334155',
                                                                 borderRadius: '6px',
                                                                 border: '1px solid #cbd5e1',
+                                                            }}
+                                                        />
+                                                    </TableCell>
+
+                                                    {/* Leave Days */}
+                                                    <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                        <Chip
+                                                            label={`${row.leaves || 0} ${row.leaves === 1 ? 'day' : 'days'}`}
+                                                            size="small"
+                                                            sx={{
+                                                                fontWeight: 700,
+                                                                fontSize: '0.75rem',
+                                                                backgroundColor: '#fef3c7',
+                                                                color: '#92400e',
+                                                                borderRadius: '6px',
+                                                                border: '1px solid #fde68a',
                                                             }}
                                                         />
                                                     </TableCell>
@@ -1509,13 +1731,20 @@ export default function AttendanceSheetPage() {
                     <Typography component="span" variant="h6" fontWeight="bold">
                         Monthly Clock In/Out Records ({selectedUserLogs?.eNo ? `${selectedUserLogs?.eNo} - ` : ''}{selectedUserLogs?.name})
                     </Typography>
-                    <Chip
-                        label={selectedUserLogs?.month}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                        sx={{ fontWeight: 600 }}
-                    />
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <Chip
+                            label={`Leave: ${selectedUserLogs?.leaves || 0} days`}
+                            size="small"
+                            sx={{ fontWeight: 600, backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}
+                        />
+                        <Chip
+                            label={selectedUserLogs?.month}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ fontWeight: 600 }}
+                        />
+                    </Box>
                 </DialogTitle>
                 <DialogContent dividers>
                     {loadingUserLogs ? (

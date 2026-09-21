@@ -39,6 +39,7 @@ import {
 } from '@mui/material';
 import {
     CloudUpload as CloudUploadIcon,
+    CloudDownload as CloudDownloadIcon,
     Delete as DeleteIcon,
     Edit as EditIcon,
     Refresh as RefreshIcon,
@@ -413,6 +414,58 @@ const RateCardManagePage = () => {
             // Reset input
             event.target.value = '';
         }
+    };
+
+    const handleDownloadCSV = () => {
+        const headers = [
+            'Category',
+            'Type',
+            'Vehicle',
+            'Days',
+            'KM',
+            'Hrs',
+            'Rate %',
+            'Rate',
+            'Extra KM',
+            'Ext Hrs',
+            'Ext Hr 2',
+            'Status'
+        ];
+
+        const escapeCsvField = (field: any) => {
+            if (field === null || field === undefined) return '';
+            const str = String(field);
+            if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        const rows = rateCards.map(card => [
+            escapeCsvField(card.category || ''),
+            escapeCsvField(card.type || ''),
+            escapeCsvField(card.vehicle || ''),
+            escapeCsvField(card.days ?? ''),
+            escapeCsvField(card.km ?? ''),
+            escapeCsvField(card.hrs ?? ''),
+            escapeCsvField(card.ratePercent || '100%'),
+            escapeCsvField(card.rateAmount ?? ''),
+            escapeCsvField(card.extraKMRate ?? ''),
+            escapeCsvField(card.extraHrRate1 ?? ''),
+            escapeCsvField(card.extraHrRate2 ?? ''),
+            escapeCsvField(card.status || 'Approved')
+        ].join(','));
+
+        const csvContent = [headers.join(','), ...rows].join('\r\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'rate_cards.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     const clearRateCard = async () => {
@@ -908,20 +961,40 @@ const RateCardManagePage = () => {
                     </Box>
                 </Box>
 
-                <input
-                    accept=".csv"
-                    style={{ display: 'none' }}
-                    id="csv-upload-button"
-                    type="file"
-                    onChange={handleFileUpload}
-                    disabled={uploading}
-                />
-                <label htmlFor="csv-upload-button">
-                    <Button
-                        variant="contained"
-                        component="span"
-                        startIcon={uploading ? <CircularProgress size={20} color="inherit" /> : <CloudUploadIcon />}
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center" alignItems="center">
+                    <input
+                        accept=".csv"
+                        style={{ display: 'none' }}
+                        id="csv-upload-button"
+                        type="file"
+                        onChange={handleFileUpload}
                         disabled={uploading}
+                    />
+                    <label htmlFor="csv-upload-button">
+                        <Button
+                            variant="contained"
+                            component="span"
+                            startIcon={uploading ? <CircularProgress size={20} color="inherit" /> : <CloudUploadIcon />}
+                            disabled={uploading}
+                            sx={{
+                                borderRadius: '12px',
+                                px: 4,
+                                py: 1.5,
+                                textTransform: 'none',
+                                fontSize: '1rem',
+                                fontWeight: 600,
+                                boxShadow: '0 4px 14px 0 rgba(0,118,255,0.39)',
+                            }}
+                        >
+                            {uploading ? 'Uploading...' : 'Select CSV File'}
+                        </Button>
+                    </label>
+
+                    <Button
+                        variant="outlined"
+                        startIcon={<CloudDownloadIcon />}
+                        onClick={handleDownloadCSV}
+                        disabled={loading}
                         sx={{
                             borderRadius: '12px',
                             px: 4,
@@ -929,12 +1002,19 @@ const RateCardManagePage = () => {
                             textTransform: 'none',
                             fontSize: '1rem',
                             fontWeight: 600,
-                            boxShadow: '0 4px 14px 0 rgba(0,118,255,0.39)',
+                            borderColor: 'primary.main',
+                            color: 'primary.main',
+                            bgcolor: 'background.paper',
+                            boxShadow: '0 2px 8px 0 rgba(0,0,0,0.05)',
+                            '&:hover': {
+                                bgcolor: 'rgba(0,118,255,0.06)',
+                                borderColor: 'primary.dark',
+                            },
                         }}
                     >
-                        {uploading ? 'Uploading...' : 'Select CSV File'}
+                        Download CSV
                     </Button>
-                </label>
+                </Stack>
             </Paper>
 
             {/* Filter Section (Moved under Upload Section) */}
