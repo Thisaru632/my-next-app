@@ -65,7 +65,7 @@ interface OfficeAsset {
     assetCode: string;
     location: string;
     assignedTo?: string;
-    assignedUserId?: string;
+    assignedUserId?: string | null;
     assignedDate?: string;
     status?: 'In Use' | 'Not in Use';
     qty: number;
