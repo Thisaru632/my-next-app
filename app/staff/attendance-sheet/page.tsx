@@ -671,12 +671,22 @@ export default function AttendanceSheetPage() {
         setDeletingRecord(true);
         try {
             const token = localStorage.getItem('staffToken');
-            const response = await fetch(`${API_ENDPOINTS.AUTH}/attendance/${recordToDelete.id}`, {
+            let response = await fetch(`${API_ENDPOINTS.AUTH}/attendance/${recordToDelete.id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
+
+            // If DELETE is blocked by host/proxy or returns 404, try POST fallback route
+            if (response.status === 404) {
+                response = await fetch(`${API_ENDPOINTS.AUTH}/attendance/${recordToDelete.id}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+            }
 
             if (response.ok) {
                 setDeleteDialogOpen(false);

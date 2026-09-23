@@ -40,6 +40,7 @@ import {
     Assignment as AssignmentIcon,
     CalendarMonth as CalendarMonthIcon,
     EventNote as EventNoteIcon,
+    Inventory as InventoryIcon,
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -78,6 +79,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         { text: 'Vehicle Registrations', icon: <DirectionsBusIcon />, path: '/staff/vehicle-registrations', key: 'vehicleRegistration' },
         { text: 'Super Team', icon: <DirectionsBusIcon />, path: '/staff/super-team', key: 'dashboard' },
         { text: 'Cab Service', icon: <LocalTaxiIcon />, path: '/staff/cab-service', key: 'cabService' },
+        { text: 'Office Assets Manage', icon: <InventoryIcon />, path: '/staff/office-assets-manage', key: 'dashboard' },
         { text: 'Attendance Sheet', icon: <AssignmentIcon />, path: '/staff/attendance-sheet', key: 'hrSection' },
         { text: 'Staff Working Schedule', icon: <CalendarMonthIcon />, path: '/staff/working-schedule', key: 'hrSection' },
         { text: 'Leave Management', icon: <EventNoteIcon />, path: '/staff/leave-management', key: 'hrSection' },
@@ -94,6 +96,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     const [adminPortalOpen, setAdminPortalOpen] = React.useState(true);
     const [myAttendanceOpen, setMyAttendanceOpen] = React.useState(true);
     const [hrOpen, setHrOpen] = React.useState(true);
+    const [assetManagementOpen, setAssetManagementOpen] = React.useState(true);
 
     const fetchPendingCount = async () => {
         try {
@@ -157,6 +160,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     const webPortalItems = ['Dashboard', 'Lead Info', 'CMS', 'Web Users', 'Rate Card Manage', 'Super Team'];
     const myAttendanceItems = ['Clock in /out', 'View My Attendance', 'My Attendance'];
     const hrItems = ['Attendance Sheet', 'Staff Working Schedule', 'Leave Management'];
+    const assetManagementItems = ['Vehicle Registrations', 'Cab Service', 'Office Assets Manage'];
 
     const renderMenuItem = (item: MenuItem) => {
         const isActive = pathname === item.path;
@@ -251,8 +255,28 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                 <Collapse in={adminPortalOpen} timeout="auto" unmountOnExit>
                     <List sx={{ px: 1.5, pt: 0, pb: 0.5 }}>
                         {allowedItems
-                            .filter(item => !webPortalItems.includes(item.text) && !hrItems.includes(item.text) && !myAttendanceItems.includes(item.text))
+                            .filter(item => !webPortalItems.includes(item.text) && !hrItems.includes(item.text) && !myAttendanceItems.includes(item.text) && !assetManagementItems.includes(item.text))
                             .map(renderMenuItem)}
+
+                        {/* Asset Management Dropdown Section inside Admin Portal */}
+                        {allowedItems.some(item => assetManagementItems.includes(item.text)) && (
+                            <>
+                                <ListItemButton onClick={() => setAssetManagementOpen(!assetManagementOpen)} sx={{ py: 0.5, px: 1.5, borderRadius: '8px', mt: 0.5, mb: 0.25, backgroundColor: 'action.hover' }}>
+                                    <ListItemText 
+                                        primary="Asset Management" 
+                                        primaryTypographyProps={{ fontSize: '13px', color: 'primary.main', fontWeight: 600 }} 
+                                    />
+                                    {assetManagementOpen ? <ExpandLess sx={{ color: 'primary.main', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'primary.main', fontSize: 18 }} />}
+                                </ListItemButton>
+                                <Collapse in={assetManagementOpen} timeout="auto" unmountOnExit>
+                                    <List sx={{ pl: 1, pt: 0, pb: 0 }}>
+                                        {allowedItems
+                                            .filter(item => assetManagementItems.includes(item.text))
+                                            .map(renderMenuItem)}
+                                    </List>
+                                </Collapse>
+                            </>
+                        )}
 
                         {/* My Attendance Dropdown Section inside Admin Portal */}
                         {allowedItems.some(item => myAttendanceItems.includes(item.text)) && (
