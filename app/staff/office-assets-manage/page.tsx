@@ -222,6 +222,8 @@ export default function OfficeAssetsManagePage() {
     // Clear All Data dialog states
     const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
     const [clearingAll, setClearingAll] = useState(false);
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const isSuperAdmin = (currentUser?.role || '').toLowerCase().replace(/[\s_-]/g, '') === 'superadmin';
 
     const handleOpenAssignMenu = (event: React.MouseEvent<HTMLElement>, asset: OfficeAsset) => {
         event.stopPropagation();
@@ -389,6 +391,14 @@ export default function OfficeAssetsManagePage() {
     useEffect(() => {
         fetchAssets();
         fetchUsers();
+        try {
+            const userStr = localStorage.getItem('staffUser');
+            if (userStr) {
+                setCurrentUser(JSON.parse(userStr));
+            }
+        } catch (e) {
+            console.error('Error reading staffUser:', e);
+        }
     }, []);
 
     // CSV File Upload & MongoDB Persistence Handler
@@ -722,33 +732,35 @@ export default function OfficeAssetsManagePage() {
                         {uploadingCsv ? 'Uploading...' : 'Upload CSV / Excel'}
                     </Button>
 
-                    <Button
-                        variant="outlined"
-                        color="error"
-                        disabled={assets.length === 0 || clearingAll}
-                        startIcon={clearingAll ? <CircularProgress size={18} color="inherit" /> : <DeleteSweepIcon />}
-                        onClick={() => setClearAllDialogOpen(true)}
-                        sx={{
-                            borderRadius: '10px',
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            px: 2.5,
-                            py: 1.1,
-                            borderColor: mode === 'light' ? '#fca5a5' : '#7f1d1d',
-                            color: mode === 'light' ? '#dc2626' : '#f87171',
-                            bgcolor: mode === 'light' ? 'rgba(239, 68, 68, 0.05)' : 'rgba(239, 68, 68, 0.1)',
-                            '&:hover': {
-                                borderColor: mode === 'light' ? '#dc2626' : '#ef4444',
-                                bgcolor: mode === 'light' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.2)',
-                            },
-                            '&.Mui-disabled': {
-                                opacity: 0.5,
-                                borderColor: 'divider',
-                            },
-                        }}
-                    >
-                        {clearingAll ? 'Clearing...' : 'Clear All Data'}
-                    </Button>
+                    {isSuperAdmin && (
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            disabled={assets.length === 0 || clearingAll}
+                            startIcon={clearingAll ? <CircularProgress size={18} color="inherit" /> : <DeleteSweepIcon />}
+                            onClick={() => setClearAllDialogOpen(true)}
+                            sx={{
+                                borderRadius: '10px',
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                px: 2.5,
+                                py: 1.1,
+                                borderColor: mode === 'light' ? '#fca5a5' : '#7f1d1d',
+                                color: mode === 'light' ? '#dc2626' : '#f87171',
+                                bgcolor: mode === 'light' ? 'rgba(239, 68, 68, 0.05)' : 'rgba(239, 68, 68, 0.1)',
+                                '&:hover': {
+                                    borderColor: mode === 'light' ? '#dc2626' : '#ef4444',
+                                    bgcolor: mode === 'light' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.2)',
+                                },
+                                '&.Mui-disabled': {
+                                    opacity: 0.5,
+                                    borderColor: 'divider',
+                                },
+                            }}
+                        >
+                            {clearingAll ? 'Clearing...' : 'Clear All Data'}
+                        </Button>
+                    )}
 
                     <Button
                         variant="contained"
@@ -956,7 +968,6 @@ export default function OfficeAssetsManagePage() {
                             <TableCell align="center" sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Status</TableCell>
                             <TableCell align="center" sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Qty</TableCell>
                             <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Value (LKR)</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Total Value (LKR)</TableCell>
                             <TableCell sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Purchase Date</TableCell>
                             <TableCell align="center" sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Bill Availability</TableCell>
                             <TableCell sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Warranty</TableCell>
@@ -969,7 +980,7 @@ export default function OfficeAssetsManagePage() {
                     <TableBody>
                         {filteredAssets.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={16} sx={{ textAlign: 'center', py: 8 }}>
+                                <TableCell colSpan={15} sx={{ textAlign: 'center', py: 8 }}>
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                                         <LayersIcon sx={{ fontSize: 44, color: 'text.disabled', mb: 1.5, opacity: 0.7 }} />
                                         <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 700, mb: 0.5 }}>
@@ -1124,11 +1135,6 @@ export default function OfficeAssetsManagePage() {
                                         {/* Value */}
                                         <TableCell align="right" sx={{ whiteSpace: 'nowrap', color: 'text.secondary' }}>
                                             {asset.value ? formatCurrency(asset.value) : '-'}
-                                        </TableCell>
-
-                                        {/* Total Value */}
-                                        <TableCell align="right" sx={{ whiteSpace: 'nowrap', fontWeight: 700, color: 'success.main' }}>
-                                            {asset.totalValue ? formatCurrency(asset.totalValue) : '-'}
                                         </TableCell>
 
                                         {/* Purchase Date */}
@@ -1586,45 +1592,47 @@ export default function OfficeAssetsManagePage() {
             </Dialog>
 
             {/* Clear All Data Confirmation Dialog */}
-            <Dialog
-                open={clearAllDialogOpen}
-                onClose={() => !clearingAll && setClearAllDialogOpen(false)}
-                PaperProps={{ sx: { borderRadius: '20px', maxWidth: 460, p: 1 } }}
-            >
-                <DialogTitle sx={{ fontWeight: 800, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <DeleteSweepIcon color="error" />
-                    Clear All Assets Data
-                </DialogTitle>
-                <DialogContent>
-                    <Typography sx={{ color: 'text.primary', mb: 1.5 }}>
-                        Are you sure you want to permanently delete <strong>all {assets.length} office assets</strong>?
-                    </Typography>
-                    <Box sx={{ bgcolor: mode === 'light' ? '#fee2e2' : 'rgba(239, 68, 68, 0.15)', p: 1.5, borderRadius: '10px' }}>
-                        <Typography variant="body2" sx={{ color: mode === 'light' ? '#991b1b' : '#fca5a5', fontWeight: 600 }}>
-                            ⚠️ Warning: This will delete all assets data from the table and MongoDB. This action cannot be undone.
+            {isSuperAdmin && (
+                <Dialog
+                    open={clearAllDialogOpen}
+                    onClose={() => !clearingAll && setClearAllDialogOpen(false)}
+                    PaperProps={{ sx: { borderRadius: '20px', maxWidth: 460, p: 1 } }}
+                >
+                    <DialogTitle sx={{ fontWeight: 800, color: 'error.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <DeleteSweepIcon color="error" />
+                        Clear All Assets Data
+                    </DialogTitle>
+                    <DialogContent>
+                        <Typography sx={{ color: 'text.primary', mb: 1.5 }}>
+                            Are you sure you want to permanently delete <strong>all {assets.length} office assets</strong>?
                         </Typography>
-                    </Box>
-                </DialogContent>
-                <DialogActions sx={{ p: 2.5, pt: 1 }}>
-                    <Button
-                        onClick={() => setClearAllDialogOpen(false)}
-                        disabled={clearingAll}
-                        sx={{ textTransform: 'none', fontWeight: 600 }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        variant="contained"
-                        color="error"
-                        onClick={handleClearAllData}
-                        disabled={clearingAll}
-                        startIcon={clearingAll ? <CircularProgress size={16} color="inherit" /> : <DeleteSweepIcon />}
-                        sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, px: 2.5 }}
-                    >
-                        {clearingAll ? 'Clearing...' : 'Yes, Clear All Data'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                        <Box sx={{ bgcolor: mode === 'light' ? '#fee2e2' : 'rgba(239, 68, 68, 0.15)', p: 1.5, borderRadius: '10px' }}>
+                            <Typography variant="body2" sx={{ color: mode === 'light' ? '#991b1b' : '#fca5a5', fontWeight: 600 }}>
+                                ⚠️ Warning: This will delete all assets data from the table and MongoDB. This action cannot be undone.
+                            </Typography>
+                        </Box>
+                    </DialogContent>
+                    <DialogActions sx={{ p: 2.5, pt: 1 }}>
+                        <Button
+                            onClick={() => setClearAllDialogOpen(false)}
+                            disabled={clearingAll}
+                            sx={{ textTransform: 'none', fontWeight: 600 }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="contained"
+                            color="error"
+                            onClick={handleClearAllData}
+                            disabled={clearingAll}
+                            startIcon={clearingAll ? <CircularProgress size={16} color="inherit" /> : <DeleteSweepIcon />}
+                            sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, px: 2.5 }}
+                        >
+                            {clearingAll ? 'Clearing...' : 'Yes, Clear All Data'}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            )}
 
             {/* Quick Assign Menu */}
             <Menu
