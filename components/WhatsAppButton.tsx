@@ -10,8 +10,13 @@ import { usePathname } from 'next/navigation';
 const WhatsAppButton = () => {
     const pathname = usePathname();
 
-    // Hide if in the staff section
-    if (pathname?.startsWith('/staff')) {
+    // Hide if in the staff section, driver terms, or privacy and policies pages
+    if (
+        pathname?.startsWith('/staff') ||
+        pathname?.includes('driver-terms') ||
+        pathname?.startsWith('/driver-terms') ||
+        pathname?.startsWith('/privacy-and-policies')
+    ) {
         return null;
     }
     // Replace with your actual WhatsApp number (include country code, without + or 00)

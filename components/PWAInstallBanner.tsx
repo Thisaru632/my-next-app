@@ -11,14 +11,18 @@ export default function PWAInstallBanner() {
     const [isVisible, setIsVisible] = useState(false);
     const pathname = usePathname();
     const isStaff = pathname?.startsWith('/staff');
+    const isHiddenPage =
+        pathname?.includes('driver-terms') ||
+        pathname?.startsWith('/driver-terms') ||
+        pathname?.startsWith('/privacy-and-policies');
 
     useEffect(() => {
-        if (installPrompt && !isInstalled) {
+        if (installPrompt && !isInstalled && !isHiddenPage) {
             setIsVisible(true);
         }
-    }, [installPrompt, isInstalled]);
+    }, [installPrompt, isInstalled, isHiddenPage]);
 
-    if (isInstalled || !isVisible) return null;
+    if (isInstalled || !isVisible || isHiddenPage) return null;
 
     return (
         <AnimatePresence>

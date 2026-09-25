@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   FileText,
   ChevronRight,
@@ -164,26 +163,22 @@ export default function PrivacyPolicyView({ initialTab }: PrivacyPolicyViewProps
     router.push(`/privacy-and-policies/${slug}`);
   };
 
+  const handleExitSite = () => {
+    try {
+      window.open('', '_self', '');
+      window.close();
+    } catch (e) {
+      console.error('Error closing window:', e);
+    }
+    setTimeout(() => {
+      if (typeof window !== 'undefined' && !window.closed) {
+        window.location.replace('about:blank');
+      }
+    }, 150);
+  };
+
   return (
     <main className="min-h-screen bg-[#faf8f5] pt-8 sm:pt-10 pb-20 text-gray-800 font-sans">
-      {/* Top Breadcrumb */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200/80 pb-4">
-          <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-gray-500">
-            <Link href="/" className="hover:text-green-600 transition-colors">
-              Home
-            </Link>
-            <ChevronRight size={14} />
-            <Link href="/privacy-and-policies/driver-terms" className="hover:text-green-600 transition-colors">
-              Privacy and Policies
-            </Link>
-            <ChevronRight size={14} />
-            <span className="text-green-700 font-bold">
-              {activeTab === 'driver' ? 'Driver Terms' : 'Customer Terms'}
-            </span>
-          </div>
-        </div>
-      </div>
 
       {/* Hero Header Section */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
@@ -222,17 +217,19 @@ export default function PrivacyPolicyView({ initialTab }: PrivacyPolicyViewProps
             <span>Driver Terms</span>
           </button>
 
-          <button
-            onClick={() => handleTabChange('customer')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 ${
-              activeTab === 'customer'
-                ? 'bg-green-600 text-white shadow-md'
-                : 'text-gray-700 hover:text-green-700 hover:bg-white/60'
-            }`}
-          >
-            <Users size={18} />
-            <span>Customer Terms</span>
-          </button>
+          {activeTab !== 'driver' && (
+            <button
+              onClick={() => handleTabChange('customer')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 ${
+                activeTab === 'customer'
+                  ? 'bg-green-600 text-white shadow-md'
+                  : 'text-gray-700 hover:text-green-700 hover:bg-white/60'
+              }`}
+            >
+              <Users size={18} />
+              <span>Customer Terms</span>
+            </button>
+          )}
         </div>
       </section>
 
@@ -367,6 +364,17 @@ export default function PrivacyPolicyView({ initialTab }: PrivacyPolicyViewProps
                       <p className="text-xs sm:text-sm text-gray-700 leading-relaxed bg-white/70 p-4 rounded-xl border border-green-100">
                         මෙම කොටුව සලකුණු කර “I Agree &amp; Submit” තෝරා ගැනීමෙන්, මම ලබා දී ඇති සියලු තොරතුරු හා ලේඛන සත්‍ය හා වලංගු බවත්, ශ්‍රී ලංකාවේ අදාළ නීති, Senu Cabs &amp; Tours නියමයන්, ආරක්ෂක නියමයන්, ගාස්තු නියමයන් සහ රියදුරු වගකීම් පිළිපැදීමට එකඟ වන බවත් තහවුරු කරමි.
                       </p>
+
+                      <div className="mt-6 pt-4 border-t border-green-200/80 flex items-center justify-center sm:justify-start">
+                        <button
+                          type="button"
+                          onClick={handleExitSite}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white font-bold text-base sm:text-lg rounded-xl shadow-md hover:shadow-lg shadow-green-600/25 transition-all duration-200 cursor-pointer"
+                        >
+                          <CheckCircle2 size={20} />
+                          <span>තේරුම් ගත්තා</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

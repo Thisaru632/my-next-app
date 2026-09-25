@@ -35,6 +35,7 @@ import {
     Stack,
     CircularProgress,
     Menu,
+    Avatar,
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -53,6 +54,10 @@ import {
     AssignmentInd as AssignmentIndIcon,
     DeleteSweep as DeleteSweepIcon,
     FiberManualRecord as FiberManualRecordIcon,
+    AddPhotoAlternate as AddPhotoAlternateIcon,
+    PictureAsPdf as PictureAsPdfIcon,
+    OpenInNew as OpenInNewIcon,
+    Sell as SellIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
@@ -60,6 +65,8 @@ import { API_ENDPOINTS } from '@/config/api';
 interface OfficeAsset {
     _id?: string;
     id?: string;
+    no?: string | number;
+    image?: string;
     assetType: string;
     description: string;
     assetCode: string;
@@ -67,13 +74,17 @@ interface OfficeAsset {
     assignedTo?: string;
     assignedUserId?: string | null;
     assignedDate?: string;
-    status?: 'In Use' | 'Not in Use';
+    status?: 'In Use' | 'Not in Use' | 'Sold';
+    soldPrice?: number;
+    soldDate?: string;
     qty: number;
     value: number;
     totalValue: number;
     purchaseDate: string;
     billAvailability: 'Y' | 'N';
+    billReceipt?: string;
     warranty: string;
+    warrantyReceipt?: string;
     supplier: string;
     contactNo: string;
     invNo: string;
@@ -93,6 +104,7 @@ interface SystemUser {
 const DEFAULT_ASSETS: OfficeAsset[] = [
     {
         id: '1',
+        no: '1',
         assetType: 'Boards',
         description: 'Senu Cabs Name Board With Light (72"x50")',
         assetCode: 'SC-BRD-001',
@@ -109,6 +121,7 @@ const DEFAULT_ASSETS: OfficeAsset[] = [
     },
     {
         id: '2',
+        no: '2',
         assetType: 'Fan',
         description: 'Wall Fan (MITSHU MWF-438R)',
         assetCode: 'SC-FAN-002',
@@ -125,6 +138,7 @@ const DEFAULT_ASSETS: OfficeAsset[] = [
     },
     {
         id: '3',
+        no: '3',
         assetType: 'Fridge',
         description: 'Sisil Mini Fridge',
         assetCode: 'SC-FRG-003',
@@ -141,6 +155,7 @@ const DEFAULT_ASSETS: OfficeAsset[] = [
     },
     {
         id: '4',
+        no: '4',
         assetType: 'Kettle',
         description: 'Homemaker 1.7L Kettle',
         assetCode: 'SC-KTL-004',
@@ -193,13 +208,36 @@ export default function OfficeAssetsManagePage() {
         qty: 1,
         value: 0,
         totalValue: 0,
+        status: 'In Use',
+        soldPrice: 0,
+        soldDate: '',
         purchaseDate: '',
         billAvailability: 'Y',
+        billReceipt: '',
         warranty: '',
+        warrantyReceipt: '',
         supplier: '',
         contactNo: '',
         invNo: '',
     });
+
+    // Receipt preview modal state
+    const [receiptPreview, setReceiptPreview] = useState<{ open: boolean; title: string; url: string }>({
+        open: false,
+        title: '',
+        url: '',
+    });
+
+    // Mark as Sold dialog state
+    const [soldDialogOpen, setSoldDialogOpen] = useState(false);
+    const [assetToMarkSold, setAssetToMarkSold] = useState<OfficeAsset | null>(null);
+    const [soldPriceInput, setSoldPriceInput] = useState<string>('');
+    const [soldDateInput, setSoldDateInput] = useState<string>('');
+    const [markingSold, setMarkingSold] = useState(false);
+
+    // Status selection menu anchor state
+    const [statusAnchorEl, setStatusAnchorEl] = useState<null | HTMLElement>(null);
+    const [assetForStatusMenu, setAssetForStatusMenu] = useState<OfficeAsset | null>(null);
 
     // Snackbar state
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -267,32 +305,109 @@ export default function OfficeAssetsManagePage() {
         handleCloseAssignMenu();
     };
 
-    const handleToggleStatus = async (asset: OfficeAsset) => {
-        const assetId = asset._id || asset.id;
-        const currentStatus = asset.status || 'In Use';
-        const nextStatus: 'In Use' | 'Not in Use' = currentStatus === 'In Use' ? 'Not in Use' : 'In Use';
+    const handleOpenStatusMenu = (event: React.MouseEvent<HTMLElement>, asset: OfficeAsset) => {
+        event.stopPropagation();
+        setStatusAnchorEl(event.currentTarget);
+        setAssetForStatusMenu(asset);
+    };
 
+    const handleCloseStatusMenu = () => {
+        setStatusAnchorEl(null);
+        setAssetForStatusMenu(null);
+    };
+
+    const handleSelectStatus = async (newStatus: 'In Use' | 'Not in Use') => {
+        if (!assetForStatusMenu) return;
+        const targetAsset = assetForStatusMenu;
+        handleCloseStatusMenu();
+
+        const assetId = targetAsset._id || targetAsset.id;
         try {
-            if (asset._id) {
-                await fetch(`${API_ENDPOINTS.OFFICE_ASSETS}/${asset._id}/status`, {
+            if (targetAsset._id) {
+                await fetch(`${API_ENDPOINTS.OFFICE_ASSETS}/${targetAsset._id}/status`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: nextStatus }),
+                    body: JSON.stringify({ status: newStatus }),
                 });
             }
             const updated = assets.map((a) =>
-                (a._id === assetId || a.id === assetId) ? { ...a, status: nextStatus } : a
+                (a._id === assetId || a.id === assetId) ? { ...a, status: newStatus } : a
             );
             persistAssets(updated);
+            if (selectedAsset && (selectedAsset._id === assetId || selectedAsset.id === assetId)) {
+                setSelectedAsset((prev) => prev ? { ...prev, status: newStatus } : null);
+            }
             setSnackbar({
                 open: true,
-                message: `Asset marked as ${nextStatus}`,
+                message: `Asset marked as ${newStatus}`,
                 severity: 'success',
             });
         } catch (e) {
-            console.error('Status toggle error:', e);
+            console.error('Status update error:', e);
             setSnackbar({ open: true, message: 'Failed to update status', severity: 'error' });
         }
+    };
+
+    const handleOpenSoldDialog = (asset: OfficeAsset) => {
+        setAssetToMarkSold(asset);
+        setSoldPriceInput(asset.soldPrice ? String(asset.soldPrice) : (asset.value ? String(asset.value) : ''));
+        setSoldDateInput(asset.soldDate || new Date().toISOString().split('T')[0]);
+        setSoldDialogOpen(true);
+    };
+
+    const handleConfirmMarkSold = async () => {
+        if (!assetToMarkSold) return;
+        const price = parseFloat(soldPriceInput);
+        if (isNaN(price) || price < 0) {
+            setSnackbar({ open: true, message: 'Please enter a valid sold price', severity: 'error' });
+            return;
+        }
+
+        setMarkingSold(true);
+        const assetId = assetToMarkSold._id || assetToMarkSold.id;
+        const dateVal = soldDateInput || new Date().toISOString().split('T')[0];
+
+        try {
+            if (assetToMarkSold._id) {
+                await fetch(`${API_ENDPOINTS.OFFICE_ASSETS}/${assetToMarkSold._id}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: 'Sold',
+                        soldPrice: price,
+                        soldDate: dateVal,
+                    }),
+                });
+            }
+
+            const updated = assets.map((a) =>
+                (a._id === assetId || a.id === assetId)
+                    ? { ...a, status: 'Sold' as const, soldPrice: price, soldDate: dateVal }
+                    : a
+            );
+            persistAssets(updated);
+
+            if (selectedAsset && (selectedAsset._id === assetId || selectedAsset.id === assetId)) {
+                setSelectedAsset((prev) => prev ? { ...prev, status: 'Sold', soldPrice: price, soldDate: dateVal } : null);
+            }
+
+            setSnackbar({
+                open: true,
+                message: `Asset marked as Sold for LKR ${formatCurrency(price)}`,
+                severity: 'success',
+            });
+            setSoldDialogOpen(false);
+            setAssetToMarkSold(null);
+        } catch (e: any) {
+            console.error('Mark as sold error:', e);
+            setSnackbar({ open: true, message: e.message || 'Failed to mark asset as sold', severity: 'error' });
+        } finally {
+            setMarkingSold(false);
+        }
+    };
+
+    const handleToggleStatus = (asset: OfficeAsset) => {
+        handleOpenSoldDialog(asset);
     };
 
     const handleClearAllData = async () => {
@@ -459,7 +574,7 @@ export default function OfficeAssetsManagePage() {
 
     // Filtered assets
     const filteredAssets = useMemo(() => {
-        return assets.filter((asset) => {
+        const list = assets.filter((asset) => {
             const query = searchQuery.toLowerCase();
             const matchesSearch =
                 query === '' ||
@@ -490,11 +605,23 @@ export default function OfficeAssetsManagePage() {
 
             return matchesSearch && matchesType && matchesLoc && matchesAssigned && matchesStatus;
         });
+
+        return [...list].sort((a, b) => {
+            const numA = parseFloat(String(a.no || ''));
+            const numB = parseFloat(String(b.no || ''));
+            if (!isNaN(numA) && !isNaN(numB)) {
+                return numB - numA;
+            }
+            return 0;
+        });
     }, [assets, searchQuery, typeFilter, locationFilter, assignedFilter, statusFilter]);
 
     // Financial & Quantity Stats
     const totalAssetsQty = useMemo(() => assets.reduce((sum, a) => sum + (Number(a.qty) || 0), 0), [assets]);
-    const totalGrossValue = useMemo(() => assets.reduce((sum, a) => sum + (Number(a.totalValue) || 0), 0), [assets]);
+    const totalGrossValue = useMemo(
+        () => assets.filter((a) => a.status !== 'Sold').reduce((sum, a) => sum + (Number(a.value) || 0), 0),
+        [assets]
+    );
     const billsAvailableCount = useMemo(() => assets.filter((a) => a.billAvailability === 'Y').length, [assets]);
     const assignedAssetsCount = useMemo(() => assets.filter((a) => a.assignedTo && a.assignedTo !== 'Unassigned').length, [assets]);
     const inUseAssetsCount = useMemo(() => assets.filter((a) => (a.status || 'In Use') === 'In Use').length, [assets]);
@@ -503,6 +630,8 @@ export default function OfficeAssetsManagePage() {
         setIsEditing(false);
         setSelectedAsset(null);
         setFormData({
+            no: '',
+            image: '',
             assetType: '',
             description: '',
             assetCode: `SC-AST-${String(assets.length + 1).padStart(3, '0')}`,
@@ -511,12 +640,16 @@ export default function OfficeAssetsManagePage() {
             assignedUserId: '',
             assignedDate: '',
             status: 'In Use',
+            soldPrice: 0,
+            soldDate: '',
             qty: 1,
             value: 0,
             totalValue: 0,
             purchaseDate: new Date().toISOString().split('T')[0],
             billAvailability: 'Y',
+            billReceipt: '',
             warranty: '',
+            warrantyReceipt: '',
             supplier: '',
             contactNo: '',
             invNo: '',
@@ -529,10 +662,16 @@ export default function OfficeAssetsManagePage() {
         setSelectedAsset(asset);
         setFormData({
             ...asset,
+            no: asset.no !== undefined && asset.no !== null ? String(asset.no) : '',
+            image: asset.image || '',
+            billReceipt: asset.billReceipt || '',
+            warrantyReceipt: asset.warrantyReceipt || '',
             assignedTo: asset.assignedTo || 'Unassigned',
             assignedUserId: asset.assignedUserId || '',
             assignedDate: asset.assignedDate || '',
             status: asset.status || 'In Use',
+            soldPrice: asset.soldPrice || 0,
+            soldDate: asset.soldDate || '',
         });
         setOpenDialog(true);
     };
@@ -540,6 +679,143 @@ export default function OfficeAssetsManagePage() {
     const handleOpenView = (asset: OfficeAsset) => {
         setSelectedAsset(asset);
         setViewDialogOpen(true);
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            setSnackbar({ open: true, message: 'Please select a valid image file (PNG, JPG, WEBP, etc.)', severity: 'error' });
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            setSnackbar({ open: true, message: 'Image size should be less than 5MB', severity: 'error' });
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const base64 = event.target?.result as string;
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width = Math.round((width * MAX_HEIGHT) / height);
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressed = canvas.toDataURL(file.type || 'image/jpeg', 0.85);
+                    setFormData((prev) => ({ ...prev, image: compressed }));
+                } else {
+                    setFormData((prev) => ({ ...prev, image: base64 }));
+                }
+            };
+            img.onerror = () => {
+                setFormData((prev) => ({ ...prev, image: base64 }));
+            };
+            img.src = base64;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleReceiptUpload = (field: 'billReceipt' | 'warrantyReceipt', e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        e.target.value = '';
+
+        const isImage = file.type.startsWith('image/');
+        const isPdf = file.type === 'application/pdf';
+
+        if (!isImage && !isPdf) {
+            setSnackbar({ open: true, message: 'Please select a valid image (PNG, JPG, WEBP) or a PDF document', severity: 'error' });
+            return;
+        }
+
+        if (file.size > 8 * 1024 * 1024) {
+            setSnackbar({ open: true, message: 'File size should be less than 8MB', severity: 'error' });
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const base64 = event.target?.result as string;
+            if (isImage) {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 1400;
+                    const MAX_HEIGHT = 1400;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height = Math.round((height * MAX_WIDTH) / width);
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width = Math.round((width * MAX_HEIGHT) / height);
+                            height = MAX_HEIGHT;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.drawImage(img, 0, 0, width, height);
+                        const compressed = canvas.toDataURL(file.type || 'image/jpeg', 0.85);
+                        setFormData((prev) => ({
+                            ...prev,
+                            [field]: compressed,
+                            ...(field === 'billReceipt' ? { billAvailability: 'Y' } : {}),
+                        }));
+                    } else {
+                        setFormData((prev) => ({
+                            ...prev,
+                            [field]: base64,
+                            ...(field === 'billReceipt' ? { billAvailability: 'Y' } : {}),
+                        }));
+                    }
+                };
+                img.onerror = () => {
+                    setFormData((prev) => ({
+                        ...prev,
+                        [field]: base64,
+                        ...(field === 'billReceipt' ? { billAvailability: 'Y' } : {}),
+                    }));
+                };
+                img.src = base64;
+            } else {
+                setFormData((prev) => ({
+                    ...prev,
+                    [field]: base64,
+                    ...(field === 'billReceipt' ? { billAvailability: 'Y' } : {}),
+                }));
+            }
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleValueOrQtyChange = (field: 'qty' | 'value', rawVal: string) => {
@@ -570,6 +846,8 @@ export default function OfficeAssetsManagePage() {
         const totalValueNum = Number(formData.totalValue) || (qtyNum * valueNum);
 
         const assetPayload = {
+            no: formData.no !== undefined && formData.no !== null ? String(formData.no).trim() : '',
+            image: formData.image || '',
             assetType: formData.assetType.trim(),
             description: formData.description.trim(),
             assetCode: formData.assetCode?.trim() || '',
@@ -577,13 +855,17 @@ export default function OfficeAssetsManagePage() {
             assignedTo: formData.assignedTo?.trim() || 'Unassigned',
             assignedUserId: formData.assignedUserId || null,
             assignedDate: formData.assignedDate || (formData.assignedTo && formData.assignedTo !== 'Unassigned' ? new Date().toISOString().split('T')[0] : ''),
-            status: (formData.status as 'In Use' | 'Not in Use') || 'In Use',
+            status: (formData.status as 'In Use' | 'Not in Use' | 'Sold') || 'In Use',
+            soldPrice: Number(formData.soldPrice) || 0,
+            soldDate: formData.soldDate || '',
             qty: qtyNum,
             value: valueNum,
             totalValue: totalValueNum,
             purchaseDate: formData.purchaseDate || '',
             billAvailability: (formData.billAvailability as 'Y' | 'N') || 'Y',
+            billReceipt: formData.billReceipt || '',
             warranty: formData.warranty?.trim() || '',
+            warrantyReceipt: formData.warrantyReceipt || '',
             supplier: formData.supplier?.trim() || '',
             contactNo: formData.contactNo?.trim() || '',
             invNo: formData.invNo?.trim() || '',
@@ -941,6 +1223,7 @@ export default function OfficeAssetsManagePage() {
                             <MenuItem value="All">All Statuses</MenuItem>
                             <MenuItem value="In Use">In Use</MenuItem>
                             <MenuItem value="Not in Use">Not in Use</MenuItem>
+                            <MenuItem value="Sold">Sold</MenuItem>
                         </Select>
                     </FormControl>
                 </Stack>
@@ -960,6 +1243,7 @@ export default function OfficeAssetsManagePage() {
                 <Table sx={{ minWidth: 1350 }}>
                     <TableHead sx={{ bgcolor: mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.04)' }}>
                         <TableRow>
+                            <TableCell align="center" sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap', width: 60 }}>No</TableCell>
                             <TableCell sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Asset Type</TableCell>
                             <TableCell sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap', minWidth: 240 }}>Description</TableCell>
                             <TableCell sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Asset Code</TableCell>
@@ -980,7 +1264,7 @@ export default function OfficeAssetsManagePage() {
                     <TableBody>
                         {filteredAssets.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={15} sx={{ textAlign: 'center', py: 8 }}>
+                                <TableCell colSpan={16} sx={{ textAlign: 'center', py: 8 }}>
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                                         <LayersIcon sx={{ fontSize: 44, color: 'text.disabled', mb: 1.5, opacity: 0.7 }} />
                                         <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 700, mb: 0.5 }}>
@@ -1020,6 +1304,11 @@ export default function OfficeAssetsManagePage() {
                                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                                 .map((asset, idx) => (
                                     <TableRow key={asset._id || asset.id || `ast-${idx}`} hover sx={{ transition: 'all 0.15s ease' }}>
+                                        {/* No */}
+                                        <TableCell align="center" sx={{ fontWeight: 700, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                                            {asset.no !== undefined && asset.no !== null && asset.no !== '' ? asset.no : (page * rowsPerPage + idx + 1)}
+                                        </TableCell>
+
                                         {/* Asset Type */}
                                         <TableCell sx={{ fontWeight: 700, color: 'primary.main', whiteSpace: 'nowrap' }}>
                                             {asset.assetType}
@@ -1027,7 +1316,31 @@ export default function OfficeAssetsManagePage() {
 
                                         {/* Description */}
                                         <TableCell sx={{ fontWeight: 600, color: 'text.primary', minWidth: 240 }}>
-                                            {asset.description}
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                                {asset.image ? (
+                                                    <Tooltip title="Click to view asset image">
+                                                        <Avatar
+                                                            src={asset.image}
+                                                            variant="rounded"
+                                                            sx={{
+                                                                width: 34,
+                                                                height: 34,
+                                                                borderRadius: '8px',
+                                                                border: '1px solid',
+                                                                borderColor: 'divider',
+                                                                cursor: 'pointer',
+                                                                flexShrink: 0,
+                                                                transition: 'transform 0.15s ease',
+                                                                '&:hover': { transform: 'scale(1.1)' },
+                                                            }}
+                                                            onClick={() => handleOpenView(asset)}
+                                                        />
+                                                    </Tooltip>
+                                                ) : null}
+                                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'inherit' }}>
+                                                    {asset.description}
+                                                </Typography>
+                                            </Box>
                                         </TableCell>
 
                                         {/* Asset Code */}
@@ -1080,45 +1393,67 @@ export default function OfficeAssetsManagePage() {
                                             </Tooltip>
                                         </TableCell>
 
-                                        {/* Status (In Use / Not in Use) */}
+                                        {/* Status (In Use / Not in Use / Sold) */}
                                         <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
-                                            <Tooltip title={`Click to mark as ${(asset.status || 'In Use') === 'In Use' ? 'Not in Use' : 'In Use'}`}>
+                                            <Tooltip
+                                                title={
+                                                    asset.status === 'Sold'
+                                                        ? `Sold for LKR ${formatCurrency(asset.soldPrice || 0)} (Click to change status)`
+                                                        : `Status: ${asset.status || 'In Use'} (Click to change)`
+                                                }
+                                            >
                                                 <Chip
                                                     icon={
-                                                        <FiberManualRecordIcon
-                                                            sx={{
-                                                                fontSize: '9px !important',
-                                                                color:
-                                                                    (asset.status || 'In Use') === 'In Use'
-                                                                        ? '#10b981 !important'
-                                                                        : '#ef4444 !important',
-                                                            }}
-                                                        />
+                                                        asset.status === 'Sold' ? (
+                                                            <MonetizationOnIcon sx={{ fontSize: '13px !important', color: '#ea580c !important' }} />
+                                                        ) : (
+                                                            <FiberManualRecordIcon
+                                                                sx={{
+                                                                    fontSize: '9px !important',
+                                                                    color:
+                                                                        (asset.status || 'In Use') === 'In Use'
+                                                                            ? '#10b981 !important'
+                                                                            : '#ef4444 !important',
+                                                                }}
+                                                            />
+                                                        )
                                                     }
-                                                    label={(asset.status || 'In Use') === 'In Use' ? 'In Use' : 'Not in Use'}
+                                                    label={
+                                                        asset.status === 'Sold'
+                                                            ? (asset.soldPrice ? `Sold (LKR ${formatCurrency(asset.soldPrice)})` : 'Sold')
+                                                            : (asset.status || 'In Use')
+                                                    }
                                                     size="small"
-                                                    onClick={() => handleToggleStatus(asset)}
+                                                    onClick={(e) => handleOpenStatusMenu(e, asset)}
                                                     sx={{
                                                         fontWeight: 700,
                                                         fontSize: '0.75rem',
                                                         cursor: 'pointer',
                                                         borderRadius: '6px',
                                                         bgcolor:
-                                                            (asset.status || 'In Use') === 'In Use'
+                                                            asset.status === 'Sold'
+                                                                ? mode === 'light' ? '#fff7ed' : 'rgba(234, 88, 12, 0.15)'
+                                                                : (asset.status || 'In Use') === 'In Use'
                                                                 ? mode === 'light' ? '#ecfdf5' : 'rgba(16, 185, 129, 0.12)'
                                                                 : mode === 'light' ? '#fef2f2' : 'rgba(239, 68, 68, 0.12)',
                                                         color:
-                                                            (asset.status || 'In Use') === 'In Use'
+                                                            asset.status === 'Sold'
+                                                                ? mode === 'light' ? '#c2410c' : '#fdba74'
+                                                                : (asset.status || 'In Use') === 'In Use'
                                                                 ? mode === 'light' ? '#065f46' : '#6ee7b7'
                                                                 : mode === 'light' ? '#991b1b' : '#fca5a5',
                                                         border: '1px solid',
                                                         borderColor:
-                                                            (asset.status || 'In Use') === 'In Use'
+                                                            asset.status === 'Sold'
+                                                                ? mode === 'light' ? '#fed7aa' : 'rgba(234, 88, 12, 0.3)'
+                                                                : (asset.status || 'In Use') === 'In Use'
                                                                 ? mode === 'light' ? '#a7f3d0' : 'rgba(16, 185, 129, 0.3)'
                                                                 : mode === 'light' ? '#fecaca' : 'rgba(239, 68, 68, 0.3)',
                                                         '&:hover': {
                                                             bgcolor:
-                                                                (asset.status || 'In Use') === 'In Use'
+                                                                asset.status === 'Sold'
+                                                                    ? mode === 'light' ? '#ffedd5' : 'rgba(234, 88, 12, 0.25)'
+                                                                    : (asset.status || 'In Use') === 'In Use'
                                                                     ? mode === 'light' ? '#d1fae5' : 'rgba(16, 185, 129, 0.22)'
                                                                     : mode === 'light' ? '#fee2e2' : 'rgba(239, 68, 68, 0.22)',
                                                         },
@@ -1236,8 +1571,98 @@ export default function OfficeAssetsManagePage() {
                 <Divider sx={{ mx: 3 }} />
                 <DialogContent>
                     <Stack spacing={2} sx={{ mt: 1 }}>
+                        {/* Image Upload Area */}
+                        <Box
+                            sx={{
+                                border: '1px dashed',
+                                borderColor: formData.image ? 'primary.main' : 'divider',
+                                borderRadius: '12px',
+                                p: 1.5,
+                                bgcolor: mode === 'light' ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.02)',
+                            }}
+                        >
+                            {formData.image ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Box
+                                        component="img"
+                                        src={formData.image}
+                                        alt="Asset Preview"
+                                        sx={{
+                                            width: 72,
+                                            height: 72,
+                                            borderRadius: '8px',
+                                            objectFit: 'cover',
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                        }}
+                                    />
+                                    <Box sx={{ flex: 1 }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                            Asset Image Attached
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
+                                            This image will be saved with the asset record.
+                                        </Typography>
+                                        <Stack direction="row" spacing={1}>
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                component="label"
+                                                startIcon={<AddPhotoAlternateIcon />}
+                                                sx={{ textTransform: 'none', borderRadius: '6px', fontSize: '0.75rem', py: 0.3 }}
+                                            >
+                                                Change Image
+                                                <input type="file" hidden accept="image/*" onChange={handleImageUpload} />
+                                            </Button>
+                                            <Button
+                                                variant="text"
+                                                color="error"
+                                                size="small"
+                                                startIcon={<DeleteIcon />}
+                                                onClick={() => setFormData((prev) => ({ ...prev, image: '' }))}
+                                                sx={{ textTransform: 'none', borderRadius: '6px', fontSize: '0.75rem', py: 0.3 }}
+                                            >
+                                                Remove
+                                            </Button>
+                                        </Stack>
+                                    </Box>
+                                </Box>
+                            ) : (
+                                <Box
+                                    component="label"
+                                    sx={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        py: 1,
+                                    }}
+                                >
+                                    <input type="file" hidden accept="image/*" onChange={handleImageUpload} />
+                                    <AddPhotoAlternateIcon sx={{ fontSize: 32, color: 'primary.main', mb: 0.5, opacity: 0.85 }} />
+                                    <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                        Upload Asset Image
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                        Click to select PNG, JPG, or WEBP (up to 5MB)
+                                    </Typography>
+                                </Box>
+                            )}
+                        </Box>
+
                         <Grid container spacing={2}>
-                            <Grid size={{ xs: 12, sm: 4 }}>
+                            <Grid size={{ xs: 12, sm: 3 }}>
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="No"
+                                    placeholder="e.g. 1, 2, 352"
+                                    value={formData.no || ''}
+                                    onChange={(e) => setFormData({ ...formData, no: e.target.value })}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, sm: 3 }}>
                                 <TextField
                                     fullWidth
                                     size="small"
@@ -1248,7 +1673,7 @@ export default function OfficeAssetsManagePage() {
                                     required
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, sm: 8 }}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <TextField
                                     fullWidth
                                     size="small"
@@ -1309,14 +1734,53 @@ export default function OfficeAssetsManagePage() {
                                     <Select
                                         value={formData.status || 'In Use'}
                                         label="Usage Status"
-                                        onChange={(e) => setFormData({ ...formData, status: e.target.value as 'In Use' | 'Not in Use' })}
+                                        onChange={(e) => {
+                                            const val = e.target.value as 'In Use' | 'Not in Use' | 'Sold';
+                                            setFormData({
+                                                ...formData,
+                                                status: val,
+                                                soldDate: val === 'Sold' ? (formData.soldDate || new Date().toISOString().split('T')[0]) : formData.soldDate,
+                                            });
+                                        }}
                                     >
                                         <MenuItem value="In Use">In Use</MenuItem>
                                         <MenuItem value="Not in Use">Not in Use</MenuItem>
+                                        <MenuItem value="Sold">Sold</MenuItem>
                                     </Select>
                                 </FormControl>
                             </Grid>
                         </Grid>
+
+                        {formData.status === 'Sold' && (
+                            <Grid container spacing={2}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        type="number"
+                                        label="Sold Price (LKR) *"
+                                        placeholder="Enter selling price"
+                                        value={formData.soldPrice ?? ''}
+                                        onChange={(e) => setFormData({ ...formData, soldPrice: parseFloat(e.target.value) || 0 })}
+                                        InputProps={{
+                                            startAdornment: <InputAdornment position="start">LKR</InputAdornment>,
+                                        }}
+                                        required
+                                    />
+                                </Grid>
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        type="date"
+                                        label="Sold Date"
+                                        InputLabelProps={{ shrink: true }}
+                                        value={formData.soldDate || new Date().toISOString().split('T')[0]}
+                                        onChange={(e) => setFormData({ ...formData, soldDate: e.target.value })}
+                                    />
+                                </Grid>
+                            </Grid>
+                        )}
 
                         <Grid container spacing={2}>
                             <Grid size={{ xs: 12, sm: 4 }}>
@@ -1446,6 +1910,244 @@ export default function OfficeAssetsManagePage() {
                                 />
                             </Grid>
                         </Grid>
+
+                        {/* Receipts & Documents (Bill & Warranty) */}
+                        <Box sx={{ mt: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, mb: 1, display: 'block' }}>
+                                Receipts & Invoices (Bill & Warranty)
+                            </Typography>
+                            <Grid container spacing={2}>
+                                {/* Bill Receipt */}
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Box
+                                        sx={{
+                                            border: '1px dashed',
+                                            borderColor: formData.billReceipt ? 'primary.main' : 'divider',
+                                            borderRadius: '12px',
+                                            p: 1.5,
+                                            bgcolor: mode === 'light' ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.02)',
+                                            height: '100%',
+                                            minHeight: 85,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'center',
+                                        }}
+                                    >
+                                        {formData.billReceipt ? (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                                {formData.billReceipt.startsWith('data:application/pdf') ? (
+                                                    <Box
+                                                        sx={{
+                                                            width: 48,
+                                                            height: 48,
+                                                            borderRadius: '8px',
+                                                            bgcolor: '#fee2e2',
+                                                            color: '#dc2626',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0,
+                                                        }}
+                                                    >
+                                                        <PictureAsPdfIcon sx={{ fontSize: 28 }} />
+                                                    </Box>
+                                                ) : (
+                                                    <Box
+                                                        component="img"
+                                                        src={formData.billReceipt}
+                                                        alt="Bill Receipt"
+                                                        onClick={() => setReceiptPreview({ open: true, title: 'Bill Receipt', url: formData.billReceipt || '' })}
+                                                        sx={{
+                                                            width: 48,
+                                                            height: 48,
+                                                            borderRadius: '8px',
+                                                            objectFit: 'cover',
+                                                            border: '1px solid',
+                                                            borderColor: 'divider',
+                                                            cursor: 'pointer',
+                                                            flexShrink: 0,
+                                                        }}
+                                                    />
+                                                )}
+                                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                    <Typography noWrap variant="body2" sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.8125rem' }}>
+                                                        Bill Receipt Attached
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontSize: '0.7rem' }}>
+                                                        {formData.billReceipt.startsWith('data:application/pdf') ? 'PDF Document' : 'Image File'}
+                                                    </Typography>
+                                                    <Stack direction="row" spacing={0.5}>
+                                                        <Button
+                                                            size="small"
+                                                            variant="text"
+                                                            onClick={() => setReceiptPreview({ open: true, title: 'Bill Receipt', url: formData.billReceipt || '' })}
+                                                            sx={{ textTransform: 'none', fontSize: '0.72rem', p: '1px 6px', minWidth: 'auto' }}
+                                                        >
+                                                            View
+                                                        </Button>
+                                                        <Button
+                                                            size="small"
+                                                            variant="outlined"
+                                                            component="label"
+                                                            sx={{ textTransform: 'none', fontSize: '0.72rem', p: '1px 8px', borderRadius: '4px' }}
+                                                        >
+                                                            Change
+                                                            <input type="file" hidden accept="image/*,application/pdf" onChange={(e) => handleReceiptUpload('billReceipt', e)} />
+                                                        </Button>
+                                                        <Button
+                                                            size="small"
+                                                            variant="text"
+                                                            color="error"
+                                                            onClick={() => setFormData((prev) => ({ ...prev, billReceipt: '' }))}
+                                                            sx={{ textTransform: 'none', fontSize: '0.72rem', p: '1px 6px', minWidth: 'auto' }}
+                                                        >
+                                                            Remove
+                                                        </Button>
+                                                    </Stack>
+                                                </Box>
+                                            </Box>
+                                        ) : (
+                                            <Box
+                                                component="label"
+                                                sx={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    py: 1.25,
+                                                    textAlign: 'center',
+                                                }}
+                                            >
+                                                <input type="file" hidden accept="image/*,application/pdf" onChange={(e) => handleReceiptUpload('billReceipt', e)} />
+                                                <ReceiptIcon sx={{ fontSize: 26, color: 'primary.main', mb: 0.5, opacity: 0.85 }} />
+                                                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.8125rem' }}>
+                                                    Upload Bill Receipt
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    Image or PDF (up to 8MB)
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                </Grid>
+
+                                {/* Warranty Receipt */}
+                                <Grid size={{ xs: 12, sm: 6 }}>
+                                    <Box
+                                        sx={{
+                                            border: '1px dashed',
+                                            borderColor: formData.warrantyReceipt ? 'primary.main' : 'divider',
+                                            borderRadius: '12px',
+                                            p: 1.5,
+                                            bgcolor: mode === 'light' ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.02)',
+                                            height: '100%',
+                                            minHeight: 85,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'center',
+                                        }}
+                                    >
+                                        {formData.warrantyReceipt ? (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                                {formData.warrantyReceipt.startsWith('data:application/pdf') ? (
+                                                    <Box
+                                                        sx={{
+                                                            width: 48,
+                                                            height: 48,
+                                                            borderRadius: '8px',
+                                                            bgcolor: '#fee2e2',
+                                                            color: '#dc2626',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0,
+                                                        }}
+                                                    >
+                                                        <PictureAsPdfIcon sx={{ fontSize: 28 }} />
+                                                    </Box>
+                                                ) : (
+                                                    <Box
+                                                        component="img"
+                                                        src={formData.warrantyReceipt}
+                                                        alt="Warranty Receipt"
+                                                        onClick={() => setReceiptPreview({ open: true, title: 'Warranty Receipt', url: formData.warrantyReceipt || '' })}
+                                                        sx={{
+                                                            width: 48,
+                                                            height: 48,
+                                                            borderRadius: '8px',
+                                                            objectFit: 'cover',
+                                                            border: '1px solid',
+                                                            borderColor: 'divider',
+                                                            cursor: 'pointer',
+                                                            flexShrink: 0,
+                                                        }}
+                                                    />
+                                                )}
+                                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                    <Typography noWrap variant="body2" sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.8125rem' }}>
+                                                        Warranty Receipt Attached
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontSize: '0.7rem' }}>
+                                                        {formData.warrantyReceipt.startsWith('data:application/pdf') ? 'PDF Document' : 'Image File'}
+                                                    </Typography>
+                                                    <Stack direction="row" spacing={0.5}>
+                                                        <Button
+                                                            size="small"
+                                                            variant="text"
+                                                            onClick={() => setReceiptPreview({ open: true, title: 'Warranty Receipt', url: formData.warrantyReceipt || '' })}
+                                                            sx={{ textTransform: 'none', fontSize: '0.72rem', p: '1px 6px', minWidth: 'auto' }}
+                                                        >
+                                                            View
+                                                        </Button>
+                                                        <Button
+                                                            size="small"
+                                                            variant="outlined"
+                                                            component="label"
+                                                            sx={{ textTransform: 'none', fontSize: '0.72rem', p: '1px 8px', borderRadius: '4px' }}
+                                                        >
+                                                            Change
+                                                            <input type="file" hidden accept="image/*,application/pdf" onChange={(e) => handleReceiptUpload('warrantyReceipt', e)} />
+                                                        </Button>
+                                                        <Button
+                                                            size="small"
+                                                            variant="text"
+                                                            color="error"
+                                                            onClick={() => setFormData((prev) => ({ ...prev, warrantyReceipt: '' }))}
+                                                            sx={{ textTransform: 'none', fontSize: '0.72rem', p: '1px 6px', minWidth: 'auto' }}
+                                                        >
+                                                            Remove
+                                                        </Button>
+                                                    </Stack>
+                                                </Box>
+                                            </Box>
+                                        ) : (
+                                            <Box
+                                                component="label"
+                                                sx={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    py: 1.25,
+                                                    textAlign: 'center',
+                                                }}
+                                            >
+                                                <input type="file" hidden accept="image/*,application/pdf" onChange={(e) => handleReceiptUpload('warrantyReceipt', e)} />
+                                                <ReceiptIcon sx={{ fontSize: 26, color: 'primary.main', mb: 0.5, opacity: 0.85 }} />
+                                                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.8125rem' }}>
+                                                    Upload Warranty Receipt
+                                                </Typography>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                                                    Image or PDF (up to 8MB)
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                    </Box>
+                                </Grid>
+                            </Grid>
+                        </Box>
                     </Stack>
                 </DialogContent>
                 <DialogActions sx={{ p: 2.5 }}>
@@ -1469,6 +2171,30 @@ export default function OfficeAssetsManagePage() {
                 <DialogContent>
                     {selectedAsset && (
                         <Stack spacing={1.5} sx={{ mt: 1 }}>
+                            {selectedAsset.image && (
+                                <Box
+                                    sx={{
+                                        width: '100%',
+                                        maxHeight: 220,
+                                        borderRadius: '12px',
+                                        overflow: 'hidden',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: mode === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.02)',
+                                        mb: 1,
+                                    }}
+                                >
+                                    <Box
+                                        component="img"
+                                        src={selectedAsset.image}
+                                        alt={selectedAsset.description}
+                                        sx={{ maxWidth: '100%', maxHeight: 220, objectFit: 'contain' }}
+                                    />
+                                </Box>
+                            )}
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="h6" fontWeight={800} color="primary.main">
                                     {selectedAsset.assetType}
@@ -1486,9 +2212,50 @@ export default function OfficeAssetsManagePage() {
                             <Typography variant="subtitle1" fontWeight={700}>
                                 {selectedAsset.description}
                             </Typography>
+
+                            {selectedAsset.status === 'Sold' && (
+                                <Box
+                                    sx={{
+                                        p: 1.5,
+                                        borderRadius: '12px',
+                                        bgcolor: mode === 'light' ? '#fff7ed' : 'rgba(234, 88, 12, 0.1)',
+                                        border: '1px solid',
+                                        borderColor: mode === 'light' ? '#fed7aa' : 'rgba(234, 88, 12, 0.3)',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                    }}
+                                >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                                        <Box sx={{ width: 36, height: 36, borderRadius: '8px', bgcolor: '#ffedd5', color: '#ea580c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <MonetizationOnIcon sx={{ fontSize: 22 }} />
+                                        </Box>
+                                        <Box>
+                                            <Typography variant="caption" sx={{ color: '#c2410c', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block' }}>
+                                                Asset Marked As Sold
+                                            </Typography>
+                                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                                Sold Date: {selectedAsset.soldDate || 'Recorded'}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                    <Box sx={{ textAlign: 'right' }}>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                                            Sold Price
+                                        </Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 800, color: '#c2410c', lineHeight: 1.2 }}>
+                                            LKR {formatCurrency(selectedAsset.soldPrice || 0)}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                            )}
                             <Divider />
 
                             <Grid container spacing={1}>
+                                <Grid size={{ xs: 6 }}>
+                                    <Typography variant="caption" color="text.secondary">No:</Typography>
+                                    <Typography variant="body2" fontWeight={700} color="primary.main">{selectedAsset.no || '-'}</Typography>
+                                </Grid>
                                 <Grid size={{ xs: 6 }}>
                                     <Typography variant="caption" color="text.secondary">Asset Code:</Typography>
                                     <Typography variant="body2" fontFamily="monospace" fontWeight={600}>{selectedAsset.assetCode || '-'}</Typography>
@@ -1511,19 +2278,35 @@ export default function OfficeAssetsManagePage() {
                                     <Typography variant="caption" color="text.secondary">Usage Status:</Typography>
                                     <Box sx={{ mt: 0.3 }}>
                                         <Chip
-                                            label={(selectedAsset.status || 'In Use') === 'In Use' ? 'In Use' : 'Not in Use'}
+                                            icon={
+                                                selectedAsset.status === 'Sold' ? (
+                                                    <MonetizationOnIcon sx={{ fontSize: '13px !important', color: '#ea580c !important' }} />
+                                                ) : undefined
+                                            }
+                                            label={selectedAsset.status || 'In Use'}
                                             size="small"
                                             sx={{
                                                 fontWeight: 800,
                                                 fontSize: '0.75rem',
                                                 bgcolor:
-                                                    (selectedAsset.status || 'In Use') === 'In Use'
+                                                    selectedAsset.status === 'Sold'
+                                                        ? '#fff7ed'
+                                                        : (selectedAsset.status || 'In Use') === 'In Use'
                                                         ? '#ecfdf5'
                                                         : '#fef2f2',
                                                 color:
-                                                    (selectedAsset.status || 'In Use') === 'In Use'
+                                                    selectedAsset.status === 'Sold'
+                                                        ? '#c2410c'
+                                                        : (selectedAsset.status || 'In Use') === 'In Use'
                                                         ? '#065f46'
                                                         : '#991b1b',
+                                                border: '1px solid',
+                                                borderColor:
+                                                    selectedAsset.status === 'Sold'
+                                                        ? '#fed7aa'
+                                                        : (selectedAsset.status || 'In Use') === 'In Use'
+                                                        ? '#a7f3d0'
+                                                        : '#fecaca',
                                             }}
                                         />
                                     </Box>
@@ -1542,6 +2325,22 @@ export default function OfficeAssetsManagePage() {
                                         LKR {formatCurrency(selectedAsset.totalValue)}
                                     </Typography>
                                 </Grid>
+                                {selectedAsset.status === 'Sold' && (
+                                    <>
+                                        <Grid size={{ xs: 6 }}>
+                                            <Typography variant="caption" color="text.secondary">Sold Price:</Typography>
+                                            <Typography variant="body2" fontWeight={800} sx={{ color: '#ea580c', fontSize: '0.9375rem' }}>
+                                                LKR {formatCurrency(selectedAsset.soldPrice || 0)}
+                                            </Typography>
+                                        </Grid>
+                                        <Grid size={{ xs: 6 }}>
+                                            <Typography variant="caption" color="text.secondary">Sold Date:</Typography>
+                                            <Typography variant="body2" fontWeight={600}>
+                                                {selectedAsset.soldDate || '-'}
+                                            </Typography>
+                                        </Grid>
+                                    </>
+                                )}
                                 <Grid size={{ xs: 6 }}>
                                     <Typography variant="caption" color="text.secondary">Purchase Date:</Typography>
                                     <Typography variant="body2">{selectedAsset.purchaseDate || '-'}</Typography>
@@ -1563,6 +2362,84 @@ export default function OfficeAssetsManagePage() {
                                     <Typography variant="body2" fontFamily="monospace">{selectedAsset.invNo || '-'}</Typography>
                                 </Grid>
                             </Grid>
+
+                            {(selectedAsset.billReceipt || selectedAsset.warrantyReceipt) && (
+                                <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                                    <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, mb: 1, display: 'block' }}>
+                                        Attached Receipts & Documents
+                                    </Typography>
+                                    <Grid container spacing={1.5}>
+                                        {selectedAsset.billReceipt && (
+                                            <Grid size={{ xs: selectedAsset.warrantyReceipt ? 6 : 12 }}>
+                                                <Paper
+                                                    variant="outlined"
+                                                    sx={{
+                                                        p: 1.25,
+                                                        borderRadius: '10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 1.5,
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s',
+                                                        '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+                                                    }}
+                                                    onClick={() => setReceiptPreview({ open: true, title: 'Bill Receipt', url: selectedAsset.billReceipt || '' })}
+                                                >
+                                                    {selectedAsset.billReceipt.startsWith('data:application/pdf') ? (
+                                                        <Box sx={{ width: 40, height: 40, borderRadius: '6px', bgcolor: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                            <PictureAsPdfIcon sx={{ fontSize: 24 }} />
+                                                        </Box>
+                                                    ) : (
+                                                        <Box component="img" src={selectedAsset.billReceipt} alt="Bill Receipt" sx={{ width: 40, height: 40, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+                                                    )}
+                                                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                        <Typography noWrap variant="body2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
+                                                            Bill Receipt
+                                                        </Typography>
+                                                        <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                                                            Click to view
+                                                        </Typography>
+                                                    </Box>
+                                                </Paper>
+                                            </Grid>
+                                        )}
+                                        {selectedAsset.warrantyReceipt && (
+                                            <Grid size={{ xs: selectedAsset.billReceipt ? 6 : 12 }}>
+                                                <Paper
+                                                    variant="outlined"
+                                                    sx={{
+                                                        p: 1.25,
+                                                        borderRadius: '10px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 1.5,
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s',
+                                                        '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+                                                    }}
+                                                    onClick={() => setReceiptPreview({ open: true, title: 'Warranty Receipt', url: selectedAsset.warrantyReceipt || '' })}
+                                                >
+                                                    {selectedAsset.warrantyReceipt.startsWith('data:application/pdf') ? (
+                                                        <Box sx={{ width: 40, height: 40, borderRadius: '6px', bgcolor: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                            <PictureAsPdfIcon sx={{ fontSize: 24 }} />
+                                                        </Box>
+                                                    ) : (
+                                                        <Box component="img" src={selectedAsset.warrantyReceipt} alt="Warranty Receipt" sx={{ width: 40, height: 40, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+                                                    )}
+                                                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                        <Typography noWrap variant="body2" sx={{ fontWeight: 700, fontSize: '0.8125rem' }}>
+                                                            Warranty Receipt
+                                                        </Typography>
+                                                        <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                                                            Click to view
+                                                        </Typography>
+                                                    </Box>
+                                                </Paper>
+                                            </Grid>
+                                        )}
+                                    </Grid>
+                                </Box>
+                            )}
                         </Stack>
                     )}
                 </DialogContent>
@@ -1571,6 +2448,64 @@ export default function OfficeAssetsManagePage() {
                         Close
                     </Button>
                 </DialogActions>
+            </Dialog>
+
+            {/* Receipt / Document Preview Modal */}
+            <Dialog
+                open={receiptPreview.open}
+                onClose={() => setReceiptPreview({ open: false, title: '', url: '' })}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{ sx: { borderRadius: '16px', overflow: 'hidden' } }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ReceiptIcon color="primary" />
+                        <Typography variant="h6" fontWeight={800}>{receiptPreview.title}</Typography>
+                    </Box>
+                    <Stack direction="row" spacing={1}>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<OpenInNewIcon />}
+                            onClick={() => {
+                                const win = window.open();
+                                if (win) {
+                                    win.document.write(
+                                        receiptPreview.url.startsWith('data:application/pdf')
+                                            ? `<iframe src="${receiptPreview.url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`
+                                            : `<img src="${receiptPreview.url}" style="max-width:100%; display:block; margin:auto;"/>`
+                                    );
+                                }
+                            }}
+                            sx={{ textTransform: 'none', borderRadius: '8px' }}
+                        >
+                            Open in New Tab
+                        </Button>
+                        <IconButton size="small" onClick={() => setReceiptPreview({ open: false, title: '', url: '' })}>
+                            <CancelIcon />
+                        </IconButton>
+                    </Stack>
+                </DialogTitle>
+                <Divider />
+                <DialogContent sx={{ p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: mode === 'light' ? '#f8fafc' : 'rgba(0,0,0,0.2)', minHeight: 350 }}>
+                    {receiptPreview.url ? (
+                        receiptPreview.url.startsWith('data:application/pdf') ? (
+                            <Box
+                                component="iframe"
+                                src={receiptPreview.url}
+                                sx={{ width: '100%', height: '70vh', border: 'none', borderRadius: '8px' }}
+                            />
+                        ) : (
+                            <Box
+                                component="img"
+                                src={receiptPreview.url}
+                                alt={receiptPreview.title}
+                                sx={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                            />
+                        )
+                    ) : null}
+                </DialogContent>
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
@@ -1674,6 +2609,151 @@ export default function OfficeAssetsManagePage() {
                     </MenuItem>
                 ))}
             </Menu>
+
+            {/* Status Selection Menu */}
+            <Menu
+                anchorEl={statusAnchorEl}
+                open={Boolean(statusAnchorEl)}
+                onClose={handleCloseStatusMenu}
+                PaperProps={{
+                    sx: {
+                        borderRadius: '12px',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                        minWidth: 175,
+                        py: 0.5,
+                    },
+                }}
+            >
+                <MenuItem
+                    onClick={() => handleSelectStatus('In Use')}
+                    selected={assetForStatusMenu?.status === 'In Use'}
+                    sx={{ fontSize: '0.85rem', fontWeight: 600, gap: 1 }}
+                >
+                    <FiberManualRecordIcon sx={{ fontSize: 10, color: '#10b981' }} />
+                    In Use
+                </MenuItem>
+                <MenuItem
+                    onClick={() => handleSelectStatus('Not in Use')}
+                    selected={assetForStatusMenu?.status === 'Not in Use'}
+                    sx={{ fontSize: '0.85rem', fontWeight: 600, gap: 1 }}
+                >
+                    <FiberManualRecordIcon sx={{ fontSize: 10, color: '#ef4444' }} />
+                    Not in Use
+                </MenuItem>
+                <Divider sx={{ my: 0.5 }} />
+                <MenuItem
+                    onClick={() => {
+                        const target = assetForStatusMenu;
+                        handleCloseStatusMenu();
+                        if (target) handleOpenSoldDialog(target);
+                    }}
+                    selected={assetForStatusMenu?.status === 'Sold'}
+                    sx={{ fontSize: '0.85rem', fontWeight: 700, gap: 1, color: '#c2410c' }}
+                >
+                    <MonetizationOnIcon sx={{ fontSize: 16, color: '#ea580c' }} />
+                    Mark as Sold...
+                </MenuItem>
+            </Menu>
+
+            {/* Mark as Sold Popup Dialog */}
+            <Dialog
+                open={soldDialogOpen}
+                onClose={() => !markingSold && setSoldDialogOpen(false)}
+                maxWidth="xs"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: '18px',
+                        p: 1,
+                    },
+                }}
+            >
+                <DialogTitle sx={{ fontWeight: 800, pb: 1, display: 'flex', alignItems: 'center', gap: 1, color: '#ea580c' }}>
+                    <MonetizationOnIcon sx={{ color: '#ea580c' }} />
+                    Mark Asset as Sold
+                </DialogTitle>
+                <Divider sx={{ mx: 2 }} />
+                <DialogContent sx={{ pt: 2 }}>
+                    {assetToMarkSold && (
+                        <Stack spacing={2.5}>
+                            <Box
+                                sx={{
+                                    p: 1.5,
+                                    borderRadius: '10px',
+                                    bgcolor: mode === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.03)',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                }}
+                            >
+                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                                    Asset
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
+                                    {assetToMarkSold.assetType} - {assetToMarkSold.description}
+                                </Typography>
+                                <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
+                                    <Box>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Asset Code: </Typography>
+                                        <Typography component="span" variant="caption" sx={{ fontWeight: 600 }}>{assetToMarkSold.assetCode || '-'}</Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Recorded Value: </Typography>
+                                        <Typography component="span" variant="caption" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                                            LKR {formatCurrency(assetToMarkSold.value || 0)}
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+                            </Box>
+
+                            <TextField
+                                fullWidth
+                                autoFocus
+                                size="small"
+                                type="number"
+                                label="Sold Price (LKR) *"
+                                placeholder="Enter sold price"
+                                value={soldPriceInput}
+                                onChange={(e) => setSoldPriceInput(e.target.value)}
+                                InputProps={{
+                                    startAdornment: <InputAdornment position="start">LKR</InputAdornment>,
+                                }}
+                                helperText="Enter the actual amount this asset was sold for"
+                                required
+                            />
+
+                            <TextField
+                                fullWidth
+                                size="small"
+                                type="date"
+                                label="Sold Date"
+                                InputLabelProps={{ shrink: true }}
+                                value={soldDateInput}
+                                onChange={(e) => setSoldDateInput(e.target.value)}
+                            />
+                        </Stack>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2, pt: 1 }}>
+                    <Button onClick={() => setSoldDialogOpen(false)} disabled={markingSold} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={handleConfirmMarkSold}
+                        disabled={markingSold || !soldPriceInput}
+                        sx={{
+                            borderRadius: '8px',
+                            textTransform: 'none',
+                            fontWeight: 700,
+                            px: 2.5,
+                            bgcolor: '#ea580c',
+                            '&:hover': { bgcolor: '#c2410c' },
+                        }}
+                    >
+                        {markingSold ? <CircularProgress size={18} color="inherit" /> : 'Confirm & Mark as Sold'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Snackbar */}
             <Snackbar
