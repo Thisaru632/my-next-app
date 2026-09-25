@@ -10,7 +10,8 @@ import {
   Square,
   ShieldCheck,
   Users,
-  Clock
+  Clock,
+  ArrowLeft
 } from 'lucide-react';
 
 interface AgreementSection {
@@ -163,18 +164,12 @@ export default function PrivacyPolicyView({ initialTab }: PrivacyPolicyViewProps
     router.push(`/privacy-and-policies/${slug}`);
   };
 
-  const handleExitSite = () => {
-    try {
-      window.open('', '_self', '');
-      window.close();
-    } catch (e) {
-      console.error('Error closing window:', e);
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/');
     }
-    setTimeout(() => {
-      if (typeof window !== 'undefined' && !window.closed) {
-        window.location.replace('about:blank');
-      }
-    }, 150);
   };
 
   return (
@@ -368,10 +363,10 @@ export default function PrivacyPolicyView({ initialTab }: PrivacyPolicyViewProps
                       <div className="mt-6 pt-4 border-t border-green-200/80 flex items-center justify-center sm:justify-start">
                         <button
                           type="button"
-                          onClick={handleExitSite}
+                          onClick={handleBack}
                           className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white font-bold text-base sm:text-lg rounded-xl shadow-md hover:shadow-lg shadow-green-600/25 transition-all duration-200 cursor-pointer"
                         >
-                          <CheckCircle2 size={20} />
+                          <ArrowLeft size={20} />
                           <span>තේරුම් ගත්තා</span>
                         </button>
                       </div>
