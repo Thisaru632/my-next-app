@@ -10,8 +10,7 @@ import {
   Square,
   ShieldCheck,
   Users,
-  Clock,
-  ArrowLeft
+  Clock
 } from 'lucide-react';
 
 interface AgreementSection {
@@ -162,14 +161,6 @@ export default function PrivacyPolicyView({ initialTab }: PrivacyPolicyViewProps
     setActiveTab(tab);
     const slug = tab === 'driver' ? 'driver-terms' : 'customer-terms';
     router.push(`/privacy-and-policies/${slug}`);
-  };
-
-  const handleBack = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push('/');
-    }
   };
 
   return (
@@ -359,17 +350,6 @@ export default function PrivacyPolicyView({ initialTab }: PrivacyPolicyViewProps
                       <p className="text-xs sm:text-sm text-gray-700 leading-relaxed bg-white/70 p-4 rounded-xl border border-green-100">
                         මෙම කොටුව සලකුණු කර “I Agree &amp; Submit” තෝරා ගැනීමෙන්, මම ලබා දී ඇති සියලු තොරතුරු හා ලේඛන සත්‍ය හා වලංගු බවත්, ශ්‍රී ලංකාවේ අදාළ නීති, Senu Cabs &amp; Tours නියමයන්, ආරක්ෂක නියමයන්, ගාස්තු නියමයන් සහ රියදුරු වගකීම් පිළිපැදීමට එකඟ වන බවත් තහවුරු කරමි.
                       </p>
-
-                      <div className="mt-6 pt-4 border-t border-green-200/80 flex items-center justify-center sm:justify-start">
-                        <button
-                          type="button"
-                          onClick={handleBack}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white font-bold text-base sm:text-lg rounded-xl shadow-md hover:shadow-lg shadow-green-600/25 transition-all duration-200 cursor-pointer"
-                        >
-                          <ArrowLeft size={20} />
-                          <span>තේරුම් ගත්තා</span>
-                        </button>
-                      </div>
                     </div>
                   </div>
                 </div>
