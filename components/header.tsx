@@ -12,6 +12,7 @@ const navLinks = [
   { label: "Home", href: "/" },
   // { label: "Promotion", href: "/promotion" },
   { label: "About Us", href: "/about_us" },
+  { label: "Mobile Apps", href: "/mobile-apps" },
   { label: "Contact Us", href: "/contact" },
   { label: "Privacy and Policies", href: "/privacy-and-policies" },
 ];
@@ -90,7 +91,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    className={`px-3 lg:px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                       isActive
                         ? `${activeBg} ${activeText}`
                         : `${textColor} ${hoverBg} ${hoverText}`

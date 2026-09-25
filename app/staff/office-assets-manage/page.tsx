@@ -88,6 +88,7 @@ interface OfficeAsset {
     supplier: string;
     contactNo: string;
     invNo: string;
+    lastVerifiedDate?: string;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -219,6 +220,7 @@ export default function OfficeAssetsManagePage() {
         supplier: '',
         contactNo: '',
         invNo: '',
+        lastVerifiedDate: '',
     });
 
     // Receipt preview modal state
@@ -653,6 +655,7 @@ export default function OfficeAssetsManagePage() {
             supplier: '',
             contactNo: '',
             invNo: '',
+            lastVerifiedDate: '',
         });
         setOpenDialog(true);
     };
@@ -672,6 +675,7 @@ export default function OfficeAssetsManagePage() {
             status: asset.status || 'In Use',
             soldPrice: asset.soldPrice || 0,
             soldDate: asset.soldDate || '',
+            lastVerifiedDate: asset.lastVerifiedDate || '',
         });
         setOpenDialog(true);
     };
@@ -869,6 +873,7 @@ export default function OfficeAssetsManagePage() {
             supplier: formData.supplier?.trim() || '',
             contactNo: formData.contactNo?.trim() || '',
             invNo: formData.invNo?.trim() || '',
+            lastVerifiedDate: formData.lastVerifiedDate || '',
         };
 
         try {
@@ -1253,6 +1258,7 @@ export default function OfficeAssetsManagePage() {
                             <TableCell align="center" sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Qty</TableCell>
                             <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Value (LKR)</TableCell>
                             <TableCell sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Purchase Date</TableCell>
+                            <TableCell sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Last Verified Date</TableCell>
                             <TableCell align="center" sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Bill Availability</TableCell>
                             <TableCell sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Warranty</TableCell>
                             <TableCell sx={{ fontWeight: 800, fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>Supplier</TableCell>
@@ -1264,7 +1270,7 @@ export default function OfficeAssetsManagePage() {
                     <TableBody>
                         {filteredAssets.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={16} sx={{ textAlign: 'center', py: 8 }}>
+                                <TableCell colSpan={17} sx={{ textAlign: 'center', py: 8 }}>
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                                         <LayersIcon sx={{ fontSize: 44, color: 'text.disabled', mb: 1.5, opacity: 0.7 }} />
                                         <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 700, mb: 0.5 }}>
@@ -1475,6 +1481,11 @@ export default function OfficeAssetsManagePage() {
                                         {/* Purchase Date */}
                                         <TableCell sx={{ whiteSpace: 'nowrap', color: 'text.secondary' }}>
                                             {asset.purchaseDate || '-'}
+                                        </TableCell>
+
+                                        {/* Last Verified Date */}
+                                        <TableCell sx={{ whiteSpace: 'nowrap', color: 'text.secondary' }}>
+                                            {asset.lastVerifiedDate || '-'}
                                         </TableCell>
 
                                         {/* Bill Availability */}
@@ -1842,7 +1853,7 @@ export default function OfficeAssetsManagePage() {
                         </Grid>
 
                         <Grid container spacing={2}>
-                            <Grid size={{ xs: 12, sm: 4 }}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <TextField
                                     fullWidth
                                     size="small"
@@ -1853,7 +1864,21 @@ export default function OfficeAssetsManagePage() {
                                     onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
                                 />
                             </Grid>
-                            <Grid size={{ xs: 12, sm: 4 }}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    type="date"
+                                    label="Last Verified Date"
+                                    InputLabelProps={{ shrink: true }}
+                                    value={formData.lastVerifiedDate || ''}
+                                    onChange={(e) => setFormData({ ...formData, lastVerifiedDate: e.target.value })}
+                                />
+                            </Grid>
+                        </Grid>
+
+                        <Grid container spacing={2}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Bill Availability</InputLabel>
                                     <Select
@@ -1866,7 +1891,7 @@ export default function OfficeAssetsManagePage() {
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid size={{ xs: 12, sm: 4 }}>
+                            <Grid size={{ xs: 12, sm: 6 }}>
                                 <TextField
                                     fullWidth
                                     size="small"
@@ -2344,6 +2369,10 @@ export default function OfficeAssetsManagePage() {
                                 <Grid size={{ xs: 6 }}>
                                     <Typography variant="caption" color="text.secondary">Purchase Date:</Typography>
                                     <Typography variant="body2">{selectedAsset.purchaseDate || '-'}</Typography>
+                                </Grid>
+                                <Grid size={{ xs: 6 }}>
+                                    <Typography variant="caption" color="text.secondary">Last Verified Date:</Typography>
+                                    <Typography variant="body2" fontWeight={600}>{selectedAsset.lastVerifiedDate || '-'}</Typography>
                                 </Grid>
                                 <Grid size={{ xs: 6 }}>
                                     <Typography variant="caption" color="text.secondary">Warranty:</Typography>
