@@ -133,14 +133,35 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         if (userStr) {
             try {
                 const user = JSON.parse(userStr);
-                if (user.role === 'superadmin') {
+                const role = (user.role || '').toLowerCase();
+                const isSuperAdmin = role === 'superadmin';
+                const isAdmin = role === 'admin';
+                const isAdminUser = isSuperAdmin || isAdmin;
+
+                if (isSuperAdmin) {
                     setAllowedItems(menuItems);
                 } else if (user.permissions) {
-                    const filtered = menuItems.filter(item => user.permissions[item.key as keyof typeof user.permissions]);
+                    const filtered = menuItems.filter(item => {
+                        // Attendance Sheet (Daily Attendance): only admin users can view, and admin users must be able to view
+                        if (item.text === 'Attendance Sheet') {
+                            return isAdminUser;
+                        }
+                        return user.permissions[item.key as keyof typeof user.permissions];
+                    });
+                    // Ensure Attendance Sheet is included for admin users even if hrSection is not set
+                    if (isAdminUser && !filtered.some(i => i.text === 'Attendance Sheet')) {
+                        const attItem = menuItems.find(i => i.text === 'Attendance Sheet');
+                        if (attItem) filtered.push(attItem);
+                    }
                     setAllowedItems(filtered);
                 } else {
                     // Fallback for older users without permissions object
-                    setAllowedItems(menuItems.filter(i => i.key === 'dashboard'));
+                    const fallback = menuItems.filter(i => i.key === 'dashboard');
+                    if (isAdminUser) {
+                        const attItem = menuItems.find(i => i.text === 'Attendance Sheet');
+                        if (attItem) fallback.push(attItem);
+                    }
+                    setAllowedItems(fallback);
                 }
             } catch (e) {
                 console.error('Error parsing user for sidebar:', e);

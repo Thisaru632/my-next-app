@@ -488,6 +488,7 @@ export default function AttendanceSheetPage() {
     const [selectedUserFilter, setSelectedUserFilter] = useState('ALL');
 
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     // Edit Dialog States
     const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -509,14 +510,22 @@ export default function AttendanceSheetPage() {
         if (userStr) {
             try {
                 const user = JSON.parse(userStr);
-                const superAdmin = (user.role || '').toLowerCase() === 'superadmin';
+                const role = (user.role || '').toLowerCase();
+                const superAdmin = role === 'superadmin';
+                const admin = role === 'admin';
                 setIsSuperAdmin(superAdmin);
-                const hasHrPermission = user.permissions?.hrSection;
-                if (!superAdmin && !hasHrPermission) {
+                setIsAdmin(admin);
+
+                // Admin users can view must be this daily attendance section, and only admin users can view
+                if (!superAdmin && !admin) {
                     router.push('/staff');
                     return;
                 }
-            } catch (e) {}
+            } catch (e) {
+                router.push('/staff');
+            }
+        } else {
+            router.push('/staff/login');
         }
     }, [router]);
 
@@ -1020,41 +1029,43 @@ export default function AttendanceSheetPage() {
                 </Typography>
             </Box>
 
-            {/* Navigation Tabs */}
-            <Paper
-                elevation={0}
-                sx={{
-                    mb: 3,
-                    borderRadius: 3,
-                    bgcolor: 'background.paper',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    px: 2,
-                    pt: 1,
-                }}
-            >
-                <Tabs
-                    value={tabValue}
-                    onChange={(e, val) => setTabValue(val)}
-                    textColor="primary"
-                    indicatorColor="primary"
+            {/* Navigation Tabs - SuperAdmin can switch between Daily and Monthly; Admin users view Daily Attendance */}
+            {isSuperAdmin && (
+                <Paper
+                    elevation={0}
                     sx={{
-                        '& .MuiTab-root': {
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            fontSize: '0.95rem',
-                            py: 1.5,
-                            mr: 2,
-                        },
+                        mb: 3,
+                        borderRadius: 3,
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        px: 2,
+                        pt: 1,
                     }}
                 >
-                    <Tab icon={<CalendarIcon sx={{ fontSize: 18, mr: 1 }} />} iconPosition="start" label="Daily Staff Attendance" />
-                    <Tab icon={<ShowChartIcon sx={{ fontSize: 18, mr: 1 }} />} iconPosition="start" label="User Wise Monthly Attendance" />
-                </Tabs>
-            </Paper>
+                    <Tabs
+                        value={tabValue}
+                        onChange={(e, val) => setTabValue(val)}
+                        textColor="primary"
+                        indicatorColor="primary"
+                        sx={{
+                            '& .MuiTab-root': {
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                fontSize: '0.95rem',
+                                py: 1.5,
+                                mr: 2,
+                            },
+                        }}
+                    >
+                        <Tab icon={<CalendarIcon sx={{ fontSize: 18, mr: 1 }} />} iconPosition="start" label="Daily Staff Attendance" />
+                        <Tab icon={<ShowChartIcon sx={{ fontSize: 18, mr: 1 }} />} iconPosition="start" label="User Wise Monthly Attendance" />
+                    </Tabs>
+                </Paper>
+            )}
 
             {/* Tab 0: Daily Staff Attendance */}
-            {tabValue === 0 && (
+            {(tabValue === 0 || !isSuperAdmin) && (
                 <>
                     {/* Stats Row */}
                     <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
@@ -1416,7 +1427,7 @@ export default function AttendanceSheetPage() {
             )}
 
             {/* Tab 1: User Wise Monthly Attendance */}
-            {tabValue === 1 && (
+            {isSuperAdmin && tabValue === 1 && (
                 <>
                     {/* Filters Row */}
                     <Paper
