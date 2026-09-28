@@ -619,6 +619,7 @@ export default function AttendanceSheetPage() {
     };
 
     const handleOpenEdit = (record: AttendanceRecord) => {
+        if (!isSuperAdmin) return;
         setSelectedRecord(record);
         setEditClockInDate(record.clockInDate && record.clockInDate !== '-' ? record.clockInDate : (record.date && record.date !== '-' ? record.date : selectedDailyDate));
         setEditClockIn(record.clockInTime && record.clockInTime !== '-' ? record.clockInTime : '08:30 AM');
@@ -629,7 +630,7 @@ export default function AttendanceSheetPage() {
     };
 
     const handleSaveEdit = async () => {
-        if (!selectedRecord) return;
+        if (!isSuperAdmin || !selectedRecord) return;
         setSavingEdit(true);
         try {
             const token = localStorage.getItem('staffToken');
@@ -1186,7 +1187,10 @@ export default function AttendanceSheetPage() {
                                 <Table sx={{ minWidth: 650 }}>
                                     <TableHead>
                                         <TableRow>
-                                            {['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status', 'Action'].map((h) => (
+                                            {(isSuperAdmin
+                                                ? ['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status', 'Action']
+                                                : ['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status']
+                                            ).map((h) => (
                                                 <TableCell
                                                     key={h}
                                                     align={h === 'Action' ? 'center' : 'left'}
@@ -1208,7 +1212,7 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredDailyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={12} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={isSuperAdmin ? 12 : 11} align="center" sx={{ color: '#94a3b8', py: 6 }}>
                                                     No attendance records found.
                                                 </TableCell>
                                             </TableRow>
@@ -1379,23 +1383,23 @@ export default function AttendanceSheetPage() {
                                                         />
                                                     </TableCell>
 
-                                                    {/* Action */}
-                                                    <TableCell align="center">
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                                                            <Tooltip title="Edit Attendance Record">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    color="primary"
-                                                                    onClick={() => handleOpenEdit(row)}
-                                                                    sx={{
-                                                                        borderRadius: 1.5,
-                                                                        '&:hover': { backgroundColor: 'rgba(59, 130, 246, 0.1)' },
-                                                                    }}
-                                                                >
-                                                                    <EditIcon fontSize="small" />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                            {isSuperAdmin && (
+                                                    {/* Action - SuperAdmin Only */}
+                                                    {isSuperAdmin && (
+                                                        <TableCell align="center">
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                                                                <Tooltip title="Edit Attendance Record">
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        color="primary"
+                                                                        onClick={() => handleOpenEdit(row)}
+                                                                        sx={{
+                                                                            borderRadius: 1.5,
+                                                                            '&:hover': { backgroundColor: 'rgba(59, 130, 246, 0.1)' },
+                                                                        }}
+                                                                    >
+                                                                        <EditIcon fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
                                                                 <Tooltip title={row.id?.startsWith('staff_') || row.status === 'Not Clocked In' || row.status === 'Leave' ? "No attendance record to delete" : "Delete Attendance Record"}>
                                                                     <span>
                                                                         <IconButton
@@ -1412,9 +1416,9 @@ export default function AttendanceSheetPage() {
                                                                         </IconButton>
                                                                     </span>
                                                                 </Tooltip>
-                                                            )}
-                                                        </Box>
-                                                    </TableCell>
+                                                            </Box>
+                                                        </TableCell>
+                                                    )}
                                                 </TableRow>
                                             ))
                                         )}
