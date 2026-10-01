@@ -752,7 +752,7 @@ export default function AttendanceSheetPage() {
     };
 
     const handleOpenEdit = (record: AttendanceRecord) => {
-        if (!isSuperAdmin) return;
+        if (!isSuperAdmin && !isAdmin) return;
         setSelectedRecord(record);
         setEditClockInDate(record.clockInDate && record.clockInDate !== '-' ? record.clockInDate : (record.date && record.date !== '-' ? record.date : selectedDailyDate));
         setEditClockIn(record.clockInTime && record.clockInTime !== '-' ? record.clockInTime : '08:30 AM');
@@ -763,7 +763,7 @@ export default function AttendanceSheetPage() {
     };
 
     const handleSaveEdit = async () => {
-        if (!isSuperAdmin || !selectedRecord) return;
+        if ((!isSuperAdmin && !isAdmin) || !selectedRecord) return;
         setSavingEdit(true);
         try {
             const token = localStorage.getItem('staffToken');
@@ -799,12 +799,13 @@ export default function AttendanceSheetPage() {
     };
 
     const handleOpenDelete = (record: AttendanceRecord) => {
+        if (!isSuperAdmin) return;
         setRecordToDelete(record);
         setDeleteDialogOpen(true);
     };
 
     const handleDeleteConfirm = async () => {
-        if (!recordToDelete) return;
+        if (!isSuperAdmin || !recordToDelete) return;
         if (recordToDelete.id.startsWith('staff_') || recordToDelete.status === 'Not Clocked In') {
             alert('No attendance record exists to delete for this staff member.');
             setDeleteDialogOpen(false);
@@ -1373,7 +1374,7 @@ export default function AttendanceSheetPage() {
                                 <Table sx={{ minWidth: 650 }}>
                                     <TableHead>
                                         <TableRow>
-                                            {(isSuperAdmin
+                                            {((isSuperAdmin || isAdmin)
                                                 ? ['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status', 'Action']
                                                 : ['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status']
                                             ).map((h) => (
@@ -1398,7 +1399,7 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredDailyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={isSuperAdmin ? 12 : 11} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={(isSuperAdmin || isAdmin) ? 12 : 11} align="center" sx={{ color: '#94a3b8', py: 6 }}>
                                                     No attendance records found.
                                                 </TableCell>
                                             </TableRow>
@@ -1588,8 +1589,8 @@ export default function AttendanceSheetPage() {
                                                         />
                                                     </TableCell>
 
-                                                    {/* Action - SuperAdmin Only */}
-                                                    {isSuperAdmin && (
+                                                    {/* Action - SuperAdmin and Admin Edit, SuperAdmin Only Delete */}
+                                                    {(isSuperAdmin || isAdmin) && (
                                                         <TableCell align="center">
                                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
                                                                 <Tooltip title="Edit Attendance Record">
@@ -1605,22 +1606,24 @@ export default function AttendanceSheetPage() {
                                                                         <EditIcon fontSize="small" />
                                                                     </IconButton>
                                                                 </Tooltip>
-                                                                <Tooltip title={row.id?.startsWith('staff_') || row.status === 'Not Clocked In' || row.status === 'Leave' ? "No attendance record to delete" : "Delete Attendance Record"}>
-                                                                    <span>
-                                                                        <IconButton
-                                                                            size="small"
-                                                                            color="error"
-                                                                            disabled={row.id?.startsWith('staff_') || row.status === 'Not Clocked In'}
-                                                                            onClick={() => handleOpenDelete(row)}
-                                                                            sx={{
-                                                                                borderRadius: 1.5,
-                                                                                '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.1)' },
-                                                                            }}
-                                                                        >
-                                                                            <DeleteIcon fontSize="small" />
-                                                                        </IconButton>
-                                                                    </span>
-                                                                </Tooltip>
+                                                                {isSuperAdmin && (
+                                                                    <Tooltip title={row.id?.startsWith('staff_') || row.status === 'Not Clocked In' || row.status === 'Leave' ? "No attendance record to delete" : "Delete Attendance Record"}>
+                                                                        <span>
+                                                                            <IconButton
+                                                                                size="small"
+                                                                                color="error"
+                                                                                disabled={row.id?.startsWith('staff_') || row.status === 'Not Clocked In'}
+                                                                                onClick={() => handleOpenDelete(row)}
+                                                                                sx={{
+                                                                                    borderRadius: 1.5,
+                                                                                    '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+                                                                                }}
+                                                                            >
+                                                                                <DeleteIcon fontSize="small" />
+                                                                            </IconButton>
+                                                                        </span>
+                                                                    </Tooltip>
+                                                                )}
                                                             </Box>
                                                         </TableCell>
                                                     )}
