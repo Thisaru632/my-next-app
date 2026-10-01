@@ -28,7 +28,7 @@ import {
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
-import { checkIfUserIsOnLeave, getMonthlyLeaveDaysForUser } from '../attendance-sheet/page';
+import { checkIfUserIsOnLeave, getMonthlyLeaveDaysForUser, getDailyRowHours, getSessionMinutes } from '../attendance-sheet/page';
 
 interface AttendanceRecord {
     id: string;
@@ -280,29 +280,20 @@ export default function ViewMyAttendancePage() {
                 });
 
                 let totalFallbackLessMinutes = 0;
+                const dailyFallbackMinutesMap = new Map<string, number>();
                 userDailyLogs.forEach((l) => {
                     if (!l.clockInTime || !l.clockOutTime || l.clockOutTime === 'Active Session' || l.clockOutTime === '-') return;
-                    try {
-                        const parseTime = (timeStr: string) => {
-                            const match = timeStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
-                            if (!match) return null;
-                            let hours = parseInt(match[1], 10);
-                            const minutes = parseInt(match[2], 10);
-                            const ampm = match[4] ? match[4].toUpperCase() : null;
-                            if (ampm === 'PM' && hours < 12) hours += 12;
-                            if (ampm === 'AM' && hours === 12) hours = 0;
-                            return hours * 60 + minutes;
-                        };
-                        const inMins = parseTime(l.clockInTime);
-                        const outMins = parseTime(l.clockOutTime);
-                        if (inMins !== null && outMins !== null) {
-                            let diff = outMins - inMins;
-                            if (diff < 0) diff += 1440;
-                            if (diff > 0 && diff < 540) {
-                                totalFallbackLessMinutes += (540 - diff);
-                            }
-                        }
-                    } catch (_) {}
+                    const mins = getSessionMinutes(l.clockInTime, l.clockOutTime, l.clockInDate || l.date, l.clockOutDate);
+                    const dateKey = (l.clockInDate && l.clockInDate !== '-' ? l.clockInDate : l.date || '').trim();
+                    if (dateKey) {
+                        dailyFallbackMinutesMap.set(dateKey, (dailyFallbackMinutesMap.get(dateKey) || 0) + mins);
+                    }
+                });
+
+                dailyFallbackMinutesMap.forEach((dayMins) => {
+                    if (dayMins > 0 && dayMins < 540) {
+                        totalFallbackLessMinutes += (540 - dayMins);
+                    }
                 });
 
                 const formatFallbackMinutes = (mins: number) => {
@@ -344,6 +335,30 @@ export default function ViewMyAttendancePage() {
             setLoading(false);
         }
     };
+
+    const myDailyStatsMap = React.useMemo(() => {
+        const stats = new Map<string, { totalMinutes: number; sessionCount: number; hasActiveSession: boolean }>();
+
+        myRecords.forEach((r) => {
+            if (!r.clockInTime || r.clockInTime === '-' || (r.status as string) === 'Not Clocked In' || (r.status as string) === 'Leave') return;
+            const userKey = (r.eNo && r.eNo !== 'N/A' && !r.eNo.includes('@') ? r.eNo : r.email || r.name || '').toLowerCase().trim();
+            const dateKey = (r.clockInDate && r.clockInDate !== '-' ? r.clockInDate : r.date || '').trim();
+            if (!userKey || !dateKey) return;
+            const mapKey = `${userKey}_${dateKey}`;
+
+            const mins = getSessionMinutes(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
+            const isActive = r.clockOutTime === 'Active Session' || (!r.clockOutTime && r.status === 'Clocked In');
+
+            const existing = stats.get(mapKey) || { totalMinutes: 0, sessionCount: 0, hasActiveSession: false };
+            stats.set(mapKey, {
+                totalMinutes: existing.totalMinutes + mins,
+                sessionCount: existing.sessionCount + 1,
+                hasActiveSession: existing.hasActiveSession || isActive,
+            });
+        });
+
+        return stats;
+    }, [myRecords]);
 
     const todayStr = new Date().toISOString().split('T')[0];
     const todayIsLeave = userInfo ? checkIfUserIsOnLeave(userInfo.eNo, todayStr, userInfo.email, userInfo.name) : false;
@@ -589,20 +604,39 @@ export default function ViewMyAttendancePage() {
                                                 {row.clockOutTime}
                                             </TableCell>
 
-                                            {/* Hours Worked */}
-                                            <TableCell sx={{ fontWeight: 600, color: 'text.primary', fontSize: 13 }}>
-                                                {calculateHourCount(row.clockInTime, row.clockOutTime)}
-                                            </TableCell>
+                                            {/* Hours Worked, OT Hours, Less Hours */}
+                                            {(() => {
+                                                const rowHours = getDailyRowHours(row as any, myDailyStatsMap);
+                                                const isZeroOrDash = rowHours.lessHours === '0 hrs' || rowHours.lessHours === '-' || rowHours.lessHours === 'Active Session';
+                                                return (
+                                                    <>
+                                                        <TableCell sx={{ fontWeight: 600, color: 'text.primary', fontSize: 13 }}>
+                                                            {rowHours.isMultiSession ? (
+                                                                <Box>
+                                                                    <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
+                                                                        {rowHours.dayTotalHrs}
+                                                                    </Typography>
+                                                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.72rem' }}>
+                                                                        Session: {rowHours.sessionHrs}
+                                                                    </Typography>
+                                                                </Box>
+                                                            ) : (
+                                                                rowHours.dayTotalHrs
+                                                            )}
+                                                        </TableCell>
 
-                                            {/* OT Hours */}
-                                            <TableCell sx={{ fontWeight: 600, color: 'text.primary', fontSize: 13 }}>
-                                                {calculateOtHours(row.clockInTime, row.clockOutTime)}
-                                            </TableCell>
+                                                        {/* OT Hours */}
+                                                        <TableCell sx={{ fontWeight: 600, color: 'text.primary', fontSize: 13 }}>
+                                                            {rowHours.otHours}
+                                                        </TableCell>
 
-                                            {/* Less Hours */}
-                                            <TableCell sx={{ fontWeight: 600, color: '#dc2626', fontSize: 13 }}>
-                                                {calculateLessHours(row.clockInTime, row.clockOutTime)}
-                                            </TableCell>
+                                                        {/* Less Hours */}
+                                                        <TableCell sx={{ fontWeight: 600, color: !isZeroOrDash ? '#dc2626' : 'text.secondary', fontSize: 13 }}>
+                                                            {rowHours.lessHours}
+                                                        </TableCell>
+                                                    </>
+                                                );
+                                            })()}
 
                                             {/* Location */}
                                             <TableCell sx={{ fontSize: 12, maxWidth: 220 }}>

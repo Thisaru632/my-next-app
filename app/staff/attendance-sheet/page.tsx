@@ -282,6 +282,113 @@ const calculateLessHours = (clockInStr: string, clockOutStr: string, clockInDate
     }
 };
 
+export const getSessionMinutes = (clockInStr?: string, clockOutStr?: string, clockInDateStr?: string, clockOutDateStr?: string): number => {
+    if (!clockInStr || !clockOutStr || clockOutStr === 'Active Session' || clockOutStr === '-' || clockInStr === '-') {
+        return 0;
+    }
+    try {
+        const inTime = parseDateTimeHelper(clockInStr, clockInDateStr);
+        const outTime = parseDateTimeHelper(clockOutStr, clockOutDateStr);
+        if (!inTime || !outTime) return 0;
+        let diffMs = outTime.getTime() - inTime.getTime();
+        if (diffMs < 0 && (!clockInDateStr || !clockOutDateStr || clockInDateStr === clockOutDateStr || clockOutDateStr === '-')) {
+            diffMs += 24 * 60 * 60 * 1000;
+        }
+        if (diffMs < 0) return 0;
+        return Math.floor(diffMs / (1000 * 60));
+    } catch (e) {
+        return 0;
+    }
+};
+
+export const formatMinutesToHoursAndMins = (totalMinutes: number): string => {
+    if (totalMinutes <= 0) return '0 hrs';
+    const hrs = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hrs === 0 && mins === 0) return '0 hrs';
+    if (hrs === 0) return `${mins}m`;
+    if (mins === 0) return `${hrs}h`;
+    return `${hrs}h ${mins}m`;
+};
+
+export interface DailyRowHoursResult {
+    sessionHrs: string;
+    dayTotalHrs: string;
+    otHours: string;
+    lessHours: string;
+    isMultiSession: boolean;
+    sessionCount: number;
+}
+
+export const getDailyRowHours = (
+    row: AttendanceRecord,
+    statsMap: Map<string, { totalMinutes: number; sessionCount: number; hasActiveSession: boolean }>
+): DailyRowHoursResult => {
+    const userKey = (row.eNo && row.eNo !== 'N/A' && !row.eNo.includes('@') ? row.eNo : row.email || row.name || '').toLowerCase().trim();
+    const dateKey = (row.clockInDate && row.clockInDate !== '-' ? row.clockInDate : row.date || '').trim();
+    const mapKey = `${userKey}_${dateKey}`;
+    const userStat = statsMap.get(mapKey);
+
+    if (!row.clockInTime || row.clockInTime === '-' || row.status === 'Not Clocked In' || row.status === 'Leave') {
+        return {
+            sessionHrs: '-',
+            dayTotalHrs: '-',
+            otHours: '-',
+            lessHours: '-',
+            isMultiSession: false,
+            sessionCount: 0,
+        };
+    }
+
+    const sessionHrs = calculateHourCount(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate);
+
+    // If only 1 session on this day for this user
+    if (!userStat || userStat.sessionCount <= 1) {
+        const otHrs = calculateOtHours(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate);
+        const lessHrs = calculateLessHours(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate);
+        return {
+            sessionHrs,
+            dayTotalHrs: sessionHrs,
+            otHours: otHrs,
+            lessHours: lessHrs,
+            isMultiSession: false,
+            sessionCount: userStat ? userStat.sessionCount : 1,
+        };
+    }
+
+    // Multiple sessions on the same day for this user:
+    const totalDayMins = userStat.totalMinutes;
+    const dayTotalHrs = formatMinutesToHoursAndMins(totalDayMins);
+
+    let otHours = '0 hrs';
+    let lessHours = '0 hrs';
+
+    if (totalDayMins >= 540) {
+        const otMins = totalDayMins - 540;
+        otHours = formatMinutesToHoursAndMins(otMins);
+        lessHours = '0 hrs';
+    } else {
+        otHours = '0 hrs';
+        if (userStat.hasActiveSession) {
+            lessHours = 'Active Session';
+        } else if (totalDayMins > 0) {
+            const lessMins = 540 - totalDayMins;
+            lessHours = formatMinutesToHoursAndMins(lessMins);
+        } else {
+            lessHours = '9h';
+        }
+    }
+
+    return {
+        sessionHrs,
+        dayTotalHrs,
+        otHours,
+        lessHours,
+        isMultiSession: true,
+        sessionCount: userStat.sessionCount,
+    };
+};
+
 const formatShortLocation = (loc?: string) => {
     if (!loc) return '';
     const words = loc.trim().split(/\s+/);
@@ -368,6 +475,32 @@ export const checkIfUserIsOnLeave = (
         }
         return false;
     };
+
+    // 0. Check Approved Leave Requests from localStorage ('staff_leave_requests')
+    try {
+        const leaveStr = typeof window !== 'undefined' ? localStorage.getItem('staff_leave_requests') : null;
+        if (leaveStr) {
+            const leaveList = JSON.parse(leaveStr);
+            if (Array.isArray(leaveList)) {
+                const hasApprovedLeave = leaveList.some((l: any) => {
+                    if (l.status !== 'Approved') return false;
+                    if (!matchesEntry(l)) return false;
+                    const from = l.fromDate || '';
+                    const to = l.toDate || l.fromDate || '';
+                    if (from && to) {
+                        return dateStr >= from && dateStr <= to;
+                    }
+                    if (from) {
+                        return dateStr === from;
+                    }
+                    return false;
+                });
+                if (hasApprovedLeave) {
+                    return true;
+                }
+            }
+        }
+    } catch (_) {}
 
     // 1. Check Temporarily Customized Schedules from localStorage ('staff_callcenter_future_schedules')
     try {
@@ -906,6 +1039,58 @@ export default function AttendanceSheetPage() {
             .sort((a, b) => compareENo(a.eNo, b.eNo));
     }, [monthlyRecords, search, selectedUserFilter]);
 
+    const dailyUserStatsMap = React.useMemo(() => {
+        const stats = new Map<string, { totalMinutes: number; sessionCount: number; hasActiveSession: boolean }>();
+
+        dailyDisplayRecords.forEach(r => {
+            if (!r.clockInTime || r.clockInTime === '-' || r.status === 'Not Clocked In' || r.status === 'Leave') {
+                return;
+            }
+            const userKey = (r.eNo && r.eNo !== 'N/A' && !r.eNo.includes('@') ? r.eNo : r.email || r.name || '').toLowerCase().trim();
+            const dateKey = (r.clockInDate && r.clockInDate !== '-' ? r.clockInDate : r.date || '').trim();
+            if (!userKey || !dateKey) return;
+            const mapKey = `${userKey}_${dateKey}`;
+
+            const mins = getSessionMinutes(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
+            const isActive = r.clockOutTime === 'Active Session' || (!r.clockOutTime && r.status === 'Clocked In');
+
+            const existing = stats.get(mapKey) || { totalMinutes: 0, sessionCount: 0, hasActiveSession: false };
+            stats.set(mapKey, {
+                totalMinutes: existing.totalMinutes + mins,
+                sessionCount: existing.sessionCount + 1,
+                hasActiveSession: existing.hasActiveSession || isActive,
+            });
+        });
+
+        return stats;
+    }, [dailyDisplayRecords]);
+
+    const userLogsStatsMap = React.useMemo(() => {
+        const stats = new Map<string, { totalMinutes: number; sessionCount: number; hasActiveSession: boolean }>();
+
+        userLogs.forEach(r => {
+            if (!r.clockInTime || r.clockInTime === '-' || r.status === 'Not Clocked In' || r.status === 'Leave') {
+                return;
+            }
+            const userKey = (r.eNo && r.eNo !== 'N/A' && !r.eNo.includes('@') ? r.eNo : r.email || r.name || '').toLowerCase().trim();
+            const dateKey = (r.clockInDate && r.clockInDate !== '-' ? r.clockInDate : r.date || '').trim();
+            if (!userKey || !dateKey) return;
+            const mapKey = `${userKey}_${dateKey}`;
+
+            const mins = getSessionMinutes(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
+            const isActive = r.clockOutTime === 'Active Session' || (!r.clockOutTime && r.status === 'Clocked In');
+
+            const existing = stats.get(mapKey) || { totalMinutes: 0, sessionCount: 0, hasActiveSession: false };
+            stats.set(mapKey, {
+                totalMinutes: existing.totalMinutes + mins,
+                sessionCount: existing.sessionCount + 1,
+                hasActiveSession: existing.hasActiveSession || isActive,
+            });
+        });
+
+        return stats;
+    }, [userLogs]);
+
     const clockedInCount = dailyDisplayRecords.filter(r => r.status === 'Clocked In').length;
     const clockedOutCount = dailyDisplayRecords.filter(r => r.status === 'Clocked Out').length;
     const onLeaveCount = dailyDisplayRecords.filter(r => r.status === 'Leave').length;
@@ -931,9 +1116,10 @@ export default function AttendanceSheetPage() {
         const rows = filteredDailyRecords.map(r => {
             const inLoc = r.clockInLocation ? r.clockInLocation.replace(/"/g, '""') : '';
             const outLoc = r.clockOutLocation ? r.clockOutLocation.replace(/"/g, '""') : '';
-            const hrs = calculateHourCount(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
-            const extraHrs = calculateOtHours(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
-            const lessHrs = calculateLessHours(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
+            const rowHours = getDailyRowHours(r, dailyUserStatsMap);
+            const hrs = rowHours.isMultiSession ? `${rowHours.dayTotalHrs} (Session: ${rowHours.sessionHrs})` : rowHours.dayTotalHrs;
+            const extraHrs = rowHours.otHours;
+            const lessHrs = rowHours.lessHours;
 
             return [
                 `"${r.eNo || ''}"`,
@@ -1340,20 +1526,39 @@ export default function AttendanceSheetPage() {
                                                         </Box>
                                                     </TableCell>
 
-                                                    {/* Hour Count */}
-                                                    <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
-                                                        {calculateHourCount(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate)}
-                                                    </TableCell>
+                                                    {/* Hour Count, OT Hours, Less Hours */}
+                                                    {(() => {
+                                                        const rowHours = getDailyRowHours(row, dailyUserStatsMap);
+                                                        const isZeroOrDash = rowHours.lessHours === '0 hrs' || rowHours.lessHours === '-' || rowHours.lessHours === 'Active Session';
+                                                        return (
+                                                            <>
+                                                                <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                                    {rowHours.isMultiSession ? (
+                                                                        <Box>
+                                                                            <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
+                                                                                {rowHours.dayTotalHrs}
+                                                                            </Typography>
+                                                                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.72rem' }}>
+                                                                                Session: {rowHours.sessionHrs}
+                                                                            </Typography>
+                                                                        </Box>
+                                                                    ) : (
+                                                                        rowHours.dayTotalHrs
+                                                                    )}
+                                                                </TableCell>
 
-                                                    {/* OT Hours */}
-                                                    <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
-                                                        {calculateOtHours(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate)}
-                                                    </TableCell>
+                                                                {/* OT Hours */}
+                                                                <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                                    {rowHours.otHours}
+                                                                </TableCell>
 
-                                                    {/* Less Hours */}
-                                                    <TableCell sx={{ color: '#dc2626', fontWeight: 600, fontSize: 13 }}>
-                                                        {calculateLessHours(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate)}
-                                                    </TableCell>
+                                                                {/* Less Hours */}
+                                                                <TableCell sx={{ color: !isZeroOrDash ? '#dc2626' : 'text.secondary', fontWeight: 600, fontSize: 13 }}>
+                                                                    {rowHours.lessHours}
+                                                                </TableCell>
+                                                            </>
+                                                        );
+                                                    })()}
 
                                                     {/* Status */}
                                                     <TableCell>
@@ -1818,15 +2023,34 @@ export default function AttendanceSheetPage() {
                                                         </Tooltip>
                                                     ) : '-'}
                                                 </TableCell>
-                                                <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>
-                                                    {hrs === '-' ? '0 hrs' : hrs}
-                                                </TableCell>
-                                                <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>
-                                                    {calculateOtHours(log.clockInTime, log.clockOutTime)}
-                                                </TableCell>
-                                                <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>
-                                                    {calculateLessHours(log.clockInTime, log.clockOutTime)}
-                                                </TableCell>
+                                                {(() => {
+                                                    const rowHours = getDailyRowHours(log, userLogsStatsMap);
+                                                    const isZeroOrDash = rowHours.lessHours === '0 hrs' || rowHours.lessHours === '-' || rowHours.lessHours === 'Active Session';
+                                                    return (
+                                                        <>
+                                                            <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>
+                                                                {rowHours.isMultiSession ? (
+                                                                    <Box>
+                                                                        <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
+                                                                            {rowHours.dayTotalHrs}
+                                                                        </Typography>
+                                                                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.72rem' }}>
+                                                                            Session: {rowHours.sessionHrs}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                ) : (
+                                                                    rowHours.dayTotalHrs === '-' ? '0 hrs' : rowHours.dayTotalHrs
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell sx={{ fontSize: 13, fontWeight: 600 }}>
+                                                                {rowHours.otHours}
+                                                            </TableCell>
+                                                            <TableCell sx={{ fontSize: 13, color: !isZeroOrDash ? '#dc2626' : 'text.secondary', fontWeight: 600 }}>
+                                                                {rowHours.lessHours}
+                                                            </TableCell>
+                                                        </>
+                                                    );
+                                                })()}
                                                 <TableCell>
                                                     <Chip
                                                         label={log.status}

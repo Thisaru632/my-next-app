@@ -80,6 +80,17 @@ interface StaffMember {
     avatar?: string;
 }
 
+interface CurrentUser {
+    id?: string;
+    eNo?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+    isSuperAdmin: boolean;
+    isAdmin: boolean;
+    isAdminUser: boolean;
+}
+
 const LEAVE_TYPE_CONFIG = {
     Annual: { label: 'Annual Leave', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
     Casual: { label: 'Casual Leave', color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc' },
@@ -116,6 +127,7 @@ export default function LeaveManagementPage() {
     const [statusTab, setStatusTab] = useState<'ALL' | 'Pending' | 'Approved' | 'Rejected'>('ALL');
     const [leaveTypeFilter, setLeaveTypeFilter] = useState('ALL');
     const [search, setSearch] = useState('');
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
     // Apply / Edit Dialog
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -126,26 +138,39 @@ export default function LeaveManagementPage() {
     const [formToDate, setFormToDate] = useState(() => formatDateYMD(new Date()));
     const [formPeriod, setFormPeriod] = useState<LeaveRequest['period']>('Full Day');
     const [formReason, setFormReason] = useState('');
-    const [formStatus, setFormStatus] = useState<LeaveRequest['status']>('Approved');
+    const [formStatus, setFormStatus] = useState<LeaveRequest['status']>('Pending');
     const [formHrNotes, setFormHrNotes] = useState('');
 
     // View Details Dialog
     const [viewDialogOpen, setViewDialogOpen] = useState(false);
     const [viewItem, setViewItem] = useState<LeaveRequest | null>(null);
 
-    // Permission check
+    // Auth & Current User detection
     useEffect(() => {
         const userStr = localStorage.getItem('staffUser');
-        if (userStr) {
-            try {
-                const user = JSON.parse(userStr);
-                const isSuperAdmin = user.role === 'superadmin';
-                const hasHrPermission = user.permissions?.hrSection;
-                if (!isSuperAdmin && !hasHrPermission) {
-                    router.push('/staff');
-                    return;
-                }
-            } catch (e) {}
+        if (!userStr) {
+            router.push('/staff/login');
+            return;
+        }
+        try {
+            const user = JSON.parse(userStr);
+            const role = (user.role || '').toLowerCase();
+            const isSuperAdmin = role === 'superadmin';
+            const isAdmin = role === 'admin';
+            const isAdminUser = isSuperAdmin || isAdmin;
+            setCurrentUser({
+                id: user.id || user._id,
+                eNo: user.eNo || '',
+                name: user.fullName || user.username || user.name || 'Staff Member',
+                email: user.email || '',
+                role: role,
+                isSuperAdmin,
+                isAdmin,
+                isAdminUser,
+            });
+        } catch (e) {
+            console.error('Error parsing staffUser:', e);
+            router.push('/staff/login');
         }
     }, [router]);
 
@@ -190,7 +215,7 @@ export default function LeaveManagementPage() {
                     setLeaveRequests([]);
                 }
             } else if (staffMembers.length > 0) {
-                // Initialize default demo leave records for staff
+                // Initialize demo leave records
                 const sampleLeaves: LeaveRequest[] = [
                     {
                         id: 'leave_101',
@@ -250,57 +275,62 @@ export default function LeaveManagementPage() {
                         toDate: '2026-09-06',
                         period: 'Full Day',
                         daysCount: 2,
-                        reason: 'Fever and rest advised by medical doctor',
+                        reason: 'Medical recovery and doctor visit',
                         appliedDate: '2026-09-04',
                         status: 'Approved',
                         approvedBy: 'HR Admin',
-                        approvedAt: '2026-09-05',
-                        hrNotes: 'Medical certificate verified',
+                        approvedAt: '2026-09-04',
                     },
                 ];
                 setLeaveRequests(sampleLeaves);
                 localStorage.setItem('staff_leave_requests', JSON.stringify(sampleLeaves));
             }
         } catch (e) {
-            console.error('Failed to load leave data:', e);
+            console.error('Error loading staff/leave data:', e);
         } finally {
             setLoading(false);
         }
     };
 
-    // Calculate days count
     const calculateDays = (from: string, to: string, period: LeaveRequest['period']) => {
-        if (period.startsWith('Half Day')) return 0.5;
-        const d1 = new Date(from + 'T00:00:00');
-        const d2 = new Date(to + 'T00:00:00');
+        if (!from || !to) return 1;
+        const d1 = new Date(from);
+        const d2 = new Date(to);
         const diffTime = Math.abs(d2.getTime() - d1.getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-        return isNaN(diffDays) ? 1 : diffDays;
+        if (period !== 'Full Day') {
+            return 0.5;
+        }
+        return diffDays > 0 ? diffDays : 1;
     };
 
     const handleOpenCreateDialog = () => {
         setSelectedRequest(null);
-        setFormStaffENo(staffList.length > 0 ? staffList[0].eNo : '');
+        const isStaff = currentUser && !currentUser.isAdminUser;
+        setFormStaffENo(isStaff ? (currentUser?.eNo || 'N/A') : (staffList.length > 0 ? staffList[0].eNo : ''));
         setFormLeaveType('Casual');
         setFormFromDate(formatDateYMD(new Date()));
         setFormToDate(formatDateYMD(new Date()));
         setFormPeriod('Full Day');
         setFormReason('');
-        setFormStatus('Approved');
+        setFormStatus(isStaff ? 'Pending' : 'Approved');
         setFormHrNotes('');
         setDialogOpen(true);
     };
 
     const handleSaveLeave = () => {
-        const staff = staffList.find((s) => s.eNo.toLowerCase() === formStaffENo.toLowerCase());
-        const staffName = staff ? staff.name : formStaffENo;
-        const staffEmail = staff ? staff.email : '';
+        const isStaff = currentUser && !currentUser.isAdminUser;
+        const staffENo = isStaff ? (currentUser?.eNo || 'N/A') : formStaffENo;
+        const staff = staffList.find((s) => s.eNo.toLowerCase() === staffENo.toLowerCase());
+        const staffName = isStaff ? (currentUser?.name || 'Staff Member') : (staff ? staff.name : staffENo);
+        const staffEmail = isStaff ? (currentUser?.email || '') : (staff ? staff.email : '');
         const avatar = staff ? staff.avatar : '';
         const days = calculateDays(formFromDate, formToDate, formPeriod);
+        const status = isStaff ? 'Pending' : formStatus;
 
         const newLeave: LeaveRequest = {
             id: selectedRequest ? selectedRequest.id : `leave_${Date.now()}`,
-            eNo: formStaffENo,
+            eNo: staffENo,
             staffName,
             staffEmail,
             avatar,
@@ -311,10 +341,10 @@ export default function LeaveManagementPage() {
             daysCount: days,
             reason: formReason,
             appliedDate: selectedRequest ? selectedRequest.appliedDate : formatDateYMD(new Date()),
-            status: formStatus,
-            approvedBy: formStatus === 'Approved' ? 'HR Section' : undefined,
-            approvedAt: formStatus === 'Approved' ? formatDateYMD(new Date()) : undefined,
-            hrNotes: formHrNotes,
+            status,
+            approvedBy: status === 'Approved' ? (currentUser ? `${currentUser.name} (${currentUser.role})` : 'HR Section') : undefined,
+            approvedAt: status === 'Approved' ? formatDateYMD(new Date()) : undefined,
+            hrNotes: isStaff ? undefined : formHrNotes,
         };
 
         const updated = selectedRequest
@@ -327,22 +357,32 @@ export default function LeaveManagementPage() {
     };
 
     const handleStatusChange = (id: string, newStatus: 'Approved' | 'Rejected') => {
+        if (!currentUser?.isAdminUser) {
+            alert('Only Admin and Super Admin users are authorized to approve or reject leave requests.');
+            return;
+        }
+
         const updated = leaveRequests.map((l) => {
             if (l.id === id) {
                 return {
                     ...l,
                     status: newStatus,
-                    approvedBy: 'HR Section',
+                    approvedBy: currentUser ? `${currentUser.name} (${currentUser.role})` : 'HR Section',
                     approvedAt: formatDateYMD(new Date()),
                 };
             }
             return l;
         });
+
         setLeaveRequests(updated);
         localStorage.setItem('staff_leave_requests', JSON.stringify(updated));
     };
 
     const handleDeleteLeave = (id: string) => {
+        if (!currentUser?.isAdminUser) {
+            alert('Only Admin and Super Admin users are authorized to delete leave records.');
+            return;
+        }
         if (!confirm('Are you sure you want to delete this leave record?')) return;
         const updated = leaveRequests.filter((l) => l.id !== id);
         setLeaveRequests(updated);
@@ -350,9 +390,65 @@ export default function LeaveManagementPage() {
         if (viewDialogOpen) setViewDialogOpen(false);
     };
 
+    // Filter leaves based on user role: Staff users see ONLY their own requests; Admin & Superadmin see ALL requests
+    const userVisibleLeaves = useMemo(() => {
+        if (!currentUser) return leaveRequests;
+        if (currentUser.isAdminUser) return leaveRequests;
+
+        const userENo = (currentUser.eNo || '').toLowerCase().trim();
+        const userEmail = (currentUser.email || '').toLowerCase().trim();
+        const userName = (currentUser.name || '').toLowerCase().trim();
+
+        return leaveRequests.filter((l) => {
+            const lENo = (l.eNo || '').toLowerCase().trim();
+            const lEmail = (l.staffEmail || '').toLowerCase().trim();
+            const lName = (l.staffName || '').toLowerCase().trim();
+
+            if (userENo && userENo !== 'n/a' && userENo !== '-' && lENo && lENo !== 'n/a' && lENo !== '-' && lENo === userENo) {
+                return true;
+            }
+            if (userEmail && lEmail && lEmail === userEmail) {
+                return true;
+            }
+            if (userName && lName && lName === userName) {
+                return true;
+            }
+            return false;
+        });
+    }, [leaveRequests, currentUser]);
+
+    // Filter & Sort by E NO ascending
+    const filteredLeaves = useMemo(() => {
+        return userVisibleLeaves
+            .filter((l) => {
+                const query = search.toLowerCase();
+                const matchesSearch =
+                    l.staffName.toLowerCase().includes(query) ||
+                    l.eNo.toLowerCase().includes(query) ||
+                    l.reason.toLowerCase().includes(query);
+                const matchesStatus = statusTab === 'ALL' || l.status === statusTab;
+                const matchesType = leaveTypeFilter === 'ALL' || l.leaveType === leaveTypeFilter;
+                return matchesSearch && matchesStatus && matchesType;
+            })
+            .sort((a, b) => {
+                const cmp = compareENo(a.eNo, b.eNo);
+                if (cmp !== 0) return cmp;
+                return a.fromDate.localeCompare(b.fromDate);
+            });
+    }, [userVisibleLeaves, search, statusTab, leaveTypeFilter]);
+
+    // Statistics based on visible leaves
+    const stats = useMemo(() => {
+        const total = userVisibleLeaves.length;
+        const pending = userVisibleLeaves.filter((l) => l.status === 'Pending').length;
+        const approved = userVisibleLeaves.filter((l) => l.status === 'Approved').length;
+        const rejected = userVisibleLeaves.filter((l) => l.status === 'Rejected').length;
+        return { total, pending, approved, rejected };
+    }, [userVisibleLeaves]);
+
     const handleDownloadCSV = () => {
         const headers = ['E NO', 'Staff Name', 'Leave Type', 'From Date', 'To Date', 'Duration', 'Reason', 'Applied Date', 'Status', 'Approved By'];
-        const sorted = [...leaveRequests].sort((a, b) => {
+        const sorted = [...filteredLeaves].sort((a, b) => {
             const cmp = compareENo(a.eNo, b.eNo);
             if (cmp !== 0) return cmp;
             return a.fromDate.localeCompare(b.fromDate);
@@ -376,39 +472,10 @@ export default function LeaveManagementPage() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.setAttribute('href', url);
-        link.setAttribute('download', `Staff_Leave_Management_${formatDateYMD(new Date())}.csv`);
+        link.setAttribute('download', `Leave_Management_${formatDateYMD(new Date())}.csv`);
         link.click();
         URL.revokeObjectURL(url);
     };
-
-    // Filter & Sort by E NO ascending
-    const filteredLeaves = useMemo(() => {
-        return leaveRequests
-            .filter((l) => {
-                const query = search.toLowerCase();
-                const matchesSearch =
-                    l.staffName.toLowerCase().includes(query) ||
-                    l.eNo.toLowerCase().includes(query) ||
-                    l.reason.toLowerCase().includes(query);
-                const matchesStatus = statusTab === 'ALL' || l.status === statusTab;
-                const matchesType = leaveTypeFilter === 'ALL' || l.leaveType === leaveTypeFilter;
-                return matchesSearch && matchesStatus && matchesType;
-            })
-            .sort((a, b) => {
-                const cmp = compareENo(a.eNo, b.eNo);
-                if (cmp !== 0) return cmp;
-                return a.fromDate.localeCompare(b.fromDate);
-            });
-    }, [leaveRequests, search, statusTab, leaveTypeFilter]);
-
-    // Statistics
-    const stats = useMemo(() => {
-        const total = leaveRequests.length;
-        const pending = leaveRequests.filter((l) => l.status === 'Pending').length;
-        const approved = leaveRequests.filter((l) => l.status === 'Approved').length;
-        const rejected = leaveRequests.filter((l) => l.status === 'Rejected').length;
-        return { total, pending, approved, rejected };
-    }, [leaveRequests]);
 
     return (
         <Box
@@ -448,7 +515,9 @@ export default function LeaveManagementPage() {
                             Leave Management
                         </Typography>
                         <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1, fontWeight: 500 }}>
-                            Track, review, and approve staff leave requests and time-off records sorted in ascending E NO order.
+                            {currentUser?.isAdminUser
+                                ? 'Track, review, and approve staff leave requests and time-off records sorted in ascending E NO order.'
+                                : 'View your personal leave applications, track approval status, and submit time-off requests.'}
                         </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -471,7 +540,7 @@ export default function LeaveManagementPage() {
                                 background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                             }}
                         >
-                            Log Leave Application
+                            {currentUser?.isAdminUser ? 'Log Leave Application' : 'Request Leave Application'}
                         </Button>
                     </Box>
                 </Box>
@@ -698,7 +767,8 @@ export default function LeaveManagementPage() {
                                                 </TableCell>
                                                 <TableCell align="center">
                                                     <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                                                        {isPending && (
+                                                        {/* Approve & Reject buttons are strictly reserved for Admin & Super Admin users */}
+                                                        {currentUser?.isAdminUser && isPending && (
                                                             <>
                                                                 <Tooltip title="Approve Leave">
                                                                     <IconButton
@@ -732,15 +802,17 @@ export default function LeaveManagementPage() {
                                                                 <ViewIcon fontSize="small" />
                                                             </IconButton>
                                                         </Tooltip>
-                                                        <Tooltip title="Delete Record">
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={() => handleDeleteLeave(item.id)}
-                                                                sx={{ color: '#94a3b8', '&:hover': { color: '#dc2626' } }}
-                                                            >
-                                                                <DeleteIcon fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
+                                                        {currentUser?.isAdminUser && (
+                                                            <Tooltip title="Delete Record">
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={() => handleDeleteLeave(item.id)}
+                                                                    sx={{ color: '#94a3b8', '&:hover': { color: '#dc2626' } }}
+                                                                >
+                                                                    <DeleteIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        )}
                                                     </Box>
                                                 </TableCell>
                                             </TableRow>
@@ -762,24 +834,34 @@ export default function LeaveManagementPage() {
                 PaperProps={{ sx: { borderRadius: 3, p: 1 } }}
             >
                 <DialogTitle sx={{ fontWeight: 'bold' }}>
-                    Log Staff Leave Application
+                    {currentUser?.isAdminUser ? 'Log Staff Leave Application' : 'Request Leave Application'}
                 </DialogTitle>
                 <DialogContent>
                     <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Staff Member (E NO)</InputLabel>
-                            <Select
-                                value={formStaffENo}
-                                label="Staff Member (E NO)"
-                                onChange={(e) => setFormStaffENo(e.target.value)}
-                            >
-                                {staffList.map((s) => (
-                                    <MenuItem key={s.eNo} value={s.eNo}>
-                                        {s.eNo} - {s.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                        {currentUser?.isAdminUser ? (
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Staff Member (E NO)</InputLabel>
+                                <Select
+                                    value={formStaffENo}
+                                    label="Staff Member (E NO)"
+                                    onChange={(e) => setFormStaffENo(e.target.value)}
+                                >
+                                    {staffList.map((s) => (
+                                        <MenuItem key={s.eNo} value={s.eNo}>
+                                            {s.eNo} - {s.name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        ) : (
+                            <TextField
+                                fullWidth
+                                size="small"
+                                label="Staff Member"
+                                value={`${currentUser?.name || 'Staff Member'} (${currentUser?.eNo || 'My Account'})`}
+                                disabled
+                            />
+                        )}
 
                         <FormControl fullWidth size="small">
                             <InputLabel>Leave Type</InputLabel>
@@ -849,27 +931,31 @@ export default function LeaveManagementPage() {
                             required
                         />
 
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Status</InputLabel>
-                            <Select
-                                value={formStatus}
-                                label="Status"
-                                onChange={(e) => setFormStatus(e.target.value as any)}
-                            >
-                                <MenuItem value="Approved">Approved Immediately</MenuItem>
-                                <MenuItem value="Pending">Pending Review</MenuItem>
-                                <MenuItem value="Rejected">Rejected</MenuItem>
-                            </Select>
-                        </FormControl>
+                        {currentUser?.isAdminUser && (
+                            <>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Status</InputLabel>
+                                    <Select
+                                        value={formStatus}
+                                        label="Status"
+                                        onChange={(e) => setFormStatus(e.target.value as any)}
+                                    >
+                                        <MenuItem value="Approved">Approved Immediately</MenuItem>
+                                        <MenuItem value="Pending">Pending Review</MenuItem>
+                                        <MenuItem value="Rejected">Rejected</MenuItem>
+                                    </Select>
+                                </FormControl>
 
-                        <TextField
-                            fullWidth
-                            label="HR Section Notes / Remarks"
-                            value={formHrNotes}
-                            onChange={(e) => setFormHrNotes(e.target.value)}
-                            size="small"
-                            placeholder="Internal HR remarks (optional)"
-                        />
+                                <TextField
+                                    fullWidth
+                                    label="HR Section Notes / Remarks"
+                                    value={formHrNotes}
+                                    onChange={(e) => setFormHrNotes(e.target.value)}
+                                    size="small"
+                                    placeholder="Internal HR remarks (optional)"
+                                />
+                            </>
+                        )}
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 2, pt: 0 }}>
@@ -879,14 +965,14 @@ export default function LeaveManagementPage() {
                     <Button
                         onClick={handleSaveLeave}
                         variant="contained"
-                        disabled={!formStaffENo || !formReason.trim()}
+                        disabled={!formReason.trim() || (currentUser?.isAdminUser && !formStaffENo)}
                         sx={{
                             borderRadius: 2,
                             textTransform: 'none',
                             background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                         }}
                     >
-                        Submit Leave Application
+                        {currentUser?.isAdminUser ? 'Save Leave Record' : 'Submit Leave Request'}
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -949,11 +1035,17 @@ export default function LeaveManagementPage() {
                                     </Paper>
                                 </Box>
                             )}
+                            {viewItem.approvedBy && (
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <Typography variant="caption" color="text.secondary">Processed By:</Typography>
+                                    <Typography variant="caption" fontWeight="600">{viewItem.approvedBy} on {viewItem.approvedAt || '-'}</Typography>
+                                </Box>
+                            )}
                         </Box>
                     )}
                 </DialogContent>
                 <DialogActions sx={{ p: 2, pt: 0, justifyContent: 'space-between' }}>
-                    {viewItem && (
+                    {viewItem && currentUser?.isAdminUser && (
                         <Button
                             color="error"
                             onClick={() => handleDeleteLeave(viewItem.id)}
@@ -962,7 +1054,7 @@ export default function LeaveManagementPage() {
                             Delete
                         </Button>
                     )}
-                    <Button onClick={() => setViewDialogOpen(false)} variant="outlined" sx={{ textTransform: 'none', borderRadius: 2 }}>
+                    <Button onClick={() => setViewDialogOpen(false)} variant="outlined" sx={{ textTransform: 'none', borderRadius: 2, ml: 'auto' }}>
                         Close
                     </Button>
                 </DialogActions>

@@ -146,12 +146,21 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                         if (item.text === 'Attendance Sheet') {
                             return isAdminUser;
                         }
+                        // Leave Management: all staff users must be able to view and request leaves
+                        if (item.text === 'Leave Management') {
+                            return true;
+                        }
                         return user.permissions[item.key as keyof typeof user.permissions];
                     });
                     // Ensure Attendance Sheet is included for admin users even if hrSection is not set
                     if (isAdminUser && !filtered.some(i => i.text === 'Attendance Sheet')) {
                         const attItem = menuItems.find(i => i.text === 'Attendance Sheet');
                         if (attItem) filtered.push(attItem);
+                    }
+                    // Ensure Leave Management is included for all staff users
+                    if (!filtered.some(i => i.text === 'Leave Management')) {
+                        const leaveItem = menuItems.find(i => i.text === 'Leave Management');
+                        if (leaveItem) filtered.push(leaveItem);
                     }
                     setAllowedItems(filtered);
                 } else {
@@ -161,6 +170,8 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                         const attItem = menuItems.find(i => i.text === 'Attendance Sheet');
                         if (attItem) fallback.push(attItem);
                     }
+                    const leaveItem = menuItems.find(i => i.text === 'Leave Management');
+                    if (leaveItem && !fallback.some(i => i.text === 'Leave Management')) fallback.push(leaveItem);
                     setAllowedItems(fallback);
                 }
             } catch (e) {
