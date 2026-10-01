@@ -137,6 +137,9 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                 const isSuperAdmin = role === 'superadmin';
                 const isAdmin = role === 'admin';
                 const isAdminUser = isSuperAdmin || isAdmin;
+                const userEmail = (user.email || '').toLowerCase().trim();
+                const userUsername = (user.username || '').toLowerCase().trim();
+                const isCallCenterScheduleUser = userEmail === 'user05.senucabs@gmail.com' || userUsername === 'user05.senucabs@gmail.com';
 
                 if (isSuperAdmin) {
                     setAllowedItems(menuItems);
@@ -148,6 +151,10 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                         }
                         // Leave Management: all staff users must be able to view and request leaves
                         if (item.text === 'Leave Management') {
+                            return true;
+                        }
+                        // Staff Working Schedule (Call Center Schedule section): allow user05.senucabs@gmail.com
+                        if (item.text === 'Staff Working Schedule' && isCallCenterScheduleUser) {
                             return true;
                         }
                         return user.permissions[item.key as keyof typeof user.permissions];
@@ -162,6 +169,11 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                         const leaveItem = menuItems.find(i => i.text === 'Leave Management');
                         if (leaveItem) filtered.push(leaveItem);
                     }
+                    // Ensure Staff Working Schedule is included for user05.senucabs@gmail.com
+                    if (isCallCenterScheduleUser && !filtered.some(i => i.text === 'Staff Working Schedule')) {
+                        const schedItem = menuItems.find(i => i.text === 'Staff Working Schedule');
+                        if (schedItem) filtered.push(schedItem);
+                    }
                     setAllowedItems(filtered);
                 } else {
                     // Fallback for older users without permissions object
@@ -172,6 +184,10 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                     }
                     const leaveItem = menuItems.find(i => i.text === 'Leave Management');
                     if (leaveItem && !fallback.some(i => i.text === 'Leave Management')) fallback.push(leaveItem);
+                    if (isCallCenterScheduleUser) {
+                        const schedItem = menuItems.find(i => i.text === 'Staff Working Schedule');
+                        if (schedItem && !fallback.some(i => i.text === 'Staff Working Schedule')) fallback.push(schedItem);
+                    }
                     setAllowedItems(fallback);
                 }
             } catch (e) {

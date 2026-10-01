@@ -508,6 +508,7 @@ export default function StaffWorkingSchedulePage() {
     const [formEndTime, setFormEndTime] = useState('05:30:00 PM');
     const [formDutyRole, setFormDutyRole] = useState('Call Center & Dispatcher Support');
     const [formNotes, setFormNotes] = useState('');
+    const [canAccessAdminSchedule, setCanAccessAdminSchedule] = useState(true);
 
     // Check HR permissions on load
     useEffect(() => {
@@ -517,9 +518,19 @@ export default function StaffWorkingSchedulePage() {
                 const user = JSON.parse(userStr);
                 const isSuperAdmin = user.role === 'superadmin';
                 const hasHrPermission = user.permissions?.hrSection;
-                if (!isSuperAdmin && !hasHrPermission) {
+                const userEmail = (user.email || '').toLowerCase().trim();
+                const userUsername = (user.username || '').toLowerCase().trim();
+                const isUser05 = userEmail === 'user05.senucabs@gmail.com' || userUsername === 'user05.senucabs@gmail.com';
+
+                if (!isSuperAdmin && !hasHrPermission && !isUser05) {
                     router.push('/staff');
                     return;
+                }
+
+                const canAdmin = isSuperAdmin || !!hasHrPermission;
+                setCanAccessAdminSchedule(canAdmin);
+                if (!canAdmin && isUser05) {
+                    setTabValue(0);
                 }
             } catch (e) {}
         }
@@ -1477,6 +1488,7 @@ export default function StaffWorkingSchedulePage() {
                 <Tabs
                     value={tabValue}
                     onChange={(_, v) => {
+                        if (!canAccessAdminSchedule && v !== 0) return;
                         setTabValue(v);
                         setSearchQuery('');
                     }}
@@ -1505,21 +1517,23 @@ export default function StaffWorkingSchedulePage() {
                             </Box>
                         }
                     />
-                    <Tab
-                        icon={<AdminIcon sx={{ fontSize: 20, mr: 1 }} />}
-                        iconPosition="start"
-                        label={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <span>Admin Schedule</span>
-                                <Chip
-                                    label={adminStaff.length}
-                                    size="small"
-                                    color={tabValue === 1 ? 'primary' : 'default'}
-                                    sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
-                                />
-                            </Box>
-                        }
-                    />
+                    {canAccessAdminSchedule && (
+                        <Tab
+                            icon={<AdminIcon sx={{ fontSize: 20, mr: 1 }} />}
+                            iconPosition="start"
+                            label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <span>Admin Schedule</span>
+                                    <Chip
+                                        label={adminStaff.length}
+                                        size="small"
+                                        color={tabValue === 1 ? 'primary' : 'default'}
+                                        sx={{ height: 20, fontSize: '0.75rem', fontWeight: 700 }}
+                                    />
+                                </Box>
+                            }
+                        />
+                    )}
                 </Tabs>
             </Paper>
 
