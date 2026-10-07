@@ -41,6 +41,7 @@ import {
     CalendarMonth as CalendarMonthIcon,
     EventNote as EventNoteIcon,
     Inventory as InventoryIcon,
+    LocalShipping as LocalShippingIcon,
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -67,6 +68,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
 
     const menuItems: MenuItem[] = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/staff', key: 'dashboard' },
+        { text: 'Dispatch View', icon: <LocalShippingIcon />, path: '/staff/dispatch-view', key: 'dashboard' },
         { text: 'Clock in /out', icon: <AccessTimeIcon />, path: '/staff/clock-in-out', key: 'dashboard' },
         { text: 'View My Attendance', icon: <AssignmentIcon />, path: '/staff/my-attendance', key: 'dashboard' },
         { text: 'Lead Info', icon: <PeopleIcon />, path: '/staff/leads', key: 'leads' },
@@ -205,7 +207,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         if (isMobile && onClose) onClose();
     };
 
-    const webPortalItems = ['Dashboard', 'Lead Info', 'CMS', 'Web Users', 'Rate Card Manage', 'Super Team'];
+    const webPortalItems = ['Dashboard', 'Dispatch View', 'Lead Info', 'CMS', 'Web Users', 'Rate Card Manage', 'Super Team'];
     const myAttendanceItems = ['Clock in /out', 'View My Attendance', 'My Attendance'];
     const hrItems = ['Attendance Sheet', 'Staff Working Schedule', 'Leave Management'];
     const assetManagementItems = ['Vehicle Registrations', 'Cab Service', 'Office Assets Manage'];

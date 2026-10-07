@@ -28,8 +28,9 @@ import {
     DarkMode as DarkModeIcon,
     LightMode as LightModeIcon,
     GetApp as GetAppIcon,
+    LocalShipping as LocalShippingIcon,
 } from '@mui/icons-material';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useThemeContext } from '@/context/ThemeContext';
 import { useTheme } from '@mui/material/styles';
@@ -46,6 +47,7 @@ interface TopHeaderProps {
 
 const TopHeader: React.FC<TopHeaderProps> = ({ onMenuClick, showMenuIcon }) => {
     const router = useRouter();
+    const pathname = usePathname();
     const theme = useTheme();
     const { mode, toggleColorMode } = useThemeContext();
     const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
@@ -204,6 +206,45 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMenuClick, showMenuIcon }) => {
                             />
                         </Box>
                     </Link>
+
+                    {/* Dispatch View Header Tab */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', ml: { xs: 1.5, sm: 2.5 } }}>
+                        <Button
+                            onClick={() => router.push('/staff/dispatch-view')}
+                            startIcon={<LocalShippingIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />}
+                            variant={pathname === '/staff/dispatch-view' ? 'contained' : 'outlined'}
+                            size="small"
+                            sx={{
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                fontSize: { xs: '0.75rem', sm: '0.825rem' },
+                                borderRadius: '9px',
+                                px: { xs: 1.25, sm: 2 },
+                                py: { xs: 0.45, sm: 0.65 },
+                                bgcolor: pathname === '/staff/dispatch-view'
+                                    ? 'primary.main'
+                                    : (mode === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.04)'),
+                                color: pathname === '/staff/dispatch-view'
+                                    ? '#ffffff'
+                                    : 'text.primary',
+                                borderColor: pathname === '/staff/dispatch-view'
+                                    ? 'primary.main'
+                                    : 'divider',
+                                boxShadow: pathname === '/staff/dispatch-view'
+                                    ? '0 3px 10px rgba(37, 99, 235, 0.25)'
+                                    : 'none',
+                                '&:hover': {
+                                    bgcolor: pathname === '/staff/dispatch-view'
+                                        ? 'primary.dark'
+                                        : (mode === 'light' ? '#f1f5f9' : 'rgba(255,255,255,0.08)'),
+                                    borderColor: pathname === '/staff/dispatch-view' ? 'primary.dark' : 'primary.light',
+                                },
+                                transition: 'all 0.15s ease-in-out',
+                            }}
+                        >
+                            Dispatch View
+                        </Button>
+                    </Box>
                 </Box>
 
                 {/* Right Section: Theme Toggle, Notification & Profile */}
