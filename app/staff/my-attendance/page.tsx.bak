@@ -17,7 +17,6 @@ import {
     CircularProgress,
     Grid,
     Tooltip,
-    Alert,
 } from '@mui/material';
 import {
     AccessTime as ClockIcon,
@@ -26,7 +25,6 @@ import {
     LocationOn as LocationIcon,
     ShowChart as ShowChartIcon,
     TrendingDown as TrendingDownIcon,
-    WarningAmber as WarningAmberIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
@@ -45,7 +43,6 @@ interface AttendanceRecord {
     clockInLocation?: string;
     clockOutLocation?: string;
     status: 'Clocked In' | 'Clocked Out';
-    approvedBySuperAdmin?: boolean;
 }
 
 interface MonthlySummary {
@@ -530,30 +527,6 @@ export default function ViewMyAttendancePage() {
 
                 <Divider sx={{ borderColor: 'divider' }} />
 
-                {/* Notice for >19h Records Pending Super Admin Approval */}
-                {(() => {
-                    const pendingCount = myRecords.filter(r => getDailyRowHours(r as any, myDailyStatsMap).needsApproval).length;
-                    if (pendingCount === 0) return null;
-                    return (
-                        <Box sx={{ p: 2, pb: 0 }}>
-                            <Alert
-                                severity="warning"
-                                icon={<WarningAmberIcon />}
-                                sx={{
-                                    borderRadius: 2.5,
-                                    fontWeight: 500,
-                                    border: '1px solid #fde68a',
-                                    bgcolor: '#fffbeb',
-                                    color: '#92400e',
-                                    '& .MuiAlert-icon': { color: '#d97706' },
-                                }}
-                            >
-                                <strong>Pending Approval:</strong> You have {pendingCount} attendance record{pendingCount === 1 ? '' : 's'} with worked hours exceeding 19 hours. This record must be approved from the Super Admin side before the hours are considered valid.
-                            </Alert>
-                        </Box>
-                    );
-                })()}
-
                 {loading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
                         <CircularProgress sx={{ color: '#3b82f6' }} />
@@ -638,50 +611,7 @@ export default function ViewMyAttendancePage() {
                                                 return (
                                                     <>
                                                         <TableCell sx={{ fontWeight: 600, color: 'text.primary', fontSize: 13 }}>
-                                                            {rowHours.needsApproval ? (
-                                                                <Box>
-                                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                                                                        <Typography sx={{ fontWeight: 700, fontSize: 13, color: '#dc2626', textDecoration: 'line-through' }}>
-                                                                            {rowHours.dayTotalHrs}
-                                                                        </Typography>
-                                                                        <Chip
-                                                                            label="Invalid (>19h)"
-                                                                            size="small"
-                                                                            sx={{
-                                                                                height: 18,
-                                                                                fontSize: '0.65rem',
-                                                                                fontWeight: 700,
-                                                                                bgcolor: '#fef2f2',
-                                                                                color: '#b91c1c',
-                                                                                border: '1px solid #fecaca',
-                                                                            }}
-                                                                        />
-                                                                    </Box>
-                                                                    <Typography variant="caption" sx={{ color: '#d97706', display: 'block', fontSize: '0.7rem', fontWeight: 600, mt: 0.2 }}>
-                                                                        Must approve from Super Admin
-                                                                    </Typography>
-                                                                </Box>
-                                                            ) : rowHours.exceeds19h && rowHours.isApproved ? (
-                                                                <Box>
-                                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                                                                        <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
-                                                                            {rowHours.dayTotalHrs}
-                                                                        </Typography>
-                                                                        <Chip
-                                                                            label="Approved (>19h)"
-                                                                            size="small"
-                                                                            sx={{
-                                                                                height: 18,
-                                                                                fontSize: '0.65rem',
-                                                                                fontWeight: 700,
-                                                                                bgcolor: '#ecfdf5',
-                                                                                color: '#047857',
-                                                                                border: '1px solid #a7f3d0',
-                                                                            }}
-                                                                        />
-                                                                    </Box>
-                                                                </Box>
-                                                            ) : rowHours.isMultiSession ? (
+                                                            {rowHours.isMultiSession ? (
                                                                 <Box>
                                                                     <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
                                                                         {rowHours.dayTotalHrs}
@@ -696,19 +626,13 @@ export default function ViewMyAttendancePage() {
                                                         </TableCell>
 
                                                         {/* OT Hours */}
-                                                        <TableCell sx={{ fontWeight: 600, color: rowHours.needsApproval ? '#d97706' : 'text.primary', fontSize: 13 }}>
-                                                            {rowHours.needsApproval ? (
-                                                                <Typography component="span" sx={{ fontSize: 12, fontWeight: 700, color: '#d97706' }}>
-                                                                    Pending Approval
-                                                                </Typography>
-                                                            ) : (
-                                                                rowHours.otHours
-                                                            )}
+                                                        <TableCell sx={{ fontWeight: 600, color: 'text.primary', fontSize: 13 }}>
+                                                            {rowHours.otHours}
                                                         </TableCell>
 
                                                         {/* Less Hours */}
-                                                        <TableCell sx={{ fontWeight: 600, color: rowHours.needsApproval ? 'text.secondary' : (!isZeroOrDash ? '#dc2626' : 'text.secondary'), fontSize: 13 }}>
-                                                            {rowHours.needsApproval ? '-' : rowHours.lessHours}
+                                                        <TableCell sx={{ fontWeight: 600, color: !isZeroOrDash ? '#dc2626' : 'text.secondary', fontSize: 13 }}>
+                                                            {rowHours.lessHours}
                                                         </TableCell>
                                                     </>
                                                 );
@@ -775,58 +699,18 @@ export default function ViewMyAttendancePage() {
 
                                             {/* Status */}
                                             <TableCell>
-                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
-                                                    <Chip
-                                                        label={row.status}
-                                                        size="small"
-                                                        sx={{
-                                                            fontSize: '0.75rem',
-                                                            fontWeight: 700,
-                                                            backgroundColor: row.status === 'Clocked In' ? '#ecfdf5' : '#f1f5f9',
-                                                            color: row.status === 'Clocked In' ? '#047857' : '#475569',
-                                                            border: '1px solid',
-                                                            borderColor: row.status === 'Clocked In' ? '#a7f3d0' : '#cbd5e1',
-                                                        }}
-                                                    />
-                                                    {(() => {
-                                                        const rowHours = getDailyRowHours(row as any, myDailyStatsMap);
-                                                        if (rowHours.needsApproval) {
-                                                            return (
-                                                                <Chip
-                                                                    icon={<WarningAmberIcon sx={{ fontSize: '13px !important', color: '#b45309 !important' }} />}
-                                                                    label="Pending Super Admin Approval (>19h)"
-                                                                    size="small"
-                                                                    sx={{
-                                                                        backgroundColor: '#fef3c7',
-                                                                        color: '#92400e',
-                                                                        border: '1px solid #fde68a',
-                                                                        fontWeight: 700,
-                                                                        fontSize: '0.68rem',
-                                                                        height: 22,
-                                                                    }}
-                                                                />
-                                                            );
-                                                        }
-                                                        if (rowHours.exceeds19h && rowHours.isApproved) {
-                                                            return (
-                                                                <Chip
-                                                                    icon={<CheckCircleIcon sx={{ fontSize: '13px !important', color: '#15803d !important' }} />}
-                                                                    label="Approved by Super Admin (>19h)"
-                                                                    size="small"
-                                                                    sx={{
-                                                                        backgroundColor: '#dcfce7',
-                                                                        color: '#15803d',
-                                                                        border: '1px solid #86efac',
-                                                                        fontWeight: 700,
-                                                                        fontSize: '0.68rem',
-                                                                        height: 22,
-                                                                    }}
-                                                                />
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()}
-                                                </Box>
+                                                <Chip
+                                                    label={row.status}
+                                                    size="small"
+                                                    sx={{
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 700,
+                                                        backgroundColor: row.status === 'Clocked In' ? '#ecfdf5' : '#f1f5f9',
+                                                        color: row.status === 'Clocked In' ? '#047857' : '#475569',
+                                                        border: '1px solid',
+                                                        borderColor: row.status === 'Clocked In' ? '#a7f3d0' : '#cbd5e1',
+                                                    }}
+                                                />
                                             </TableCell>
                                         </TableRow>
                                     ))

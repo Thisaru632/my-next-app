@@ -32,9 +32,6 @@ import {
     DialogContent,
     DialogActions,
     Button,
-    Alert,
-    FormControlLabel,
-    Checkbox,
 } from '@mui/material';
 import {
     Search as SearchIcon,
@@ -48,7 +45,6 @@ import {
     LocationOn as LocationIcon,
     Visibility as ViewIcon,
     FileDownload as DownloadIcon,
-    WarningAmber as WarningAmberIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
@@ -68,8 +64,6 @@ interface AttendanceRecord {
     clockInLocation?: string;
     clockOutLocation?: string;
     status: 'Clocked In' | 'Clocked Out' | 'Not Clocked In' | 'Leave';
-    sessions?: AttendanceRecord[];
-    approvedBySuperAdmin?: boolean;
 }
 
 interface MonthlyAttendanceRecord {
@@ -324,10 +318,6 @@ export interface DailyRowHoursResult {
     lessHours: string;
     isMultiSession: boolean;
     sessionCount: number;
-    exceeds19h?: boolean;
-    isApproved?: boolean;
-    needsApproval?: boolean;
-    totalDayMins?: number;
 }
 
 export const getDailyRowHours = (
@@ -347,10 +337,6 @@ export const getDailyRowHours = (
             lessHours: '-',
             isMultiSession: false,
             sessionCount: 0,
-            exceeds19h: false,
-            isApproved: false,
-            needsApproval: false,
-            totalDayMins: 0,
         };
     }
 
@@ -358,26 +344,6 @@ export const getDailyRowHours = (
 
     // If only 1 session on this day for this user
     if (!userStat || userStat.sessionCount <= 1) {
-        const singleMins = getSessionMinutes(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate);
-        const exceeds19h = singleMins > 1140; // > 19 hours
-        const isApproved = !!row.approvedBySuperAdmin;
-        const needsApproval = exceeds19h && !isApproved;
-
-        if (needsApproval) {
-            return {
-                sessionHrs,
-                dayTotalHrs: sessionHrs,
-                otHours: 'Pending Approval',
-                lessHours: '-',
-                isMultiSession: false,
-                sessionCount: userStat ? userStat.sessionCount : 1,
-                exceeds19h: true,
-                isApproved: false,
-                needsApproval: true,
-                totalDayMins: singleMins,
-            };
-        }
-
         const otHrs = calculateOtHours(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate);
         const lessHrs = calculateLessHours(row.clockInTime, row.clockOutTime, row.clockInDate || row.date, row.clockOutDate);
         return {
@@ -387,34 +353,12 @@ export const getDailyRowHours = (
             lessHours: lessHrs,
             isMultiSession: false,
             sessionCount: userStat ? userStat.sessionCount : 1,
-            exceeds19h,
-            isApproved,
-            needsApproval: false,
-            totalDayMins: singleMins,
         };
     }
 
     // Multiple sessions on the same day for this user:
     const totalDayMins = userStat.totalMinutes;
     const dayTotalHrs = formatMinutesToHoursAndMins(totalDayMins);
-    const exceeds19h = totalDayMins > 1140; // > 19 hours
-    const isApproved = !!row.approvedBySuperAdmin;
-    const needsApproval = exceeds19h && !isApproved;
-
-    if (needsApproval) {
-        return {
-            sessionHrs,
-            dayTotalHrs,
-            otHours: 'Pending Approval',
-            lessHours: '-',
-            isMultiSession: true,
-            sessionCount: userStat.sessionCount,
-            exceeds19h: true,
-            isApproved: false,
-            needsApproval: true,
-            totalDayMins,
-        };
-    }
 
     let otHours = '0 hrs';
     let lessHours = '0 hrs';
@@ -442,10 +386,6 @@ export const getDailyRowHours = (
         lessHours,
         isMultiSession: true,
         sessionCount: userStat.sessionCount,
-        exceeds19h,
-        isApproved,
-        needsApproval: false,
-        totalDayMins,
     };
 };
 
@@ -686,7 +626,6 @@ export default function AttendanceSheetPage() {
     // Edit Dialog States
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
-    const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
     const [editClockInDate, setEditClockInDate] = useState('');
     const [editClockIn, setEditClockIn] = useState('');
     const [editClockOutDate, setEditClockOutDate] = useState('');
@@ -697,10 +636,7 @@ export default function AttendanceSheetPage() {
     // Delete Confirmation States
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [recordToDelete, setRecordToDelete] = useState<AttendanceRecord | null>(null);
-    const [deleteSessionIndex, setDeleteSessionIndex] = useState(0);
     const [deletingRecord, setDeletingRecord] = useState(false);
-    const [approvingId, setApprovingId] = useState<string | null>(null);
-    const [editApprovedBySuperAdmin, setEditApprovedBySuperAdmin] = useState(false);
 
     useEffect(() => {
         const userStr = localStorage.getItem('staffUser');
@@ -815,17 +751,14 @@ export default function AttendanceSheetPage() {
         }
     };
 
-    const handleOpenEdit = (record: AttendanceRecord, sessionIndex = 0) => {
+    const handleOpenEdit = (record: AttendanceRecord) => {
         if (!isSuperAdmin && !isAdmin) return;
         setSelectedRecord(record);
-        setSelectedSessionIndex(sessionIndex);
-        const target = (record.sessions && record.sessions.length > sessionIndex) ? record.sessions[sessionIndex] : record;
-        setEditClockInDate(target.clockInDate && target.clockInDate !== '-' ? target.clockInDate : (target.date && target.date !== '-' ? target.date : selectedDailyDate));
-        setEditClockIn(target.clockInTime && target.clockInTime !== '-' ? target.clockInTime : '08:30 AM');
-        setEditClockOutDate(target.clockOutDate && target.clockOutDate !== '-' ? target.clockOutDate : selectedDailyDate);
-        setEditClockOut(target.clockOutTime && target.clockOutTime !== '-' ? target.clockOutTime : '05:30 PM');
-        setEditStatus(target.status === 'Clocked Out' ? 'Clocked Out' : 'Clocked In');
-        setEditApprovedBySuperAdmin(!!record.approvedBySuperAdmin);
+        setEditClockInDate(record.clockInDate && record.clockInDate !== '-' ? record.clockInDate : (record.date && record.date !== '-' ? record.date : selectedDailyDate));
+        setEditClockIn(record.clockInTime && record.clockInTime !== '-' ? record.clockInTime : '08:30 AM');
+        setEditClockOutDate(record.clockOutDate && record.clockOutDate !== '-' ? record.clockOutDate : selectedDailyDate);
+        setEditClockOut(record.clockOutTime && record.clockOutTime !== '-' ? record.clockOutTime : '05:30 PM');
+        setEditStatus(record.status === 'Clocked Out' ? 'Clocked Out' : 'Clocked In');
         setEditDialogOpen(true);
     };
 
@@ -834,10 +767,7 @@ export default function AttendanceSheetPage() {
         setSavingEdit(true);
         try {
             const token = localStorage.getItem('staffToken');
-            const targetRecord = (selectedRecord.sessions && selectedRecord.sessions.length > selectedSessionIndex)
-                ? selectedRecord.sessions[selectedSessionIndex]
-                : selectedRecord;
-            const response = await fetch(`${API_ENDPOINTS.AUTH}/attendance/${targetRecord.id}`, {
+            const response = await fetch(`${API_ENDPOINTS.AUTH}/attendance/${selectedRecord.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -853,7 +783,6 @@ export default function AttendanceSheetPage() {
                     clockOutDate: editClockOutDate,
                     clockOutTime: editClockOut,
                     status: editStatus,
-                    approvedBySuperAdmin: isSuperAdmin ? editApprovedBySuperAdmin : selectedRecord.approvedBySuperAdmin,
                 }),
             });
 
@@ -869,112 +798,15 @@ export default function AttendanceSheetPage() {
         }
     };
 
-    const handleApproveRecord = async (record: AttendanceRecord) => {
-        if (!isSuperAdmin) return;
-        setApprovingId(record.id);
-        try {
-            const token = localStorage.getItem('staffToken');
-            const targetDate = record.clockInDate && record.clockInDate !== '-' ? record.clockInDate : record.date;
-            
-            const idsToApprove: string[] = [];
-            if (record.sessions && record.sessions.length > 0) {
-                record.sessions.forEach(s => {
-                    if (s.id && !s.id.startsWith('staff_')) idsToApprove.push(s.id);
-                });
-            } else if (record.id && !record.id.startsWith('staff_')) {
-                idsToApprove.push(record.id);
-            }
-
-            const res = await fetch(`${API_ENDPOINTS.AUTH}/attendance/approve-day`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    eNo: record.eNo,
-                    email: record.email,
-                    date: targetDate,
-                    ids: idsToApprove,
-                    approved: true
-                })
-            });
-
-            if (res.ok) {
-                fetchAttendanceData();
-            } else {
-                for (const id of idsToApprove) {
-                    await fetch(`${API_ENDPOINTS.AUTH}/attendance/${id}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ approvedBySuperAdmin: true })
-                    });
-                }
-                fetchAttendanceData();
-            }
-        } catch (err) {
-            console.error('Error approving record:', err);
-            alert('Failed to approve attendance record');
-        } finally {
-            setApprovingId(null);
-        }
-    };
-
-    const handleRevokeApproval = async (record: AttendanceRecord) => {
-        if (!isSuperAdmin) return;
-        setApprovingId(record.id);
-        try {
-            const token = localStorage.getItem('staffToken');
-            const targetDate = record.clockInDate && record.clockInDate !== '-' ? record.clockInDate : record.date;
-            
-            const idsToApprove: string[] = [];
-            if (record.sessions && record.sessions.length > 0) {
-                record.sessions.forEach(s => {
-                    if (s.id && !s.id.startsWith('staff_')) idsToApprove.push(s.id);
-                });
-            } else if (record.id && !record.id.startsWith('staff_')) {
-                idsToApprove.push(record.id);
-            }
-
-            await fetch(`${API_ENDPOINTS.AUTH}/attendance/approve-day`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    eNo: record.eNo,
-                    email: record.email,
-                    date: targetDate,
-                    ids: idsToApprove,
-                    approved: false
-                })
-            });
-            fetchAttendanceData();
-        } catch (err) {
-            console.error('Error revoking approval:', err);
-        } finally {
-            setApprovingId(null);
-        }
-    };
-
-    const handleOpenDelete = (record: AttendanceRecord, sessionIndex = 0) => {
+    const handleOpenDelete = (record: AttendanceRecord) => {
         if (!isSuperAdmin) return;
         setRecordToDelete(record);
-        setDeleteSessionIndex(sessionIndex);
         setDeleteDialogOpen(true);
     };
 
     const handleDeleteConfirm = async () => {
         if (!isSuperAdmin || !recordToDelete) return;
-        const targetToDelete = (recordToDelete.sessions && recordToDelete.sessions.length > deleteSessionIndex)
-            ? recordToDelete.sessions[deleteSessionIndex]
-            : recordToDelete;
-
-        if (targetToDelete.id.startsWith('staff_') || targetToDelete.status === 'Not Clocked In') {
+        if (recordToDelete.id.startsWith('staff_') || recordToDelete.status === 'Not Clocked In') {
             alert('No attendance record exists to delete for this staff member.');
             setDeleteDialogOpen(false);
             return;
@@ -983,7 +815,7 @@ export default function AttendanceSheetPage() {
         setDeletingRecord(true);
         try {
             const token = localStorage.getItem('staffToken');
-            let response = await fetch(`${API_ENDPOINTS.AUTH}/attendance/${targetToDelete.id}`, {
+            let response = await fetch(`${API_ENDPOINTS.AUTH}/attendance/${recordToDelete.id}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -992,7 +824,7 @@ export default function AttendanceSheetPage() {
 
             // If DELETE is blocked by host/proxy or returns 404, try POST fallback route
             if (response.status === 404) {
-                response = await fetch(`${API_ENDPOINTS.AUTH}/attendance/${targetToDelete.id}/delete`, {
+                response = await fetch(`${API_ENDPOINTS.AUTH}/attendance/${recordToDelete.id}/delete`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -1131,17 +963,8 @@ export default function AttendanceSheetPage() {
             const isLeave = checkIfUserIsOnLeave(staff.eNo, selectedDailyDate, staff.email, staff.name);
 
             if (matchedLogs.length > 0) {
-                matchedLogs.forEach(log => matchedLogIds.add(log.id));
-
-                // Sort multiple logs chronologically by clockInTime
-                matchedLogs.sort((a, b) => {
-                    const timeA = time12To24(a.clockInTime);
-                    const timeB = time12To24(b.clockInTime);
-                    return timeA.localeCompare(timeB);
-                });
-
-                if (matchedLogs.length === 1) {
-                    const log = matchedLogs[0];
+                matchedLogs.forEach(log => {
+                    matchedLogIds.add(log.id);
                     const notClockedIn = !log.clockInTime || log.clockInTime === '-' || log.status === 'Not Clocked In';
                     const userIsLeave = notClockedIn && (isLeave || checkIfUserIsOnLeave(log.eNo, selectedDailyDate, log.email, log.name));
                     resultList.push({
@@ -1151,43 +974,8 @@ export default function AttendanceSheetPage() {
                         email: log.email || staff.email,
                         avatar: log.avatar || staff.avatar || '',
                         status: (userIsLeave ? 'Leave' : (notClockedIn ? 'Not Clocked In' : (log.status || 'Clocked In'))) as any,
-                        approvedBySuperAdmin: !!log.approvedBySuperAdmin,
                     });
-                } else {
-                    // Combine multiple sessions into a SINGLE row
-                    const enrichedSessions: AttendanceRecord[] = matchedLogs.map(log => {
-                        const notClockedIn = !log.clockInTime || log.clockInTime === '-' || log.status === 'Not Clocked In';
-                        const userIsLeave = notClockedIn && (isLeave || checkIfUserIsOnLeave(log.eNo, selectedDailyDate, log.email, log.name));
-                        return {
-                            ...log,
-                            name: log.name || staff.name,
-                            eNo: (log.eNo && log.eNo !== 'N/A' && !log.eNo.includes('@')) ? log.eNo : staff.eNo,
-                            email: log.email || staff.email,
-                            avatar: log.avatar || staff.avatar || '',
-                            status: (userIsLeave ? 'Leave' : (notClockedIn ? 'Not Clocked In' : (log.status || 'Clocked In'))) as any,
-                        };
-                    });
-
-                    const hasActive = enrichedSessions.some(s => s.status === 'Clocked In' || s.clockOutTime === 'Active Session' || (!s.clockOutTime && s.clockInTime && s.clockInTime !== '-'));
-                    const overallStatus = hasActive ? 'Clocked In' : 'Clocked Out';
-                    const firstSession = enrichedSessions[0];
-                    const lastSession = enrichedSessions[enrichedSessions.length - 1];
-
-                    const isAnyApproved = matchedLogs.some(l => l.approvedBySuperAdmin);
-                    resultList.push({
-                        ...firstSession,
-                        id: `group_${staff.id || staff.eNo}_${selectedDailyDate}`,
-                        clockInDate: firstSession.clockInDate || firstSession.date,
-                        clockInTime: firstSession.clockInTime,
-                        clockInLocation: firstSession.clockInLocation,
-                        clockOutDate: lastSession.clockOutDate || lastSession.date,
-                        clockOutTime: lastSession.clockOutTime,
-                        clockOutLocation: lastSession.clockOutLocation,
-                        status: overallStatus as any,
-                        sessions: enrichedSessions,
-                        approvedBySuperAdmin: isAnyApproved,
-                    });
-                }
+                });
             } else {
                 resultList.push({
                     id: `staff_${staff.id || staff.eNo}_${selectedDailyDate}`,
@@ -1208,64 +996,18 @@ export default function AttendanceSheetPage() {
             }
         });
 
-        // Group remaining unmatched logs by staff identifier into single rows if multi-session
-        const unmatchedLogs = logsForSelectedDate.filter(log => !matchedLogIds.has(log.id));
-        const unmatchedMap = new Map<string, AttendanceRecord[]>();
-        unmatchedLogs.forEach(log => {
-            const key = (log.eNo && log.eNo !== 'N/A' && !log.eNo.includes('@') ? log.eNo : log.email || log.name || log.id).toLowerCase().trim();
-            if (!unmatchedMap.has(key)) {
-                unmatchedMap.set(key, []);
-            }
-            unmatchedMap.get(key)!.push(log);
-        });
-
-        unmatchedMap.forEach((groupLogs) => {
-            groupLogs.sort((a, b) => {
-                const timeA = time12To24(a.clockInTime);
-                const timeB = time12To24(b.clockInTime);
-                return timeA.localeCompare(timeB);
-            });
-
-            if (groupLogs.length === 1) {
-                const log = groupLogs[0];
+        logsForSelectedDate.forEach(log => {
+            if (!matchedLogIds.has(log.id)) {
                 const notClockedIn = !log.clockInTime || log.clockInTime === '-' || log.status === 'Not Clocked In';
                 const userIsLeave = notClockedIn && checkIfUserIsOnLeave(log.eNo, selectedDailyDate, log.email, log.name);
                 resultList.push({
                     ...log,
                     status: (userIsLeave ? 'Leave' : log.status) as any,
                 });
-            } else {
-                const enrichedSessions: AttendanceRecord[] = groupLogs.map(log => {
-                    const notClockedIn = !log.clockInTime || log.clockInTime === '-' || log.status === 'Not Clocked In';
-                    const userIsLeave = notClockedIn && checkIfUserIsOnLeave(log.eNo, selectedDailyDate, log.email, log.name);
-                    return {
-                        ...log,
-                        status: (userIsLeave ? 'Leave' : log.status) as any,
-                    };
-                });
-                const hasActive = enrichedSessions.some(s => s.status === 'Clocked In' || s.clockOutTime === 'Active Session' || (!s.clockOutTime && s.clockInTime && s.clockInTime !== '-'));
-                const overallStatus = hasActive ? 'Clocked In' : 'Clocked Out';
-                const firstSession = enrichedSessions[0];
-                const lastSession = enrichedSessions[enrichedSessions.length - 1];
-
-                const isAnyApprovedUnmatched = groupLogs.some(l => l.approvedBySuperAdmin);
-                resultList.push({
-                    ...firstSession,
-                    id: `group_unmatched_${firstSession.id}`,
-                    clockInDate: firstSession.clockInDate || firstSession.date,
-                    clockInTime: firstSession.clockInTime,
-                    clockInLocation: firstSession.clockInLocation,
-                    clockOutDate: lastSession.clockOutDate || lastSession.date,
-                    clockOutTime: lastSession.clockOutTime,
-                    clockOutLocation: lastSession.clockOutLocation,
-                    status: overallStatus as any,
-                    sessions: enrichedSessions,
-                    approvedBySuperAdmin: isAnyApprovedUnmatched,
-                });
             }
         });
 
-        // Sort by eNo first, then chronologically by 24h clockInTime
+        // Sort by eNo first, then chronologically by 24h clockInTime for multiple records of the same staff
         resultList.sort((a, b) => {
             const cmp = compareENo(a.eNo, b.eNo);
             if (cmp !== 0) return cmp;
@@ -1310,32 +1052,15 @@ export default function AttendanceSheetPage() {
             if (!userKey || !dateKey) return;
             const mapKey = `${userKey}_${dateKey}`;
 
-            if (r.sessions && r.sessions.length > 0) {
-                let totalMins = 0;
-                let hasActive = false;
-                r.sessions.forEach(s => {
-                    const mins = getSessionMinutes(s.clockInTime, s.clockOutTime, s.clockInDate || s.date, s.clockOutDate);
-                    totalMins += mins;
-                    if (s.clockOutTime === 'Active Session' || (!s.clockOutTime && s.status === 'Clocked In')) {
-                        hasActive = true;
-                    }
-                });
-                stats.set(mapKey, {
-                    totalMinutes: totalMins,
-                    sessionCount: r.sessions.length,
-                    hasActiveSession: hasActive,
-                });
-            } else {
-                const mins = getSessionMinutes(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
-                const isActive = r.clockOutTime === 'Active Session' || (!r.clockOutTime && r.status === 'Clocked In');
+            const mins = getSessionMinutes(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
+            const isActive = r.clockOutTime === 'Active Session' || (!r.clockOutTime && r.status === 'Clocked In');
 
-                const existing = stats.get(mapKey) || { totalMinutes: 0, sessionCount: 0, hasActiveSession: false };
-                stats.set(mapKey, {
-                    totalMinutes: existing.totalMinutes + mins,
-                    sessionCount: existing.sessionCount + 1,
-                    hasActiveSession: existing.hasActiveSession || isActive,
-                });
-            }
+            const existing = stats.get(mapKey) || { totalMinutes: 0, sessionCount: 0, hasActiveSession: false };
+            stats.set(mapKey, {
+                totalMinutes: existing.totalMinutes + mins,
+                sessionCount: existing.sessionCount + 1,
+                hasActiveSession: existing.hasActiveSession || isActive,
+            });
         });
 
         return stats;
@@ -1390,41 +1115,20 @@ export default function AttendanceSheetPage() {
         const headers = ['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location In', 'Location Out', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status'];
 
         const rows = filteredDailyRecords.map(r => {
+            const inLoc = r.clockInLocation ? r.clockInLocation.replace(/"/g, '""') : '';
+            const outLoc = r.clockOutLocation ? r.clockOutLocation.replace(/"/g, '""') : '';
             const rowHours = getDailyRowHours(r, dailyUserStatsMap);
-            let inDate = r.clockInDate || r.date || '';
-            let inTime = r.clockInTime || '';
-            let outDate = r.clockOutDate || '';
-            let outTime = r.clockOutTime || '';
-            let inLoc = r.clockInLocation ? r.clockInLocation.replace(/"/g, '""') : '';
-            let outLoc = r.clockOutLocation ? r.clockOutLocation.replace(/"/g, '""') : '';
-            let hrs = rowHours.dayTotalHrs;
-
-            if (r.sessions && r.sessions.length > 1) {
-                inDate = r.sessions.map((s, idx) => `Session ${idx + 1}: ${s.clockInDate || s.date || '-'}`).join(' | ');
-                inTime = r.sessions.map((s, idx) => `Session ${idx + 1}: ${s.clockInTime || '-'}`).join(' | ');
-                outDate = r.sessions.map((s, idx) => `Session ${idx + 1}: ${s.clockOutDate || (s.status === 'Clocked Out' ? (s.date || '-') : '-')}`).join(' | ');
-                outTime = r.sessions.map((s, idx) => `Session ${idx + 1}: ${s.clockOutTime || '-'}`).join(' | ');
-                inLoc = r.sessions.map((s, idx) => `Session ${idx + 1}: ${s.clockInLocation ? s.clockInLocation.replace(/"/g, '""') : '-'}`).join(' | ');
-                outLoc = r.sessions.map((s, idx) => `Session ${idx + 1}: ${s.clockOutLocation ? s.clockOutLocation.replace(/"/g, '""') : '-'}`).join(' | ');
-                const sessionBreakdowns = r.sessions.map((s, idx) => `S${idx + 1}: ${calculateHourCount(s.clockInTime, s.clockOutTime, s.clockInDate || s.date, s.clockOutDate)}`).join(' | ');
-                hrs = `${rowHours.dayTotalHrs} (${sessionBreakdowns})`;
-            } else if (rowHours.isMultiSession) {
-                hrs = `${rowHours.dayTotalHrs} (Session: ${rowHours.sessionHrs})`;
-            }
-
-            const extraHrs = rowHours.needsApproval ? '0 hrs (Pending Approval)' : rowHours.otHours;
-            const lessHrs = rowHours.needsApproval ? '-' : rowHours.lessHours;
-            if (rowHours.needsApproval) {
-                hrs = `${rowHours.dayTotalHrs} (Pending Super Admin Approval - Invalid)`;
-            }
+            const hrs = rowHours.isMultiSession ? `${rowHours.dayTotalHrs} (Session: ${rowHours.sessionHrs})` : rowHours.dayTotalHrs;
+            const extraHrs = rowHours.otHours;
+            const lessHrs = rowHours.lessHours;
 
             return [
                 `"${r.eNo || ''}"`,
                 `"${r.name || ''}"`,
-                `"${inDate}"`,
-                `"${inTime}"`,
-                `"${outDate}"`,
-                `"${outTime}"`,
+                `"${r.clockInDate || r.date || ''}"`,
+                `"${r.clockInTime || ''}"`,
+                `"${r.clockOutDate || ''}"`,
+                `"${r.clockOutTime || ''}"`,
                 `"${inLoc}"`,
                 `"${outLoc}"`,
                 `"${hrs}"`,
@@ -1661,50 +1365,6 @@ export default function AttendanceSheetPage() {
 
                         <Divider sx={{ borderColor: 'divider' }} />
 
-                        {/* Attention Banner for Over 19h Pending Approvals */}
-                        {(() => {
-                            const pendingCount = filteredDailyRecords.filter(r => getDailyRowHours(r, dailyUserStatsMap).needsApproval).length;
-                            if (pendingCount === 0) return null;
-                            if (isSuperAdmin) {
-                                return (
-                                    <Box sx={{ p: 2, pb: 0 }}>
-                                        <Alert
-                                            severity="warning"
-                                            icon={<WarningAmberIcon />}
-                                            sx={{
-                                                borderRadius: 2.5,
-                                                fontWeight: 500,
-                                                border: '1px solid #fde68a',
-                                                bgcolor: '#fffbeb',
-                                                color: '#92400e',
-                                                '& .MuiAlert-icon': { color: '#d97706' },
-                                            }}
-                                        >
-                                            <strong>Attention Super Admin:</strong> {pendingCount} attendance record{pendingCount === 1 ? '' : 's'} on this sheet {pendingCount === 1 ? 'has' : 'have'} worked hours exceeding 19 hours requiring your approval. Until approved, the hour count is invalid and not counted.
-                                        </Alert>
-                                    </Box>
-                                );
-                            }
-                            return (
-                                <Box sx={{ p: 2, pb: 0 }}>
-                                    <Alert
-                                        severity="info"
-                                        icon={<WarningAmberIcon />}
-                                        sx={{
-                                            borderRadius: 2.5,
-                                            fontWeight: 500,
-                                            border: '1px solid #bfdbfe',
-                                            bgcolor: '#eff6ff',
-                                            color: '#1e40af',
-                                            '& .MuiAlert-icon': { color: '#3b82f6' },
-                                        }}
-                                    >
-                                        <strong>Notice:</strong> Attendance records with daily worked hours exceeding 19 hours require approval from the Super Admin before hours are considered valid.
-                                    </Alert>
-                                </Box>
-                            );
-                        })()}
-
                         {loading ? (
                             <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
                                 <CircularProgress sx={{ color: '#3b82f6' }} />
@@ -1783,217 +1443,79 @@ export default function AttendanceSheetPage() {
 
                                                     {/* Clock In Date */}
                                                     <TableCell sx={{ color: 'text.secondary', fontSize: 13, fontWeight: 500 }}>
-                                                        {row.sessions && row.sessions.length > 1 ? (
-                                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
-                                                                {row.sessions.map((s, sIdx) => (
-                                                                    <Box key={s.id || sIdx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, whiteSpace: 'nowrap' }}>
-                                                                        <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, px: 0.6, py: 0.1, bgcolor: '#f1f5f9', color: '#475569', borderRadius: 0.8 }}>
-                                                                            S{sIdx + 1}
-                                                                        </Typography>
-                                                                        <Typography component="span" sx={{ fontSize: 12, fontWeight: 500, color: 'text.secondary' }}>
-                                                                            {s.clockInDate || s.date || '-'}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                ))}
-                                                            </Box>
-                                                        ) : (
-                                                            row.clockInDate || row.date
-                                                        )}
+                                                        {row.clockInDate || row.date}
                                                     </TableCell>
 
                                                     {/* Clock In */}
                                                     <TableCell sx={{ color: '#10b981', fontWeight: 600, fontSize: 13 }}>
-                                                        {row.sessions && row.sessions.length > 1 ? (
-                                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
-                                                                {row.sessions.map((s, sIdx) => (
-                                                                    <Box key={s.id || sIdx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, whiteSpace: 'nowrap' }}>
-                                                                        <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, px: 0.6, py: 0.1, bgcolor: '#ecfdf5', color: '#047857', borderRadius: 0.8, border: '1px solid #a7f3d0' }}>
-                                                                            Session {sIdx + 1}
-                                                                        </Typography>
-                                                                        <Typography component="span" sx={{ fontSize: 13, fontWeight: 600, color: '#10b981' }}>
-                                                                            {s.clockInTime || '-'}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                ))}
-                                                            </Box>
-                                                        ) : (
-                                                            row.clockInTime
-                                                        )}
+                                                        {row.clockInTime}
                                                     </TableCell>
 
                                                     {/* Clock Out Date */}
                                                     <TableCell sx={{ color: 'text.secondary', fontSize: 13, fontWeight: 500 }}>
-                                                        {row.sessions && row.sessions.length > 1 ? (
-                                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
-                                                                {row.sessions.map((s, sIdx) => (
-                                                                    <Box key={s.id || sIdx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, whiteSpace: 'nowrap' }}>
-                                                                        <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, px: 0.6, py: 0.1, bgcolor: '#f1f5f9', color: '#475569', borderRadius: 0.8 }}>
-                                                                            S{sIdx + 1}
-                                                                        </Typography>
-                                                                        <Typography component="span" sx={{ fontSize: 12, fontWeight: 500, color: 'text.secondary' }}>
-                                                                            {s.clockOutDate || (s.status === 'Clocked Out' ? (s.date || '-') : '-')}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                ))}
-                                                            </Box>
-                                                        ) : (
-                                                            row.clockOutDate || (row.status === 'Clocked Out' ? (row.date || '-') : '-')
-                                                        )}
+                                                        {row.clockOutDate || (row.status === 'Clocked Out' ? (row.date || '-') : '-')}
                                                     </TableCell>
 
                                                     {/* Clock Out */}
-                                                    <TableCell sx={{ fontSize: 13 }}>
-                                                        {row.sessions && row.sessions.length > 1 ? (
-                                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
-                                                                {row.sessions.map((s, sIdx) => {
-                                                                    const isActive = s.clockOutTime === 'Active Session' || (!s.clockOutTime && s.status === 'Clocked In');
-                                                                    const outText = isActive ? 'Active Session' : (s.clockOutTime || '-');
-                                                                    return (
-                                                                        <Box key={s.id || sIdx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, whiteSpace: 'nowrap' }}>
-                                                                            <Typography component="span" sx={{ fontSize: 10, fontWeight: 700, px: 0.6, py: 0.1, bgcolor: '#f1f5f9', color: '#475569', borderRadius: 0.8, border: '1px solid #e2e8f0' }}>
-                                                                            Session {sIdx + 1}
-                                                                            </Typography>
-                                                                            <Typography component="span" sx={{ fontSize: 13, fontWeight: isActive ? 600 : 400, color: isActive ? '#3b82f6' : 'text.secondary' }}>
-                                                                                {outText}
-                                                                            </Typography>
-                                                                        </Box>
-                                                                    );
-                                                                })}
-                                                            </Box>
-                                                        ) : (
-                                                            <Typography component="span" sx={{ color: row.clockOutTime === 'Active Session' ? '#3b82f6' : 'text.secondary', fontSize: 13, fontWeight: row.clockOutTime === 'Active Session' ? 600 : 400 }}>
-                                                                {row.clockOutTime}
-                                                            </Typography>
-                                                        )}
+                                                    <TableCell sx={{ color: row.clockOutTime === 'Active Session' ? '#3b82f6' : 'text.secondary', fontSize: 13, fontWeight: row.clockOutTime === 'Active Session' ? 600 : 400 }}>
+                                                        {row.clockOutTime}
                                                     </TableCell>
 
                                                     {/* Location */}
-                                                    <TableCell sx={{ fontSize: 12, maxWidth: 260 }}>
-                                                        {row.sessions && row.sessions.length > 1 ? (
-                                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
-                                                                {row.sessions.map((s, sIdx) => (
-                                                                    <Box key={s.id || sIdx} sx={{ display: 'flex', flexDirection: 'column', gap: 0.2 }}>
-                                                                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', fontSize: '0.7rem' }}>
-                                                                            Session {sIdx + 1}:
-                                                                        </Typography>
-                                                                        {s.clockInLocation ? (
-                                                                            <Tooltip title={s.clockInLocation} arrow placement="top">
-                                                                                <Typography
-                                                                                    variant="caption"
-                                                                                    sx={{
-                                                                                        color: '#059669',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        gap: 0.5,
-                                                                                        fontWeight: 500,
-                                                                                        fontSize: '0.725rem',
-                                                                                        cursor: 'pointer',
-                                                                                        whiteSpace: 'nowrap',
-                                                                                        overflow: 'hidden',
-                                                                                        textOverflow: 'ellipsis',
-                                                                                    }}
-                                                                                >
-                                                                                    <LocationIcon sx={{ fontSize: 13, color: '#10b981', flexShrink: 0 }} />
-                                                                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                                        <strong>In:</strong> {formatShortLocation(s.clockInLocation)}
-                                                                                    </span>
-                                                                                </Typography>
-                                                                            </Tooltip>
-                                                                        ) : null}
-                                                                        {s.clockOutLocation ? (
-                                                                            <Tooltip title={s.clockOutLocation} arrow placement="top">
-                                                                                <Typography
-                                                                                    variant="caption"
-                                                                                    sx={{
-                                                                                        color: '#2563eb',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        gap: 0.5,
-                                                                                        fontWeight: 500,
-                                                                                        fontSize: '0.725rem',
-                                                                                        cursor: 'pointer',
-                                                                                        whiteSpace: 'nowrap',
-                                                                                        overflow: 'hidden',
-                                                                                        textOverflow: 'ellipsis',
-                                                                                    }}
-                                                                                >
-                                                                                    <LocationIcon sx={{ fontSize: 13, color: '#3b82f6', flexShrink: 0 }} />
-                                                                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                                        <strong>Out:</strong> {formatShortLocation(s.clockOutLocation)}
-                                                                                    </span>
-                                                                                </Typography>
-                                                                            </Tooltip>
-                                                                        ) : null}
-                                                                        {!s.clockInLocation && !s.clockOutLocation && (
-                                                                            <Typography
-                                                                                variant="caption"
-                                                                                sx={{
-                                                                                    color: '#94a3b8',
-                                                                                    fontStyle: 'italic',
-                                                                                    fontWeight: 400,
-                                                                                    fontSize: '0.7rem',
-                                                                                }}
-                                                                            >
-                                                                                Not Recorded
-                                                                            </Typography>
-                                                                        )}
-                                                                    </Box>
-                                                                ))}
-                                                            </Box>
-                                                        ) : (
-                                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
-                                                                {row.clockInLocation ? (
-                                                                    <Tooltip title={row.clockInLocation} arrow placement="top">
-                                                                        <Typography
-                                                                            variant="caption"
-                                                                            sx={{
-                                                                                color: '#059669',
-                                                                                display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                gap: 0.5,
-                                                                                fontWeight: 500,
-                                                                                fontSize: '0.725rem',
-                                                                                cursor: 'pointer',
-                                                                                whiteSpace: 'nowrap',
-                                                                                overflow: 'hidden',
-                                                                                textOverflow: 'ellipsis',
-                                                                            }}
-                                                                        >
-                                                                            <LocationIcon sx={{ fontSize: 13, color: '#10b981', flexShrink: 0 }} />
-                                                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                                <strong>In:</strong> {formatShortLocation(row.clockInLocation)}
-                                                                            </span>
-                                                                        </Typography>
-                                                                    </Tooltip>
-                                                                ) : null}
-                                                                {row.clockOutLocation ? (
-                                                                    <Tooltip title={row.clockOutLocation} arrow placement="top">
-                                                                        <Typography
-                                                                            variant="caption"
-                                                                            sx={{
-                                                                                color: '#2563eb',
-                                                                                display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                gap: 0.5,
-                                                                                fontWeight: 500,
-                                                                                fontSize: '0.725rem',
-                                                                                cursor: 'pointer',
-                                                                                whiteSpace: 'nowrap',
-                                                                                overflow: 'hidden',
-                                                                                textOverflow: 'ellipsis',
-                                                                            }}
-                                                                        >
-                                                                            <LocationIcon sx={{ fontSize: 13, color: '#3b82f6', flexShrink: 0 }} />
-                                                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                                <strong>Out:</strong> {formatShortLocation(row.clockOutLocation)}
-                                                                            </span>
-                                                                        </Typography>
-                                                                    </Tooltip>
-                                                                ) : null}
-                                                                {!row.clockInLocation && !row.clockOutLocation && (
+                                                    <TableCell sx={{ fontSize: 12, maxWidth: 220 }}>
+                                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+                                                            {row.clockInLocation ? (
+                                                                <Tooltip title={row.clockInLocation} arrow placement="top">
                                                                     <Typography
                                                                         variant="caption"
                                                                         sx={{
+                                                                            color: '#059669',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: 0.5,
+                                                                            fontWeight: 500,
+                                                                            fontSize: '0.725rem',
+                                                                            cursor: 'pointer',
+                                                                            whiteSpace: 'nowrap',
+                                                                            overflow: 'hidden',
+                                                                            textOverflow: 'ellipsis',
+                                                                        }}
+                                                                    >
+                                                                        <LocationIcon sx={{ fontSize: 13, color: '#10b981', flexShrink: 0 }} />
+                                                                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                            <strong>In:</strong> {formatShortLocation(row.clockInLocation)}
+                                                                        </span>
+                                                                    </Typography>
+                                                                </Tooltip>
+                                                            ) : null}
+                                                            {row.clockOutLocation ? (
+                                                                <Tooltip title={row.clockOutLocation} arrow placement="top">
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        sx={{
+                                                                            color: '#2563eb',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: 0.5,
+                                                                            fontWeight: 500,
+                                                                            fontSize: '0.725rem',
+                                                                            cursor: 'pointer',
+                                                                            whiteSpace: 'nowrap',
+                                                                            overflow: 'hidden',
+                                                                            textOverflow: 'ellipsis',
+                                                                        }}
+                                                                    >
+                                                                        <LocationIcon sx={{ fontSize: 13, color: '#3b82f6', flexShrink: 0 }} />
+                                                                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                            <strong>Out:</strong> {formatShortLocation(row.clockOutLocation)}
+                                                                        </span>
+                                                                    </Typography>
+                                                                </Tooltip>
+                                                            ) : null}
+                                                            {!row.clockInLocation && !row.clockOutLocation && (
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{
                                                                         color: row.status === 'Leave' ? '#b45309' : '#94a3b8',
                                                                         fontStyle: row.status === 'Leave' ? 'normal' : 'italic',
                                                                         fontWeight: row.status === 'Leave' ? 600 : 400,
@@ -2003,269 +1525,75 @@ export default function AttendanceSheetPage() {
                                                                 </Typography>
                                                             )}
                                                         </Box>
-                                                    )}
-                                                </TableCell>
+                                                    </TableCell>
 
-                                                {/* Hour Count, OT Hours, Less Hours */}
-                                                {(() => {
-                                                    const rowHours = getDailyRowHours(row, dailyUserStatsMap);
-                                                    const isZeroOrDash = rowHours.lessHours === '0 hrs' || rowHours.lessHours === '-' || rowHours.lessHours === 'Active Session';
-                                                    return (
-                                                        <>
-                                                            <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
-                                                                {rowHours.needsApproval ? (
-                                                                    <Box>
-                                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                                                                            <Typography sx={{ fontWeight: 700, fontSize: 13, color: '#dc2626', textDecoration: 'line-through' }}>
-                                                                                {rowHours.dayTotalHrs}
-                                                                            </Typography>
-                                                                            <Chip
-                                                                                label="Invalid (>19h)"
-                                                                                size="small"
-                                                                                sx={{
-                                                                                    height: 18,
-                                                                                    fontSize: '0.65rem',
-                                                                                    fontWeight: 700,
-                                                                                    bgcolor: '#fef2f2',
-                                                                                    color: '#b91c1c',
-                                                                                    border: '1px solid #fecaca',
-                                                                                }}
-                                                                            />
-                                                                        </Box>
-                                                                        <Typography variant="caption" sx={{ color: '#d97706', display: 'block', fontSize: '0.7rem', fontWeight: 600, mt: 0.2 }}>
-                                                                            Pending Super Admin Approval
-                                                                        </Typography>
-                                                                        {row.sessions && row.sessions.length > 1 && (
-                                                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2, mt: 0.3 }}>
-                                                                                {row.sessions.map((s, sIdx) => {
-                                                                                    const sHrs = calculateHourCount(s.clockInTime, s.clockOutTime, s.clockInDate || s.date, s.clockOutDate);
-                                                                                    return (
-                                                                                        <Typography key={s.id || sIdx} variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
-                                                                                            <span style={{ fontWeight: 600, color: '#64748b' }}>S{sIdx + 1}:</span> {sHrs}
-                                                                                        </Typography>
-                                                                                    );
-                                                                                })}
-                                                                            </Box>
-                                                                        )}
-                                                                    </Box>
-                                                                ) : rowHours.exceeds19h && rowHours.isApproved ? (
-                                                                    <Box>
-                                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                                                    {/* Hour Count, OT Hours, Less Hours */}
+                                                    {(() => {
+                                                        const rowHours = getDailyRowHours(row, dailyUserStatsMap);
+                                                        const isZeroOrDash = rowHours.lessHours === '0 hrs' || rowHours.lessHours === '-' || rowHours.lessHours === 'Active Session';
+                                                        return (
+                                                            <>
+                                                                <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                                    {rowHours.isMultiSession ? (
+                                                                        <Box>
                                                                             <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
                                                                                 {rowHours.dayTotalHrs}
                                                                             </Typography>
-                                                                            <Chip
-                                                                                label="Approved (>19h)"
-                                                                                size="small"
-                                                                                sx={{
-                                                                                    height: 18,
-                                                                                    fontSize: '0.65rem',
-                                                                                    fontWeight: 700,
-                                                                                    bgcolor: '#ecfdf5',
-                                                                                    color: '#047857',
-                                                                                    border: '1px solid #a7f3d0',
-                                                                                }}
-                                                                            />
+                                                                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.72rem' }}>
+                                                                                Session: {rowHours.sessionHrs}
+                                                                            </Typography>
                                                                         </Box>
-                                                                        {row.sessions && row.sessions.length > 1 && (
-                                                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2, mt: 0.3 }}>
-                                                                                {row.sessions.map((s, sIdx) => {
-                                                                                    const sHrs = calculateHourCount(s.clockInTime, s.clockOutTime, s.clockInDate || s.date, s.clockOutDate);
-                                                                                    return (
-                                                                                        <Typography key={s.id || sIdx} variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
-                                                                                            <span style={{ fontWeight: 600, color: '#64748b' }}>S{sIdx + 1}:</span> {sHrs}
-                                                                                        </Typography>
-                                                                                    );
-                                                                                })}
-                                                                            </Box>
-                                                                        )}
-                                                                    </Box>
-                                                                ) : row.sessions && row.sessions.length > 1 ? (
-                                                                    <Box>
-                                                                        <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
-                                                                            {rowHours.dayTotalHrs}
-                                                                        </Typography>
-                                                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2, mt: 0.3 }}>
-                                                                            {row.sessions.map((s, sIdx) => {
-                                                                                const sHrs = calculateHourCount(s.clockInTime, s.clockOutTime, s.clockInDate || s.date, s.clockOutDate);
-                                                                                return (
-                                                                                    <Typography key={s.id || sIdx} variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
-                                                                                        <span style={{ fontWeight: 600, color: '#64748b' }}>S{sIdx + 1}:</span> {sHrs}
-                                                                                    </Typography>
-                                                                                );
-                                                                            })}
-                                                                        </Box>
-                                                                    </Box>
-                                                                ) : (
-                                                                    rowHours.dayTotalHrs
-                                                                )}
-                                                            </TableCell>
+                                                                    ) : (
+                                                                        rowHours.dayTotalHrs
+                                                                    )}
+                                                                </TableCell>
 
-                                                            {/* OT Hours */}
-                                                            <TableCell sx={{ color: rowHours.needsApproval ? '#d97706' : 'text.primary', fontWeight: 600, fontSize: 13 }}>
-                                                                {rowHours.needsApproval ? (
-                                                                    <Typography component="span" sx={{ fontSize: 12, fontWeight: 700, color: '#d97706' }}>
-                                                                        Pending Approval
-                                                                    </Typography>
-                                                                ) : (
-                                                                    rowHours.otHours
-                                                                )}
-                                                            </TableCell>
+                                                                {/* OT Hours */}
+                                                                <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                                    {rowHours.otHours}
+                                                                </TableCell>
 
-                                                            {/* Less Hours */}
-                                                            <TableCell sx={{ color: rowHours.needsApproval ? 'text.secondary' : (!isZeroOrDash ? '#dc2626' : 'text.secondary'), fontWeight: 600, fontSize: 13 }}>
-                                                                {rowHours.needsApproval ? '-' : rowHours.lessHours}
-                                                            </TableCell>
-                                                        </>
-                                                    );
-                                                })()}
+                                                                {/* Less Hours */}
+                                                                <TableCell sx={{ color: !isZeroOrDash ? '#dc2626' : 'text.secondary', fontWeight: 600, fontSize: 13 }}>
+                                                                    {rowHours.lessHours}
+                                                                </TableCell>
+                                                            </>
+                                                        );
+                                                    })()}
 
-                                                {/* Status */}
-                                                <TableCell>
-                                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                                                            <Chip
-                                                                label={row.status === 'Leave' ? 'On Leave' : row.status}
-                                                                size="small"
-                                                                icon={row.status === 'Leave' ? <CalendarIcon sx={{ fontSize: '13px !important', color: '#92400e !important' }} /> : undefined}
-                                                                sx={{
-                                                                    backgroundColor: row.status === 'Clocked In'
-                                                                        ? '#dcfce7'
-                                                                        : row.status === 'Clocked Out'
-                                                                        ? '#f1f5f9'
-                                                                        : row.status === 'Leave'
-                                                                        ? '#fef3c7'
-                                                                        : '#fff7ed',
-                                                                    color: row.status === 'Clocked In'
-                                                                        ? '#15803d'
-                                                                        : row.status === 'Clocked Out'
-                                                                        ? '#64748b'
-                                                                        : row.status === 'Leave'
-                                                                        ? '#92400e'
-                                                                        : '#c2410c',
-                                                                    border: row.status === 'Leave' ? '1px solid #fde68a' : undefined,
-                                                                    fontWeight: 700,
-                                                                    fontSize: '0.75rem',
-                                                                }}
-                                                            />
-                                                            {row.sessions && row.sessions.length > 1 && (
-                                                                <Chip
-                                                                    label={`${row.sessions.length} Sessions`}
-                                                                    size="small"
-                                                                    sx={{
-                                                                        backgroundColor: '#e0e7ff',
-                                                                        color: '#3730a3',
-                                                                        border: '1px solid #c7d2fe',
-                                                                        fontWeight: 700,
-                                                                        fontSize: '0.68rem',
-                                                                        height: 20,
-                                                                    }}
-                                                                />
-                                                            )}
-                                                        </Box>
+                                                    {/* Status */}
+                                                    <TableCell>
+                                                        <Chip
+                                                            label={row.status === 'Leave' ? 'On Leave' : row.status}
+                                                            size="small"
+                                                            icon={row.status === 'Leave' ? <CalendarIcon sx={{ fontSize: '13px !important', color: '#92400e !important' }} /> : undefined}
+                                                            sx={{
+                                                                backgroundColor: row.status === 'Clocked In'
+                                                                    ? '#dcfce7'
+                                                                    : row.status === 'Clocked Out'
+                                                                    ? '#f1f5f9'
+                                                                    : row.status === 'Leave'
+                                                                    ? '#fef3c7'
+                                                                    : '#fff7ed',
+                                                                color: row.status === 'Clocked In'
+                                                                    ? '#15803d'
+                                                                    : row.status === 'Clocked Out'
+                                                                    ? '#64748b'
+                                                                    : row.status === 'Leave'
+                                                                    ? '#92400e'
+                                                                    : '#c2410c',
+                                                                border: row.status === 'Leave' ? '1px solid #fde68a' : undefined,
+                                                                fontWeight: 700,
+                                                                fontSize: '0.75rem',
+                                                            }}
+                                                        />
+                                                    </TableCell>
 
-                                                        {/* >19h Approval Badges */}
-                                                        {(() => {
-                                                            const rowHours = getDailyRowHours(row, dailyUserStatsMap);
-                                                            if (rowHours.needsApproval) {
-                                                                return (
-                                                                    <Chip
-                                                                        icon={<WarningAmberIcon sx={{ fontSize: '13px !important', color: '#b45309 !important' }} />}
-                                                                        label="Pending Super Admin Approval (>19h)"
-                                                                        size="small"
-                                                                        sx={{
-                                                                            backgroundColor: '#fef3c7',
-                                                                            color: '#92400e',
-                                                                            border: '1px solid #fde68a',
-                                                                            fontWeight: 700,
-                                                                            fontSize: '0.68rem',
-                                                                            height: 22,
-                                                                        }}
-                                                                    />
-                                                                );
-                                                            }
-                                                            if (rowHours.exceeds19h && rowHours.isApproved) {
-                                                                return (
-                                                                    <Chip
-                                                                        icon={<CheckCircleIcon sx={{ fontSize: '13px !important', color: '#15803d !important' }} />}
-                                                                        label="Approved by Super Admin (>19h)"
-                                                                        size="small"
-                                                                        sx={{
-                                                                            backgroundColor: '#dcfce7',
-                                                                            color: '#15803d',
-                                                                            border: '1px solid #86efac',
-                                                                            fontWeight: 700,
-                                                                            fontSize: '0.68rem',
-                                                                            height: 22,
-                                                                        }}
-                                                                    />
-                                                                );
-                                                            }
-                                                            return null;
-                                                        })()}
-                                                    </Box>
-                                                </TableCell>
-
-                                                    {/* Action - SuperAdmin and Admin Edit, SuperAdmin Only Delete / Approve */}
+                                                    {/* Action - SuperAdmin and Admin Edit, SuperAdmin Only Delete */}
                                                     {(isSuperAdmin || isAdmin) && (
                                                         <TableCell align="center">
-                                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.6 }}>
-                                                                {/* Super Admin Approval for >19h */}
-                                                                {isSuperAdmin && (() => {
-                                                                    const rowHours = getDailyRowHours(row, dailyUserStatsMap);
-                                                                    if (rowHours.needsApproval) {
-                                                                        return (
-                                                                            <Tooltip title="Approve Worked Hours (>19h)">
-                                                                                <Button
-                                                                                    size="small"
-                                                                                    variant="contained"
-                                                                                    disabled={approvingId === row.id}
-                                                                                    onClick={() => handleApproveRecord(row)}
-                                                                                    sx={{
-                                                                                        textTransform: 'none',
-                                                                                        fontSize: '0.72rem',
-                                                                                        fontWeight: 700,
-                                                                                        borderRadius: 1.5,
-                                                                                        py: 0.3,
-                                                                                        px: 1,
-                                                                                        minWidth: 'auto',
-                                                                                        boxShadow: 'none',
-                                                                                        bgcolor: '#16a34a',
-                                                                                        color: '#ffffff',
-                                                                                        '&:hover': { bgcolor: '#15803d' },
-                                                                                    }}
-                                                                                    startIcon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />}
-                                                                                >
-                                                                                    {approvingId === row.id ? 'Approving...' : 'Approve'}
-                                                                                </Button>
-                                                                            </Tooltip>
-                                                                        );
-                                                                    }
-                                                                    if (rowHours.exceeds19h && rowHours.isApproved) {
-                                                                        return (
-                                                                            <Tooltip title="Approval Granted - Click to Revoke">
-                                                                                <Chip
-                                                                                    icon={<CheckCircleIcon sx={{ fontSize: '13px !important', color: '#15803d !important' }} />}
-                                                                                    label="Approved"
-                                                                                    size="small"
-                                                                                    clickable
-                                                                                    onClick={() => handleRevokeApproval(row)}
-                                                                                    sx={{
-                                                                                        backgroundColor: '#dcfce7',
-                                                                                        color: '#15803d',
-                                                                                        border: '1px solid #86efac',
-                                                                                        fontWeight: 700,
-                                                                                        fontSize: '0.68rem',
-                                                                                        height: 22,
-                                                                                        cursor: 'pointer',
-                                                                                    }}
-                                                                                />
-                                                                            </Tooltip>
-                                                                        );
-                                                                    }
-                                                                    return null;
-                                                                })()}
-                                                                <Tooltip title={row.sessions && row.sessions.length > 1 ? "Edit Attendance Sessions" : "Edit Attendance Record"}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                                                                <Tooltip title="Edit Attendance Record">
                                                                     <IconButton
                                                                         size="small"
                                                                         color="primary"
@@ -2279,7 +1607,7 @@ export default function AttendanceSheetPage() {
                                                                     </IconButton>
                                                                 </Tooltip>
                                                                 {isSuperAdmin && (
-                                                                    <Tooltip title={row.id?.startsWith('staff_') || row.status === 'Not Clocked In' || row.status === 'Leave' ? "No attendance record to delete" : (row.sessions && row.sessions.length > 1 ? "Delete Attendance Sessions" : "Delete Attendance Record")}>
+                                                                    <Tooltip title={row.id?.startsWith('staff_') || row.status === 'Not Clocked In' || row.status === 'Leave' ? "No attendance record to delete" : "Delete Attendance Record"}>
                                                                         <span>
                                                                             <IconButton
                                                                                 size="small"
@@ -2763,40 +2091,6 @@ export default function AttendanceSheetPage() {
                     Edit Attendance Record ({selectedRecord?.eNo} - {selectedRecord?.name})
                 </DialogTitle>
                 <DialogContent>
-                    {selectedRecord?.sessions && selectedRecord.sessions.length > 1 && (
-                        <Box sx={{ mb: 2, mt: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.8 }}>
-                                Select Session to Edit:
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                {selectedRecord.sessions.map((sess, idx) => (
-                                    <Button
-                                        key={sess.id || idx}
-                                        size="small"
-                                        variant={selectedSessionIndex === idx ? 'contained' : 'outlined'}
-                                        onClick={() => {
-                                            setSelectedSessionIndex(idx);
-                                            setEditClockInDate(sess.clockInDate && sess.clockInDate !== '-' ? sess.clockInDate : (sess.date && sess.date !== '-' ? sess.date : selectedDailyDate));
-                                            setEditClockIn(sess.clockInTime && sess.clockInTime !== '-' ? sess.clockInTime : '08:30 AM');
-                                            setEditClockOutDate(sess.clockOutDate && sess.clockOutDate !== '-' ? sess.clockOutDate : selectedDailyDate);
-                                            setEditClockOut(sess.clockOutTime && sess.clockOutTime !== '-' ? sess.clockOutTime : '05:30 PM');
-                                            setEditStatus(sess.status === 'Clocked Out' ? 'Clocked Out' : 'Clocked In');
-                                        }}
-                                        sx={{
-                                            textTransform: 'none',
-                                            borderRadius: 2,
-                                            fontWeight: 600,
-                                            fontSize: '0.8rem',
-                                            flex: 1,
-                                            bgcolor: selectedSessionIndex === idx ? '#3b82f6' : undefined,
-                                        }}
-                                    >
-                                        Session {idx + 1}
-                                    </Button>
-                                ))}
-                            </Box>
-                        </Box>
-                    )}
                     <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <TextField
                             fullWidth
@@ -2867,30 +2161,6 @@ export default function AttendanceSheetPage() {
                                 <MenuItem value="Clocked Out">Clocked Out</MenuItem>
                             </Select>
                         </FormControl>
-
-                        {isSuperAdmin && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-                                <Box>
-                                    <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                                        Super Admin Approval
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                        Approve records exceeding 19h
-                                    </Typography>
-                                </Box>
-                                <FormControlLabel
-                                    control={
-                                        <Checkbox
-                                            checked={editApprovedBySuperAdmin}
-                                            onChange={(e) => setEditApprovedBySuperAdmin(e.target.checked)}
-                                            color="success"
-                                        />
-                                    }
-                                    label={editApprovedBySuperAdmin ? "Approved" : "Pending"}
-                                    sx={{ m: 0 }}
-                                />
-                            </Box>
-                        )}
                     </Box>
                 </DialogContent>
                 <DialogActions sx={{ p: 2, pt: 0 }}>
@@ -2931,33 +2201,6 @@ export default function AttendanceSheetPage() {
                         <strong>{recordToDelete?.name}</strong> ({recordToDelete?.eNo}) on{' '}
                         <strong>{recordToDelete?.clockInDate || recordToDelete?.date}</strong>?
                     </Typography>
-                    {recordToDelete?.sessions && recordToDelete.sessions.length > 1 && (
-                        <Box sx={{ my: 1.5 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.8 }}>
-                                Select Session to Delete:
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                {recordToDelete.sessions.map((sess, idx) => (
-                                    <Button
-                                        key={sess.id || idx}
-                                        size="small"
-                                        variant={deleteSessionIndex === idx ? 'contained' : 'outlined'}
-                                        color="error"
-                                        onClick={() => setDeleteSessionIndex(idx)}
-                                        sx={{
-                                            textTransform: 'none',
-                                            borderRadius: 2,
-                                            fontWeight: 600,
-                                            fontSize: '0.8rem',
-                                            flex: 1,
-                                        }}
-                                    >
-                                        Session {idx + 1} ({sess.clockInTime || '-'})
-                                    </Button>
-                                ))}
-                            </Box>
-                        </Box>
-                    )}
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         This action cannot be undone. The attendance log will be permanently deleted and the staff member's status for this date will be reset.
                     </Typography>
