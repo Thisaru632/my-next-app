@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef, ChangeEvent, DragEvent } from 'react';
+import React, { useState, useEffect, useMemo, useRef, ChangeEvent, DragEvent } from 'react';
 import {
     Box,
     Typography,
@@ -20,7 +20,13 @@ import {
     Tooltip,
     Alert,
     Chip,
+    CircularProgress,
+    Snackbar,
     Stack,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
 } from '@mui/material';
 import {
     LocalShipping as LocalShippingIcon,
@@ -31,25 +37,25 @@ import {
     FileDownload as DownloadIcon,
     DeleteOutline as DeleteOutlineIcon,
     TableView as TableViewIcon,
-    InsertDriveFile as FileIcon,
     PlayArrow as PlayArrowIcon,
-    Tune as TuneIcon,
-    InfoOutlined as InfoIcon,
+    DateRange as DateRangeIcon,
+    FilterAlt as FilterAltIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
+import { API_ENDPOINTS } from '@/config/api';
 
-// --- Sample Dispatch CSV Data for instant demonstration ---
-const SAMPLE_DISPATCH_CSV = `Tracking ID,Order Number,Customer Name,Contact Phone,Delivery Address,Destination City,Vehicle / Cab,Driver Name,Status,Dispatch Time,Delivery Fee (LKR)
-TRK-2026-001,ORD-89421,Kasun Perera,+94 77 123 4567,"42 Galle Road, Bambalapitiya",Colombo 04,CAB-01 (Prius),Nimal Silva,Dispatched,08:30 AM,1500
-TRK-2026-002,ORD-89422,Dilshan Jayawardena,+94 71 234 5678,"15/B Kandy Road, Kadawatha",Gampaha,VAN-03 (KDH),Kamal Fernando,In Transit,09:15 AM,2400
-TRK-2026-003,ORD-89423,Chamari Senanayake,+94 76 345 6789,"88 High Level Road, Maharagama",Colombo,CAB-04 (WagonR),Sunil Wickramasinghe,Delivered,07:45 AM,1200
-TRK-2026-004,ORD-89424,Ruwan Dissanayake,+94 70 456 7890,"204 Negombo Road, Wattala",Gampaha,CAB-02 (Axio),Janaka Bandara,In Transit,09:45 AM,1800
-TRK-2026-005,ORD-89425,Anoma Wijesinghe,+94 72 567 8901,"12 Temple Trees Avenue, Nawala",Rajagiriya,CAB-05 (Aqua),Pradeep Kumara,Delivered,08:00 AM,950
-TRK-2026-006,ORD-89426,Tharindu Mendis,+94 75 678 9012,"77 Havelock Road, Wellawatte",Colombo 06,CAB-01 (Prius),Nimal Silva,Dispatched,10:00 AM,1300
-TRK-2026-007,ORD-89427,Sachini Gunasekara,+94 78 789 0123,"103 Ward Place, Cinnamon Gardens",Colombo 07,CAB-06 (Fit),Dinesh Gunawardena,Pending,10:30 AM,1100
-TRK-2026-008,ORD-89428,Mahesh Karunaratne,+94 71 890 1234,"55 Cotta Road, Borella",Colombo 08,CAB-04 (WagonR),Sunil Wickramasinghe,In Transit,09:30 AM,1000
-TRK-2026-009,ORD-89429,Nadeeka Rathnayake,+94 77 901 2345,"310 Kotte Road, Nugegoda",Nugegoda,VAN-03 (KDH),Kamal Fernando,Delivered,08:15 AM,1400
-TRK-2026-010,ORD-89430,Chathura Weerakkody,+94 76 012 3456,"89 Parliament Road, Battaramulla",Battaramulla,CAB-02 (Axio),Janaka Bandara,Pending,11:00 AM,1600`;
+// --- Sample Dispatch CSV Data with realistic dates for instant demonstration ---
+const SAMPLE_DISPATCH_CSV = `Tracking ID,Order Number,Customer Name,Contact Phone,Delivery Address,Destination City,Vehicle / Cab,Driver Name,Status,Dispatch Date,Dispatch Time,Delivery Fee (LKR)
+TRK-2026-001,ORD-89421,Kasun Perera,+94 77 123 4567,"42 Galle Road, Bambalapitiya",Colombo 04,CAB-01 (Prius),Nimal Silva,Dispatched,2026-10-07,08:30 AM,1500
+TRK-2026-002,ORD-89422,Dilshan Jayawardena,+94 71 234 5678,"15/B Kandy Road, Kadawatha",Gampaha,VAN-03 (KDH),Kamal Fernando,In Transit,2026-10-07,09:15 AM,2400
+TRK-2026-003,ORD-89423,Chamari Senanayake,+94 76 345 6789,"88 High Level Road, Maharagama",Colombo,CAB-04 (WagonR),Sunil Wickramasinghe,Delivered,2026-10-06,07:45 AM,1200
+TRK-2026-004,ORD-89424,Ruwan Dissanayake,+94 70 456 7890,"204 Negombo Road, Wattala",Gampaha,CAB-02 (Axio),Janaka Bandara,In Transit,2026-10-06,09:45 AM,1800
+TRK-2026-005,ORD-89425,Anoma Wijesinghe,+94 72 567 8901,"12 Temple Trees Avenue, Nawala",Rajagiriya,CAB-05 (Aqua),Pradeep Kumara,Delivered,2026-10-05,08:00 AM,950
+TRK-2026-006,ORD-89426,Tharindu Mendis,+94 75 678 9012,"77 Havelock Road, Wellawatte",Colombo 06,CAB-01 (Prius),Nimal Silva,Dispatched,2026-10-05,10:00 AM,1300
+TRK-2026-007,ORD-89427,Sachini Gunasekara,+94 78 789 0123,"103 Ward Place, Cinnamon Gardens",Colombo 07,CAB-06 (Fit),Dinesh Gunawardena,Pending,2026-10-04,10:30 AM,1100
+TRK-2026-008,ORD-89428,Mahesh Karunaratne,+94 71 890 1234,"55 Cotta Road, Borella",Colombo 08,CAB-04 (WagonR),Sunil Wickramasinghe,In Transit,2026-10-04,09:30 AM,1000
+TRK-2026-009,ORD-89429,Nadeeka Rathnayake,+94 77 901 2345,"310 Kotte Road, Nugegoda",Nugegoda,VAN-03 (KDH),Kamal Fernando,Delivered,2026-10-03,08:15 AM,1400
+TRK-2026-010,ORD-89430,Chathura Weerakkody,+94 76 012 3456,"89 Parliament Road, Battaramulla",Battaramulla,CAB-02 (Axio),Janaka Bandara,Pending,2026-10-02,11:00 AM,1600`;
 
 // Auto-detect CSV delimiter (comma, semicolon, tab)
 function detectDelimiter(firstLine: string): string {
@@ -142,25 +148,169 @@ function parseCSV(text: string): { headers: string[]; rows: string[][]; error?: 
     return { headers, rows };
 }
 
+// Robust date string normalizer: converts any valid date representation into YYYY-MM-DD
+function parseToDateStr(val: string): string | null {
+    if (!val || typeof val !== 'string') return null;
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === '-' || trimmed === 'N/A') return null;
+
+    // Pattern 1: YYYY-MM-DD or YYYY/MM/DD
+    const iso = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (iso) {
+        const y = iso[1];
+        const m = iso[2].padStart(2, '0');
+        const d = iso[3].padStart(2, '0');
+        const mNum = parseInt(m, 10);
+        const dNum = parseInt(d, 10);
+        if (mNum >= 1 && mNum <= 12 && dNum >= 1 && dNum <= 31) {
+            return `${y}-${m}-${d}`;
+        }
+    }
+
+    // Pattern 2: DD/MM/YYYY or DD-MM-YYYY or MM/DD/YYYY
+    const dmy = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+    if (dmy) {
+        const p1 = parseInt(dmy[1], 10);
+        const p2 = parseInt(dmy[2], 10);
+        const y = dmy[3];
+        // If p1 > 12, p1 is day, p2 is month
+        if (p1 > 12 && p2 <= 12) {
+            return `${y}-${p2.toString().padStart(2, '0')}-${p1.toString().padStart(2, '0')}`;
+        }
+        // If p2 > 12, p1 is month, p2 is day
+        if (p2 > 12 && p1 <= 12) {
+            return `${y}-${p1.toString().padStart(2, '0')}-${p2.toString().padStart(2, '0')}`;
+        }
+        // Default DD/MM/YYYY (international/Sri Lanka standard)
+        if (p2 <= 12 && p1 <= 31) {
+            return `${y}-${p2.toString().padStart(2, '0')}-${p1.toString().padStart(2, '0')}`;
+        }
+    }
+
+    // Pattern 3: e.g. "07 Oct 2026", "7 October 2026", "Oct 07, 2026"
+    const monthNames: Record<string, string> = {
+        jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+        jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+    };
+    const named1 = trimmed.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})/);
+    if (named1) {
+        const mKey = named1[2].slice(0, 3).toLowerCase();
+        if (monthNames[mKey]) {
+            return `${named1[3]}-${monthNames[mKey]}-${named1[1].padStart(2, '0')}`;
+        }
+    }
+    const named2 = trimmed.match(/^([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})/);
+    if (named2) {
+        const mKey = named2[1].slice(0, 3).toLowerCase();
+        if (monthNames[mKey]) {
+            return `${named2[3]}-${monthNames[mKey]}-${named2[2].padStart(2, '0')}`;
+        }
+    }
+
+    return null;
+}
+
 export default function DispatchViewPage() {
     const { mode } = useThemeContext();
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    // CSV state
+    // CSV and Database state
     const [fileName, setFileName] = useState<string>('');
     const [headers, setHeaders] = useState<string[]>([]);
     const [rows, setRows] = useState<string[][]>([]);
     const [parseError, setParseError] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState<boolean>(false);
+    const [loadingFromDb, setLoadingFromDb] = useState<boolean>(true);
+    const [savingToDb, setSavingToDb] = useState<boolean>(false);
+    const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
 
-    // Interactive Table state
+    // Filter and Pagination state
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
+    const [selectedDateColIdx, setSelectedDateColIdx] = useState<number | 'auto'>('auto');
     const [page, setPage] = useState<number>(0);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
     const [sortColumnIndex, setSortColumnIndex] = useState<number | null>(null);
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-    // Handle File Process
+    // Fetch persisted data from database on mount
+    useEffect(() => {
+        fetchDispatchFromDb();
+    }, []);
+
+    const fetchDispatchFromDb = async () => {
+        setLoadingFromDb(true);
+        try {
+            const res = await fetch(API_ENDPOINTS.DISPATCH_VIEW);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.hasData && Array.isArray(data.rows) && data.rows.length > 0) {
+                    setHeaders(data.headers || []);
+                    setRows(data.rows);
+                    setFileName(data.fileName || 'dispatch_data.csv');
+                    setPage(0);
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching dispatch data from database:', err);
+        } finally {
+            setLoadingFromDb(false);
+        }
+    };
+
+    // Save CSV to database and populate table
+    const saveDispatchToDb = async (fileTitle: string, parsedHeaders: string[], parsedRows: string[][]) => {
+        setSavingToDb(true);
+        setParseError(null);
+        try {
+            let userStr = null;
+            try {
+                userStr = localStorage.getItem('staffUser');
+            } catch (e) {}
+            const user = userStr ? JSON.parse(userStr) : null;
+            const uploader = user?.username || user?.fullName || user?.email || 'staff';
+
+            const res = await fetch(`${API_ENDPOINTS.DISPATCH_VIEW}/upload`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    fileName: fileTitle,
+                    headers: parsedHeaders,
+                    rows: parsedRows,
+                    uploadedBy: uploader,
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Failed to save CSV to database');
+            }
+
+            // Populate table from the saved database data
+            setHeaders(parsedHeaders);
+            setRows(parsedRows);
+            setFileName(fileTitle);
+            setPage(0);
+            setSortColumnIndex(null);
+            setStartDate('');
+            setEndDate('');
+            setSelectedDateColIdx('auto');
+            setSnackbarMessage(`CSV successfully saved to database with ${parsedRows.length.toLocaleString()} rows and ${parsedHeaders.length} columns!`);
+        } catch (err: any) {
+            console.error('Save to database error:', err);
+            setParseError(err.message || 'Failed to save CSV to database.');
+            setHeaders(parsedHeaders);
+            setRows(parsedRows);
+            setFileName(fileTitle);
+        } finally {
+            setSavingToDb(false);
+        }
+    };
+
+    // Handle File Process and Save to Database
     const handleProcessFile = (file: File) => {
         setParseError(null);
         if (!file.name.toLowerCase().endsWith('.csv') && !file.name.toLowerCase().endsWith('.txt') && !file.name.toLowerCase().endsWith('.tsv')) {
@@ -169,7 +319,7 @@ export default function DispatchViewPage() {
         }
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const text = e.target?.result as string;
                 const parsed = parseCSV(text);
@@ -177,11 +327,7 @@ export default function DispatchViewPage() {
                     setParseError(parsed.error);
                     return;
                 }
-                setHeaders(parsed.headers);
-                setRows(parsed.rows);
-                setFileName(file.name);
-                setPage(0);
-                setSortColumnIndex(null);
+                await saveDispatchToDb(file.name, parsed.headers, parsed.rows);
             } catch (err: any) {
                 setParseError(err?.message || 'Failed to parse the uploaded CSV file.');
             }
@@ -198,7 +344,6 @@ export default function DispatchViewPage() {
         if (file) {
             handleProcessFile(file);
         }
-        // Reset file input value so re-selecting same file fires onChange
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -227,26 +372,30 @@ export default function DispatchViewPage() {
         }
     };
 
-    // Load Sample Data
-    const handleLoadSampleData = () => {
-        setParseError(null);
+    // Load Sample Data and Save to Database
+    const handleLoadSampleData = async () => {
         const parsed = parseCSV(SAMPLE_DISPATCH_CSV);
-        setHeaders(parsed.headers);
-        setRows(parsed.rows);
-        setFileName('sample_dispatch_manifest.csv');
-        setPage(0);
-        setSortColumnIndex(null);
+        await saveDispatchToDb('sample_dispatch_manifest.csv', parsed.headers, parsed.rows);
     };
 
-    // Clear uploaded CSV
-    const handleClearData = () => {
+    // Clear uploaded CSV and remove from database
+    const handleClearData = async () => {
         setHeaders([]);
         setRows([]);
         setFileName('');
         setParseError(null);
         setSearchQuery('');
+        setStartDate('');
+        setEndDate('');
+        setSelectedDateColIdx('auto');
         setPage(0);
         setSortColumnIndex(null);
+        try {
+            await fetch(API_ENDPOINTS.DISPATCH_VIEW, { method: 'DELETE' });
+            setSnackbarMessage('Dispatch data cleared from database.');
+        } catch (err) {
+            console.error('Error clearing database dispatch data:', err);
+        }
     };
 
     // Sorting handler
@@ -256,17 +405,84 @@ export default function DispatchViewPage() {
         setSortColumnIndex(columnIndex);
     };
 
-    // Filter and sort rows
+    // Detect likely date columns from headers & sample values
+    const dateColumnOptions = useMemo(() => {
+        if (headers.length === 0) return [];
+        const options: { index: number; name: string; score: number }[] = [];
+
+        headers.forEach((header, idx) => {
+            const lower = header.toLowerCase();
+            let score = 0;
+            if (lower.includes('date')) score += 10;
+            if (lower.includes('dispatch') || lower.includes('delivery') || lower.includes('booking') || lower.includes('created') || lower.includes('order')) score += 5;
+
+            // Sample first 30 rows
+            let sampleValidDates = 0;
+            const sampleLimit = Math.min(rows.length, 30);
+            for (let r = 0; r < sampleLimit; r++) {
+                if (rows[r] && rows[r][idx] && parseToDateStr(rows[r][idx])) {
+                    sampleValidDates++;
+                }
+            }
+            if (sampleValidDates > 0) {
+                score += Math.round((sampleValidDates / sampleLimit) * 20);
+            }
+
+            if (score > 0 || sampleValidDates > 0) {
+                options.push({ index: idx, name: header, score });
+            }
+        });
+
+        options.sort((a, b) => b.score - a.score);
+        return options;
+    }, [headers, rows]);
+
+    // Active date column name for display
+    const activeDateColumnName = useMemo(() => {
+        if (selectedDateColIdx !== 'auto' && typeof selectedDateColIdx === 'number' && selectedDateColIdx >= 0 && selectedDateColIdx < headers.length) {
+            return headers[selectedDateColIdx];
+        }
+        if (dateColumnOptions.length > 0) {
+            return dateColumnOptions[0].name;
+        }
+        return null;
+    }, [selectedDateColIdx, dateColumnOptions, headers]);
+
+    // Filter and sort rows (Search + Date Range + Sort)
     const filteredRows = useMemo(() => {
         let result = rows;
 
-        // Search filtering across all cells
+        // 1. Date Range Filtering
+        if (startDate || endDate) {
+            const targetColIndices: number[] = [];
+            if (selectedDateColIdx !== 'auto' && typeof selectedDateColIdx === 'number' && selectedDateColIdx >= 0 && selectedDateColIdx < headers.length) {
+                targetColIndices.push(selectedDateColIdx);
+            } else if (dateColumnOptions.length > 0) {
+                targetColIndices.push(dateColumnOptions[0].index);
+            } else {
+                // If no date column detected automatically, inspect all columns
+                headers.forEach((_, idx) => targetColIndices.push(idx));
+            }
+
+            result = result.filter(row => {
+                return targetColIndices.some(colIdx => {
+                    const cellVal = row[colIdx];
+                    const dateStr = parseToDateStr(cellVal);
+                    if (!dateStr) return false;
+                    if (startDate && dateStr < startDate) return false;
+                    if (endDate && dateStr > endDate) return false;
+                    return true;
+                });
+            });
+        }
+
+        // 2. Search filtering across all cells
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase().trim();
             result = result.filter(row => row.some(cell => cell.toLowerCase().includes(q)));
         }
 
-        // Sorting
+        // 3. Column Sorting
         if (sortColumnIndex !== null && sortColumnIndex < headers.length) {
             result = [...result].sort((a, b) => {
                 const valA = (a[sortColumnIndex] || '').trim();
@@ -288,7 +504,7 @@ export default function DispatchViewPage() {
         }
 
         return result;
-    }, [rows, headers, searchQuery, sortColumnIndex, sortDirection]);
+    }, [rows, headers, searchQuery, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
 
     // Paginated rows
     const paginatedRows = useMemo(() => {
@@ -447,7 +663,7 @@ export default function DispatchViewPage() {
                                 Dispatch View
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
-                                Upload and inspect dispatch CSV manifests with instant multi-column tabular view
+                                Upload and inspect dispatch CSV manifests with database persistence and real-time tabular analysis
                             </Typography>
                         </Box>
                     </Box>
@@ -458,8 +674,9 @@ export default function DispatchViewPage() {
                     {headers.length === 0 ? (
                         <Button
                             variant="outlined"
-                            startIcon={<PlayArrowIcon />}
+                            startIcon={savingToDb ? <CircularProgress size={16} /> : <PlayArrowIcon />}
                             onClick={handleLoadSampleData}
+                            disabled={savingToDb}
                             sx={{
                                 borderRadius: '10px',
                                 textTransform: 'none',
@@ -489,7 +706,7 @@ export default function DispatchViewPage() {
                                     fontSize: '0.85rem',
                                 }}
                             >
-                                Export CSV ({filteredRows.length})
+                                Export CSV ({filteredRows.length.toLocaleString()})
                             </Button>
                             <Button
                                 variant="outlined"
@@ -510,8 +727,9 @@ export default function DispatchViewPage() {
 
                     <Button
                         variant="contained"
-                        startIcon={<UploadFileIcon />}
+                        startIcon={savingToDb ? <CircularProgress size={16} color="inherit" /> : <UploadFileIcon />}
                         onClick={() => fileInputRef.current?.click()}
+                        disabled={savingToDb}
                         sx={{
                             borderRadius: '10px',
                             textTransform: 'none',
@@ -524,7 +742,7 @@ export default function DispatchViewPage() {
                             }
                         }}
                     >
-                        {headers.length > 0 ? 'Upload New CSV' : 'Upload CSV'}
+                        {savingToDb ? 'Saving to Database...' : (headers.length > 0 ? 'Upload New CSV' : 'Upload CSV')}
                     </Button>
 
                     <input
@@ -537,7 +755,18 @@ export default function DispatchViewPage() {
                 </Stack>
             </Box>
 
-            {/* Parse Error Alert */}
+            {/* Saving to Database Banner */}
+            {savingToDb && (
+                <Alert
+                    severity="info"
+                    icon={<CircularProgress size={18} color="inherit" />}
+                    sx={{ mb: 3, borderRadius: '10px' }}
+                >
+                    Saving CSV records to database and populating table... Please wait a moment.
+                </Alert>
+            )}
+
+            {/* Parse / Save Error Alert */}
             {parseError && (
                 <Alert
                     severity="error"
@@ -549,7 +778,7 @@ export default function DispatchViewPage() {
             )}
 
             {/* Drag & Drop Upload Card (visible when no file) */}
-            {headers.length === 0 && (
+            {headers.length === 0 && !loadingFromDb && (
                 <Paper
                     elevation={0}
                     onDragOver={handleDragOver}
@@ -595,12 +824,12 @@ export default function DispatchViewPage() {
                         Drag & drop your CSV file here, or click to browse
                     </Typography>
                     <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 480, mx: 'auto', mb: 2 }}>
-                        Supports standard comma, semicolon, or tab-delimited dispatch files (.csv, .tsv, .txt) with quote escaping.
+                        Uploaded files are saved directly into the database and immediately populate this table.
                     </Typography>
                     <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
                         <Chip label=".CSV" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
                         <Chip label=".TSV" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
-                        <Chip label="UTF-8" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
+                        <Chip label="Database Saved" size="small" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />
                         <Chip label="RFC-4180" size="small" variant="outlined" sx={{ fontWeight: 600 }} />
                     </Stack>
                 </Paper>
@@ -617,82 +846,263 @@ export default function DispatchViewPage() {
                     overflow: 'hidden',
                 }}
             >
-                {/* Search & Table Toolbar */}
+                {/* Search & Filter Toolbar */}
                 <Box
                     sx={{
                         p: 2,
                         display: 'flex',
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        alignItems: { xs: 'stretch', sm: 'center' },
-                        justifyContent: 'space-between',
+                        flexDirection: 'column',
                         gap: 2,
                         borderBottom: '1px solid',
                         borderColor: 'divider',
                     }}
                 >
-                    <TextField
-                        size="small"
-                        placeholder="Search across all CSV columns and rows..."
-                        value={searchQuery}
-                        onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                            setPage(0);
-                        }}
-                        disabled={headers.length === 0}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                                </InputAdornment>
-                            ),
-                            endAdornment: searchQuery ? (
-                                <InputAdornment position="end">
-                                    <IconButton size="small" onClick={() => setSearchQuery('')}>
-                                        <ClearIcon sx={{ fontSize: 18 }} />
-                                    </IconButton>
-                                </InputAdornment>
-                            ) : null,
-                        }}
+                    {/* Top Row: Search Bar & Date Range Filters */}
+                    <Box
                         sx={{
-                            maxWidth: { xs: '100%', sm: 380 },
-                            '& .MuiOutlinedInput-root': {
-                                borderRadius: '10px',
-                            }
+                            display: 'flex',
+                            flexDirection: { xs: 'column', lg: 'row' },
+                            alignItems: { xs: 'stretch', lg: 'center' },
+                            justifyContent: 'space-between',
+                            gap: 2,
                         }}
-                    />
+                    >
+                        {/* Search Input */}
+                        <TextField
+                            size="small"
+                            placeholder="Search across all CSV columns and rows..."
+                            value={searchQuery}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setPage(0);
+                            }}
+                            disabled={headers.length === 0 || loadingFromDb}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: searchQuery ? (
+                                    <InputAdornment position="end">
+                                        <IconButton size="small" onClick={() => setSearchQuery('')}>
+                                            <ClearIcon sx={{ fontSize: 18 }} />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ) : null,
+                            }}
+                            sx={{
+                                minWidth: { xs: '100%', sm: 280, md: 320 },
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '10px',
+                                }
+                            }}
+                        />
 
-                    {headers.length > 0 && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: { xs: 'space-between', sm: 'flex-end' } }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                                Showing {paginatedRows.length} of {filteredRows.length} rows
-                            </Typography>
-                            {sortColumnIndex !== null && (
-                                <Chip
-                                    label={`Sorted by: ${headers[sortColumnIndex]} (${sortDirection.toUpperCase()})`}
+                        {/* Date Range Filter Group */}
+                        {headers.length > 0 && !loadingFromDb && (
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1.5,
+                                    flexWrap: 'wrap',
+                                }}
+                            >
+                                {/* Column Selector if multiple date columns */}
+                                {dateColumnOptions.length > 1 && (
+                                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                                        <InputLabel id="date-col-label" sx={{ fontSize: '0.825rem' }}>Date Column</InputLabel>
+                                        <Select
+                                            labelId="date-col-label"
+                                            value={selectedDateColIdx}
+                                            label="Date Column"
+                                            onChange={(e) => {
+                                                setSelectedDateColIdx(e.target.value as any);
+                                                setPage(0);
+                                            }}
+                                            sx={{ borderRadius: '10px', fontSize: '0.825rem' }}
+                                        >
+                                            <MenuItem value="auto" sx={{ fontSize: '0.825rem' }}>
+                                                <em>Auto ({dateColumnOptions[0]?.name})</em>
+                                            </MenuItem>
+                                            {dateColumnOptions.map((opt) => (
+                                                <MenuItem key={opt.index} value={opt.index} sx={{ fontSize: '0.825rem' }}>
+                                                    {opt.name}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                )}
+
+                                {/* Date Inputs with DateRange Icon */}
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        bgcolor: mode === 'light' ? '#f8fafc' : 'rgba(255,255,255,0.03)',
+                                        p: 0.75,
+                                        px: 1.25,
+                                        borderRadius: '10px',
+                                        border: '1px solid',
+                                        borderColor: (startDate || endDate) ? 'primary.main' : 'divider',
+                                        transition: 'all 0.2s',
+                                    }}
+                                >
+                                    <Tooltip title={activeDateColumnName ? `Filtering by date on "${activeDateColumnName}"` : 'Date Range Filter'}>
+                                        <DateRangeIcon sx={{ color: (startDate || endDate) ? 'primary.main' : 'text.secondary', fontSize: 20 }} />
+                                    </Tooltip>
+
+                                    <TextField
+                                        size="small"
+                                        type="date"
+                                        label="Start Date"
+                                        value={startDate}
+                                        onChange={(e) => {
+                                            setStartDate(e.target.value);
+                                            setPage(0);
+                                        }}
+                                        InputLabelProps={{ shrink: true }}
+                                        sx={{
+                                            width: 140,
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: '8px',
+                                                fontSize: '0.825rem',
+                                            },
+                                            '& input': { py: 0.75 }
+                                        }}
+                                    />
+
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                                        to
+                                    </Typography>
+
+                                    <TextField
+                                        size="small"
+                                        type="date"
+                                        label="End Date"
+                                        value={endDate}
+                                        onChange={(e) => {
+                                            setEndDate(e.target.value);
+                                            setPage(0);
+                                        }}
+                                        InputLabelProps={{ shrink: true }}
+                                        sx={{
+                                            width: 140,
+                                            '& .MuiOutlinedInput-root': {
+                                                borderRadius: '8px',
+                                                fontSize: '0.825rem',
+                                            },
+                                            '& input': { py: 0.75 }
+                                        }}
+                                    />
+
+                                    {(startDate || endDate) && (
+                                        <Tooltip title="Clear date range">
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => {
+                                                    setStartDate('');
+                                                    setEndDate('');
+                                                    setPage(0);
+                                                }}
+                                                sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                                            >
+                                                <ClearIcon sx={{ fontSize: 18 }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                    )}
+                                </Box>
+                            </Box>
+                        )}
+                    </Box>
+
+                    {/* Bottom Row: Active Filter badges & Results Summary */}
+                    {headers.length > 0 && !loadingFromDb && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                                    Showing {paginatedRows.length} of {filteredRows.length.toLocaleString()} rows ({headers.length} columns)
+                                </Typography>
+
+                                {(startDate || endDate) && (
+                                    <Chip
+                                        icon={<DateRangeIcon sx={{ fontSize: '15px !important' }} />}
+                                        label={`Date: ${startDate || 'Any'} to ${endDate || 'Any'}${activeDateColumnName ? ` (${activeDateColumnName})` : ''}`}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        onDelete={() => {
+                                            setStartDate('');
+                                            setEndDate('');
+                                            setPage(0);
+                                        }}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+
+                                {searchQuery && (
+                                    <Chip
+                                        label={`Search: "${searchQuery}"`}
+                                        size="small"
+                                        onDelete={() => setSearchQuery('')}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+
+                                {sortColumnIndex !== null && (
+                                    <Chip
+                                        label={`Sorted: ${headers[sortColumnIndex]} (${sortDirection.toUpperCase()})`}
+                                        size="small"
+                                        onDelete={() => setSortColumnIndex(null)}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+                            </Box>
+
+                            {(startDate || endDate || searchQuery || sortColumnIndex !== null) && (
+                                <Button
                                     size="small"
-                                    onDelete={() => setSortColumnIndex(null)}
-                                    sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
-                                />
+                                    onClick={() => {
+                                        setStartDate('');
+                                        setEndDate('');
+                                        setSearchQuery('');
+                                        setSortColumnIndex(null);
+                                        setPage(0);
+                                    }}
+                                    sx={{ textTransform: 'none', fontSize: '0.75rem', color: 'text.secondary', fontWeight: 500 }}
+                                >
+                                    Reset Filters
+                                </Button>
                             )}
                         </Box>
                     )}
                 </Box>
 
-                {/* The CSV Table */}
-                {headers.length === 0 ? (
+                {/* Loading state from DB */}
+                {loadingFromDb ? (
+                    <Box sx={{ p: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                        <CircularProgress size={36} />
+                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                            Loading dispatch records from database...
+                        </Typography>
+                    </Box>
+                ) : headers.length === 0 ? (
                     <Box sx={{ p: 8, textAlign: 'center' }}>
                         <TableViewIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1.5, opacity: 0.6 }} />
                         <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
-                            No CSV File Uploaded Yet
+                            No CSV File in Database Yet
                         </Typography>
                         <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 460, mx: 'auto', mb: 3 }}>
-                            Upload your dispatch spreadsheet or try our sample data to view all columns, customer addresses, orders, and delivery assignments.
+                            Upload your dispatch spreadsheet or try our sample data. Data will be saved directly into the database and populate here.
                         </Typography>
                         <Stack direction="row" spacing={2} justifyContent="center">
                             <Button
                                 variant="contained"
                                 startIcon={<UploadFileIcon />}
                                 onClick={() => fileInputRef.current?.click()}
+                                disabled={savingToDb}
                                 sx={{
                                     borderRadius: '10px',
                                     textTransform: 'none',
@@ -705,6 +1115,7 @@ export default function DispatchViewPage() {
                                 variant="outlined"
                                 startIcon={<PlayArrowIcon />}
                                 onClick={handleLoadSampleData}
+                                disabled={savingToDb}
                                 sx={{
                                     borderRadius: '10px',
                                     textTransform: 'none',
@@ -722,15 +1133,22 @@ export default function DispatchViewPage() {
                             No Matching Records Found
                         </Typography>
                         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-                            No rows matched your search query &ldquo;{searchQuery}&rdquo;. Try another term or reset filters.
+                            {startDate || endDate
+                                ? `No records match the selected date range (${startDate || 'Any'} to ${endDate || 'Any'})${searchQuery ? ` and search term "${searchQuery}"` : ''}.`
+                                : `No rows matched your search query "${searchQuery}".`}
                         </Typography>
                         <Button
                             size="small"
                             variant="outlined"
-                            onClick={() => setSearchQuery('')}
+                            onClick={() => {
+                                setSearchQuery('');
+                                setStartDate('');
+                                setEndDate('');
+                                setPage(0);
+                            }}
                             sx={{ borderRadius: '8px', textTransform: 'none' }}
                         >
-                            Clear Search Filter
+                            Reset All Filters
                         </Button>
                     </Box>
                 ) : (
@@ -863,6 +1281,14 @@ export default function DispatchViewPage() {
                     </>
                 )}
             </Paper>
+
+            {/* Notification Snackbar */}
+            <Snackbar
+                open={Boolean(snackbarMessage)}
+                autoHideDuration={4000}
+                onClose={() => setSnackbarMessage(null)}
+                message={snackbarMessage}
+            />
         </Box>
     );
 }

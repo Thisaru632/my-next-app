@@ -17,4 +17,5 @@ export const API_ENDPOINTS = {
     LINKS: `${API_BASE_URL}/api/links`,
     SUPER_TEAM: `${API_BASE_URL}/api/super-team`,
     OFFICE_ASSETS: `${API_BASE_URL}/api/office-assets`,
+    DISPATCH_VIEW: `${API_BASE_URL}/api/dispatch-view`,
 };
