@@ -71,6 +71,7 @@ export default function LoginPage() {
                 username: data.username,
                 fullName: data.fullName,
                 email: data.email,
+                eNo: data.eNo,
                 role: data.role,
                 permissions: data.permissions
             }));

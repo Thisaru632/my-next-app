@@ -13,6 +13,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TableFooter,
     Chip,
     Avatar,
     InputAdornment,
@@ -48,6 +49,7 @@ import {
     LocationOn as LocationIcon,
     Visibility as ViewIcon,
     FileDownload as DownloadIcon,
+    PictureAsPdf as PictureAsPdfIcon,
     WarningAmber as WarningAmberIcon,
     DateRange as DateRangeIcon,
     TableChart as TableChartIcon,
@@ -486,6 +488,131 @@ const CALL_CENTER_ENOS = new Set([
     'e141', 'e123', 'e155', 'e156', 'e158', 'e157'
 ]);
 
+const CALL_CENTER_EMAILS = new Set([
+    'user05.senucabs@gmail.com', // Sasanka (E113)
+    'user01.senucabs@gmail.com', // Dilshan (E129)
+    'user03senucabs@gmail.com',  // Vihanga (E134)
+    'user06.senucabs@gmail.com', // Ayesh (E114)
+    'user10.senucabs@gmail.com', // Chamod/Ushan (E118)
+    'user20.senucabs@gmail.com', // Rashee (E139)
+    'user02.senucabs@gmail.com', // Niduka (E141)
+    'user21.senucabs@gmail.com', // Vishwa (E123)
+    'user13.senucabs@gmail.com', // Kumudu (E155)
+    'user19.senucabs@gmail.com', // Nimsara/Chamath (E156)
+    'user04.senucabs@gmail.com', // Senith (E158)
+    'user16.senucabs@gmail.com', // Hiranya (E157)
+]);
+
+export const isCallCenterEmployee = (eNo?: string, email?: string, name?: string): boolean => {
+    const cleanE = (eNo || '').toLowerCase().trim();
+    const normE = cleanE.replace(/^e/, '');
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const cleanName = (name || '').toLowerCase().trim();
+
+    if (cleanE && (CALL_CENTER_ENOS.has(cleanE) || CALL_CENTER_ENOS.has(`e${normE}`))) return true;
+    if (cleanEmail && CALL_CENTER_EMAILS.has(cleanEmail)) return true;
+    if (cleanName) {
+        const ccNames = ['sasanka', 'dilshan', 'vihanga', 'vishmika', 'ayesh', 'weerasinghe', 'chamod', 'ushan', 'rashee', 'niduka', 'vishwa', 'wishwa', 'kumudu', 'nimsara', 'chamath', 'senith', 'hiranya'];
+        if (ccNames.some(n => cleanName.includes(n))) return true;
+    }
+    return false;
+};
+
+// Map employee identifiers to their official Call Center daily roster key (e113 - e158)
+const resolveCallCenterKey = (eNo?: string, email?: string, name?: string): string | null => {
+    const cleanE = (eNo || '').toLowerCase().trim();
+    const normE = cleanE.replace(/^e/, '');
+
+    if (OFFICIAL_CALL_CENTER_ROSTER[cleanE]) return cleanE;
+    if (OFFICIAL_CALL_CENTER_ROSTER[`e${normE}`]) return `e${normE}`;
+
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const cleanName = (name || '').toLowerCase().trim();
+
+    if (cleanEmail.includes('user05') || cleanName.includes('sasanka')) return 'e113';
+    if (cleanEmail.includes('user01') || cleanName.includes('dilshan')) return 'e129';
+    if (cleanEmail.includes('user03') || cleanName.includes('vihanga') || cleanName.includes('vishmika')) return 'e134';
+    if (cleanEmail.includes('user06') || cleanName.includes('ayesh') || cleanName.includes('weerasinghe')) return 'e114';
+    if (cleanEmail.includes('user10') || cleanName.includes('chamod') || cleanName.includes('ushan')) return 'e118';
+    if (cleanEmail.includes('user20') || cleanName.includes('rashee')) return 'e139';
+    if (cleanEmail.includes('user02') || cleanName.includes('niduka')) return 'e141';
+    if (cleanEmail.includes('user21') || cleanName.includes('vishwa') || cleanName.includes('wishwa')) return 'e123';
+    if (cleanEmail.includes('user13') || cleanName.includes('kumudu')) return 'e155';
+    if (cleanEmail.includes('user19') || cleanName.includes('nimsara') || cleanName.includes('chamath')) return 'e156';
+    if (cleanEmail.includes('user04') || cleanName.includes('senith')) return 'e158';
+    if (cleanEmail.includes('user16') || cleanName.includes('hiranya') || cleanName.includes('dewlini')) return 'e157';
+
+    return null;
+};
+
+// Normalize E NO for flexible cross-system matching (e.g. "E113", "e113", "113")
+const normalizeStaffENo = (val?: string): string => {
+    if (!val) return '';
+    const clean = val.toLowerCase().trim();
+    if (clean === 'n/a' || clean === '-') return '';
+    return clean.replace(/^e/, '');
+};
+
+// Fuzzy word-level name matching
+const matchStaffNames = (name1?: string, name2?: string): boolean => {
+    if (!name1 || !name2) return false;
+    const n1 = name1.toLowerCase().trim();
+    const n2 = name2.toLowerCase().trim();
+    if (!n1 || !n2) return false;
+    if (n1 === n2) return true;
+    if (n1.includes(n2) || n2.includes(n1)) return true;
+
+    const words1 = n1.split(/[\s._-]+/).filter(w => w.length > 2);
+    const words2 = n2.split(/[\s._-]+/).filter(w => w.length > 2);
+    return words1.some(w => words2.includes(w));
+};
+
+// Matches schedule entry with attendance record identifiers
+const matchesStaffEntry = (
+    entry: any,
+    eNo?: string,
+    email?: string,
+    name?: string
+): boolean => {
+    if (!entry) return false;
+
+    const cleanE = (eNo || '').toLowerCase().trim();
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const cleanName = (name || '').toLowerCase().trim();
+
+    const entryENo = (entry.eNo || '').toLowerCase().trim();
+    const entryEmail = (entry.staffEmail || entry.email || '').toLowerCase().trim();
+    const entryName = (entry.staffName || entry.name || '').toLowerCase().trim();
+
+    // 1. Exact Email match (highest confidence)
+    if (cleanEmail && entryEmail && cleanEmail === entryEmail) {
+        return true;
+    }
+
+    // 2. E NO match (ignoring case and 'E' prefix)
+    const normUserE = normalizeStaffENo(cleanE);
+    const normEntryE = normalizeStaffENo(entryENo);
+
+    // If both have valid eNo and it's not '0' (since '0' is shared by multiple admin users like Sampath & Udara)
+    if (normUserE && normEntryE && normUserE !== '0' && normUserE === normEntryE) {
+        return true;
+    }
+
+    // If eNo is '0', verify by email or name to prevent cross-matching
+    if (normUserE === '0' && normEntryE === '0') {
+        if (cleanEmail && entryEmail && cleanEmail === entryEmail) return true;
+        if (matchStaffNames(cleanName, entryName)) return true;
+        return false;
+    }
+
+    // 3. Name match
+    if (matchStaffNames(cleanName, entryName)) {
+        return true;
+    }
+
+    return false;
+};
+
 // Official Call Center Daily Roster baseline (Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6)
 const OFFICIAL_CALL_CENTER_ROSTER: Record<string, { shiftType: string }[]> = {
     e113: [ { shiftType: 'FullDay' }, { shiftType: 'Morning' }, { shiftType: 'FullDay' }, { shiftType: 'Morning' }, { shiftType: 'FullDay' }, { shiftType: 'Morning' }, { shiftType: 'Off' } ],
@@ -503,12 +630,8 @@ const OFFICIAL_CALL_CENTER_ROSTER: Record<string, { shiftType: string }[]> = {
 };
 
 /**
- * Checks if a specific staff member is scheduled on Leave (Off Duty) for a specific date (YYYY-MM-DD).
- * Follows priority:
- * 1. Temporarily customized schedules saved in localStorage ('staff_callcenter_future_schedules')
- * 2. Live working schedules saved in localStorage ('staff_callcenter_schedules')
- * 3. Official Call Center roster baseline
- * 4. Admin staff baseline (Saturday & Sunday Off)
+ * Checks if a specific staff member is scheduled on Leave (Off Duty) for a specific date (YYYY-MM-DD)
+ * based strictly on their respective staff working schedules (Admin schedule vs Call Center schedule).
  */
 export const checkIfUserIsOnLeave = (
     eNo?: string,
@@ -517,27 +640,6 @@ export const checkIfUserIsOnLeave = (
     name?: string
 ): boolean => {
     if (!dateStr) return false;
-    const cleanE = (eNo || '').toLowerCase().trim();
-    const cleanEmail = (email || '').toLowerCase().trim();
-    const cleanName = (name || '').toLowerCase().trim();
-
-    const matchesEntry = (entry: any) => {
-        if (!entry) return false;
-        const entryENo = (entry.eNo || '').toLowerCase().trim();
-        const entryEmail = (entry.staffEmail || entry.email || '').toLowerCase().trim();
-        const entryName = (entry.staffName || entry.name || '').toLowerCase().trim();
-
-        if (cleanE && cleanE !== 'n/a' && cleanE !== '-' && entryENo && entryENo !== 'n/a' && entryENo !== '-' && entryENo === cleanE) {
-            return true;
-        }
-        if (cleanEmail && entryEmail && entryEmail === cleanEmail) {
-            return true;
-        }
-        if (cleanName && entryName && entryName === cleanName) {
-            return true;
-        }
-        return false;
-    };
 
     // 0. Check Approved Leave Requests from localStorage ('staff_leave_requests')
     try {
@@ -547,7 +649,7 @@ export const checkIfUserIsOnLeave = (
             if (Array.isArray(leaveList)) {
                 const hasApprovedLeave = leaveList.some((l: any) => {
                     if (l.status !== 'Approved') return false;
-                    if (!matchesEntry(l)) return false;
+                    if (!matchesStaffEntry(l, eNo, email, name)) return false;
                     const from = l.fromDate || '';
                     const to = l.toDate || l.fromDate || '';
                     if (from && to) {
@@ -565,78 +667,85 @@ export const checkIfUserIsOnLeave = (
         }
     } catch (_) {}
 
-    // 1. Check Temporarily Customized Schedules from localStorage ('staff_callcenter_future_schedules')
-    try {
-        const futureStr = typeof window !== 'undefined' ? localStorage.getItem('staff_callcenter_future_schedules') : null;
-        if (futureStr) {
-            const futureList = JSON.parse(futureStr);
-            if (Array.isArray(futureList)) {
-                const entry = futureList.find(
-                    (s: any) => s.date === dateStr && matchesEntry(s)
-                );
-                if (entry) {
-                    return entry.shiftType === 'Off';
+    const isCC = isCallCenterEmployee(eNo, email, name);
+
+    if (isCC) {
+        // === CALL CENTER WORKING SCHEDULE ===
+        // 1. Temporarily customized schedules ('staff_callcenter_future_schedules')
+        try {
+            const futureStr = typeof window !== 'undefined' ? localStorage.getItem('staff_callcenter_future_schedules') : null;
+            if (futureStr) {
+                const futureList = JSON.parse(futureStr);
+                if (Array.isArray(futureList)) {
+                    const entry = futureList.find(
+                        (s: any) => s.date === dateStr && matchesStaffEntry(s, eNo, email, name)
+                    );
+                    if (entry) {
+                        return entry.shiftType === 'Off';
+                    }
                 }
             }
-        }
-    } catch (_) {}
+        } catch (_) {}
 
-    // 2. Check Live Call Center schedules from localStorage ('staff_callcenter_schedules')
-    try {
-        const liveStr = typeof window !== 'undefined' ? localStorage.getItem('staff_callcenter_schedules') : null;
-        if (liveStr) {
-            const liveList = JSON.parse(liveStr);
-            if (Array.isArray(liveList)) {
-                const entry = liveList.find(
-                    (s: any) => s.date === dateStr && matchesEntry(s)
-                );
-                if (entry) {
-                    return entry.shiftType === 'Off';
+        // 2. Live Call Center schedules ('staff_callcenter_schedules')
+        try {
+            const liveStr = typeof window !== 'undefined' ? localStorage.getItem('staff_callcenter_schedules') : null;
+            if (liveStr) {
+                const liveList = JSON.parse(liveStr);
+                if (Array.isArray(liveList)) {
+                    const entry = liveList.find(
+                        (s: any) => s.date === dateStr && matchesStaffEntry(s, eNo, email, name)
+                    );
+                    if (entry) {
+                        return entry.shiftType === 'Off';
+                    }
                 }
             }
-        }
-    } catch (_) {}
+        } catch (_) {}
 
-    // 3. Check Admin schedules from localStorage ('staff_admin_schedules')
-    try {
-        const adminStr = typeof window !== 'undefined' ? localStorage.getItem('staff_admin_schedules') : null;
-        if (adminStr) {
-            const adminList = JSON.parse(adminStr);
-            if (Array.isArray(adminList)) {
-                const entry = adminList.find(
-                    (s: any) => s.date === dateStr && matchesEntry(s)
-                );
-                if (entry) {
-                    return entry.shiftType === 'Off';
-                }
+        // 3. Fallback to Official Call Center Daily Roster baseline
+        const ccKey = resolveCallCenterKey(eNo, email, name);
+        if (ccKey && OFFICIAL_CALL_CENTER_ROSTER[ccKey]) {
+            const officialShifts = OFFICIAL_CALL_CENTER_ROSTER[ccKey];
+            const d = new Date(dateStr + 'T00:00:00');
+            const dayOfWeek = (d.getDay() + 6) % 7; // Mon=0, ..., Sun=6
+            const def = officialShifts[dayOfWeek];
+            if (def) {
+                return def.shiftType === 'Off';
             }
         }
-    } catch (_) {}
 
-    // 4. Fallback to Official Call Center baseline roster
-    if (cleanE && OFFICIAL_CALL_CENTER_ROSTER[cleanE]) {
-        const officialShifts = OFFICIAL_CALL_CENTER_ROSTER[cleanE];
+        return false;
+    } else {
+        // === ADMIN WORKING SCHEDULE ===
+        // 1. Live Admin schedules ('staff_admin_schedules')
+        try {
+            const adminStr = typeof window !== 'undefined' ? localStorage.getItem('staff_admin_schedules') : null;
+            if (adminStr) {
+                const adminList = JSON.parse(adminStr);
+                if (Array.isArray(adminList)) {
+                    const entry = adminList.find(
+                        (s: any) => s.date === dateStr && matchesStaffEntry(s, eNo, email, name)
+                    );
+                    if (entry) {
+                        return entry.shiftType === 'Off';
+                    }
+                }
+            }
+        } catch (_) {}
+
+        // 2. Admin staff baseline working schedule:
+        // Mon-Fri: Standard Day shift (Working day -> not on leave)
+        // Sat-Sun: Weekend Rest Day ('Off' shift -> on leave/off)
         const d = new Date(dateStr + 'T00:00:00');
         const dayOfWeek = (d.getDay() + 6) % 7; // Mon=0, ..., Sun=6
-        const def = officialShifts[dayOfWeek];
-        if (def) {
-            return def.shiftType === 'Off';
-        }
-    }
-
-    // 5. Admin staff baseline (Saturday=5, Sunday=6 are Off/Leave days)
-    if (!CALL_CENTER_ENOS.has(cleanE)) {
-        const d = new Date(dateStr + 'T00:00:00');
-        const dayOfWeek = (d.getDay() + 6) % 7;
         return dayOfWeek >= 5;
     }
-
-    return false;
 };
 
 /**
  * Calculates total leave days for a user in a given month (YYYY-MM)
- * by evaluating each individual date against the temporarily customized schedule.
+ * by evaluating each individual date against their respective working schedule.
  */
 export const getMonthlyLeaveDaysForUser = (
     eNo?: string,
@@ -664,6 +773,7 @@ export const getMonthlyLeaveDaysForUser = (
     return leaveCount;
 };
 
+
 export default function AttendanceSheetPage() {
     const router = useRouter();
     const { mode } = useThemeContext();
@@ -685,6 +795,7 @@ export default function AttendanceSheetPage() {
 
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isSasanka, setIsSasanka] = useState(false);
 
     // Edit Dialog States
     const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -735,6 +846,17 @@ export default function AttendanceSheetPage() {
                 const admin = role === 'admin';
                 setIsSuperAdmin(superAdmin);
                 setIsAdmin(admin);
+
+                const uEmail = (user.email || '').toLowerCase().trim();
+                const uUsername = (user.username || '').toLowerCase().trim();
+                const uFullName = (user.fullName || '').toLowerCase().trim();
+                const uENo = (user.eNo || '').toLowerCase().trim();
+
+                const sasanka = uUsername === 'sasanka' ||
+                                uFullName === 'sasanka' ||
+                                uEmail === 'user05.senucabs@gmail.com' ||
+                                uENo === 'e113';
+                setIsSasanka(sasanka);
 
                 // Admin users can view must be this daily attendance section, and only admin users can view
                 if (!superAdmin && !admin) {
@@ -1044,6 +1166,7 @@ export default function AttendanceSheetPage() {
     const [selectedUserLogs, setSelectedUserLogs] = useState<MonthlyAttendanceRecord | null>(null);
     const [userLogs, setUserLogs] = useState<AttendanceRecord[]>([]);
     const [loadingUserLogs, setLoadingUserLogs] = useState(false);
+    const [downloadingUserPDF, setDownloadingUserPDF] = useState(false);
 
     const handleOpenViewLogs = async (userRow: MonthlyAttendanceRecord) => {
         setSelectedUserLogs(userRow);
@@ -1317,6 +1440,9 @@ export default function AttendanceSheetPage() {
     const filteredMonthlyRecords = React.useMemo(() => {
         return monthlyRecords
             .filter(r => {
+                if (isSasanka && !isCallCenterEmployee(r.eNo, r.email, r.name)) {
+                    return false;
+                }
                 const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) ||
                     r.email.toLowerCase().includes(search.toLowerCase()) ||
                     r.eNo.toLowerCase().includes(search.toLowerCase());
@@ -1324,7 +1450,7 @@ export default function AttendanceSheetPage() {
                 return matchesSearch && matchesUser;
             })
             .sort((a, b) => compareENo(a.eNo, b.eNo));
-    }, [monthlyRecords, search, selectedUserFilter]);
+    }, [monthlyRecords, search, selectedUserFilter, isSasanka]);
 
     const dailyUserStatsMap = React.useMemo(() => {
         const stats = new Map<string, { totalMinutes: number; sessionCount: number; hasActiveSession: boolean }>();
@@ -1394,6 +1520,80 @@ export default function AttendanceSheetPage() {
 
         return stats;
     }, [userLogs]);
+
+    const modalSummary = React.useMemo(() => {
+        const baseDaysPresent = typeof selectedUserLogs?.daysPresent === 'number'
+            ? selectedUserLogs.daysPresent
+            : (userLogs.length > 0 ? new Set(userLogs.filter(l => l.status !== 'Not Clocked In' && l.clockInTime && l.clockInTime !== '-').map(l => l.clockInDate || l.date)).size : 0);
+
+        const baseLeaves = typeof selectedUserLogs?.leaves === 'number' && selectedUserLogs.leaves > 0
+            ? selectedUserLogs.leaves
+            : getMonthlyLeaveDaysForUser(selectedUserLogs?.eNo, selectedMonth, selectedUserLogs?.email, selectedUserLogs?.name);
+        const totalRecordsCount = userLogs.length;
+
+        const formatHrsStr = (val: string | number | undefined, fallback = '0 hrs') => {
+            if (val === undefined || val === null || val === '' || val === '-') return fallback;
+            const str = String(val).trim();
+            if (str.includes('h') || str.includes('m') || str.includes('hrs')) return str;
+            return `${str} hrs`;
+        };
+
+        let workedHours = formatHrsStr(selectedUserLogs?.totalHours);
+        let extraHours = formatHrsStr(selectedUserLogs?.otHours);
+        let lessHours = formatHrsStr(selectedUserLogs?.lessHours);
+        let actualOtOrLoss = selectedUserLogs?.actualOtOrLossHours
+            ? String(selectedUserLogs.actualOtOrLossHours)
+            : calculateActualOtOrLoss(selectedUserLogs?.otHours, selectedUserLogs?.lessHours);
+
+        if (userLogs.length > 0) {
+            let totalWorkedMins = 0;
+            let totalOtMins = 0;
+            let totalLessMins = 0;
+            const processedDates = new Set<string>();
+
+            userLogs.forEach(log => {
+                if (!log.clockInTime || log.clockInTime === '-' || log.status === 'Not Clocked In' || log.status === 'Leave') {
+                    return;
+                }
+                const dateKey = (log.clockInDate && log.clockInDate !== '-' ? log.clockInDate : log.date || '').trim();
+                const userKey = (log.eNo && log.eNo !== 'N/A' && !log.eNo.includes('@') ? log.eNo : log.email || log.name || '').toLowerCase().trim();
+                const mapKey = `${userKey}_${dateKey}`;
+                const userStat = userLogsStatsMap.get(mapKey);
+
+                if (dateKey && !processedDates.has(dateKey)) {
+                    processedDates.add(dateKey);
+                    const dayMins = userStat ? userStat.totalMinutes : getSessionMinutes(log.clockInTime, log.clockOutTime, log.clockInDate || log.date, log.clockOutDate);
+                    const exceeds19h = dayMins > 1140;
+                    const isApproved = !!log.approvedBySuperAdmin;
+                    if (exceeds19h && !isApproved) return;
+
+                    totalWorkedMins += dayMins;
+                    if (dayMins >= 540) {
+                        totalOtMins += (dayMins - 540);
+                    } else if (dayMins > 0 && (!userStat || !userStat.hasActiveSession)) {
+                        totalLessMins += (540 - dayMins);
+                    }
+                }
+            });
+
+            if (totalWorkedMins > 0 || totalOtMins > 0 || totalLessMins > 0) {
+                workedHours = formatMinutesToHoursAndMins(totalWorkedMins);
+                extraHours = formatMinutesToHoursAndMins(totalOtMins);
+                lessHours = formatMinutesToHoursAndMins(totalLessMins);
+                actualOtOrLoss = calculateActualOtOrLoss(extraHours, lessHours);
+            }
+        }
+
+        return {
+            daysPresent: baseDaysPresent,
+            leaves: baseLeaves,
+            totalRecords: totalRecordsCount,
+            workedHours,
+            extraHours,
+            lessHours,
+            actualOtOrLoss,
+        };
+    }, [userLogs, selectedUserLogs, userLogsStatsMap]);
 
     const clockedInCount = dailyDisplayRecords.filter(r => r.status === 'Clocked In').length;
     const clockedOutCount = dailyDisplayRecords.filter(r => r.status === 'Clocked Out').length;
@@ -1880,7 +2080,323 @@ export default function AttendanceSheetPage() {
         });
 
         const csvContent = [headers.join(','), ...rows].join('\n');
-        downloadCSV(`Monthly_Staff_Attendance_${selectedMonth || 'summary'}.csv`, csvContent);
+        const filenamePrefix = isSasanka ? 'Call_Center_Monthly_Attendance' : 'Monthly_Staff_Attendance';
+        downloadCSV(`${filenamePrefix}_${selectedMonth || 'summary'}.csv`, csvContent);
+    };
+
+    const handleDownloadUserAttendanceSheet = () => {
+        if (!selectedUserLogs) return;
+
+        const userName = selectedUserLogs.name || 'Staff';
+        const userENo = selectedUserLogs.eNo || 'N/A';
+        const monthLabel = selectedUserLogs.month || selectedMonth || '';
+
+        const metaLine1 = `"Monthly Attendance Sheet: ${userName} (${userENo}) - ${monthLabel}"`;
+        const metaLine2 = `"Days Present: ${modalSummary.daysPresent} days","Leave Days: ${modalSummary.leaves} days","Total Worked: ${modalSummary.workedHours}","Extra Hours: ${modalSummary.extraHours}","Less Hours: ${modalSummary.lessHours}","Net OT/Loss: ${modalSummary.actualOtOrLoss}"`;
+        const emptyLine = '""';
+
+        const headers = ['Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status'];
+
+        const rows = userLogs.map(log => {
+            const rowHours = getDailyRowHours(log, userLogsStatsMap);
+            const inDate = log.clockInDate || log.date || '-';
+            const inTime = log.clockInTime || '-';
+            const outDate = log.clockOutDate || (log.status === 'Clocked Out' ? (log.date || '-') : '-');
+            const outTime = log.clockOutTime || '-';
+            const loc = (log.clockInLocation || log.clockOutLocation || '-').replace(/"/g, '""');
+
+            let hrs = rowHours.dayTotalHrs;
+            if (rowHours.isMultiSession) {
+                hrs = `${rowHours.dayTotalHrs} (Session: ${rowHours.sessionHrs})`;
+            } else if (hrs === '-') {
+                hrs = '0 hrs';
+            }
+
+            const extra = rowHours.otHours;
+            const less = rowHours.lessHours;
+            const status = log.status || '';
+
+            return [
+                `"${inDate}"`,
+                `"${inTime}"`,
+                `"${outDate}"`,
+                `"${outTime}"`,
+                `"${loc}"`,
+                `"${hrs}"`,
+                `"${extra}"`,
+                `"${less}"`,
+                `"${status}"`
+            ].join(',');
+        });
+
+        const totalRow = [
+            `"Total (${modalSummary.daysPresent} days present / ${userLogs.length} records)"`,
+            '""',
+            '""',
+            '""',
+            '""',
+            `"${modalSummary.workedHours}"`,
+            `"${modalSummary.extraHours}"`,
+            `"${modalSummary.lessHours}"`,
+            `"${modalSummary.actualOtOrLoss}"`
+        ].join(',');
+
+        const csvContent = [
+            metaLine1,
+            metaLine2,
+            emptyLine,
+            headers.map(h => `"${h}"`).join(','),
+            ...rows,
+            totalRow
+        ].join('\n');
+
+        const safeENo = (userENo || 'staff').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeName = userName.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeMonth = monthLabel.replace(/[^a-zA-Z0-9_-]/g, '_');
+        downloadCSV(`Attendance_${safeENo}_${safeName}_${safeMonth}.csv`, csvContent);
+    };
+
+    const handleDownloadUserAttendancePDF = async () => {
+        if (!selectedUserLogs || downloadingUserPDF) return;
+
+        setDownloadingUserPDF(true);
+        try {
+            const jsPDFModule: any = await import('jspdf');
+            const autoTableModule: any = await import('jspdf-autotable');
+            const jsPDF = jsPDFModule.jsPDF || jsPDFModule.default?.jsPDF || jsPDFModule.default || jsPDFModule;
+            const autoTable = autoTableModule.default || autoTableModule.autoTable || autoTableModule;
+
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4',
+            });
+
+            const userName = selectedUserLogs.name || 'Staff Member';
+            const userENo = selectedUserLogs.eNo || 'N/A';
+            const monthLabel = selectedUserLogs.month || selectedMonth || '';
+            const isCC = isCallCenterEmployee(selectedUserLogs.eNo, selectedUserLogs.email, selectedUserLogs.name);
+            const department = isCC ? 'Call Center Department' : 'Administration & Operations';
+
+            // --- 1. Top Decorative Bar ---
+            doc.setFillColor(37, 99, 235); // Blue 600
+            doc.rect(0, 0, 297, 5, 'F');
+
+            // --- 2. Company & Document Header ---
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(18);
+            doc.setTextColor(30, 41, 59); // Slate 800
+            doc.text('SENU CABS & TOURS', 14, 18);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139); // Slate 500
+            doc.text('Staff Monthly Attendance Sheet', 14, 24);
+
+            // Right side info (Timestamp)
+            const printedAt = new Date().toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+            doc.setFontSize(8);
+            doc.text(`Generated: ${printedAt}`, 283, 18, { align: 'right' });
+            doc.text(`System Record: Confidential`, 283, 23, { align: 'right' });
+
+            // Divider
+            doc.setDrawColor(226, 232, 240); // Slate 200
+            doc.setLineWidth(0.5);
+            doc.line(14, 27, 283, 27);
+
+            // --- 3. Staff Info Banner ---
+            doc.setFillColor(248, 250, 252); // Slate 50
+            doc.roundedRect(14, 30, 269, 16, 2, 2, 'F');
+            doc.setDrawColor(203, 213, 225); // Slate 300
+            doc.roundedRect(14, 30, 269, 16, 2, 2, 'S');
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(15, 23, 42); // Slate 900
+            doc.text(`Employee: ${userENo ? `${userENo} - ` : ''}${userName}`, 18, 37);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(71, 85, 105); // Slate 600
+            doc.text(`Department: ${department}`, 18, 42);
+
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Period: ${monthLabel}`, 280, 37, { align: 'right' });
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Total Records: ${userLogs.length} sessions`, 280, 42, { align: 'right' });
+
+            // --- 4. Summary KPI Cards (Horizontal Strip) ---
+            const startY = 49;
+            const cardH = 14;
+            const cardW = 42.5;
+            const gap = 2.8;
+
+            const kpis = [
+                { label: 'DAYS PRESENT', value: `${modalSummary.daysPresent} days`, bg: [240, 253, 244], border: [187, 247, 208], text: [21, 128, 61] },
+                { label: 'LEAVE DAYS', value: `${modalSummary.leaves} days`, bg: [254, 243, 199], border: [253, 230, 138], text: [146, 64, 14] },
+                { label: 'TOTAL WORKED', value: modalSummary.workedHours, bg: [239, 246, 255], border: [191, 219, 254], text: [30, 64, 175] },
+                { label: 'EXTRA HOURS (OT)', value: modalSummary.extraHours, bg: [239, 246, 255], border: [191, 219, 254], text: [37, 99, 235] },
+                { label: 'LESS HOURS', value: modalSummary.lessHours, bg: modalSummary.lessHours !== '0 hrs' && modalSummary.lessHours !== '0' && modalSummary.lessHours !== '-' ? [254, 242, 242] : [248, 250, 252], border: modalSummary.lessHours !== '0 hrs' && modalSummary.lessHours !== '0' && modalSummary.lessHours !== '-' ? [254, 202, 202] : [226, 232, 240], text: modalSummary.lessHours !== '0 hrs' && modalSummary.lessHours !== '0' && modalSummary.lessHours !== '-' ? [220, 38, 38] : [100, 116, 139] },
+                { label: 'NET OT / LOSS', value: modalSummary.actualOtOrLoss, bg: modalSummary.actualOtOrLoss.startsWith('+') ? [240, 253, 244] : modalSummary.actualOtOrLoss.startsWith('-') ? [255, 241, 242] : [248, 250, 252], border: modalSummary.actualOtOrLoss.startsWith('+') ? [187, 247, 208] : modalSummary.actualOtOrLoss.startsWith('-') ? [254, 205, 211] : [226, 232, 240], text: modalSummary.actualOtOrLoss.startsWith('+') ? [21, 128, 61] : modalSummary.actualOtOrLoss.startsWith('-') ? [225, 29, 72] : [100, 116, 139] },
+            ];
+
+            kpis.forEach((k, idx) => {
+                const x = 14 + idx * (cardW + gap);
+                doc.setFillColor(k.bg[0], k.bg[1], k.bg[2]);
+                doc.roundedRect(x, startY, cardW, cardH, 1.5, 1.5, 'F');
+                doc.setDrawColor(k.border[0], k.border[1], k.border[2]);
+                doc.roundedRect(x, startY, cardW, cardH, 1.5, 1.5, 'S');
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(6.5);
+                doc.setTextColor(100, 116, 139);
+                doc.text(k.label, x + cardW / 2, startY + 4.5, { align: 'center' });
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(9.5);
+                doc.setTextColor(k.text[0], k.text[1], k.text[2]);
+                doc.text(k.value, x + cardW / 2, startY + 10.5, { align: 'center' });
+            });
+
+            // --- 5. Table of Attendance Records ---
+            const tableStartY = startY + cardH + 5;
+
+            const tableHeaders = [
+                ['Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status']
+            ];
+
+            const tableBody = userLogs.map(log => {
+                const rowHours = getDailyRowHours(log, userLogsStatsMap);
+                const inDate = log.clockInDate || log.date || '-';
+                const inTime = log.clockInTime || '-';
+                const outDate = log.clockOutDate || (log.status === 'Clocked Out' ? (log.date || '-') : '-');
+                const outTime = log.clockOutTime || '-';
+                const loc = formatShortLocation(log.clockInLocation || log.clockOutLocation) || '-';
+
+                let hrs = rowHours.dayTotalHrs;
+                if (rowHours.isMultiSession) {
+                    hrs = `${rowHours.dayTotalHrs} (S: ${rowHours.sessionHrs})`;
+                } else if (hrs === '-') {
+                    hrs = '0 hrs';
+                }
+
+                const extra = rowHours.otHours;
+                const less = rowHours.lessHours;
+                const status = log.status || '-';
+
+                return [inDate, inTime, outDate, outTime, loc, hrs, extra, less, status];
+            });
+
+            const tableFooter = [
+                [
+                    `Total (${modalSummary.daysPresent} days present / ${userLogs.length} records)`,
+                    '',
+                    '',
+                    '',
+                    '',
+                    modalSummary.workedHours,
+                    modalSummary.extraHours,
+                    modalSummary.lessHours,
+                    modalSummary.actualOtOrLoss
+                ]
+            ];
+
+            const tableOptions = {
+                startY: tableStartY,
+                head: tableHeaders,
+                body: tableBody.length > 0 ? tableBody : [['-', '-', '-', '-', 'No records found for this user in this month.', '-', '-', '-', '-']],
+                foot: tableFooter,
+                theme: 'grid',
+                headStyles: {
+                    fillColor: [30, 41, 59], // Slate 800
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    fontSize: 8.5,
+                    halign: 'center',
+                },
+                bodyStyles: {
+                    fontSize: 8,
+                    textColor: [30, 41, 59],
+                    cellPadding: 2,
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 250, 252], // Slate 50
+                },
+                footStyles: {
+                    fillColor: [241, 245, 249], // Slate 100
+                    textColor: [15, 23, 42],
+                    fontStyle: 'bold',
+                    fontSize: 8.5,
+                },
+                columnStyles: {
+                    0: { cellWidth: 26, halign: 'center' }, // Clock In Date
+                    1: { cellWidth: 24, halign: 'center', textColor: [22, 163, 74], fontStyle: 'bold' }, // Clock In (green)
+                    2: { cellWidth: 26, halign: 'center' }, // Clock Out Date
+                    3: { cellWidth: 24, halign: 'center', textColor: [220, 38, 38], fontStyle: 'bold' }, // Clock Out (red)
+                    4: { cellWidth: 65, halign: 'left' },   // Location
+                    5: { cellWidth: 28, halign: 'center', fontStyle: 'bold' }, // Hour Count
+                    6: { cellWidth: 25, halign: 'center', fontStyle: 'bold', textColor: [37, 99, 235] }, // Extra Hours
+                    7: { cellWidth: 25, halign: 'center', fontStyle: 'bold' }, // Less Hours
+                    8: { cellWidth: 26, halign: 'center' }, // Status
+                },
+                didParseCell: (data: any) => {
+                    if (data.section === 'foot') {
+                        if (data.column.index === 0) {
+                            data.cell.colSpan = 5;
+                            data.cell.styles.halign = 'left';
+                        }
+                        if (data.column.index === 5) {
+                            data.cell.styles.textColor = [30, 64, 175];
+                            data.cell.styles.halign = 'center';
+                        }
+                        if (data.column.index === 6) {
+                            data.cell.styles.textColor = [37, 99, 235];
+                            data.cell.styles.halign = 'center';
+                        }
+                        if (data.column.index === 7) {
+                            data.cell.styles.textColor = modalSummary.lessHours !== '0 hrs' && modalSummary.lessHours !== '0' && modalSummary.lessHours !== '-' ? [220, 38, 38] : [100, 116, 139];
+                            data.cell.styles.halign = 'center';
+                        }
+                        if (data.column.index === 8) {
+                            data.cell.styles.textColor = modalSummary.actualOtOrLoss.startsWith('+') ? [21, 128, 61] : modalSummary.actualOtOrLoss.startsWith('-') ? [225, 29, 72] : [100, 116, 139];
+                            data.cell.styles.halign = 'center';
+                        }
+                    }
+                },
+                margin: { left: 14, right: 14, bottom: 12 },
+            };
+
+            if (typeof autoTable === 'function') {
+                autoTable(doc, tableOptions);
+            } else if (typeof (doc as any).autoTable === 'function') {
+                (doc as any).autoTable(tableOptions);
+            }
+
+            // Add page numbers
+            const pageCount = (doc as any).internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.5);
+                doc.setTextColor(148, 163, 184); // Slate 400
+                doc.text(`Senu Cabs & Tours • Staff Attendance Record • Page ${i} of ${pageCount}`, 148.5, 205, { align: 'center' });
+            }
+
+            const safeENo = (userENo || 'Staff').replace(/[^a-zA-Z0-9_-]/g, '_');
+            const safeName = userName.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const safeMonth = monthLabel.replace(/[^a-zA-Z0-9_-]/g, '_');
+            doc.save(`Attendance_${safeENo}_${safeName}_${safeMonth}.pdf`);
+        } catch (error) {
+            console.error('Error generating attendance PDF:', error);
+        } finally {
+            setDownloadingUserPDF(false);
+        }
     };
 
     return (
@@ -1922,8 +2438,8 @@ export default function AttendanceSheetPage() {
                 </Typography>
             </Box>
 
-            {/* Navigation Tabs - SuperAdmin can switch between Daily and Monthly; Admin users view Daily Attendance */}
-            {isSuperAdmin && (
+            {/* Navigation Tabs - SuperAdmin and Sasanka can switch between Daily and Monthly */}
+            {(isSuperAdmin || isSasanka) && (
                 <Paper
                     elevation={0}
                     sx={{
@@ -1952,13 +2468,13 @@ export default function AttendanceSheetPage() {
                         }}
                     >
                         <Tab icon={<CalendarIcon sx={{ fontSize: 18, mr: 1 }} />} iconPosition="start" label="Daily Staff Attendance" />
-                        <Tab icon={<ShowChartIcon sx={{ fontSize: 18, mr: 1 }} />} iconPosition="start" label="User Wise Monthly Attendance" />
+                        <Tab icon={<ShowChartIcon sx={{ fontSize: 18, mr: 1 }} />} iconPosition="start" label={isSasanka ? "Call Center Monthly Attendance" : "User Wise Monthly Attendance"} />
                     </Tabs>
                 </Paper>
             )}
 
             {/* Tab 0: Daily Staff Attendance */}
-            {(tabValue === 0 || !isSuperAdmin) && (
+            {(tabValue === 0 || (!isSuperAdmin && !isSasanka)) && (
                 <>
                     {/* Stats Row */}
                     <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
@@ -2742,7 +3258,7 @@ export default function AttendanceSheetPage() {
             )}
 
             {/* Tab 1: User Wise Monthly Attendance */}
-            {isSuperAdmin && tabValue === 1 && (
+            {(isSuperAdmin || isSasanka) && tabValue === 1 && (
                 <>
                     {/* Filters Row */}
                     <Paper
@@ -2777,12 +3293,14 @@ export default function AttendanceSheetPage() {
                                         label="Select Staff Member"
                                         onChange={(e) => setSelectedUserFilter(e.target.value)}
                                     >
-                                        <MenuItem value="ALL">All Staff Members</MenuItem>
-                                        {monthlyRecords.map((r, idx) => (
-                                             <MenuItem key={`user_filter_${r.id}_${idx}`} value={r.id}>
-                                                 {r.name} ({r.eNo})
-                                             </MenuItem>
-                                         ))}
+                                        <MenuItem value="ALL">{isSasanka ? 'All Call Center Staff' : 'All Staff Members'}</MenuItem>
+                                        {monthlyRecords
+                                            .filter(r => !isSasanka || isCallCenterEmployee(r.eNo, r.email, r.name))
+                                            .map((r, idx) => (
+                                                 <MenuItem key={`user_filter_${r.id}_${idx}`} value={r.id}>
+                                                     {r.name} ({r.eNo})
+                                                 </MenuItem>
+                                             ))}
                                     </Select>
                                 </FormControl>
                             </Grid>
@@ -2820,7 +3338,7 @@ export default function AttendanceSheetPage() {
                     >
                         <Box sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
                             <Typography variant="h6" fontWeight="bold">
-                                Monthly Attendance Summary ({selectedMonth})
+                                {isSasanka ? `Call Center Monthly Attendance Summary (${selectedMonth})` : `Monthly Attendance Summary (${selectedMonth})`}
                             </Typography>
                             <Button
                                 variant="outlined"
@@ -3057,17 +3575,63 @@ export default function AttendanceSheetPage() {
             <Dialog
                 open={viewLogsOpen}
                 onClose={() => setViewLogsOpen(false)}
-                maxWidth="md"
+                maxWidth="xl"
                 fullWidth
                 PaperProps={{
-                    sx: { borderRadius: 3, p: 1 }
+                    sx: {
+                        borderRadius: 3,
+                        p: 1,
+                        width: { xs: '96vw', md: '92vw', lg: '85vw' },
+                        maxWidth: '1400px',
+                    }
                 }}
             >
-                <DialogTitle component="div" sx={{ fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <DialogTitle component="div" sx={{ fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                     <Typography component="span" variant="h6" fontWeight="bold">
                         Monthly Clock In/Out Records ({selectedUserLogs?.eNo ? `${selectedUserLogs?.eNo} - ` : ''}{selectedUserLogs?.name})
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Button
+                            variant="contained"
+                            size="small"
+                            disabled={downloadingUserPDF}
+                            startIcon={downloadingUserPDF ? <CircularProgress size={14} sx={{ color: '#ffffff' }} /> : <PictureAsPdfIcon sx={{ fontSize: 16 }} />}
+                            onClick={handleDownloadUserAttendancePDF}
+                            sx={{
+                                borderRadius: '8px',
+                                textTransform: 'none',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                backgroundColor: '#dc2626',
+                                color: '#ffffff',
+                                '&:hover': {
+                                    backgroundColor: '#b91c1c',
+                                },
+                                boxShadow: '0 1px 3px rgba(220, 38, 38, 0.3)',
+                            }}
+                        >
+                            {downloadingUserPDF ? 'Downloading...' : 'Download PDF'}
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
+                            onClick={handleDownloadUserAttendanceSheet}
+                            sx={{
+                                borderRadius: '8px',
+                                textTransform: 'none',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                borderColor: '#cbd5e1',
+                                color: '#475569',
+                                '&:hover': {
+                                    borderColor: '#94a3b8',
+                                    backgroundColor: '#f1f5f9',
+                                },
+                            }}
+                        >
+                            CSV
+                        </Button>
                         <Chip
                             label={`Leave: ${selectedUserLogs?.leaves || 0} days`}
                             size="small"
@@ -3092,7 +3656,7 @@ export default function AttendanceSheetPage() {
                             No clock-in/out records found for this user in {selectedUserLogs?.month}.
                         </Box>
                     ) : (
-                        <TableContainer sx={{ maxHeight: 400 }}>
+                        <TableContainer sx={{ maxHeight: '65vh' }}>
                             <Table size="small" stickyHeader>
                                 <TableHead>
                                     <TableRow>
@@ -3169,14 +3733,263 @@ export default function AttendanceSheetPage() {
                                         );
                                     })}
                                 </TableBody>
+                                <TableFooter
+                                    sx={{
+                                        position: 'sticky',
+                                        bottom: 0,
+                                        zIndex: 2,
+                                        backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc',
+                                    }}
+                                >
+                                    <TableRow sx={{ borderTop: (theme) => `2px solid ${theme.palette.mode === 'dark' ? '#334155' : '#cbd5e1'}` }}>
+                                        <TableCell colSpan={5} sx={{ fontWeight: 800, fontSize: 13, color: 'text.primary', py: 1.5 }}>
+                                            Total ({modalSummary.daysPresent} {modalSummary.daysPresent === 1 ? 'day' : 'days'} present / {userLogs.length} records)
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 800, fontSize: 13, color: '#1e40af', py: 1.5 }}>
+                                            {modalSummary.workedHours}
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 800, fontSize: 13, color: '#2563eb', py: 1.5 }}>
+                                            {modalSummary.extraHours}
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 800, fontSize: 13, color: modalSummary.lessHours !== '0 hrs' && modalSummary.lessHours !== '0' && modalSummary.lessHours !== '-' ? '#dc2626' : 'text.secondary', py: 1.5 }}>
+                                            {modalSummary.lessHours}
+                                        </TableCell>
+                                        <TableCell sx={{ py: 1.5 }}>
+                                            <Chip
+                                                label={modalSummary.actualOtOrLoss}
+                                                size="small"
+                                                sx={{
+                                                    backgroundColor: modalSummary.actualOtOrLoss.startsWith('+') ? '#f0fdf4' : modalSummary.actualOtOrLoss.startsWith('-') ? '#fff1f2' : '#f8fafc',
+                                                    color: modalSummary.actualOtOrLoss.startsWith('+') ? '#15803d' : modalSummary.actualOtOrLoss.startsWith('-') ? '#e11d48' : '#64748b',
+                                                    fontWeight: 800,
+                                                    fontSize: '0.75rem',
+                                                    border: '1px solid',
+                                                    borderColor: modalSummary.actualOtOrLoss.startsWith('+') ? '#bbf7d0' : modalSummary.actualOtOrLoss.startsWith('-') ? '#fecdd3' : '#e2e8f0',
+                                                }}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                </TableFooter>
                             </Table>
                         </TableContainer>
                     )}
                 </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    <Button onClick={() => setViewLogsOpen(false)} variant="contained" sx={{ textTransform: 'none', borderRadius: 2 }}>
-                        Close
-                    </Button>
+                <DialogActions
+                    sx={{
+                        px: { xs: 2, sm: 3 },
+                        py: 2,
+                        backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#0f172a' : '#f8fafc',
+                        borderTop: (theme) => `1px solid ${theme.palette.mode === 'dark' ? '#334155' : '#e2e8f0'}`,
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 1.5,
+                    }}
+                >
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                px: 1.75,
+                                py: 0.75,
+                                borderRadius: 2,
+                                backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1e293b' : '#ffffff',
+                                border: '1px solid',
+                                borderColor: (theme) => theme.palette.mode === 'dark' ? '#334155' : '#e2e8f0',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            }}
+                        >
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.5px' }}>
+                                Days Present:
+                            </Typography>
+                            <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: '#16a34a' }}>
+                                {modalSummary.daysPresent} {modalSummary.daysPresent === 1 ? 'day' : 'days'}
+                            </Typography>
+                        </Box>
+
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                px: 1.75,
+                                py: 0.75,
+                                borderRadius: 2,
+                                backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1e293b' : '#ffffff',
+                                border: '1px solid',
+                                borderColor: (theme) => theme.palette.mode === 'dark' ? '#334155' : '#e2e8f0',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            }}
+                        >
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.5px' }}>
+                                Leave Days:
+                            </Typography>
+                            <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: '#d97706' }}>
+                                {modalSummary.leaves} {modalSummary.leaves === 1 ? 'day' : 'days'}
+                            </Typography>
+                        </Box>
+
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                px: 1.75,
+                                py: 0.75,
+                                borderRadius: 2,
+                                backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1e293b' : '#ffffff',
+                                border: '1px solid',
+                                borderColor: (theme) => theme.palette.mode === 'dark' ? '#334155' : '#e2e8f0',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            }}
+                        >
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.5px' }}>
+                                Total Worked:
+                            </Typography>
+                            <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: '#1e40af' }}>
+                                {modalSummary.workedHours}
+                            </Typography>
+                        </Box>
+
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                px: 1.75,
+                                py: 0.75,
+                                borderRadius: 2,
+                                backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1e293b' : '#ffffff',
+                                border: '1px solid',
+                                borderColor: (theme) => theme.palette.mode === 'dark' ? '#334155' : '#e2e8f0',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            }}
+                        >
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.5px' }}>
+                                Extra Hours:
+                            </Typography>
+                            <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: '#2563eb' }}>
+                                {modalSummary.extraHours}
+                            </Typography>
+                        </Box>
+
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                px: 1.75,
+                                py: 0.75,
+                                borderRadius: 2,
+                                backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1e293b' : '#ffffff',
+                                border: '1px solid',
+                                borderColor: (theme) => theme.palette.mode === 'dark' ? '#334155' : '#e2e8f0',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            }}
+                        >
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.5px' }}>
+                                Less Hours:
+                            </Typography>
+                            <Typography
+                                sx={{
+                                    fontWeight: 800,
+                                    fontSize: '0.85rem',
+                                    color: modalSummary.lessHours !== '0 hrs' && modalSummary.lessHours !== '0' && modalSummary.lessHours !== '-' ? '#dc2626' : 'text.secondary'
+                                }}
+                            >
+                                {modalSummary.lessHours}
+                            </Typography>
+                        </Box>
+
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                px: 1.75,
+                                py: 0.75,
+                                borderRadius: 2,
+                                backgroundColor: modalSummary.actualOtOrLoss.startsWith('+') ? '#f0fdf4' : modalSummary.actualOtOrLoss.startsWith('-') ? '#fff1f2' : (theme) => theme.palette.mode === 'dark' ? '#1e293b' : '#ffffff',
+                                border: '1px solid',
+                                borderColor: modalSummary.actualOtOrLoss.startsWith('+') ? '#bbf7d0' : modalSummary.actualOtOrLoss.startsWith('-') ? '#fecdd3' : (theme) => theme.palette.mode === 'dark' ? '#334155' : '#e2e8f0',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                            }}
+                        >
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem', letterSpacing: '0.5px' }}>
+                                Net OT / Loss:
+                            </Typography>
+                            <Typography
+                                sx={{
+                                    fontWeight: 800,
+                                    fontSize: '0.85rem',
+                                    color: modalSummary.actualOtOrLoss.startsWith('+') ? '#15803d' : modalSummary.actualOtOrLoss.startsWith('-') ? '#e11d48' : 'text.secondary'
+                                }}
+                            >
+                                {modalSummary.actualOtOrLoss}
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Button
+                            onClick={handleDownloadUserAttendancePDF}
+                            variant="contained"
+                            disabled={downloadingUserPDF}
+                            startIcon={downloadingUserPDF ? <CircularProgress size={16} sx={{ color: '#ffffff' }} /> : <PictureAsPdfIcon sx={{ fontSize: 18 }} />}
+                            sx={{
+                                textTransform: 'none',
+                                borderRadius: 2,
+                                px: 2.5,
+                                py: 1,
+                                fontWeight: 700,
+                                backgroundColor: '#dc2626',
+                                color: '#ffffff',
+                                '&:hover': {
+                                    backgroundColor: '#b91c1c',
+                                },
+                                boxShadow: '0 2px 4px rgba(220, 38, 38, 0.3)',
+                            }}
+                        >
+                            {downloadingUserPDF ? 'Downloading...' : 'Download PDF'}
+                        </Button>
+                        <Button
+                            onClick={handleDownloadUserAttendanceSheet}
+                            variant="outlined"
+                            startIcon={<DownloadIcon sx={{ fontSize: 18 }} />}
+                            sx={{
+                                textTransform: 'none',
+                                borderRadius: 2,
+                                px: 2.5,
+                                py: 1,
+                                fontWeight: 600,
+                                borderColor: '#cbd5e1',
+                                color: '#475569',
+                                '&:hover': {
+                                    borderColor: '#94a3b8',
+                                    backgroundColor: '#f1f5f9',
+                                },
+                            }}
+                        >
+                            CSV
+                        </Button>
+                        <Button
+                            onClick={() => setViewLogsOpen(false)}
+                            variant="contained"
+                            sx={{
+                                textTransform: 'none',
+                                borderRadius: 2,
+                                px: 3,
+                                py: 1,
+                                fontWeight: 600,
+                                boxShadow: '0 2px 4px rgba(59, 130, 246, 0.25)',
+                            }}
+                        >
+                            Close
+                        </Button>
+                    </Box>
                 </DialogActions>
             </Dialog>
 
