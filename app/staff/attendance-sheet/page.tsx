@@ -49,6 +49,9 @@ import {
     Visibility as ViewIcon,
     FileDownload as DownloadIcon,
     WarningAmber as WarningAmberIcon,
+    DateRange as DateRangeIcon,
+    TableChart as TableChartIcon,
+    Close as CloseIcon,
 } from '@mui/icons-material';
 import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
@@ -702,6 +705,26 @@ export default function AttendanceSheetPage() {
     const [approvingId, setApprovingId] = useState<string | null>(null);
     const [editApprovedBySuperAdmin, setEditApprovedBySuperAdmin] = useState(false);
 
+    // Date Range Download States
+    const [downloadRangeDialogOpen, setDownloadRangeDialogOpen] = useState(false);
+    const [rangeStartDate, setRangeStartDate] = useState(() => {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}-01`;
+    });
+    const [rangeEndDate, setRangeEndDate] = useState(() => {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    });
+    const [rangeSelectedStaff, setRangeSelectedStaff] = useState('ALL');
+    const [rangeFormat, setRangeFormat] = useState<'detailed' | 'matrix'>('detailed');
+    const [downloadingRange, setDownloadingRange] = useState(false);
+    const [rangeErrorMessage, setRangeErrorMessage] = useState('');
+
     useEffect(() => {
         const userStr = localStorage.getItem('staffUser');
         if (userStr) {
@@ -1057,7 +1080,7 @@ export default function AttendanceSheetPage() {
         }
     };
 
-    const dailyDisplayRecords = React.useMemo(() => {
+    const allStaffList = React.useMemo(() => {
         const staffMap = new Map<string, { id: string; eNo: string; name: string; email: string; avatar?: string }>();
 
         const findStaffInMap = (eNo?: string, email?: string) => {
@@ -1107,7 +1130,12 @@ export default function AttendanceSheetPage() {
             }
         });
 
-        const allStaffList = Array.from(staffMap.values());
+        const list = Array.from(staffMap.values());
+        list.sort((a, b) => compareENo(a.eNo, b.eNo));
+        return list;
+    }, [monthlyRecords, records]);
+
+    const dailyDisplayRecords = React.useMemo(() => {
         const logsForSelectedDate = records.filter(r => r.date && r.date.startsWith(selectedDailyDate));
 
         const matchedLogIds = new Set<string>();
@@ -1275,7 +1303,7 @@ export default function AttendanceSheetPage() {
         });
 
         return resultList;
-    }, [records, monthlyRecords, selectedDailyDate]);
+    }, [records, monthlyRecords, selectedDailyDate, allStaffList]);
 
     const filteredDailyRecords = React.useMemo(() => {
         return dailyDisplayRecords.filter(r => {
@@ -1373,7 +1401,7 @@ export default function AttendanceSheetPage() {
     const notClockedInCount = dailyDisplayRecords.filter(r => r.status === 'Not Clocked In').length;
 
     const downloadCSV = (filename: string, csvContent: string) => {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         if (link.download !== undefined) {
             const url = URL.createObjectURL(blob);
@@ -1383,6 +1411,7 @@ export default function AttendanceSheetPage() {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
     };
 
@@ -1436,6 +1465,386 @@ export default function AttendanceSheetPage() {
 
         const csvContent = [headers.join(','), ...rows].join('\n');
         downloadCSV(`Daily_Staff_Attendance_${selectedDailyDate || 'sheet'}.csv`, csvContent);
+    };
+
+    const handleSetPresetRange = (type: 'thisMonth' | 'prevMonth' | 'last30' | 'last7') => {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const formatYMD = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+        if (type === 'thisMonth') {
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            setRangeStartDate(formatYMD(firstDay));
+            setRangeEndDate(formatYMD(lastDay));
+        } else if (type === 'prevMonth') {
+            const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+            setRangeStartDate(formatYMD(firstDay));
+            setRangeEndDate(formatYMD(lastDay));
+        } else if (type === 'last30') {
+            const past = new Date(now);
+            past.setDate(past.getDate() - 29);
+            setRangeStartDate(formatYMD(past));
+            setRangeEndDate(formatYMD(now));
+        } else if (type === 'last7') {
+            const past = new Date(now);
+            past.setDate(past.getDate() - 6);
+            setRangeStartDate(formatYMD(past));
+            setRangeEndDate(formatYMD(now));
+        }
+    };
+
+    const handleDownloadDateRangeCSV = async (format: 'detailed' | 'matrix' = rangeFormat) => {
+        if (!rangeStartDate || !rangeEndDate) {
+            setRangeErrorMessage('Please select both a start date and an end date.');
+            return;
+        }
+
+        if (rangeStartDate > rangeEndDate) {
+            setRangeErrorMessage('Start date cannot be after end date.');
+            return;
+        }
+
+        setRangeErrorMessage('');
+        setDownloadingRange(true);
+
+        try {
+            // 1. Fetch latest attendance records
+            const token = localStorage.getItem('staffToken');
+            let allRangeRecords = records;
+            try {
+                const res = await fetch(`${API_ENDPOINTS.AUTH}/attendance?all=true`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const fetchedData = await res.json();
+                    if (Array.isArray(fetchedData) && fetchedData.length > 0) {
+                        allRangeRecords = fetchedData;
+                    }
+                }
+            } catch (err) {
+                console.warn('Using records in memory for date range export:', err);
+            }
+
+            // 2. Generate list of dates in the range
+            const dateList: string[] = [];
+            const [sY, sM, sD] = rangeStartDate.split('-').map(Number);
+            const [eY, eM, eD] = rangeEndDate.split('-').map(Number);
+            const curDate = new Date(sY, sM - 1, sD);
+            const stopDate = new Date(eY, eM - 1, eD);
+
+            let safetyLimit = 0;
+            while (curDate <= stopDate && safetyLimit < 370) {
+                const y = curDate.getFullYear();
+                const m = String(curDate.getMonth() + 1).padStart(2, '0');
+                const d = String(curDate.getDate()).padStart(2, '0');
+                dateList.push(`${y}-${m}-${d}`);
+                curDate.setDate(curDate.getDate() + 1);
+                safetyLimit++;
+            }
+
+            if (dateList.length === 0) {
+                setRangeErrorMessage('Invalid date range specified.');
+                setDownloadingRange(false);
+                return;
+            }
+
+            // 3. Precalculate rangeStatsMap for accurate session & OT calculations
+            const rangeStatsMap = new Map<string, { totalMinutes: number; sessionCount: number; hasActiveSession: boolean }>();
+            allRangeRecords.forEach(r => {
+                if (!r.clockInTime || r.clockInTime === '-' || r.status === 'Not Clocked In' || r.status === 'Leave') {
+                    return;
+                }
+                const userKey = (r.eNo && r.eNo !== 'N/A' && !r.eNo.includes('@') ? r.eNo : r.email || r.name || '').toLowerCase().trim();
+                const dateKey = (r.clockInDate && r.clockInDate !== '-' ? r.clockInDate : r.date || '').trim();
+                if (!userKey || !dateKey) return;
+                const mapKey = `${userKey}_${dateKey}`;
+
+                const mins = getSessionMinutes(r.clockInTime, r.clockOutTime, r.clockInDate || r.date, r.clockOutDate);
+                const isActive = r.clockOutTime === 'Active Session' || (!r.clockOutTime && r.status === 'Clocked In');
+
+                const existing = rangeStatsMap.get(mapKey) || { totalMinutes: 0, sessionCount: 0, hasActiveSession: false };
+                rangeStatsMap.set(mapKey, {
+                    totalMinutes: existing.totalMinutes + mins,
+                    sessionCount: existing.sessionCount + 1,
+                    hasActiveSession: existing.hasActiveSession || isActive,
+                });
+            });
+
+            // 4. Target staff members filter
+            const targetStaffList = rangeSelectedStaff === 'ALL'
+                ? allStaffList
+                : allStaffList.filter(s => {
+                    const matchKey = (s.eNo && s.eNo !== 'N/A' ? s.eNo : s.email || s.id);
+                    return matchKey === rangeSelectedStaff || s.eNo === rangeSelectedStaff || s.email === rangeSelectedStaff || s.id === rangeSelectedStaff;
+                });
+
+            const staffToIterate = targetStaffList.length > 0 ? targetStaffList : allStaffList;
+            const escapeCsv = (str: any) => `"${String(str ?? '').replace(/"/g, '""')}"`;
+
+            if (format === 'detailed') {
+                // FORMAT 1: Detailed Daily Sheet (One row per staff per date)
+                const headers = [
+                    'E NO',
+                    'Staff Member',
+                    'Email',
+                    'Attendance Date',
+                    'Day of Week',
+                    'Clock In Date',
+                    'Clock In Time',
+                    'Clock Out Date',
+                    'Clock Out Time',
+                    'Location In',
+                    'Location Out',
+                    'Total Hours Worked',
+                    'Extra Hours (OT)',
+                    'Less Hours',
+                    'Status',
+                    'SuperAdmin Approval'
+                ];
+
+                const rows: string[] = [];
+
+                staffToIterate.forEach(staff => {
+                    const staffENo = (staff.eNo || '').toLowerCase().trim();
+                    const staffEmail = (staff.email || '').toLowerCase().trim();
+                    const staffName = (staff.name || '').toLowerCase().trim();
+
+                    dateList.forEach(dateStr => {
+                        const logsForDate = allRangeRecords.filter(r => r.date && r.date.startsWith(dateStr));
+                        const matchedLogs = logsForDate.filter(r => {
+                            const rENo = (r.eNo || '').toLowerCase().trim();
+                            const rEmail = (r.email || '').toLowerCase().trim();
+                            const rName = (r.name || '').toLowerCase().trim();
+
+                            return (staffENo && staffENo !== 'n/a' && rENo === staffENo) ||
+                                (staffEmail && rEmail === staffEmail) ||
+                                (staffName && rName === staffName);
+                        });
+
+                        const isLeave = checkIfUserIsOnLeave(staff.eNo, dateStr, staff.email, staff.name);
+                        const dayOfWeek = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+
+                        let status = 'Not Clocked In';
+                        let clockInDate = '-';
+                        let clockInTime = '-';
+                        let clockOutDate = '-';
+                        let clockOutTime = '-';
+                        let clockInLoc = '-';
+                        let clockOutLoc = '-';
+                        let totalHoursWorked = '-';
+                        let extraHours = '0 hrs';
+                        let lessHours = '-';
+                        let approvalStatus = 'Standard';
+
+                        if (matchedLogs.length === 0) {
+                            if (isLeave) {
+                                status = 'Leave';
+                                lessHours = '-';
+                            } else {
+                                status = 'Not Clocked In';
+                                lessHours = '9h';
+                            }
+                        } else {
+                            matchedLogs.sort((a, b) => {
+                                const timeA = time12To24(a.clockInTime);
+                                const timeB = time12To24(b.clockInTime);
+                                return timeA.localeCompare(timeB);
+                            });
+
+                            const notClockedInAll = matchedLogs.every(l => !l.clockInTime || l.clockInTime === '-' || l.status === 'Not Clocked In');
+                            const userIsLeave = notClockedInAll && (isLeave || matchedLogs.some(l => checkIfUserIsOnLeave(l.eNo, dateStr, l.email, l.name)));
+
+                            if (userIsLeave) {
+                                status = 'Leave';
+                                lessHours = '-';
+                            } else if (notClockedInAll) {
+                                status = 'Not Clocked In';
+                                lessHours = '9h';
+                            } else if (matchedLogs.length === 1) {
+                                const log = matchedLogs[0];
+                                const rowHours = getDailyRowHours(log, rangeStatsMap);
+                                clockInDate = log.clockInDate || log.date || '-';
+                                clockInTime = log.clockInTime || '-';
+                                clockOutDate = log.clockOutDate || (log.status === 'Clocked Out' ? (log.date || '-') : '-');
+                                clockOutTime = log.clockOutTime || '-';
+                                clockInLoc = log.clockInLocation || '-';
+                                clockOutLoc = log.clockOutLocation || '-';
+                                status = log.status || 'Clocked Out';
+
+                                totalHoursWorked = rowHours.dayTotalHrs;
+                                extraHours = rowHours.needsApproval ? '0 hrs (Pending Approval)' : rowHours.otHours;
+                                lessHours = rowHours.needsApproval ? '-' : rowHours.lessHours;
+                                approvalStatus = log.approvedBySuperAdmin ? 'Approved' : (rowHours.needsApproval ? 'Pending Super Admin Approval' : 'Standard');
+                                if (rowHours.needsApproval) {
+                                    totalHoursWorked = `${rowHours.dayTotalHrs} (Pending Super Admin Approval)`;
+                                }
+                            } else {
+                                // Multi session day
+                                const enrichedSessions = matchedLogs;
+                                const hasActive = enrichedSessions.some(s => s.status === 'Clocked In' || s.clockOutTime === 'Active Session' || (!s.clockOutTime && s.clockInTime && s.clockInTime !== '-'));
+                                status = hasActive ? 'Clocked In' : 'Clocked Out';
+                                const firstSession = enrichedSessions[0];
+                                const lastSession = enrichedSessions[enrichedSessions.length - 1];
+                                clockInDate = firstSession.clockInDate || firstSession.date || '-';
+                                clockInTime = firstSession.clockInTime || '-';
+                                clockOutDate = lastSession.clockOutDate || lastSession.date || '-';
+                                clockOutTime = lastSession.clockOutTime || '-';
+                                clockInLoc = enrichedSessions.map((s, idx) => `S${idx + 1}: ${s.clockInLocation || '-'}`).join(' | ');
+                                clockOutLoc = enrichedSessions.map((s, idx) => `S${idx + 1}: ${s.clockOutLocation || '-'}`).join(' | ');
+
+                                const isAnyApproved = matchedLogs.some(l => l.approvedBySuperAdmin);
+                                const dummyMulti: AttendanceRecord = {
+                                    ...firstSession,
+                                    sessions: enrichedSessions,
+                                    approvedBySuperAdmin: isAnyApproved,
+                                };
+                                const rowHours = getDailyRowHours(dummyMulti, rangeStatsMap);
+                                const sessionBreakdowns = enrichedSessions.map((s, idx) => `S${idx + 1}: ${calculateHourCount(s.clockInTime, s.clockOutTime, s.clockInDate || s.date, s.clockOutDate)}`).join(' | ');
+                                totalHoursWorked = `${rowHours.dayTotalHrs} (${sessionBreakdowns})`;
+                                extraHours = rowHours.needsApproval ? '0 hrs (Pending Approval)' : rowHours.otHours;
+                                lessHours = rowHours.needsApproval ? '-' : rowHours.lessHours;
+                                approvalStatus = isAnyApproved ? 'Approved' : (rowHours.needsApproval ? 'Pending Super Admin Approval' : 'Standard');
+                                if (rowHours.needsApproval) {
+                                    totalHoursWorked = `${rowHours.dayTotalHrs} (Pending Super Admin Approval - Invalid)`;
+                                }
+                            }
+                        }
+
+                        rows.push([
+                            escapeCsv(staff.eNo || 'N/A'),
+                            escapeCsv(staff.name || 'Staff Member'),
+                            escapeCsv(staff.email || ''),
+                            escapeCsv(dateStr),
+                            escapeCsv(dayOfWeek),
+                            escapeCsv(clockInDate),
+                            escapeCsv(clockInTime),
+                            escapeCsv(clockOutDate),
+                            escapeCsv(clockOutTime),
+                            escapeCsv(clockInLoc),
+                            escapeCsv(clockOutLoc),
+                            escapeCsv(totalHoursWorked),
+                            escapeCsv(extraHours),
+                            escapeCsv(lessHours),
+                            escapeCsv(status),
+                            escapeCsv(approvalStatus)
+                        ].join(','));
+                    });
+                });
+
+                const csvContent = [headers.join(','), ...rows].join('\n');
+                const staffSuffix = rangeSelectedStaff !== 'ALL' ? `_${rangeSelectedStaff.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+                downloadCSV(`Detailed_Daily_Staff_Attendance_${rangeStartDate}_to_${rangeEndDate}${staffSuffix}.csv`, csvContent);
+            } else {
+                // FORMAT 2: Attendance Matrix Register (1 row per staff, dates as columns)
+                const dateHeaders = dateList.map(d => {
+                    const dObj = new Date(d + 'T00:00:00');
+                    const shortDay = dObj.toLocaleDateString('en-US', { weekday: 'short' });
+                    return `${d} (${shortDay})`;
+                });
+
+                const headers = [
+                    'E NO',
+                    'Staff Member',
+                    'Email',
+                    'Days Present',
+                    'Days Leave',
+                    'Days Absent',
+                    'Total Hours Worked',
+                    'Total OT Hours',
+                    ...dateHeaders
+                ];
+
+                const rows: string[] = [];
+
+                staffToIterate.forEach(staff => {
+                    const staffENo = (staff.eNo || '').toLowerCase().trim();
+                    const staffEmail = (staff.email || '').toLowerCase().trim();
+                    const staffName = (staff.name || '').toLowerCase().trim();
+
+                    let daysPresent = 0;
+                    let daysLeave = 0;
+                    let daysAbsent = 0;
+                    let totalWorkedMinutes = 0;
+                    let totalOtMinutes = 0;
+                    const dailyCells: string[] = [];
+
+                    dateList.forEach(dateStr => {
+                        const logsForDate = allRangeRecords.filter(r => r.date && r.date.startsWith(dateStr));
+                        const matchedLogs = logsForDate.filter(r => {
+                            const rENo = (r.eNo || '').toLowerCase().trim();
+                            const rEmail = (r.email || '').toLowerCase().trim();
+                            const rName = (r.name || '').toLowerCase().trim();
+
+                            return (staffENo && staffENo !== 'n/a' && rENo === staffENo) ||
+                                (staffEmail && rEmail === staffEmail) ||
+                                (staffName && rName === staffName);
+                        });
+
+                        const isLeave = checkIfUserIsOnLeave(staff.eNo, dateStr, staff.email, staff.name);
+
+                        if (matchedLogs.length === 0) {
+                            if (isLeave) {
+                                daysLeave++;
+                                dailyCells.push('Leave');
+                            } else {
+                                daysAbsent++;
+                                dailyCells.push('Not Clocked In');
+                            }
+                        } else {
+                            const notClockedInAll = matchedLogs.every(l => !l.clockInTime || l.clockInTime === '-' || l.status === 'Not Clocked In');
+                            const userIsLeave = notClockedInAll && (isLeave || matchedLogs.some(l => checkIfUserIsOnLeave(l.eNo, dateStr, l.email, l.name)));
+
+                            if (userIsLeave) {
+                                daysLeave++;
+                                dailyCells.push('Leave');
+                            } else if (notClockedInAll) {
+                                daysAbsent++;
+                                dailyCells.push('Not Clocked In');
+                            } else {
+                                daysPresent++;
+                                let dayMins = 0;
+                                matchedLogs.forEach(l => {
+                                    dayMins += getSessionMinutes(l.clockInTime, l.clockOutTime, l.clockInDate || l.date, l.clockOutDate);
+                                });
+                                totalWorkedMinutes += dayMins;
+                                if (dayMins > 540) {
+                                    totalOtMinutes += (dayMins - 540);
+                                }
+                                const hrsFormatted = formatMinutesToHoursAndMins(dayMins);
+                                const hasActive = matchedLogs.some(l => l.clockOutTime === 'Active Session' || (!l.clockOutTime && l.status === 'Clocked In'));
+                                const statusLabel = hasActive ? 'Clocked In' : 'Clocked Out';
+                                dailyCells.push(`${statusLabel} (${hrsFormatted})`);
+                            }
+                        }
+                    });
+
+                    rows.push([
+                        escapeCsv(staff.eNo || 'N/A'),
+                        escapeCsv(staff.name || 'Staff Member'),
+                        escapeCsv(staff.email || ''),
+                        escapeCsv(daysPresent),
+                        escapeCsv(daysLeave),
+                        escapeCsv(daysAbsent),
+                        escapeCsv(formatMinutesToHoursAndMins(totalWorkedMinutes)),
+                        escapeCsv(formatMinutesToHoursAndMins(totalOtMinutes)),
+                        ...dailyCells.map(escapeCsv)
+                    ].join(','));
+                });
+
+                const csvContent = [headers.join(','), ...rows].join('\n');
+                const staffSuffix = rangeSelectedStaff !== 'ALL' ? `_${rangeSelectedStaff.replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+                downloadCSV(`Matrix_Daily_Staff_Attendance_${rangeStartDate}_to_${rangeEndDate}${staffSuffix}.csv`, csvContent);
+            }
+
+            setDownloadRangeDialogOpen(false);
+        } catch (error: any) {
+            console.error('Error generating date range CSV:', error);
+            setRangeErrorMessage(error?.message || 'Failed to generate attendance sheet. Please try again.');
+        } finally {
+            setDownloadingRange(false);
+        }
     };
 
     const handleDownloadMonthlyCSV = () => {
@@ -1612,7 +2021,29 @@ export default function AttendanceSheetPage() {
                                 Daily Staff Logs
                             </Typography>
 
-                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    startIcon={<DateRangeIcon sx={{ fontSize: 18 }} />}
+                                    onClick={() => {
+                                        setRangeErrorMessage('');
+                                        setDownloadRangeDialogOpen(true);
+                                    }}
+                                    sx={{
+                                        borderRadius: '8px',
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        backgroundColor: '#2563eb',
+                                        color: '#ffffff',
+                                        boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                                        '&:hover': {
+                                            backgroundColor: '#1d4ed8',
+                                        },
+                                    }}
+                                >
+                                    Download Date Range
+                                </Button>
                                 <Button
                                     variant="outlined"
                                     size="small"
@@ -2982,6 +3413,232 @@ export default function AttendanceSheetPage() {
                         }}
                     >
                         {deletingRecord ? 'Deleting...' : 'Delete Record'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Download Attendance by Date Range Dialog */}
+            <Dialog
+                open={downloadRangeDialogOpen}
+                onClose={() => !downloadingRange && setDownloadRangeDialogOpen(false)}
+                maxWidth="sm"
+                fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: 3,
+                        p: 1,
+                        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
+                    }
+                }}
+            >
+                <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Box
+                            sx={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: '10px',
+                                backgroundColor: '#eff6ff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#2563eb',
+                            }}
+                        >
+                            <DateRangeIcon />
+                        </Box>
+                        <Box>
+                            <Typography variant="h6" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
+                                Download Attendance by Date Range
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Export daily attendance records for each user in one spreadsheet
+                            </Typography>
+                        </Box>
+                    </Box>
+                    <IconButton
+                        size="small"
+                        disabled={downloadingRange}
+                        onClick={() => setDownloadRangeDialogOpen(false)}
+                        sx={{ color: 'text.secondary' }}
+                    >
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </DialogTitle>
+
+                <DialogContent sx={{ py: 2 }}>
+                    {rangeErrorMessage && (
+                        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+                            {rangeErrorMessage}
+                        </Alert>
+                    )}
+
+                    {/* Quick Presets */}
+                    <Box sx={{ mb: 2.5 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 1 }}>
+                            Quick Date Presets:
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            <Chip
+                                label="This Month"
+                                size="small"
+                                onClick={() => handleSetPresetRange('thisMonth')}
+                                variant="outlined"
+                                clickable
+                                sx={{ borderRadius: 1.5, fontWeight: 500, borderColor: '#cbd5e1' }}
+                            />
+                            <Chip
+                                label="Previous Month"
+                                size="small"
+                                onClick={() => handleSetPresetRange('prevMonth')}
+                                variant="outlined"
+                                clickable
+                                sx={{ borderRadius: 1.5, fontWeight: 500, borderColor: '#cbd5e1' }}
+                            />
+                            <Chip
+                                label="Last 30 Days"
+                                size="small"
+                                onClick={() => handleSetPresetRange('last30')}
+                                variant="outlined"
+                                clickable
+                                sx={{ borderRadius: 1.5, fontWeight: 500, borderColor: '#cbd5e1' }}
+                            />
+                            <Chip
+                                label="Last 7 Days"
+                                size="small"
+                                onClick={() => handleSetPresetRange('last7')}
+                                variant="outlined"
+                                clickable
+                                sx={{ borderRadius: 1.5, fontWeight: 500, borderColor: '#cbd5e1' }}
+                            />
+                        </Box>
+                    </Box>
+
+                    {/* Date Inputs */}
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2.5, flexDirection: { xs: 'column', sm: 'row' } }}>
+                        <TextField
+                            fullWidth
+                            type="date"
+                            label="Start Date"
+                            value={rangeStartDate}
+                            onChange={(e) => setRangeStartDate(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            size="small"
+                            disabled={downloadingRange}
+                        />
+                        <TextField
+                            fullWidth
+                            type="date"
+                            label="End Date"
+                            value={rangeEndDate}
+                            onChange={(e) => setRangeEndDate(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            size="small"
+                            disabled={downloadingRange}
+                        />
+                    </Box>
+
+                    {/* Staff Filter */}
+                    <FormControl fullWidth size="small" sx={{ mb: 2.5 }}>
+                        <InputLabel id="range-staff-filter-label">Filter Staff Member</InputLabel>
+                        <Select
+                            labelId="range-staff-filter-label"
+                            label="Filter Staff Member"
+                            value={rangeSelectedStaff}
+                            onChange={(e) => setRangeSelectedStaff(e.target.value)}
+                            disabled={downloadingRange}
+                        >
+                            <MenuItem value="ALL">
+                                <strong>All Staff Members ({allStaffList.length})</strong>
+                            </MenuItem>
+                            {allStaffList.map((staff) => (
+                                <MenuItem key={staff.id || staff.eNo || staff.email} value={staff.eNo && staff.eNo !== 'N/A' ? staff.eNo : (staff.email || staff.id)}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Chip
+                                            label={staff.eNo || 'N/A'}
+                                            size="small"
+                                            sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                                        />
+                                        <span>{staff.name}</span>
+                                        {staff.email && (
+                                            <Typography variant="caption" color="text.secondary">
+                                                ({staff.email})
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    {/* Info Card */}
+                    <Box
+                        sx={{
+                            p: 2,
+                            borderRadius: 2,
+                            backgroundColor: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                        }}
+                    >
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155', display: 'block', mb: 0.5 }}>
+                            Report Formats:
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#64748b', display: 'block', lineHeight: 1.5 }}>
+                            - <strong>Detailed Daily Sheet:</strong> Exports each staff member's daily attendance records chronologically for every single day in the date range with clock in/out times, locations, total hours, extra hours (OT), less hours, and status in one sheet.
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mt: 0.5, lineHeight: 1.5 }}>
+                            - <strong>Date Matrix Sheet:</strong> Exports each staff member on 1 row with all dates ({rangeStartDate} to {rangeEndDate}) as columns displaying daily presence and summary totals.
+                        </Typography>
+                    </Box>
+                </DialogContent>
+
+                <DialogActions sx={{ p: 2, pt: 1, gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <Button
+                        onClick={() => setDownloadRangeDialogOpen(false)}
+                        disabled={downloadingRange}
+                        color="inherit"
+                        sx={{ textTransform: 'none', borderRadius: 2, px: 2 }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={downloadingRange ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon sx={{ fontSize: 18 }} />}
+                        disabled={downloadingRange}
+                        onClick={() => handleDownloadDateRangeCSV('detailed')}
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            borderColor: '#2563eb',
+                            color: '#2563eb',
+                            px: 2,
+                            '&:hover': {
+                                backgroundColor: '#eff6ff',
+                                borderColor: '#1d4ed8',
+                            },
+                        }}
+                    >
+                        {downloadingRange ? 'Generating...' : 'Download Detailed Sheet (CSV)'}
+                    </Button>
+                    <Button
+                        variant="contained"
+                        startIcon={downloadingRange ? <CircularProgress size={16} color="inherit" /> : <TableChartIcon sx={{ fontSize: 18 }} />}
+                        disabled={downloadingRange}
+                        onClick={() => handleDownloadDateRangeCSV('matrix')}
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            backgroundColor: '#2563eb',
+                            color: '#ffffff',
+                            px: 2,
+                            '&:hover': {
+                                backgroundColor: '#1d4ed8',
+                            },
+                        }}
+                    >
+                        {downloadingRange ? 'Generating...' : 'Download Matrix Sheet (CSV)'}
                     </Button>
                 </DialogActions>
             </Dialog>
