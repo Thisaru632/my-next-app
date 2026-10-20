@@ -12,9 +12,9 @@ const navLinks = [
   { label: "Home", href: "/" },
   // { label: "Promotion", href: "/promotion" },
   { label: "About Us", href: "/about_us" },
-  { label: "Mobile Apps", href: "/mobile-apps" },
+  // { label: "Mobile Apps", href: "/mobile-apps" },
   { label: "Contact Us", href: "/contact" },
-  { label: "Privacy and Policies", href: "/privacy-and-policies" },
+  // { label: "Privacy and Policies", href: "/privacy-and-policies" },
 ];
 
 
