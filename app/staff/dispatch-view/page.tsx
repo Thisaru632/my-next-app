@@ -23,10 +23,6 @@ import {
     CircularProgress,
     Snackbar,
     Stack,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel,
 } from '@mui/material';
 import {
     LocalShipping as LocalShippingIcon,
@@ -45,17 +41,17 @@ import { useThemeContext } from '@/context/ThemeContext';
 import { API_ENDPOINTS } from '@/config/api';
 
 // --- Sample Dispatch CSV Data with realistic dates for instant demonstration ---
-const SAMPLE_DISPATCH_CSV = `Tracking ID,Order Number,Customer Name,Contact Phone,Delivery Address,Destination City,Vehicle / Cab,Driver Name,Status,Dispatch Date,Dispatch Time,Delivery Fee (LKR)
-TRK-2026-001,ORD-89421,Kasun Perera,+94 77 123 4567,"42 Galle Road, Bambalapitiya",Colombo 04,CAB-01 (Prius),Nimal Silva,Dispatched,2026-10-07,08:30 AM,1500
-TRK-2026-002,ORD-89422,Dilshan Jayawardena,+94 71 234 5678,"15/B Kandy Road, Kadawatha",Gampaha,VAN-03 (KDH),Kamal Fernando,In Transit,2026-10-07,09:15 AM,2400
-TRK-2026-003,ORD-89423,Chamari Senanayake,+94 76 345 6789,"88 High Level Road, Maharagama",Colombo,CAB-04 (WagonR),Sunil Wickramasinghe,Delivered,2026-10-06,07:45 AM,1200
-TRK-2026-004,ORD-89424,Ruwan Dissanayake,+94 70 456 7890,"204 Negombo Road, Wattala",Gampaha,CAB-02 (Axio),Janaka Bandara,In Transit,2026-10-06,09:45 AM,1800
-TRK-2026-005,ORD-89425,Anoma Wijesinghe,+94 72 567 8901,"12 Temple Trees Avenue, Nawala",Rajagiriya,CAB-05 (Aqua),Pradeep Kumara,Delivered,2026-10-05,08:00 AM,950
-TRK-2026-006,ORD-89426,Tharindu Mendis,+94 75 678 9012,"77 Havelock Road, Wellawatte",Colombo 06,CAB-01 (Prius),Nimal Silva,Dispatched,2026-10-05,10:00 AM,1300
-TRK-2026-007,ORD-89427,Sachini Gunasekara,+94 78 789 0123,"103 Ward Place, Cinnamon Gardens",Colombo 07,CAB-06 (Fit),Dinesh Gunawardena,Pending,2026-10-04,10:30 AM,1100
-TRK-2026-008,ORD-89428,Mahesh Karunaratne,+94 71 890 1234,"55 Cotta Road, Borella",Colombo 08,CAB-04 (WagonR),Sunil Wickramasinghe,In Transit,2026-10-04,09:30 AM,1000
-TRK-2026-009,ORD-89429,Nadeeka Rathnayake,+94 77 901 2345,"310 Kotte Road, Nugegoda",Nugegoda,VAN-03 (KDH),Kamal Fernando,Delivered,2026-10-03,08:15 AM,1400
-TRK-2026-010,ORD-89430,Chathura Weerakkody,+94 76 012 3456,"89 Parliament Road, Battaramulla",Battaramulla,CAB-02 (Axio),Janaka Bandara,Pending,2026-10-02,11:00 AM,1600`;
+const SAMPLE_DISPATCH_CSV = `Tracking ID,Order Number,Form ID,Customer Name,Contact Phone,Delivery Address,Destination City,Vehicle / Cab,Driver Name,Status,Dispatch Date,Dispatch Time,Delivery Fee (LKR)
+TRK-2026-001,ORD-89421,Form 22,Kasun Perera,+94 77 123 4567,"42 Galle Road, Bambalapitiya",Colombo 04,CAB-01 (Prius),Nimal Silva,Dispatched,2026-10-07,08:30 AM,1500
+TRK-2026-002,ORD-89422,Form 13,Dilshan Jayawardena,+94 71 234 5678,"15/B Kandy Road, Kadawatha",Gampaha,VAN-03 (KDH),Kamal Fernando,In Transit,2026-10-07,09:15 AM,2400
+TRK-2026-003,ORD-89423,Form 8,Chamari Senanayake,+94 76 345 6789,"88 High Level Road, Maharagama",Colombo,CAB-04 (WagonR),Sunil Wickramasinghe,Delivered,2026-10-06,07:45 AM,1200
+TRK-2026-004,ORD-89424,Form 21,Ruwan Dissanayake,+94 70 456 7890,"204 Negombo Road, Wattala",Gampaha,CAB-02 (Axio),Janaka Bandara,In Transit,2026-10-06,09:45 AM,1800
+TRK-2026-005,ORD-89425,Form 22,Anoma Wijesinghe,+94 72 567 8901,"12 Temple Trees Avenue, Nawala",Rajagiriya,CAB-05 (Aqua),Pradeep Kumara,Delivered,2026-10-05,08:00 AM,950
+TRK-2026-006,ORD-89426,Form 13,Tharindu Mendis,+94 75 678 9012,"77 Havelock Road, Wellawatte",Colombo 06,CAB-01 (Prius),Nimal Silva,Dispatched,2026-10-05,10:00 AM,1300
+TRK-2026-007,ORD-89427,Form 8,Sachini Gunasekara,+94 78 789 0123,"103 Ward Place, Cinnamon Gardens",Colombo 07,CAB-06 (Fit),Dinesh Gunawardena,Pending,2026-10-04,10:30 AM,1100
+TRK-2026-008,ORD-89428,Form 22,Mahesh Karunaratne,+94 71 890 1234,"55 Cotta Road, Borella",Colombo 08,CAB-04 (WagonR),Sunil Wickramasinghe,In Transit,2026-10-04,09:30 AM,1000
+TRK-2026-009,ORD-89429,Form 13,Nadeeka Rathnayake,+94 77 901 2345,"310 Kotte Road, Nugegoda",Nugegoda,VAN-03 (KDH),Kamal Fernando,Delivered,2026-10-03,08:15 AM,1400
+TRK-2026-010,ORD-89430,Form 21,Chathura Weerakkody,+94 76 012 3456,"89 Parliament Road, Battaramulla",Battaramulla,CAB-02 (Axio),Janaka Bandara,Pending,2026-10-02,11:00 AM,1600`;
 
 // Auto-detect CSV delimiter (comma, semicolon, tab)
 function detectDelimiter(firstLine: string): string {
@@ -226,13 +222,39 @@ export default function DispatchViewPage() {
 
     // Filter and Pagination state
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [formIdFilter, setFormIdFilter] = useState<string>('');
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [selectedDateColIdx, setSelectedDateColIdx] = useState<number | 'auto'>('auto');
     const [page, setPage] = useState<number>(0);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
     const [sortColumnIndex, setSortColumnIndex] = useState<number | null>(null);
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+    const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false);
+
+    // Normalize Ref header helper
+    const normalizeHeaders = (rawHeaders: string[]) => {
+        return rawHeaders.map((h, i) => {
+            if (h === '20260879986' || (i === 13 && /^\d{10,12}$/.test(h))) {
+                return 'Ref';
+            }
+            return h;
+        });
+    };
+
+    // Check staff role for access permissions
+    useEffect(() => {
+        try {
+            const userStr = localStorage.getItem('staffUser');
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                const role = (user.role || '').toLowerCase().replace(/[\s_-]/g, '');
+                setIsSuperAdmin(role === 'superadmin');
+            }
+        } catch (e) {
+            console.error('Error reading staffUser in DispatchView:', e);
+        }
+    }, []);
 
     // Fetch persisted data from database on mount
     useEffect(() => {
@@ -246,10 +268,31 @@ export default function DispatchViewPage() {
             if (res.ok) {
                 const data = await res.json();
                 if (data.success && data.hasData && Array.isArray(data.rows) && data.rows.length > 0) {
-                    setHeaders(data.headers || []);
-                    setRows(data.rows);
+                    const parsedHeaders = normalizeHeaders(data.headers || []);
+                    let parsedRows = data.rows;
+                    const tsIdx = parsedHeaders.findIndex((h: string) => h && h.toLowerCase().trim() === 'timestamp');
+                    if (tsIdx !== -1) {
+                        const filtered = parsedRows.filter((row: string[]) => {
+                            const dateStr = parseToDateStr(row[tsIdx]);
+                            return dateStr && dateStr >= '2026-01-01';
+                        });
+                        if (filtered.length > 0) {
+                            parsedRows = filtered;
+                        }
+                    }
+                    setHeaders(parsedHeaders);
+                    setRows(parsedRows);
                     setFileName(data.fileName || 'dispatch_data.csv');
                     setPage(0);
+                    // Default sort by Ref column descending
+                    const refIdx = parsedHeaders.findIndex((h: string) => h && h.toLowerCase().trim() === 'ref');
+                    if (refIdx !== -1) {
+                        setSortColumnIndex(refIdx);
+                        setSortDirection('desc');
+                    } else if (parsedHeaders.length > 13) {
+                        setSortColumnIndex(13);
+                        setSortDirection('desc');
+                    }
                 }
             }
         } catch (err) {
@@ -260,7 +303,8 @@ export default function DispatchViewPage() {
     };
 
     // Save CSV to database and populate table
-    const saveDispatchToDb = async (fileTitle: string, parsedHeaders: string[], parsedRows: string[][]) => {
+    const saveDispatchToDb = async (fileTitle: string, rawParsedHeaders: string[], parsedRows: string[][]) => {
+        const parsedHeaders = normalizeHeaders(rawParsedHeaders);
         setSavingToDb(true);
         setParseError(null);
         try {
@@ -294,9 +338,19 @@ export default function DispatchViewPage() {
             setRows(parsedRows);
             setFileName(fileTitle);
             setPage(0);
-            setSortColumnIndex(null);
+            const refIdx = parsedHeaders.findIndex((h: string) => h && h.toLowerCase().trim() === 'ref');
+            if (refIdx !== -1) {
+                setSortColumnIndex(refIdx);
+                setSortDirection('desc');
+            } else if (parsedHeaders.length > 13) {
+                setSortColumnIndex(13);
+                setSortDirection('desc');
+            } else {
+                setSortColumnIndex(null);
+            }
             setStartDate('');
             setEndDate('');
+            setFormIdFilter('');
             setSelectedDateColIdx('auto');
             setSnackbarMessage(`CSV successfully saved to database with ${parsedRows.length.toLocaleString()} rows and ${parsedHeaders.length} columns!`);
         } catch (err: any) {
@@ -327,7 +381,18 @@ export default function DispatchViewPage() {
                     setParseError(parsed.error);
                     return;
                 }
-                await saveDispatchToDb(file.name, parsed.headers, parsed.rows);
+                let validRows = parsed.rows;
+                const tsIdx = parsed.headers.findIndex(h => h && h.toLowerCase().trim() === 'timestamp');
+                if (tsIdx !== -1) {
+                    const filtered = validRows.filter(row => {
+                        const dateStr = parseToDateStr(row[tsIdx]);
+                        return dateStr && dateStr >= '2026-01-01';
+                    });
+                    if (filtered.length > 0) {
+                        validRows = filtered;
+                    }
+                }
+                await saveDispatchToDb(file.name, parsed.headers, validRows);
             } catch (err: any) {
                 setParseError(err?.message || 'Failed to parse the uploaded CSV file.');
             }
@@ -385,6 +450,7 @@ export default function DispatchViewPage() {
         setFileName('');
         setParseError(null);
         setSearchQuery('');
+        setFormIdFilter('');
         setStartDate('');
         setEndDate('');
         setSelectedDateColIdx('auto');
@@ -448,9 +514,18 @@ export default function DispatchViewPage() {
         return null;
     }, [selectedDateColIdx, dateColumnOptions, headers]);
 
-    // Filter and sort rows (Search + Date Range + Sort)
+    // Filter and sort rows (Timestamp >= 2026-01-01 + Search + Date Range + Sort)
     const filteredRows = useMemo(() => {
         let result = rows;
+
+        // 0. Only display records since 01.01.2026 from timestamp column
+        const tsColIdx = headers.findIndex(h => h && h.toLowerCase().trim() === 'timestamp');
+        if (tsColIdx !== -1) {
+            result = result.filter(row => {
+                const dateStr = parseToDateStr(row[tsColIdx]);
+                return dateStr && dateStr >= '2026-01-01';
+            });
+        }
 
         // 1. Date Range Filtering
         if (startDate || endDate) {
@@ -482,29 +557,91 @@ export default function DispatchViewPage() {
             result = result.filter(row => row.some(cell => cell.toLowerCase().includes(q)));
         }
 
-        // 3. Column Sorting
-        if (sortColumnIndex !== null && sortColumnIndex < headers.length) {
+        // 3. Form ID Filtering
+        if (formIdFilter.trim()) {
+            const rawQuery = formIdFilter.toLowerCase().trim();
+            const cleanQuery = rawQuery.replace(/[\s\-_]+/g, '');
+            const isNumeric = /^\d+$/.test(rawQuery);
+
+            // Find column with "form" in its header, prioritizing exact "form id" / "form no" / "form"
+            const exactFormIdCol = headers.findIndex(h => {
+                const l = (h || '').toLowerCase().trim();
+                return l === 'form id' || l === 'form no' || l === 'form #' || l === 'form number' || l === 'formid' || l === 'form';
+            });
+
+            const formColIndices = exactFormIdCol !== -1
+                ? [exactFormIdCol]
+                : headers.map((h, i) => ((h || '').toLowerCase().includes('form') ? i : -1)).filter(i => i !== -1);
+
+            const checkCell = (val: string) => {
+                if (!val) return false;
+                const cell = val.toLowerCase().trim();
+                const cleanCell = cell.replace(/[\s\-_]+/g, '');
+
+                if (cell.includes(rawQuery) || cleanCell.includes(cleanQuery)) {
+                    return true;
+                }
+
+                if (isNumeric) {
+                    if (cleanCell.includes(`form${cleanQuery}`)) {
+                        return true;
+                    }
+                    const tokens = cell.split(/[^a-zA-Z0-9]+/);
+                    if (tokens.includes(rawQuery)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            result = result.filter(row => {
+                if (formColIndices.length > 0) {
+                    return formColIndices.some(colIdx => checkCell(row[colIdx]));
+                } else {
+                    return row.some(cellVal => checkCell(cellVal));
+                }
+            });
+        }
+
+        // 4. Column Sorting (defaults to 'Ref' column in descending order)
+        const refColIdx = headers.findIndex(h => h && (h.toLowerCase().trim() === 'ref' || h.trim() === '20260879986'));
+        const activeSortCol = sortColumnIndex !== null ? sortColumnIndex : (refColIdx !== -1 ? refColIdx : (headers.length > 13 ? 13 : null));
+        const activeSortDir = sortColumnIndex !== null ? sortDirection : 'desc';
+
+        if (activeSortCol !== null && activeSortCol < headers.length) {
             result = [...result].sort((a, b) => {
-                const valA = (a[sortColumnIndex] || '').trim();
-                const valB = (b[sortColumnIndex] || '').trim();
+                const valA = (a[activeSortCol] || '').trim();
+                const valB = (b[activeSortCol] || '').trim();
+
+                const cleanA = valA.replace(/,/g, '');
+                const cleanB = valB.replace(/,/g, '');
+
+                if (/^-?\d+$/.test(cleanA) && /^-?\d+$/.test(cleanB)) {
+                    try {
+                        const biA = BigInt(cleanA);
+                        const biB = BigInt(cleanB);
+                        return activeSortDir === 'asc'
+                            ? (biA < biB ? -1 : biA > biB ? 1 : 0)
+                            : (biB < biA ? -1 : biB > biA ? 1 : 0);
+                    } catch (e) {}
+                }
 
                 // Numeric check
-                const numA = parseFloat(valA.replace(/[^0-9.-]+/g, ''));
-                const numB = parseFloat(valB.replace(/[^0-9.-]+/g, ''));
-
-                if (!isNaN(numA) && !isNaN(numB) && valA === numA.toString() && valB === numB.toString()) {
-                    return sortDirection === 'asc' ? numA - numB : numB - numA;
+                const numA = parseFloat(cleanA);
+                const numB = parseFloat(cleanB);
+                if (!isNaN(numA) && !isNaN(numB) && cleanA === numA.toString() && cleanB === numB.toString()) {
+                    return activeSortDir === 'asc' ? numA - numB : numB - numA;
                 }
 
                 // String comparison
-                return sortDirection === 'asc'
+                return activeSortDir === 'asc'
                     ? valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' })
                     : valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
             });
         }
 
         return result;
-    }, [rows, headers, searchQuery, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
+    }, [rows, headers, searchQuery, formIdFilter, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
 
     // Paginated rows
     const paginatedRows = useMemo(() => {
@@ -538,102 +675,122 @@ export default function DispatchViewPage() {
         URL.revokeObjectURL(url);
     };
 
-    // Helper to render status badges if column contains status-like text
+    // Truncate to maximum 4 words
+    const formatFourWords = (val: string) => {
+        if (!val || typeof val !== 'string') return { text: '-', isTruncated: false };
+        const trimmed = val.trim();
+        if (!trimmed) return { text: '-', isTruncated: false };
+
+        const words = trimmed.split(/\s+/);
+        if (words.length <= 4) {
+            return { text: trimmed, isTruncated: false };
+        }
+        return {
+            text: `${words.slice(0, 4).join(' ')}...`,
+            isTruncated: true
+        };
+    };
+
+    // Helper to render cell content with 4-word limit and full-text hover tooltip
     const renderCellContent = (value: string, headerName: string) => {
         const lowerHeader = headerName.toLowerCase();
-        const lowerVal = value.toLowerCase().trim();
+        const lowerVal = (value || '').toLowerCase().trim();
 
         if (lowerHeader.includes('status') || lowerHeader === 'state') {
+            let chipColor = null;
             if (lowerVal === 'delivered' || lowerVal === 'completed' || lowerVal === 'success') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#dcfce7',
-                            color: '#15803d',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #bbf7d0',
-                        }}
-                    />
-                );
+                chipColor = { bgcolor: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' };
+            } else if (lowerVal === 'in transit' || lowerVal === 'on the way' || lowerVal === 'shipping') {
+                chipColor = { bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' };
+            } else if (lowerVal === 'dispatched' || lowerVal === 'assigned') {
+                chipColor = { bgcolor: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe' };
+            } else if (lowerVal === 'pending' || lowerVal === 'processing' || lowerVal === 'queued') {
+                chipColor = { bgcolor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' };
+            } else if (lowerVal === 'cancelled' || lowerVal === 'failed' || lowerVal === 'rejected') {
+                chipColor = { bgcolor: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca' };
             }
-            if (lowerVal === 'in transit' || lowerVal === 'on the way' || lowerVal === 'shipping') {
+
+            if (chipColor) {
                 return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#eff6ff',
-                            color: '#1d4ed8',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #bfdbfe',
-                        }}
-                    />
-                );
-            }
-            if (lowerVal === 'dispatched' || lowerVal === 'assigned') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#f5f3ff',
-                            color: '#6d28d9',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #ddd6fe',
-                        }}
-                    />
-                );
-            }
-            if (lowerVal === 'pending' || lowerVal === 'processing' || lowerVal === 'queued') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#fef3c7',
-                            color: '#b45309',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #fde68a',
-                        }}
-                    />
-                );
-            }
-            if (lowerVal === 'cancelled' || lowerVal === 'failed' || lowerVal === 'rejected') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#fee2e2',
-                            color: '#b91c1c',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #fecaca',
-                        }}
-                    />
+                    <Tooltip title={value} arrow placement="top" enterDelay={100}>
+                        <Chip
+                            label={value}
+                            size="small"
+                            sx={{
+                                fontWeight: 700,
+                                fontSize: '0.72rem',
+                                height: 22,
+                                '& .MuiChip-label': { px: 0.75, py: 0 },
+                                ...chipColor,
+                            }}
+                        />
+                    </Tooltip>
                 );
             }
         }
 
+        const { text: fourWordText } = formatFourWords(value);
+
+        if (!value || !value.trim()) {
+            return (
+                <Typography variant="body2" sx={{ fontSize: '0.78rem', color: 'text.disabled' }}>
+                    -
+                </Typography>
+            );
+        }
+
         return (
-            <Typography variant="body2" sx={{ fontSize: '0.84rem', color: 'text.primary', wordBreak: 'break-word' }}>
-                {value || '-'}
-            </Typography>
+            <Tooltip
+                title={value}
+                arrow
+                placement="top"
+                enterDelay={100}
+                componentsProps={{
+                    tooltip: {
+                        sx: {
+                            bgcolor: mode === 'light' ? '#0f172a' : '#1e293b',
+                            color: '#ffffff',
+                            boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            py: 0.75,
+                            px: 1.25,
+                            borderRadius: '8px',
+                            maxWidth: 420,
+                            wordBreak: 'break-word',
+                        }
+                    },
+                    arrow: {
+                        sx: {
+                            color: mode === 'light' ? '#0f172a' : '#1e293b',
+                        }
+                    }
+                }}
+            >
+                <Typography
+                    variant="body2"
+                    sx={{
+                        fontSize: '0.78rem',
+                        color: 'text.primary',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        cursor: 'default',
+                        lineHeight: 1.2,
+                    }}
+                >
+                    {fourWordText}
+                </Typography>
+            </Tooltip>
         );
     };
 
     return (
-        <Box sx={{ pb: 6 }}>
+        <Box sx={{ pb: 1 }}>
             {/* Header Title Section */}
             <Box
                 sx={{
-                    mb: 3,
+                    mb: 1.5,
                     display: 'flex',
                     flexDirection: { xs: 'column', md: 'row' },
                     alignItems: { xs: 'flex-start', md: 'center' },
@@ -669,90 +826,92 @@ export default function DispatchViewPage() {
                     </Box>
                 </Box>
 
-                {/* Top Action Buttons */}
-                <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap' }}>
-                    {headers.length === 0 ? (
+                {/* Top Action Buttons (only visible to super admin) */}
+                {isSuperAdmin && (
+                    <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap' }}>
+                        {headers.length === 0 ? (
+                            <Button
+                                variant="outlined"
+                                startIcon={savingToDb ? <CircularProgress size={16} /> : <PlayArrowIcon />}
+                                onClick={handleLoadSampleData}
+                                disabled={savingToDb}
+                                sx={{
+                                    borderRadius: '10px',
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    fontSize: '0.85rem',
+                                    borderColor: 'primary.main',
+                                    color: 'primary.main',
+                                    '&:hover': {
+                                        borderColor: 'primary.dark',
+                                        bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.05)' : 'rgba(37, 99, 235, 0.15)',
+                                    }
+                                }}
+                            >
+                                Load Sample Dispatch CSV
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="outlined"
+                                    color="primary"
+                                    startIcon={<DownloadIcon />}
+                                    onClick={handleExportCSV}
+                                    sx={{
+                                        borderRadius: '10px',
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        fontSize: '0.85rem',
+                                    }}
+                                >
+                                    Export CSV ({filteredRows.length.toLocaleString()})
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    color="error"
+                                    startIcon={<DeleteOutlineIcon />}
+                                    onClick={handleClearData}
+                                    sx={{
+                                        borderRadius: '10px',
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        fontSize: '0.85rem',
+                                    }}
+                                >
+                                    Clear Table
+                                </Button>
+                            </>
+                        )}
+
                         <Button
-                            variant="outlined"
-                            startIcon={savingToDb ? <CircularProgress size={16} /> : <PlayArrowIcon />}
-                            onClick={handleLoadSampleData}
+                            variant="contained"
+                            startIcon={savingToDb ? <CircularProgress size={16} color="inherit" /> : <UploadFileIcon />}
+                            onClick={() => fileInputRef.current?.click()}
                             disabled={savingToDb}
                             sx={{
                                 borderRadius: '10px',
                                 textTransform: 'none',
-                                fontWeight: 600,
+                                fontWeight: 700,
                                 fontSize: '0.85rem',
-                                borderColor: 'primary.main',
-                                color: 'primary.main',
+                                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
                                 '&:hover': {
-                                    borderColor: 'primary.dark',
-                                    bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.05)' : 'rgba(37, 99, 235, 0.15)',
+                                    background: 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)',
                                 }
                             }}
                         >
-                            Load Sample Dispatch CSV
+                            {savingToDb ? 'Saving to Database...' : (headers.length > 0 ? 'Upload New CSV' : 'Upload CSV')}
                         </Button>
-                    ) : (
-                        <>
-                            <Button
-                                variant="outlined"
-                                color="primary"
-                                startIcon={<DownloadIcon />}
-                                onClick={handleExportCSV}
-                                sx={{
-                                    borderRadius: '10px',
-                                    textTransform: 'none',
-                                    fontWeight: 600,
-                                    fontSize: '0.85rem',
-                                }}
-                            >
-                                Export CSV ({filteredRows.length.toLocaleString()})
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                color="error"
-                                startIcon={<DeleteOutlineIcon />}
-                                onClick={handleClearData}
-                                sx={{
-                                    borderRadius: '10px',
-                                    textTransform: 'none',
-                                    fontWeight: 600,
-                                    fontSize: '0.85rem',
-                                }}
-                            >
-                                Clear Table
-                            </Button>
-                        </>
-                    )}
 
-                    <Button
-                        variant="contained"
-                        startIcon={savingToDb ? <CircularProgress size={16} color="inherit" /> : <UploadFileIcon />}
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={savingToDb}
-                        sx={{
-                            borderRadius: '10px',
-                            textTransform: 'none',
-                            fontWeight: 700,
-                            fontSize: '0.85rem',
-                            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                            boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
-                            '&:hover': {
-                                background: 'linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)',
-                            }
-                        }}
-                    >
-                        {savingToDb ? 'Saving to Database...' : (headers.length > 0 ? 'Upload New CSV' : 'Upload CSV')}
-                    </Button>
-
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileInputChange}
-                        accept=".csv, .txt, .tsv, text/csv, text/plain"
-                        style={{ display: 'none' }}
-                    />
-                </Stack>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileInputChange}
+                            accept=".csv, .txt, .tsv, text/csv, text/plain"
+                            style={{ display: 'none' }}
+                        />
+                    </Stack>
+                )}
             </Box>
 
             {/* Saving to Database Banner */}
@@ -777,8 +936,8 @@ export default function DispatchViewPage() {
                 </Alert>
             )}
 
-            {/* Drag & Drop Upload Card (visible when no file) */}
-            {headers.length === 0 && !loadingFromDb && (
+            {/* Drag & Drop Upload Card (visible when no file and super admin) */}
+            {headers.length === 0 && !loadingFromDb && isSuperAdmin && (
                 <Paper
                     elevation={0}
                     onDragOver={handleDragOver}
@@ -844,15 +1003,20 @@ export default function DispatchViewPage() {
                     borderColor: 'divider',
                     bgcolor: 'background.paper',
                     overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: { xs: 'auto', md: 'calc(100vh - 175px)' },
+                    minHeight: 560,
                 }}
             >
                 {/* Search & Filter Toolbar */}
                 <Box
                     sx={{
-                        p: 2,
+                        p: 1.75,
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 2,
+                        gap: 1.5,
+                        flexShrink: 0,
                         borderBottom: '1px solid',
                         borderColor: 'divider',
                     }}
@@ -867,37 +1031,74 @@ export default function DispatchViewPage() {
                             gap: 2,
                         }}
                     >
-                        {/* Search Input */}
-                        <TextField
-                            size="small"
-                            placeholder="Search across all CSV columns and rows..."
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value);
-                                setPage(0);
-                            }}
-                            disabled={headers.length === 0 || loadingFromDb}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                                    </InputAdornment>
-                                ),
-                                endAdornment: searchQuery ? (
-                                    <InputAdornment position="end">
-                                        <IconButton size="small" onClick={() => setSearchQuery('')}>
-                                            <ClearIcon sx={{ fontSize: 18 }} />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ) : null,
-                            }}
-                            sx={{
-                                minWidth: { xs: '100%', sm: 280, md: 320 },
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: '10px',
-                                }
-                            }}
-                        />
+                        {/* Search & Form ID Filter Group */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', flex: 1 }}>
+                            {/* Search Input */}
+                            <TextField
+                                size="small"
+                                placeholder="Search across all CSV columns and rows..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setPage(0);
+                                }}
+                                disabled={headers.length === 0 || loadingFromDb}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: searchQuery ? (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => { setSearchQuery(''); setPage(0); }}>
+                                                <ClearIcon sx={{ fontSize: 18 }} />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ) : null,
+                                }}
+                                sx={{
+                                    minWidth: { xs: '100%', sm: 260, md: 300 },
+                                    flex: { xs: '1 1 100%', sm: '1 1 auto' },
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: '10px',
+                                    }
+                                }}
+                            />
+
+                            {/* Form ID Filter */}
+                            <TextField
+                                size="small"
+                                placeholder="Filter by Form ID (e.g. Form 22)..."
+                                value={formIdFilter}
+                                onChange={(e) => {
+                                    setFormIdFilter(e.target.value);
+                                    setPage(0);
+                                }}
+                                disabled={headers.length === 0 || loadingFromDb}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <FilterAltIcon sx={{ color: formIdFilter ? 'primary.main' : 'text.secondary', fontSize: 20 }} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: formIdFilter ? (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => { setFormIdFilter(''); setPage(0); }}>
+                                                <ClearIcon sx={{ fontSize: 18 }} />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ) : null,
+                                }}
+                                sx={{
+                                    minWidth: { xs: '100%', sm: 200, md: 230 },
+                                    flex: { xs: '1 1 100%', sm: '0 1 240px' },
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: '10px',
+                                    }
+                                }}
+                            />
+                        </Box>
 
                         {/* Date Range Filter Group */}
                         {headers.length > 0 && !loadingFromDb && (
@@ -909,32 +1110,6 @@ export default function DispatchViewPage() {
                                     flexWrap: 'wrap',
                                 }}
                             >
-                                {/* Column Selector if multiple date columns */}
-                                {dateColumnOptions.length > 1 && (
-                                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                                        <InputLabel id="date-col-label" sx={{ fontSize: '0.825rem' }}>Date Column</InputLabel>
-                                        <Select
-                                            labelId="date-col-label"
-                                            value={selectedDateColIdx}
-                                            label="Date Column"
-                                            onChange={(e) => {
-                                                setSelectedDateColIdx(e.target.value as any);
-                                                setPage(0);
-                                            }}
-                                            sx={{ borderRadius: '10px', fontSize: '0.825rem' }}
-                                        >
-                                            <MenuItem value="auto" sx={{ fontSize: '0.825rem' }}>
-                                                <em>Auto ({dateColumnOptions[0]?.name})</em>
-                                            </MenuItem>
-                                            {dateColumnOptions.map((opt) => (
-                                                <MenuItem key={opt.index} value={opt.index} sx={{ fontSize: '0.825rem' }}>
-                                                    {opt.name}
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                )}
-
                                 {/* Date Inputs with DateRange Icon */}
                                 <Box
                                     sx={{
@@ -1046,14 +1221,32 @@ export default function DispatchViewPage() {
                                     <Chip
                                         label={`Search: "${searchQuery}"`}
                                         size="small"
-                                        onDelete={() => setSearchQuery('')}
+                                        onDelete={() => {
+                                            setSearchQuery('');
+                                            setPage(0);
+                                        }}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+
+                                {formIdFilter && (
+                                    <Chip
+                                        icon={<FilterAltIcon sx={{ fontSize: '15px !important' }} />}
+                                        label={`Form ID: "${formIdFilter}"`}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        onDelete={() => {
+                                            setFormIdFilter('');
+                                            setPage(0);
+                                        }}
                                         sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
                                     />
                                 )}
 
                                 {sortColumnIndex !== null && (
                                     <Chip
-                                        label={`Sorted: ${headers[sortColumnIndex]} (${sortDirection.toUpperCase()})`}
+                                        label={`Sorted: ${headers[sortColumnIndex] === '20260879986' ? 'Ref' : headers[sortColumnIndex]} (${sortDirection.toUpperCase()})`}
                                         size="small"
                                         onDelete={() => setSortColumnIndex(null)}
                                         sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
@@ -1061,13 +1254,14 @@ export default function DispatchViewPage() {
                                 )}
                             </Box>
 
-                            {(startDate || endDate || searchQuery || sortColumnIndex !== null) && (
+                            {(startDate || endDate || searchQuery || formIdFilter || sortColumnIndex !== null) && (
                                 <Button
                                     size="small"
                                     onClick={() => {
                                         setStartDate('');
                                         setEndDate('');
                                         setSearchQuery('');
+                                        setFormIdFilter('');
                                         setSortColumnIndex(null);
                                         setPage(0);
                                     }}
@@ -1153,21 +1347,25 @@ export default function DispatchViewPage() {
                     </Box>
                 ) : (
                     <>
-                        <TableContainer sx={{ maxHeight: 650, overflowX: 'auto' }}>
+                        <TableContainer sx={{ flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto' }}>
                             <Table stickyHeader size="small" sx={{ minWidth: 650 }}>
                                 <TableHead>
                                     <TableRow>
                                         {/* Row Index Header */}
                                         <TableCell
                                             sx={{
+                                                py: 0.6,
+                                                px: 0.75,
                                                 fontWeight: 700,
-                                                fontSize: '0.78rem',
+                                                fontSize: '0.75rem',
                                                 bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b',
                                                 color: 'text.secondary',
-                                                width: 50,
+                                                width: 44,
                                                 textAlign: 'center',
                                                 borderBottom: '2px solid',
                                                 borderColor: 'divider',
+                                                height: 36,
+                                                whiteSpace: 'nowrap',
                                             }}
                                         >
                                             #
@@ -1179,18 +1377,21 @@ export default function DispatchViewPage() {
                                                 key={colIdx}
                                                 sortDirection={sortColumnIndex === colIdx ? sortDirection : false}
                                                 sx={{
+                                                    py: 0.6,
+                                                    px: 1,
                                                     fontWeight: 700,
-                                                    fontSize: '0.8rem',
+                                                    fontSize: '0.78rem',
                                                     bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b',
                                                     color: 'text.primary',
                                                     whiteSpace: 'nowrap',
                                                     borderBottom: '2px solid',
                                                     borderColor: 'divider',
+                                                    height: 36,
                                                 }}
                                             >
                                                 <TableSortLabel
                                                     active={sortColumnIndex === colIdx}
-                                                    direction={sortColumnIndex === colIdx ? sortDirection : 'asc'}
+                                                    direction={sortColumnIndex === colIdx ? sortDirection : (header === 'Ref' || header === '20260879986' ? 'desc' : 'asc')}
                                                     onClick={() => handleRequestSort(colIdx)}
                                                     sx={{
                                                         '&.Mui-active': {
@@ -1201,7 +1402,7 @@ export default function DispatchViewPage() {
                                                         },
                                                     }}
                                                 >
-                                                    {header}
+                                                    {header === '20260879986' ? 'Ref' : header}
                                                 </TableSortLabel>
                                             </TableCell>
                                         ))}
@@ -1215,6 +1416,8 @@ export default function DispatchViewPage() {
                                                 key={rowIdx}
                                                 hover
                                                 sx={{
+                                                    height: 34,
+                                                    maxHeight: 34,
                                                     '&:nth-of-type(even)': {
                                                         bgcolor: mode === 'light' ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.01)',
                                                     },
@@ -1227,12 +1430,16 @@ export default function DispatchViewPage() {
                                                 {/* Line number */}
                                                 <TableCell
                                                     sx={{
+                                                        py: 0.35,
+                                                        px: 0.75,
                                                         textAlign: 'center',
                                                         color: 'text.secondary',
-                                                        fontSize: '0.75rem',
+                                                        fontSize: '0.72rem',
                                                         fontWeight: 600,
                                                         borderBottom: '1px solid',
                                                         borderColor: 'divider',
+                                                        height: 34,
+                                                        whiteSpace: 'nowrap',
                                                     }}
                                                 >
                                                     {globalIndex}
@@ -1243,9 +1450,15 @@ export default function DispatchViewPage() {
                                                     <TableCell
                                                         key={colIdx}
                                                         sx={{
-                                                            py: 1.25,
+                                                            py: 0.35,
+                                                            px: 1,
                                                             borderBottom: '1px solid',
                                                             borderColor: 'divider',
+                                                            height: 34,
+                                                            whiteSpace: 'nowrap',
+                                                            maxWidth: 200,
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
                                                         }}
                                                     >
                                                         {renderCellContent(row[colIdx] || '', header)}
@@ -1271,6 +1484,7 @@ export default function DispatchViewPage() {
                                 setPage(0);
                             }}
                             sx={{
+                                flexShrink: 0,
                                 borderTop: '1px solid',
                                 borderColor: 'divider',
                                 '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {

@@ -12,6 +12,7 @@ import { ThemeContextProvider } from "@/context/ThemeContext";
 import { useThemeContext } from "@/context/ThemeContext";
 
 const DRAWER_WIDTH = 260;
+const COLLAPSED_DRAWER_WIDTH = 72;
 
 export default function StaffLayout({ children }: { children: ReactNode }) {
     const pathname = usePathname();
@@ -22,6 +23,27 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
+
+    // Load collapsed preference from localStorage
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('staffSidebarCollapsed');
+            if (saved !== null) {
+                setCollapsed(saved === 'true');
+            }
+        } catch (e) {}
+    }, []);
+
+    const handleToggleCollapse = () => {
+        setCollapsed(prev => {
+            const next = !prev;
+            try {
+                localStorage.setItem('staffSidebarCollapsed', String(next));
+            } catch (e) {}
+            return next;
+        });
+    };
 
     const isAuthPage = pathname === '/staff/login' || pathname === '/staff/signup';
     const isPublicPage = isAuthPage || pathname === '/staff/clock-in-out';
@@ -174,6 +196,8 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
                         mobileOpen={mobileOpen}
                         onClose={handleDrawerToggle}
                         isMobile={isMobile}
+                        collapsed={collapsed}
+                        onToggleCollapse={handleToggleCollapse}
                     />
 
                     <Box
@@ -182,7 +206,8 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
                             display: 'flex',
                             flexDirection: 'column',
                             minHeight: '100vh',
-                            width: { md: `calc(100% - ${DRAWER_WIDTH}px)` }
+                            width: { md: `calc(100% - ${collapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH}px)` },
+                            transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                         }}
                     >
                         <TopHeader
