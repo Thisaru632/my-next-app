@@ -18,8 +18,12 @@ import {
     Button,
     Badge,
     Collapse,
+    Tooltip,
+    IconButton,
 } from '@mui/material';
 import {
+    ChevronLeft as ChevronLeftIcon,
+    ChevronRight as ChevronRightIcon,
     Dashboard as DashboardIcon,
     People as PeopleIcon,
     Article as ArticleIcon,
@@ -49,6 +53,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { API_ENDPOINTS } from '@/config/api';
 
 const DRAWER_WIDTH = 260;
+const COLLAPSED_DRAWER_WIDTH = 72;
 
 interface MenuItem {
     text: string;
@@ -61,9 +66,19 @@ interface AdminSidebarProps {
     mobileOpen?: boolean;
     onClose?: () => void;
     isMobile?: boolean;
+    collapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
-const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobile }) => {
+const AdminSidebar: React.FC<AdminSidebarProps> = ({
+    mobileOpen,
+    onClose,
+    isMobile,
+    collapsed = false,
+    onToggleCollapse,
+}) => {
+    const isCollapsedDesktop = !isMobile && collapsed;
+    const currentWidth = isCollapsedDesktop ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH;
     const router = useRouter();
     const pathname = usePathname();
 
@@ -216,40 +231,42 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
 
     const renderMenuItem = (item: MenuItem) => {
         const isActive = pathname === item.path;
-        return (
-            <ListItem key={item.text} disablePadding sx={{ mb: 0.25 }}>
-                <ListItemButton
-                    onClick={() => handleNavigation(item.path)}
+        const button = (
+            <ListItemButton
+                onClick={() => handleNavigation(item.path)}
+                sx={{
+                    borderRadius: '8px',
+                    py: 0.75,
+                    px: isCollapsedDesktop ? 1 : 1.5,
+                    justifyContent: isCollapsedDesktop ? 'center' : 'flex-start',
+                    backgroundColor: isActive ? 'action.selected' : 'transparent',
+                    '&:hover': {
+                        backgroundColor: isActive ? 'action.selected' : 'action.hover',
+                    },
+                    transition: 'all 0.15s ease-in-out',
+                }}
+            >
+                <ListItemIcon
                     sx={{
-                        borderRadius: '8px',
-                        py: 0.75,
-                        px: 1.5,
-                        backgroundColor: isActive ? 'action.selected' : 'transparent',
-                        '&:hover': {
-                            backgroundColor: isActive ? 'action.selected' : 'action.hover',
-                        },
-                        transition: 'all 0.15s ease-in-out',
+                        color: isActive ? 'primary.main' : 'text.secondary',
+                        minWidth: isCollapsedDesktop ? 0 : 32,
+                        justifyContent: 'center',
+                        '& .MuiSvgIcon-root': { fontSize: 18 }
                     }}
                 >
-                    <ListItemIcon
-                        sx={{
-                            color: isActive ? 'primary.main' : 'text.secondary',
-                            minWidth: 32,
-                            '& .MuiSvgIcon-root': { fontSize: 18 }
-                        }}
-                    >
-                        {item.text === 'Vehicle Registrations' ? (
-                            <Badge badgeContent={pendingRegCount} color="error" sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16, px: 0.5 } }}>
-                                {item.icon}
-                            </Badge>
-                        ) : item.text === 'Lead Info' ? (
-                            <Badge badgeContent={unpickedLeadsCount} color="error" sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16, px: 0.5 } }}>
-                                {item.icon}
-                            </Badge>
-                        ) : (
-                            item.icon
-                        )}
-                    </ListItemIcon>
+                    {item.text === 'Vehicle Registrations' ? (
+                        <Badge badgeContent={pendingRegCount} color="error" sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16, px: 0.5 } }}>
+                            {item.icon}
+                        </Badge>
+                    ) : item.text === 'Lead Info' ? (
+                        <Badge badgeContent={unpickedLeadsCount} color="error" sx={{ '& .MuiBadge-badge': { fontSize: 10, height: 16, minWidth: 16, px: 0.5 } }}>
+                            {item.icon}
+                        </Badge>
+                    ) : (
+                        item.icon
+                    )}
+                </ListItemIcon>
+                {!isCollapsedDesktop && (
                     <ListItemText
                         primary={item.text}
                         primaryTypographyProps={{
@@ -257,9 +274,22 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                             fontWeight: isActive ? 600 : 450,
                             color: isActive ? 'primary.main' : 'text.primary',
                             letterSpacing: '-0.01em',
+                            whiteSpace: 'nowrap',
                         }}
                     />
-                </ListItemButton>
+                )}
+            </ListItemButton>
+        );
+
+        return (
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.25, display: 'block' }}>
+                {isCollapsedDesktop ? (
+                    <Tooltip title={item.text} placement="right" arrow>
+                        {button}
+                    </Tooltip>
+                ) : (
+                    button
+                )}
             </ListItem>
         );
     };
@@ -268,133 +298,188 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
         <>
             {/* Header/Logo Section */}
             <Box sx={{
-                p: 2.5,
-                textAlign: 'center',
+                p: isCollapsedDesktop ? 1.5 : 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: isCollapsedDesktop ? 'center' : 'space-between',
                 borderBottom: '1px solid',
                 borderColor: 'divider',
+                minHeight: 56,
             }}>
-                <Typography variant="h6" fontWeight="700" color="inherit" sx={{ fontSize: '1rem', letterSpacing: '0.02em' }}>
-                    Admin Portal
-                </Typography>
+                {!isCollapsedDesktop && (
+                    <Typography variant="h6" fontWeight="700" color="inherit" sx={{ fontSize: '0.95rem', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+                        Admin Portal
+                    </Typography>
+                )}
+                {onToggleCollapse && (
+                    <Tooltip title={isCollapsedDesktop ? "Expand sidebar" : "Compress sidebar"} placement={isCollapsedDesktop ? "right" : "bottom"}>
+                        <IconButton
+                            onClick={onToggleCollapse}
+                            size="small"
+                            sx={{
+                                color: 'text.secondary',
+                                '&:hover': { color: 'primary.main', bgcolor: 'action.hover' }
+                            }}
+                        >
+                            {isCollapsedDesktop ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+                        </IconButton>
+                    </Tooltip>
+                )}
             </Box>
 
             {/* Main Menu Items */}
-            <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 1 }}>
-                <ListItemButton onClick={() => setWebPortalOpen(!webPortalOpen)} sx={{ py: 0.75, px: 2, borderRadius: '8px', mx: 1, mb: 0.25, justifyContent: 'space-between' }}>
-                    <ListItemText 
-                        primary="Web Portal" 
-                        primaryTypographyProps={{ fontSize: '13.5px', color: 'text.primary', fontWeight: 600, letterSpacing: '-0.01em' }} 
-                    />
-                    {webPortalOpen ? <ExpandLess sx={{ color: 'text.secondary', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'text.secondary', fontSize: 18 }} />}
-                </ListItemButton>
-                <Collapse in={webPortalOpen} timeout="auto" unmountOnExit>
-                    <List sx={{ px: 1.5, pt: 0, pb: 0.5 }}>
+            {isCollapsedDesktop ? (
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 1, px: 1 }}>
+                    <List disablePadding>
                         {allowedItems
                             .filter(item => webPortalItems.includes(item.text))
                             .map(renderMenuItem)}
                     </List>
-                </Collapse>
-
-                <Divider sx={{ my: 1, mx: 2 }} />
-
-                <ListItemButton onClick={() => setAdminPortalOpen(!adminPortalOpen)} sx={{ py: 0.75, px: 2, borderRadius: '8px', mx: 1, mb: 0.25, justifyContent: 'space-between' }}>
-                    <ListItemText 
-                        primary="Admin Portal" 
-                        primaryTypographyProps={{ fontSize: '13.5px', color: 'text.primary', fontWeight: 600, letterSpacing: '-0.01em' }} 
-                    />
-                    {adminPortalOpen ? <ExpandLess sx={{ color: 'text.secondary', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'text.secondary', fontSize: 18 }} />}
-                </ListItemButton>
-                <Collapse in={adminPortalOpen} timeout="auto" unmountOnExit>
-                    <List sx={{ px: 1.5, pt: 0, pb: 0.5 }}>
+                    <Divider sx={{ my: 1, mx: 0.5 }} />
+                    <List disablePadding>
                         {allowedItems
-                            .filter(item => !webPortalItems.includes(item.text) && !hrItems.includes(item.text) && !myAttendanceItems.includes(item.text) && !assetManagementItems.includes(item.text))
+                            .filter(item => !webPortalItems.includes(item.text))
                             .map(renderMenuItem)}
-
-                        {/* Asset Management Dropdown Section inside Admin Portal */}
-                        {allowedItems.some(item => assetManagementItems.includes(item.text)) && (
-                            <>
-                                <ListItemButton onClick={() => setAssetManagementOpen(!assetManagementOpen)} sx={{ py: 0.5, px: 1.5, borderRadius: '8px', mt: 0.5, mb: 0.25, backgroundColor: 'action.hover' }}>
-                                    <ListItemText 
-                                        primary="Asset Management" 
-                                        primaryTypographyProps={{ fontSize: '13px', color: 'primary.main', fontWeight: 600 }} 
-                                    />
-                                    {assetManagementOpen ? <ExpandLess sx={{ color: 'primary.main', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'primary.main', fontSize: 18 }} />}
-                                </ListItemButton>
-                                <Collapse in={assetManagementOpen} timeout="auto" unmountOnExit>
-                                    <List sx={{ pl: 1, pt: 0, pb: 0 }}>
-                                        {allowedItems
-                                            .filter(item => assetManagementItems.includes(item.text))
-                                            .map(renderMenuItem)}
-                                    </List>
-                                </Collapse>
-                            </>
-                        )}
-
-                        {/* My Attendance Dropdown Section inside Admin Portal */}
-                        {allowedItems.some(item => myAttendanceItems.includes(item.text)) && (
-                            <>
-                                <ListItemButton onClick={() => setMyAttendanceOpen(!myAttendanceOpen)} sx={{ py: 0.5, px: 1.5, borderRadius: '8px', mt: 0.5, mb: 0.25, backgroundColor: 'action.hover' }}>
-                                    <ListItemText 
-                                        primary="My Attendance" 
-                                        primaryTypographyProps={{ fontSize: '13px', color: 'primary.main', fontWeight: 600 }} 
-                                    />
-                                    {myAttendanceOpen ? <ExpandLess sx={{ color: 'primary.main', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'primary.main', fontSize: 18 }} />}
-                                </ListItemButton>
-                                <Collapse in={myAttendanceOpen} timeout="auto" unmountOnExit>
-                                    <List sx={{ pl: 1, pt: 0, pb: 0 }}>
-                                        {allowedItems
-                                            .filter(item => myAttendanceItems.includes(item.text))
-                                            .map(renderMenuItem)}
-                                    </List>
-                                </Collapse>
-                            </>
-                        )}
-
-                        {/* HR Dropdown Section inside Admin Portal */}
-                        {allowedItems.some(item => hrItems.includes(item.text)) && (
-                            <>
-                                <ListItemButton onClick={() => setHrOpen(!hrOpen)} sx={{ py: 0.5, px: 1.5, borderRadius: '8px', mt: 0.5, mb: 0.25, backgroundColor: 'action.hover' }}>
-                                    <ListItemText 
-                                        primary="HR Section" 
-                                        primaryTypographyProps={{ fontSize: '13px', color: 'primary.main', fontWeight: 600 }} 
-                                    />
-                                    {hrOpen ? <ExpandLess sx={{ color: 'primary.main', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'primary.main', fontSize: 18 }} />}
-                                </ListItemButton>
-                                <Collapse in={hrOpen} timeout="auto" unmountOnExit>
-                                    <List sx={{ pl: 1, pt: 0, pb: 0 }}>
-                                        {allowedItems
-                                            .filter(item => hrItems.includes(item.text))
-                                            .map(renderMenuItem)}
-                                    </List>
-                                </Collapse>
-                            </>
-                        )}
                     </List>
-                </Collapse>
-            </Box>
+                </Box>
+            ) : (
+                <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 1 }}>
+                    <ListItemButton onClick={() => setWebPortalOpen(!webPortalOpen)} sx={{ py: 0.75, px: 2, borderRadius: '8px', mx: 1, mb: 0.25, justifyContent: 'space-between' }}>
+                        <ListItemText 
+                            primary="Web Portal" 
+                            primaryTypographyProps={{ fontSize: '13.5px', color: 'text.primary', fontWeight: 600, letterSpacing: '-0.01em' }} 
+                        />
+                        {webPortalOpen ? <ExpandLess sx={{ color: 'text.secondary', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'text.secondary', fontSize: 18 }} />}
+                    </ListItemButton>
+                    <Collapse in={webPortalOpen} timeout="auto" unmountOnExit>
+                        <List sx={{ px: 1.5, pt: 0, pb: 0.5 }}>
+                            {allowedItems
+                                .filter(item => webPortalItems.includes(item.text))
+                                .map(renderMenuItem)}
+                        </List>
+                    </Collapse>
+
+                    <Divider sx={{ my: 1, mx: 2 }} />
+
+                    <ListItemButton onClick={() => setAdminPortalOpen(!adminPortalOpen)} sx={{ py: 0.75, px: 2, borderRadius: '8px', mx: 1, mb: 0.25, justifyContent: 'space-between' }}>
+                        <ListItemText 
+                            primary="Admin Portal" 
+                            primaryTypographyProps={{ fontSize: '13.5px', color: 'text.primary', fontWeight: 600, letterSpacing: '-0.01em' }} 
+                        />
+                        {adminPortalOpen ? <ExpandLess sx={{ color: 'text.secondary', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'text.secondary', fontSize: 18 }} />}
+                    </ListItemButton>
+                    <Collapse in={adminPortalOpen} timeout="auto" unmountOnExit>
+                        <List sx={{ px: 1.5, pt: 0, pb: 0.5 }}>
+                            {allowedItems
+                                .filter(item => !webPortalItems.includes(item.text) && !hrItems.includes(item.text) && !myAttendanceItems.includes(item.text) && !assetManagementItems.includes(item.text))
+                                .map(renderMenuItem)}
+
+                            {/* Asset Management Dropdown Section inside Admin Portal */}
+                            {allowedItems.some(item => assetManagementItems.includes(item.text)) && (
+                                <>
+                                    <ListItemButton onClick={() => setAssetManagementOpen(!assetManagementOpen)} sx={{ py: 0.5, px: 1.5, borderRadius: '8px', mt: 0.5, mb: 0.25, backgroundColor: 'action.hover' }}>
+                                        <ListItemText 
+                                            primary="Asset Management" 
+                                            primaryTypographyProps={{ fontSize: '13px', color: 'primary.main', fontWeight: 600 }} 
+                                        />
+                                        {assetManagementOpen ? <ExpandLess sx={{ color: 'primary.main', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'primary.main', fontSize: 18 }} />}
+                                    </ListItemButton>
+                                    <Collapse in={assetManagementOpen} timeout="auto" unmountOnExit>
+                                        <List sx={{ pl: 1, pt: 0, pb: 0 }}>
+                                            {allowedItems
+                                                .filter(item => assetManagementItems.includes(item.text))
+                                                .map(renderMenuItem)}
+                                        </List>
+                                    </Collapse>
+                                </>
+                            )}
+
+                            {/* My Attendance Dropdown Section inside Admin Portal */}
+                            {allowedItems.some(item => myAttendanceItems.includes(item.text)) && (
+                                <>
+                                    <ListItemButton onClick={() => setMyAttendanceOpen(!myAttendanceOpen)} sx={{ py: 0.5, px: 1.5, borderRadius: '8px', mt: 0.5, mb: 0.25, backgroundColor: 'action.hover' }}>
+                                        <ListItemText 
+                                            primary="My Attendance" 
+                                            primaryTypographyProps={{ fontSize: '13px', color: 'primary.main', fontWeight: 600 }} 
+                                        />
+                                        {myAttendanceOpen ? <ExpandLess sx={{ color: 'primary.main', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'primary.main', fontSize: 18 }} />}
+                                    </ListItemButton>
+                                    <Collapse in={myAttendanceOpen} timeout="auto" unmountOnExit>
+                                        <List sx={{ pl: 1, pt: 0, pb: 0 }}>
+                                            {allowedItems
+                                                .filter(item => myAttendanceItems.includes(item.text))
+                                                .map(renderMenuItem)}
+                                        </List>
+                                    </Collapse>
+                                </>
+                            )}
+
+                            {/* HR Dropdown Section inside Admin Portal */}
+                            {allowedItems.some(item => hrItems.includes(item.text)) && (
+                                <>
+                                    <ListItemButton onClick={() => setHrOpen(!hrOpen)} sx={{ py: 0.5, px: 1.5, borderRadius: '8px', mt: 0.5, mb: 0.25, backgroundColor: 'action.hover' }}>
+                                        <ListItemText 
+                                            primary="HR Section" 
+                                            primaryTypographyProps={{ fontSize: '13px', color: 'primary.main', fontWeight: 600 }} 
+                                        />
+                                        {hrOpen ? <ExpandLess sx={{ color: 'primary.main', fontSize: 18 }} /> : <ExpandMore sx={{ color: 'primary.main', fontSize: 18 }} />}
+                                    </ListItemButton>
+                                    <Collapse in={hrOpen} timeout="auto" unmountOnExit>
+                                        <List sx={{ pl: 1, pt: 0, pb: 0 }}>
+                                            {allowedItems
+                                                .filter(item => hrItems.includes(item.text))
+                                                .map(renderMenuItem)}
+                                        </List>
+                                    </Collapse>
+                                </>
+                            )}
+                        </List>
+                    </Collapse>
+                </Box>
+            )}
 
             {/* Logout Section at Bottom */}
             <Divider sx={{ borderColor: 'divider' }} />
-            <List sx={{ px: 1.5, py: 1 }}>
-                <ListItem disablePadding>
-                    <ListItemButton
-                        onClick={() => setLogoutDialogOpen(true)}
-                        sx={{
-                            borderRadius: '8px',
-                            py: 0.75,
-                            px: 1.5,
-                            '&:hover': { backgroundColor: 'action.hover' },
-                            transition: 'all 0.2s',
-                        }}
-                    >
-                        <ListItemIcon sx={{ color: 'text.secondary', minWidth: 32, '& .MuiSvgIcon-root': { fontSize: 18 } }}>
-                            <LogoutIcon />
-                        </ListItemIcon>
-                        <ListItemText
-                            primary="Logout"
-                            primaryTypographyProps={{ fontSize: '13.5px', fontWeight: 500, color: 'text.primary' }}
-                        />
-                    </ListItemButton>
+            <List sx={{ px: isCollapsedDesktop ? 1 : 1.5, py: 1 }}>
+                <ListItem disablePadding sx={{ display: 'block' }}>
+                    {isCollapsedDesktop ? (
+                        <Tooltip title="Logout" placement="right" arrow>
+                            <ListItemButton
+                                onClick={() => setLogoutDialogOpen(true)}
+                                sx={{
+                                    borderRadius: '8px',
+                                    py: 0.75,
+                                    px: 1,
+                                    justifyContent: 'center',
+                                    '&:hover': { backgroundColor: 'action.hover' },
+                                    transition: 'all 0.2s',
+                                }}
+                            >
+                                <ListItemIcon sx={{ color: 'text.secondary', minWidth: 0, justifyContent: 'center', '& .MuiSvgIcon-root': { fontSize: 18 } }}>
+                                    <LogoutIcon />
+                                </ListItemIcon>
+                            </ListItemButton>
+                        </Tooltip>
+                    ) : (
+                        <ListItemButton
+                            onClick={() => setLogoutDialogOpen(true)}
+                            sx={{
+                                borderRadius: '8px',
+                                py: 0.75,
+                                px: 1.5,
+                                '&:hover': { backgroundColor: 'action.hover' },
+                                transition: 'all 0.2s',
+                            }}
+                        >
+                            <ListItemIcon sx={{ color: 'text.secondary', minWidth: 32, '& .MuiSvgIcon-root': { fontSize: 18 } }}>
+                                <LogoutIcon />
+                            </ListItemIcon>
+                            <ListItemText
+                                primary="Logout"
+                                primaryTypographyProps={{ fontSize: '13.5px', fontWeight: 500, color: 'text.primary' }}
+                            />
+                        </ListItemButton>
+                    )}
                 </ListItem>
             </List>
 
@@ -455,7 +540,14 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
     );
 
     return (
-        <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
+        <Box
+            component="nav"
+            sx={{
+                width: { md: currentWidth },
+                flexShrink: { md: 0 },
+                transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+        >
             {/* Mobile Drawer */}
             <Drawer
                 variant="temporary"
@@ -481,12 +573,14 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ mobileOpen, onClose, isMobi
                 sx={{
                     display: { xs: 'none', md: 'block' },
                     '& .MuiDrawer-paper': {
-                        width: DRAWER_WIDTH,
+                        width: currentWidth,
                         boxSizing: 'border-box',
                         backgroundColor: 'background.paper',
                         color: 'text.primary',
                         borderRight: '1px solid',
-                        borderColor: 'divider'
+                        borderColor: 'divider',
+                        transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        overflowX: 'hidden',
                     },
                 }}
                 open
