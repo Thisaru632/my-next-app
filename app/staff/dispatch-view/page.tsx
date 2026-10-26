@@ -23,6 +23,13 @@ import {
     CircularProgress,
     Snackbar,
     Stack,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Checkbox,
+    ListItemText,
+    OutlinedInput,
 } from '@mui/material';
 import {
     LocalShipping as LocalShippingIcon,
@@ -223,6 +230,7 @@ export default function DispatchViewPage() {
     // Filter and Pagination state
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [formIdFilter, setFormIdFilter] = useState<string>('');
+    const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [selectedDateColIdx, setSelectedDateColIdx] = useState<number | 'auto'>('auto');
@@ -348,6 +356,7 @@ export default function DispatchViewPage() {
             } else {
                 setSortColumnIndex(null);
             }
+            setSelectedStatuses([]);
             setStartDate('');
             setEndDate('');
             setFormIdFilter('');
@@ -451,6 +460,7 @@ export default function DispatchViewPage() {
         setParseError(null);
         setSearchQuery('');
         setFormIdFilter('');
+        setSelectedStatuses([]);
         setStartDate('');
         setEndDate('');
         setSelectedDateColIdx('auto');
@@ -513,6 +523,27 @@ export default function DispatchViewPage() {
         }
         return null;
     }, [selectedDateColIdx, dateColumnOptions, headers]);
+
+    // Find dispatch status column index
+    const dispatchStatusColIdx = useMemo(() => {
+        return headers.findIndex(h => {
+            const lower = (h || '').toLowerCase().trim();
+            return lower === 'dispatch status' || lower === 'dispatchstatus';
+        });
+    }, [headers]);
+
+    // Unique dispatch status options from records
+    const availableStatuses = useMemo(() => {
+        if (dispatchStatusColIdx === -1 || rows.length === 0) return [];
+        const statusMap = new Map<string, string>();
+        rows.forEach(r => {
+            const val = (r[dispatchStatusColIdx] || '').trim();
+            if (val && !statusMap.has(val.toLowerCase())) {
+                statusMap.set(val.toLowerCase(), val);
+            }
+        });
+        return Array.from(statusMap.values()).sort((a, b) => a.localeCompare(b));
+    }, [rows, dispatchStatusColIdx]);
 
     // Filter and sort rows (Timestamp >= 2026-01-01 + Search + Date Range + Sort)
     const filteredRows = useMemo(() => {
@@ -603,6 +634,15 @@ export default function DispatchViewPage() {
             });
         }
 
+        // 3.5. Dispatch Status Filter (multi-selectable)
+        if (selectedStatuses.length > 0 && dispatchStatusColIdx !== -1) {
+            const allowedSet = new Set(selectedStatuses.map(s => s.toLowerCase().trim()));
+            result = result.filter(row => {
+                const cellVal = (row[dispatchStatusColIdx] || '').toLowerCase().trim();
+                return allowedSet.has(cellVal);
+            });
+        }
+
         // 4. Column Sorting (defaults to 'Ref' column in descending order)
         const refColIdx = headers.findIndex(h => h && (h.toLowerCase().trim() === 'ref' || h.trim() === '20260879986'));
         const activeSortCol = sortColumnIndex !== null ? sortColumnIndex : (refColIdx !== -1 ? refColIdx : (headers.length > 13 ? 13 : null));
@@ -641,7 +681,7 @@ export default function DispatchViewPage() {
         }
 
         return result;
-    }, [rows, headers, searchQuery, formIdFilter, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
+    }, [rows, headers, searchQuery, formIdFilter, selectedStatuses, dispatchStatusColIdx, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
 
     // Paginated rows
     const paginatedRows = useMemo(() => {
@@ -1098,6 +1138,70 @@ export default function DispatchViewPage() {
                                     }
                                 }}
                             />
+
+                            {/* Multi-Select Dispatch Status Filter */}
+                            {dispatchStatusColIdx !== -1 && availableStatuses.length > 0 && (
+                                <FormControl
+                                    size="small"
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 190, md: 220 },
+                                        flex: { xs: '1 1 100%', sm: '0 1 220px' },
+                                    }}
+                                >
+                                    <InputLabel id="dispatch-status-multi-label" sx={{ fontSize: '0.825rem' }}>
+                                        Dispatch Status
+                                    </InputLabel>
+                                    <Select
+                                        labelId="dispatch-status-multi-label"
+                                        id="dispatch-status-multi-select"
+                                        multiple
+                                        value={selectedStatuses}
+                                        onChange={(e) => {
+                                            const val = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                                            setSelectedStatuses(val as string[]);
+                                            setPage(0);
+                                        }}
+                                        input={<OutlinedInput label="Dispatch Status" sx={{ borderRadius: '10px' }} />}
+                                        renderValue={(selected) => {
+                                            if (selected.length === 0) return 'All Statuses';
+                                            if (selected.length <= 2) {
+                                                return (
+                                                    <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 0.5, overflow: 'hidden' }}>
+                                                        {selected.map((val) => (
+                                                            <Chip
+                                                                key={val}
+                                                                label={val}
+                                                                size="small"
+                                                                sx={{
+                                                                    height: 20,
+                                                                    fontSize: '0.7rem',
+                                                                    fontWeight: 600,
+                                                                    bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(37, 99, 235, 0.25)',
+                                                                    color: 'primary.main',
+                                                                }}
+                                                            />
+                                                        ))}
+                                                    </Box>
+                                                );
+                                            }
+                                            return `${selected.length} statuses selected`;
+                                        }}
+                                        disabled={headers.length === 0 || loadingFromDb}
+                                        sx={{
+                                            borderRadius: '10px',
+                                            fontSize: '0.825rem',
+                                            '& .MuiSelect-select': { py: '8.5px' },
+                                        }}
+                                    >
+                                        {availableStatuses.map((status) => (
+                                            <MenuItem key={status} value={status} sx={{ fontSize: '0.825rem', py: 0.5 }}>
+                                                <Checkbox size="small" checked={selectedStatuses.indexOf(status) > -1} sx={{ p: 0.5, mr: 0.5 }} />
+                                                <ListItemText primary={status} primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            )}
                         </Box>
 
                         {/* Date Range Filter Group */}
@@ -1244,6 +1348,20 @@ export default function DispatchViewPage() {
                                     />
                                 )}
 
+                                {selectedStatuses.length > 0 && (
+                                    <Chip
+                                        label={`Status (${selectedStatuses.length}): ${selectedStatuses.join(', ')}`}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        onDelete={() => {
+                                            setSelectedStatuses([]);
+                                            setPage(0);
+                                        }}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+
                                 {sortColumnIndex !== null && (
                                     <Chip
                                         label={`Sorted: ${headers[sortColumnIndex] === '20260879986' ? 'Ref' : headers[sortColumnIndex]} (${sortDirection.toUpperCase()})`}
@@ -1254,7 +1372,7 @@ export default function DispatchViewPage() {
                                 )}
                             </Box>
 
-                            {(startDate || endDate || searchQuery || formIdFilter || sortColumnIndex !== null) && (
+                            {(startDate || endDate || searchQuery || formIdFilter || selectedStatuses.length > 0 || sortColumnIndex !== null) && (
                                 <Button
                                     size="small"
                                     onClick={() => {
@@ -1262,6 +1380,7 @@ export default function DispatchViewPage() {
                                         setEndDate('');
                                         setSearchQuery('');
                                         setFormIdFilter('');
+                                        setSelectedStatuses([]);
                                         setSortColumnIndex(null);
                                         setPage(0);
                                     }}
