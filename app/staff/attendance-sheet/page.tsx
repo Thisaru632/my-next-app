@@ -127,9 +127,9 @@ export const formatMinutesToHHMM = (totalMinutes: number, showSign: boolean = fa
     const mStr = String(m).padStart(2, '0');
     const timeStr = `${hStr}:${mStr}`;
     if (showSign) {
-        return isNeg ? `-${timeStr}` : `+${timeStr}`;
+        return isNeg ? ` -${timeStr}` : `+${timeStr}`;
     }
-    return isNeg ? `-${timeStr}` : timeStr;
+    return isNeg ? ` -${timeStr}` : timeStr;
 };
 
 export const formatMinutesToDecimalHours = (totalMinutes: number): string => {
@@ -2127,7 +2127,7 @@ export default function AttendanceSheetPage() {
             'Worked Hours (HH:MM)',
             'Extra Hours (HH:MM)',
             'Less Hours (HH:MM)',
-            'Actual OT or Loss Hours (Decimal)'
+            'Actual OT or Loss Hours (HH:MM)'
         ];
 
         let totalDaysPresentSum = 0;
@@ -2167,7 +2167,7 @@ export default function AttendanceSheetPage() {
                 `"${formatMinutesToHHMM(workedMins)}"`,
                 `"${formatMinutesToHHMM(extraMins)}"`,
                 `"${formatMinutesToHHMM(lessMins)}"`,
-                `"${formatMinutesToDecimalHours(netMins)}"`
+                `"${formatMinutesToHHMM(netMins)}"`
             ].join(',');
         });
 
@@ -2182,7 +2182,7 @@ export default function AttendanceSheetPage() {
             `"${formatMinutesToHHMM(totalWorkedMinutesSum)}"`,
             `"${formatMinutesToHHMM(totalExtraMinutesSum)}"`,
             `"${formatMinutesToHHMM(totalLessMinutesSum)}"`,
-            `"${formatMinutesToDecimalHours(totalNetMinutesSum)}"`
+            `"${formatMinutesToHHMM(totalNetMinutesSum)}"`
         ].join(',');
 
         const csvContent = [headers.join(','), ...rows, summaryRow].join('\n');
