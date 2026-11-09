@@ -540,93 +540,113 @@ export default function InquiryViewPage() {
         URL.revokeObjectURL(url);
     };
 
+    // Truncate to maximum 4 words
+    const formatFourWords = (val: string) => {
+        if (!val || typeof val !== 'string') return { text: '-', isTruncated: false };
+        const trimmed = val.trim();
+        if (!trimmed) return { text: '-', isTruncated: false };
+
+        const words = trimmed.split(/\s+/);
+        if (words.length <= 4) {
+            return { text: trimmed, isTruncated: false };
+        }
+        return {
+            text: `${words.slice(0, 4).join(' ')}...`,
+            isTruncated: true
+        };
+    };
+
     // Helper to render status badges if column contains status-like text
     const renderCellContent = (value: string, headerName: string) => {
         const lowerHeader = headerName.toLowerCase();
-        const lowerVal = value.toLowerCase().trim();
+        const lowerVal = (value || '').toLowerCase().trim();
 
         if (lowerHeader.includes('status') || lowerHeader === 'state') {
+            let chipColor = null;
             if (lowerVal === 'confirmed' || lowerVal === 'completed' || lowerVal === 'success') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#dcfce7',
-                            color: '#15803d',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #bbf7d0',
-                        }}
-                    />
-                );
+                chipColor = { bgcolor: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' };
+            } else if (lowerVal === 'sent inquiry' || lowerVal === 'quoted' || lowerVal === 'follow up') {
+                chipColor = { bgcolor: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe' };
+            } else if (lowerVal === 'pending' || lowerVal === 'new' || lowerVal === 'open' || lowerVal === 'processing') {
+                chipColor = { bgcolor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' };
+            } else if (lowerVal === 'cancelled' || lowerVal === 'failed' || lowerVal === 'rejected') {
+                chipColor = { bgcolor: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca' };
+            } else if (lowerVal === 'in progress' || lowerVal === 'contacted') {
+                chipColor = { bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' };
             }
-            if (lowerVal === 'sent inquiry' || lowerVal === 'quoted' || lowerVal === 'follow up') {
+
+            if (chipColor) {
                 return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#f5f3ff',
-                            color: '#6d28d9',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #ddd6fe',
-                        }}
-                    />
-                );
-            }
-            if (lowerVal === 'pending' || lowerVal === 'new' || lowerVal === 'open' || lowerVal === 'processing') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#fef3c7',
-                            color: '#b45309',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #fde68a',
-                        }}
-                    />
-                );
-            }
-            if (lowerVal === 'cancelled' || lowerVal === 'failed' || lowerVal === 'rejected') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#fee2e2',
-                            color: '#b91c1c',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #fecaca',
-                        }}
-                    />
-                );
-            }
-            if (lowerVal === 'in progress' || lowerVal === 'contacted') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#eff6ff',
-                            color: '#1d4ed8',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #bfdbfe',
-                        }}
-                    />
+                    <Tooltip title={value} arrow placement="top" enterDelay={100}>
+                        <Chip
+                            label={value}
+                            size="small"
+                            sx={{
+                                fontWeight: 700,
+                                fontSize: '0.72rem',
+                                height: 22,
+                                '& .MuiChip-label': { px: 0.75, py: 0 },
+                                ...chipColor,
+                            }}
+                        />
+                    </Tooltip>
                 );
             }
         }
 
+        const { text: fourWordText } = formatFourWords(value);
+
+        if (!value || !value.trim()) {
+            return (
+                <Typography variant="body2" sx={{ fontSize: '0.78rem', color: 'text.disabled' }}>
+                    -
+                </Typography>
+            );
+        }
+
         return (
-            <Typography variant="body2" sx={{ fontSize: '0.84rem', color: 'text.primary', wordBreak: 'break-word' }}>
-                {value || '-'}
-            </Typography>
+            <Tooltip
+                title={value}
+                arrow
+                placement="top"
+                enterDelay={100}
+                componentsProps={{
+                    tooltip: {
+                        sx: {
+                            bgcolor: mode === 'light' ? '#0f172a' : '#1e293b',
+                            color: '#ffffff',
+                            boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            py: 0.75,
+                            px: 1.25,
+                            borderRadius: '8px',
+                            maxWidth: 420,
+                            wordBreak: 'break-word',
+                        }
+                    },
+                    arrow: {
+                        sx: {
+                            color: mode === 'light' ? '#0f172a' : '#1e293b',
+                        }
+                    }
+                }}
+            >
+                <Typography
+                    variant="body2"
+                    sx={{
+                        fontSize: '0.78rem',
+                        color: 'text.primary',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        cursor: 'default',
+                        lineHeight: 1.2,
+                    }}
+                >
+                    {fourWordText}
+                </Typography>
+            </Tooltip>
         );
     };
 
@@ -1162,14 +1182,18 @@ export default function InquiryViewPage() {
                                         {/* Row Index Header */}
                                         <TableCell
                                             sx={{
+                                                py: 0.6,
+                                                px: 0.75,
                                                 fontWeight: 700,
-                                                fontSize: '0.78rem',
+                                                fontSize: '0.75rem',
                                                 bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b',
                                                 color: 'text.secondary',
-                                                width: 50,
+                                                width: 44,
                                                 textAlign: 'center',
                                                 borderBottom: '2px solid',
                                                 borderColor: 'divider',
+                                                height: 36,
+                                                whiteSpace: 'nowrap',
                                             }}
                                         >
                                             #
@@ -1181,13 +1205,16 @@ export default function InquiryViewPage() {
                                                 key={colIdx}
                                                 sortDirection={sortColumnIndex === colIdx ? sortDirection : false}
                                                 sx={{
+                                                    py: 0.6,
+                                                    px: 1,
                                                     fontWeight: 700,
-                                                    fontSize: '0.8rem',
+                                                    fontSize: '0.78rem',
                                                     bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b',
                                                     color: 'text.primary',
                                                     whiteSpace: 'nowrap',
                                                     borderBottom: '2px solid',
                                                     borderColor: 'divider',
+                                                    height: 36,
                                                 }}
                                             >
                                                 <TableSortLabel
@@ -1217,6 +1244,8 @@ export default function InquiryViewPage() {
                                                 key={rowIdx}
                                                 hover
                                                 sx={{
+                                                    height: 34,
+                                                    maxHeight: 34,
                                                     '&:nth-of-type(even)': {
                                                         bgcolor: mode === 'light' ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.01)',
                                                     },
@@ -1229,12 +1258,16 @@ export default function InquiryViewPage() {
                                                 {/* Line number */}
                                                 <TableCell
                                                     sx={{
+                                                        py: 0.35,
+                                                        px: 0.75,
                                                         textAlign: 'center',
                                                         color: 'text.secondary',
-                                                        fontSize: '0.75rem',
+                                                        fontSize: '0.72rem',
                                                         fontWeight: 600,
                                                         borderBottom: '1px solid',
                                                         borderColor: 'divider',
+                                                        height: 34,
+                                                        whiteSpace: 'nowrap',
                                                     }}
                                                 >
                                                     {globalIndex}
@@ -1245,9 +1278,15 @@ export default function InquiryViewPage() {
                                                     <TableCell
                                                         key={colIdx}
                                                         sx={{
-                                                            py: 1.25,
+                                                            py: 0.35,
+                                                            px: 1,
                                                             borderBottom: '1px solid',
                                                             borderColor: 'divider',
+                                                            height: 34,
+                                                            whiteSpace: 'nowrap',
+                                                            maxWidth: 200,
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
                                                         }}
                                                     >
                                                         {renderCellContent(row[colIdx] || '', header)}
