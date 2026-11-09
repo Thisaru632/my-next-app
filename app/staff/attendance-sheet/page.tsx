@@ -95,21 +95,46 @@ interface MonthlyAttendanceRecord {
     actualOtOrLossHours?: number | string;
 }
 
-const parseHoursToMinutes = (str: string | number | undefined): number => {
-    if (!str || str === '0 hrs' || str === '0' || str === '-') return 0;
-    if (typeof str === 'number') return str * 60;
-    if (typeof str === 'string' && !isNaN(Number(str))) return Number(str) * 60;
+const parseHoursToMinutes = (str: string | number | undefined | null): number => {
+    if (str === undefined || str === null || str === '0 hrs' || str === '0' || str === '-' || str === '') return 0;
+    if (typeof str === 'number') return Math.round(str * 60);
     
+    const raw = String(str).trim();
+    if (!isNaN(Number(raw))) return Math.round(Number(raw) * 60);
+
+    const isNegative = raw.startsWith('-');
+    const cleanStr = raw.replace(/^[+-]/, '');
+
     let totalMins = 0;
-    const hMatch = String(str).match(/(\d+)\s*h/i);
-    const mMatch = String(str).match(/(\d+)\s*m/i);
-    const hrsMatch = String(str).match(/(\d+)\s*hrs/i);
-    
+    const hMatch = cleanStr.match(/(\d+)\s*h/i);
+    const mMatch = cleanStr.match(/(\d+)\s*m/i);
+    const hrsMatch = cleanStr.match(/(\d+)\s*hrs/i);
+
     if (hMatch) totalMins += parseInt(hMatch[1], 10) * 60;
     if (mMatch) totalMins += parseInt(mMatch[1], 10);
     if (!hMatch && !mMatch && hrsMatch) totalMins += parseInt(hrsMatch[1], 10) * 60;
-    
-    return totalMins;
+
+    return isNegative ? -totalMins : totalMins;
+};
+
+export const formatMinutesToHHMM = (totalMinutes: number, showSign: boolean = false): string => {
+    if (totalMinutes === 0) return '00:00';
+    const isNeg = totalMinutes < 0;
+    const abs = Math.abs(Math.round(totalMinutes));
+    const h = Math.floor(abs / 60);
+    const m = abs % 60;
+    const hStr = String(h).padStart(2, '0');
+    const mStr = String(m).padStart(2, '0');
+    const timeStr = `${hStr}:${mStr}`;
+    if (showSign) {
+        return isNeg ? `-${timeStr}` : `+${timeStr}`;
+    }
+    return isNeg ? `-${timeStr}` : timeStr;
+};
+
+export const formatMinutesToDecimalHours = (totalMinutes: number): string => {
+    if (totalMinutes === 0) return '0.00';
+    return (totalMinutes / 60).toFixed(2);
 };
 
 const calculateActualOtOrLoss = (otHours: string | number | undefined, lessHours: string | number | undefined): string => {
@@ -1616,7 +1641,28 @@ export default function AttendanceSheetPage() {
     };
 
     const handleDownloadDailyCSV = () => {
-        const headers = ['E NO', 'Staff Member', 'Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location In', 'Location Out', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status'];
+        const headers = [
+            'E NO',
+            'Staff Member',
+            'Clock In Date',
+            'Clock In',
+            'Clock Out Date',
+            'Clock Out',
+            'Location In',
+            'Location Out',
+            'Hour Count (HH:MM)',
+            'Hour Count (Decimal)',
+            'Extra Hours (HH:MM)',
+            'Extra Hours (Decimal)',
+            'Less Hours (HH:MM)',
+            'Less Hours (Decimal)',
+            'Status',
+            'Notes / Session Details'
+        ];
+
+        let totalWorkedMins = 0;
+        let totalExtraMins = 0;
+        let totalLessMins = 0;
 
         const rows = filteredDailyRecords.map(r => {
             const rowHours = getDailyRowHours(r, dailyUserStatsMap);
@@ -1626,7 +1672,7 @@ export default function AttendanceSheetPage() {
             let outTime = r.clockOutTime || '';
             let inLoc = r.clockInLocation ? r.clockInLocation.replace(/"/g, '""') : '';
             let outLoc = r.clockOutLocation ? r.clockOutLocation.replace(/"/g, '""') : '';
-            let hrs = rowHours.dayTotalHrs;
+            let notes = '';
 
             if (r.sessions && r.sessions.length > 1) {
                 inDate = r.sessions.map((s, idx) => `Session ${idx + 1}: ${s.clockInDate || s.date || '-'}`).join(' | ');
@@ -1636,34 +1682,63 @@ export default function AttendanceSheetPage() {
                 inLoc = r.sessions.map((s, idx) => `Session ${idx + 1}: ${s.clockInLocation ? s.clockInLocation.replace(/"/g, '""') : '-'}`).join(' | ');
                 outLoc = r.sessions.map((s, idx) => `Session ${idx + 1}: ${s.clockOutLocation ? s.clockOutLocation.replace(/"/g, '""') : '-'}`).join(' | ');
                 const sessionBreakdowns = r.sessions.map((s, idx) => `S${idx + 1}: ${calculateHourCount(s.clockInTime, s.clockOutTime, s.clockInDate || s.date, s.clockOutDate)}`).join(' | ');
-                hrs = `${rowHours.dayTotalHrs} (${sessionBreakdowns})`;
+                notes = `Multi-Session (${sessionBreakdowns})`;
             } else if (rowHours.isMultiSession) {
-                hrs = `${rowHours.dayTotalHrs} (Session: ${rowHours.sessionHrs})`;
+                notes = `Session: ${rowHours.sessionHrs}`;
             }
 
-            const extraHrs = rowHours.needsApproval ? '0 hrs (Pending Approval)' : rowHours.otHours;
-            const lessHrs = rowHours.needsApproval ? '-' : rowHours.lessHours;
             if (rowHours.needsApproval) {
-                hrs = `${rowHours.dayTotalHrs} (Pending Super Admin Approval - Invalid)`;
+                notes = notes ? `${notes} | Pending Super Admin Approval` : 'Pending Super Admin Approval (Invalid)';
             }
+
+            const rawWorkedMins = rowHours.needsApproval ? 0 : (typeof rowHours.totalDayMins === 'number' ? rowHours.totalDayMins : parseHoursToMinutes(rowHours.dayTotalHrs));
+            const rawExtraMins = rowHours.needsApproval ? 0 : parseHoursToMinutes(rowHours.otHours);
+            const rawLessMins = rowHours.needsApproval ? 0 : parseHoursToMinutes(rowHours.lessHours);
+
+            totalWorkedMins += rawWorkedMins;
+            totalExtraMins += rawExtraMins;
+            totalLessMins += rawLessMins;
 
             return [
                 `"${r.eNo || ''}"`,
-                `"${r.name || ''}"`,
+                `"${(r.name || '').replace(/"/g, '""')}"`,
                 `"${inDate}"`,
                 `"${inTime}"`,
                 `"${outDate}"`,
                 `"${outTime}"`,
                 `"${inLoc}"`,
                 `"${outLoc}"`,
-                `"${hrs}"`,
-                `"${extraHrs}"`,
-                `"${lessHrs}"`,
-                `"${r.status || ''}"`
+                `"${formatMinutesToHHMM(rawWorkedMins)}"`,
+                `"${formatMinutesToDecimalHours(rawWorkedMins)}"`,
+                `"${formatMinutesToHHMM(rawExtraMins)}"`,
+                `"${formatMinutesToDecimalHours(rawExtraMins)}"`,
+                `"${formatMinutesToHHMM(rawLessMins)}"`,
+                `"${formatMinutesToDecimalHours(rawLessMins)}"`,
+                `"${r.status || ''}"`,
+                `"${notes.replace(/"/g, '""')}"`
             ].join(',');
         });
 
-        const csvContent = [headers.join(','), ...rows].join('\n');
+        const summaryRow = [
+            `"Total / Summary"`,
+            `"${filteredDailyRecords.length} Records"`,
+            `"${selectedDailyDate || ''}"`,
+            '""',
+            '""',
+            '""',
+            '""',
+            '""',
+            `"${formatMinutesToHHMM(totalWorkedMins)}"`,
+            `"${formatMinutesToDecimalHours(totalWorkedMins)}"`,
+            `"${formatMinutesToHHMM(totalExtraMins)}"`,
+            `"${formatMinutesToDecimalHours(totalExtraMins)}"`,
+            `"${formatMinutesToHHMM(totalLessMins)}"`,
+            `"${formatMinutesToDecimalHours(totalLessMins)}"`,
+            '""',
+            '""'
+        ].join(',');
+
+        const csvContent = [headers.join(','), ...rows, summaryRow].join('\n');
         downloadCSV(`Daily_Staff_Attendance_${selectedDailyDate || 'sheet'}.csv`, csvContent);
     };
 
@@ -1797,11 +1872,15 @@ export default function AttendanceSheetPage() {
                     'Clock Out Time',
                     'Location In',
                     'Location Out',
-                    'Total Hours Worked',
-                    'Extra Hours (OT)',
-                    'Less Hours',
+                    'Total Hours Worked (HH:MM)',
+                    'Total Hours Worked (Decimal)',
+                    'Extra Hours (OT) (HH:MM)',
+                    'Extra Hours (OT) (Decimal)',
+                    'Less Hours (HH:MM)',
+                    'Less Hours (Decimal)',
                     'Status',
-                    'SuperAdmin Approval'
+                    'SuperAdmin Approval',
+                    'Session Details'
                 ];
 
                 const rows: string[] = [];
@@ -1837,6 +1916,7 @@ export default function AttendanceSheetPage() {
                         let extraHours = '0 hrs';
                         let lessHours = '-';
                         let approvalStatus = 'Standard';
+                        let sessionDetails = '';
 
                         if (matchedLogs.length === 0) {
                             if (isLeave) {
@@ -1874,12 +1954,9 @@ export default function AttendanceSheetPage() {
                                 status = log.status || 'Clocked Out';
 
                                 totalHoursWorked = rowHours.dayTotalHrs;
-                                extraHours = rowHours.needsApproval ? '0 hrs (Pending Approval)' : rowHours.otHours;
+                                extraHours = rowHours.needsApproval ? '0 hrs' : rowHours.otHours;
                                 lessHours = rowHours.needsApproval ? '-' : rowHours.lessHours;
                                 approvalStatus = log.approvedBySuperAdmin ? 'Approved' : (rowHours.needsApproval ? 'Pending Super Admin Approval' : 'Standard');
-                                if (rowHours.needsApproval) {
-                                    totalHoursWorked = `${rowHours.dayTotalHrs} (Pending Super Admin Approval)`;
-                                }
                             } else {
                                 // Multi session day
                                 const enrichedSessions = matchedLogs;
@@ -1902,15 +1979,17 @@ export default function AttendanceSheetPage() {
                                 };
                                 const rowHours = getDailyRowHours(dummyMulti, rangeStatsMap);
                                 const sessionBreakdowns = enrichedSessions.map((s, idx) => `S${idx + 1}: ${calculateHourCount(s.clockInTime, s.clockOutTime, s.clockInDate || s.date, s.clockOutDate)}`).join(' | ');
-                                totalHoursWorked = `${rowHours.dayTotalHrs} (${sessionBreakdowns})`;
-                                extraHours = rowHours.needsApproval ? '0 hrs (Pending Approval)' : rowHours.otHours;
+                                totalHoursWorked = rowHours.dayTotalHrs;
+                                sessionDetails = `Multi-Session (${sessionBreakdowns})`;
+                                extraHours = rowHours.needsApproval ? '0 hrs' : rowHours.otHours;
                                 lessHours = rowHours.needsApproval ? '-' : rowHours.lessHours;
                                 approvalStatus = isAnyApproved ? 'Approved' : (rowHours.needsApproval ? 'Pending Super Admin Approval' : 'Standard');
-                                if (rowHours.needsApproval) {
-                                    totalHoursWorked = `${rowHours.dayTotalHrs} (Pending Super Admin Approval - Invalid)`;
-                                }
                             }
                         }
+
+                        const rawWorkedMins = approvalStatus === 'Pending Super Admin Approval' ? 0 : parseHoursToMinutes(totalHoursWorked);
+                        const rawExtraMins = approvalStatus === 'Pending Super Admin Approval' ? 0 : parseHoursToMinutes(extraHours);
+                        const rawLessMins = approvalStatus === 'Pending Super Admin Approval' ? 0 : parseHoursToMinutes(lessHours);
 
                         rows.push([
                             escapeCsv(staff.eNo || 'N/A'),
@@ -1924,11 +2003,15 @@ export default function AttendanceSheetPage() {
                             escapeCsv(clockOutTime),
                             escapeCsv(clockInLoc),
                             escapeCsv(clockOutLoc),
-                            escapeCsv(totalHoursWorked),
-                            escapeCsv(extraHours),
-                            escapeCsv(lessHours),
+                            escapeCsv(formatMinutesToHHMM(rawWorkedMins)),
+                            escapeCsv(formatMinutesToDecimalHours(rawWorkedMins)),
+                            escapeCsv(formatMinutesToHHMM(rawExtraMins)),
+                            escapeCsv(formatMinutesToDecimalHours(rawExtraMins)),
+                            escapeCsv(formatMinutesToHHMM(rawLessMins)),
+                            escapeCsv(formatMinutesToDecimalHours(rawLessMins)),
                             escapeCsv(status),
-                            escapeCsv(approvalStatus)
+                            escapeCsv(approvalStatus),
+                            escapeCsv(sessionDetails)
                         ].join(','));
                     });
                 });
@@ -1951,8 +2034,10 @@ export default function AttendanceSheetPage() {
                     'Days Present',
                     'Days Leave',
                     'Days Absent',
-                    'Total Hours Worked',
-                    'Total OT Hours',
+                    'Total Hours Worked (HH:MM)',
+                    'Total Hours Worked (Decimal)',
+                    'Total OT Hours (HH:MM)',
+                    'Total OT Hours (Decimal)',
                     ...dateHeaders
                 ];
 
@@ -2027,8 +2112,10 @@ export default function AttendanceSheetPage() {
                         escapeCsv(daysPresent),
                         escapeCsv(daysLeave),
                         escapeCsv(daysAbsent),
-                        escapeCsv(formatMinutesToHoursAndMins(totalWorkedMinutes)),
-                        escapeCsv(formatMinutesToHoursAndMins(totalOtMinutes)),
+                        escapeCsv(formatMinutesToHHMM(totalWorkedMinutes)),
+                        escapeCsv(formatMinutesToDecimalHours(totalWorkedMinutes)),
+                        escapeCsv(formatMinutesToHHMM(totalOtMinutes)),
+                        escapeCsv(formatMinutesToDecimalHours(totalOtMinutes)),
                         ...dailyCells.map(escapeCsv)
                     ].join(','));
                 });
@@ -2048,38 +2135,88 @@ export default function AttendanceSheetPage() {
     };
 
     const handleDownloadMonthlyCSV = () => {
-        const headers = ['E NO', 'Staff Member', 'Month', 'Days Present', 'Leave Days', 'Total Hours', 'Worked Hours', 'Extra Hours', 'Less Hours', 'Actual OT or Loss Hours'];
+        const headers = [
+            'E NO',
+            'Staff Member',
+            'Month',
+            'Days Present',
+            'Leave Days',
+            'Total Hours (HH:MM)',
+            'Total Hours (Decimal)',
+            'Worked Hours (HH:MM)',
+            'Worked Hours (Decimal)',
+            'Extra Hours (HH:MM)',
+            'Extra Hours (Decimal)',
+            'Less Hours (HH:MM)',
+            'Less Hours (Decimal)',
+            'Actual OT or Loss Hours (HH:MM)',
+            'Actual OT or Loss Hours (Decimal)'
+        ];
+
+        let totalDaysPresentSum = 0;
+        let totalLeaveDaysSum = 0;
+        let totalTargetMinutesSum = 0;
+        let totalWorkedMinutesSum = 0;
+        let totalExtraMinutesSum = 0;
+        let totalLessMinutesSum = 0;
+        let totalNetMinutesSum = 0;
 
         const rows = filteredMonthlyRecords.map(r => {
-            const daysStr = typeof r.daysPresent === 'number' ? `${r.daysPresent}` : '0';
-            const leaveDaysStr = typeof r.leaves === 'number' ? `${r.leaves}` : '0';
-            const totalHrs = typeof r.totalDays === 'number' ? `${r.totalDays * 9} hrs` : '198 hrs';
-            const workedHrs = typeof r.totalHours === 'string'
-                ? (r.totalHours.includes('h') || r.totalHours.includes('m') || r.totalHours.includes('hrs') ? r.totalHours : `${r.totalHours} hrs`)
-                : `${r.totalHours} hrs`;
-            const extraHrs = typeof r.otHours === 'string'
-                ? (r.otHours.includes('h') || r.otHours.includes('m') || r.otHours.includes('hrs') ? r.otHours : `${r.otHours} hrs`)
-                : `${r.otHours} hrs`;
-            const lessHrs = typeof r.lessHours === 'string'
-                ? (r.lessHours.includes('h') || r.lessHours.includes('m') || r.lessHours.includes('hrs') ? r.lessHours : `${r.lessHours} hrs`)
-                : `${r.lessHours || '0'} hrs`;
-            const actualOtLoss = calculateActualOtOrLoss(r.otHours, r.lessHours);
+            const daysPresent = typeof r.daysPresent === 'number' ? r.daysPresent : 0;
+            const leaves = typeof r.leaves === 'number' ? r.leaves : 0;
+            const totalTargetDays = typeof r.totalDays === 'number' ? r.totalDays : 22;
+            const targetHoursMins = totalTargetDays * 9 * 60;
+            const workedMins = parseHoursToMinutes(r.totalHours);
+            const extraMins = parseHoursToMinutes(r.otHours);
+            const lessMins = parseHoursToMinutes(r.lessHours);
+            const netMins = extraMins - lessMins;
+
+            totalDaysPresentSum += daysPresent;
+            totalLeaveDaysSum += leaves;
+            totalTargetMinutesSum += targetHoursMins;
+            totalWorkedMinutesSum += workedMins;
+            totalExtraMinutesSum += extraMins;
+            totalLessMinutesSum += lessMins;
+            totalNetMinutesSum += netMins;
 
             return [
                 `"${r.eNo || ''}"`,
-                `"${r.name || ''}"`,
+                `"${(r.name || '').replace(/"/g, '""')}"`,
                 `"${r.month || ''}"`,
-                `"${daysStr}"`,
-                `"${leaveDaysStr}"`,
-                `"${totalHrs}"`,
-                `"${workedHrs}"`,
-                `"${extraHrs}"`,
-                `"${lessHrs}"`,
-                `"${actualOtLoss}"`
+                `"${daysPresent}"`,
+                `"${leaves}"`,
+                `"${formatMinutesToHHMM(targetHoursMins)}"`,
+                `"${formatMinutesToDecimalHours(targetHoursMins)}"`,
+                `"${formatMinutesToHHMM(workedMins)}"`,
+                `"${formatMinutesToDecimalHours(workedMins)}"`,
+                `"${formatMinutesToHHMM(extraMins)}"`,
+                `"${formatMinutesToDecimalHours(extraMins)}"`,
+                `"${formatMinutesToHHMM(lessMins)}"`,
+                `"${formatMinutesToDecimalHours(lessMins)}"`,
+                `"${formatMinutesToHHMM(netMins, true)}"`,
+                `"${formatMinutesToDecimalHours(netMins)}"`
             ].join(',');
         });
 
-        const csvContent = [headers.join(','), ...rows].join('\n');
+        const summaryRow = [
+            `"Total / Summary"`,
+            `"${filteredMonthlyRecords.length} Staff Members"`,
+            `"${selectedMonth || ''}"`,
+            `"${totalDaysPresentSum}"`,
+            `"${totalLeaveDaysSum}"`,
+            `"${formatMinutesToHHMM(totalTargetMinutesSum)}"`,
+            `"${formatMinutesToDecimalHours(totalTargetMinutesSum)}"`,
+            `"${formatMinutesToHHMM(totalWorkedMinutesSum)}"`,
+            `"${formatMinutesToDecimalHours(totalWorkedMinutesSum)}"`,
+            `"${formatMinutesToHHMM(totalExtraMinutesSum)}"`,
+            `"${formatMinutesToDecimalHours(totalExtraMinutesSum)}"`,
+            `"${formatMinutesToHHMM(totalLessMinutesSum)}"`,
+            `"${formatMinutesToDecimalHours(totalLessMinutesSum)}"`,
+            `"${formatMinutesToHHMM(totalNetMinutesSum, true)}"`,
+            `"${formatMinutesToDecimalHours(totalNetMinutesSum)}"`
+        ].join(',');
+
+        const csvContent = [headers.join(','), ...rows, summaryRow].join('\n');
         const filenamePrefix = isSasanka ? 'Call_Center_Monthly_Attendance' : 'Monthly_Staff_Attendance';
         downloadCSV(`${filenamePrefix}_${selectedMonth || 'summary'}.csv`, csvContent);
     };
@@ -2095,7 +2232,25 @@ export default function AttendanceSheetPage() {
         const metaLine2 = `"Days Present: ${modalSummary.daysPresent} days","Leave Days: ${modalSummary.leaves} days","Total Worked: ${modalSummary.workedHours}","Extra Hours: ${modalSummary.extraHours}","Less Hours: ${modalSummary.lessHours}","Net OT/Loss: ${modalSummary.actualOtOrLoss}"`;
         const emptyLine = '""';
 
-        const headers = ['Clock In Date', 'Clock In', 'Clock Out Date', 'Clock Out', 'Location', 'Hour Count', 'Extra Hours', 'Less Hours', 'Status'];
+        const headers = [
+            'Clock In Date',
+            'Clock In',
+            'Clock Out Date',
+            'Clock Out',
+            'Location',
+            'Hour Count (HH:MM)',
+            'Hour Count (Decimal)',
+            'Extra Hours (HH:MM)',
+            'Extra Hours (Decimal)',
+            'Less Hours (HH:MM)',
+            'Less Hours (Decimal)',
+            'Status',
+            'Notes'
+        ];
+
+        let totalWorkedMins = 0;
+        let totalExtraMins = 0;
+        let totalLessMins = 0;
 
         const rows = userLogs.map(log => {
             const rowHours = getDailyRowHours(log, userLogsStatsMap);
@@ -2105,16 +2260,15 @@ export default function AttendanceSheetPage() {
             const outTime = log.clockOutTime || '-';
             const loc = (log.clockInLocation || log.clockOutLocation || '-').replace(/"/g, '""');
 
-            let hrs = rowHours.dayTotalHrs;
-            if (rowHours.isMultiSession) {
-                hrs = `${rowHours.dayTotalHrs} (Session: ${rowHours.sessionHrs})`;
-            } else if (hrs === '-') {
-                hrs = '0 hrs';
-            }
+            const rawWorkedMins = typeof rowHours.totalDayMins === 'number' ? rowHours.totalDayMins : parseHoursToMinutes(rowHours.dayTotalHrs);
+            const rawExtraMins = parseHoursToMinutes(rowHours.otHours);
+            const rawLessMins = parseHoursToMinutes(rowHours.lessHours);
 
-            const extra = rowHours.otHours;
-            const less = rowHours.lessHours;
-            const status = log.status || '';
+            totalWorkedMins += rawWorkedMins;
+            totalExtraMins += rawExtraMins;
+            totalLessMins += rawLessMins;
+
+            const notes = rowHours.isMultiSession ? `Session: ${rowHours.sessionHrs}` : '';
 
             return [
                 `"${inDate}"`,
@@ -2122,10 +2276,14 @@ export default function AttendanceSheetPage() {
                 `"${outDate}"`,
                 `"${outTime}"`,
                 `"${loc}"`,
-                `"${hrs}"`,
-                `"${extra}"`,
-                `"${less}"`,
-                `"${status}"`
+                `"${formatMinutesToHHMM(rawWorkedMins)}"`,
+                `"${formatMinutesToDecimalHours(rawWorkedMins)}"`,
+                `"${formatMinutesToHHMM(rawExtraMins)}"`,
+                `"${formatMinutesToDecimalHours(rawExtraMins)}"`,
+                `"${formatMinutesToHHMM(rawLessMins)}"`,
+                `"${formatMinutesToDecimalHours(rawLessMins)}"`,
+                `"${log.status || ''}"`,
+                `"${notes.replace(/"/g, '""')}"`
             ].join(',');
         });
 
@@ -2135,10 +2293,14 @@ export default function AttendanceSheetPage() {
             '""',
             '""',
             '""',
-            `"${modalSummary.workedHours}"`,
-            `"${modalSummary.extraHours}"`,
-            `"${modalSummary.lessHours}"`,
-            `"${modalSummary.actualOtOrLoss}"`
+            `"${formatMinutesToHHMM(totalWorkedMins)}"`,
+            `"${formatMinutesToDecimalHours(totalWorkedMins)}"`,
+            `"${formatMinutesToHHMM(totalExtraMins)}"`,
+            `"${formatMinutesToDecimalHours(totalExtraMins)}"`,
+            `"${formatMinutesToHHMM(totalLessMins)}"`,
+            `"${formatMinutesToDecimalHours(totalLessMins)}"`,
+            '""',
+            '""'
         ].join(',');
 
         const csvContent = [
