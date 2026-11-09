@@ -233,6 +233,8 @@ export default function InquiryViewPage() {
     // Filter and Pagination state
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+    const [selectedVehicleCategories, setSelectedVehicleCategories] = useState<string[]>([]);
+    const [selectedVehicleTypes, setSelectedVehicleTypes] = useState<string[]>([]);
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [selectedDateColIdx, setSelectedDateColIdx] = useState<number | 'auto'>('auto');
@@ -303,6 +305,8 @@ export default function InquiryViewPage() {
             setPage(0);
             setSortColumnIndex(null);
             setSelectedStatuses([]);
+            setSelectedVehicleCategories([]);
+            setSelectedVehicleTypes([]);
             setStartDate('');
             setEndDate('');
             setSelectedDateColIdx('auto');
@@ -394,6 +398,8 @@ export default function InquiryViewPage() {
         setParseError(null);
         setSearchQuery('');
         setSelectedStatuses([]);
+        setSelectedVehicleCategories([]);
+        setSelectedVehicleTypes([]);
         setStartDate('');
         setEndDate('');
         setSelectedDateColIdx('auto');
@@ -483,7 +489,49 @@ export default function InquiryViewPage() {
         return Array.from(statusMap.values()).sort((a, b) => a.localeCompare(b));
     }, [rows, statusColIdx]);
 
-    // Filter and sort rows (Search + Date Range + Status + Sort)
+    // Find vehicle category column index (e.g. 'Vehicle Category', 'Category', etc.)
+    const vehicleCategoryColIdx = useMemo(() => {
+        return headers.findIndex(h => {
+            const lower = (h || '').toLowerCase().trim();
+            return lower === 'vehicle category' || lower === 'vehiclecategory' || lower === 'category' || lower.includes('category');
+        });
+    }, [headers]);
+
+    // Unique vehicle category options from records
+    const availableVehicleCategories = useMemo(() => {
+        if (vehicleCategoryColIdx === -1 || rows.length === 0) return [];
+        const catMap = new Map<string, string>();
+        rows.forEach(r => {
+            const val = (r[vehicleCategoryColIdx] || '').trim();
+            if (val && val !== '-' && !catMap.has(val.toLowerCase())) {
+                catMap.set(val.toLowerCase(), val);
+            }
+        });
+        return Array.from(catMap.values()).sort((a, b) => a.localeCompare(b));
+    }, [rows, vehicleCategoryColIdx]);
+
+    // Find vehicle type column index (e.g. 'Vehicle Type', 'Type', etc.)
+    const vehicleTypeColIdx = useMemo(() => {
+        return headers.findIndex(h => {
+            const lower = (h || '').toLowerCase().trim();
+            return lower === 'vehicle type' || lower === 'vehicletype' || (lower.includes('vehicle') && lower.includes('type')) || (lower.includes('type') && !lower.includes('timestamp'));
+        });
+    }, [headers]);
+
+    // Unique vehicle type options from records
+    const availableVehicleTypes = useMemo(() => {
+        if (vehicleTypeColIdx === -1 || rows.length === 0) return [];
+        const typeMap = new Map<string, string>();
+        rows.forEach(r => {
+            const val = (r[vehicleTypeColIdx] || '').trim();
+            if (val && val !== '-' && !typeMap.has(val.toLowerCase())) {
+                typeMap.set(val.toLowerCase(), val);
+            }
+        });
+        return Array.from(typeMap.values()).sort((a, b) => a.localeCompare(b));
+    }, [rows, vehicleTypeColIdx]);
+
+    // Filter and sort rows (Search + Date Range + Status + Vehicle Category + Vehicle Type + Sort)
     const filteredRows = useMemo(() => {
         let result = rows;
 
@@ -510,10 +558,32 @@ export default function InquiryViewPage() {
             });
         }
 
-        // 2. Search filtering across all cells
+        // 2. Search filtering across all cells (Name, Phone Number, Vehicle Number, etc.)
         if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase().trim();
-            result = result.filter(row => row.some(cell => cell.toLowerCase().includes(q)));
+            const rawQ = searchQuery.toLowerCase().trim();
+            const cleanQ = rawQ.replace(/[\s\-_]+/g, ''); // stripped of spaces, dashes, underscores
+            const digitsOnlyQ = rawQ.replace(/\D/g, ''); // only numbers (for phone or vehicle digits)
+
+            result = result.filter(row => {
+                return row.some(cell => {
+                    if (!cell) return false;
+                    const cellLower = cell.toLowerCase().trim();
+                    // Direct substring match (Name, etc.)
+                    if (cellLower.includes(rawQ)) return true;
+
+                    // Cleaned (no spaces/dashes) match (great for vehicle numbers like "LK-7944" vs "LK 7944" or "LK7944")
+                    const cleanCell = cellLower.replace(/[\s\-_]+/g, '');
+                    if (cleanQ && cleanCell.includes(cleanQ)) return true;
+
+                    // Digits-only match (great for phone numbers like "+94 77 005 4958" vs "0770054958" or "770054958")
+                    if (digitsOnlyQ && digitsOnlyQ.length >= 3) {
+                        const cellDigits = cell.replace(/\D/g, '');
+                        if (cellDigits.includes(digitsOnlyQ)) return true;
+                    }
+
+                    return false;
+                });
+            });
         }
 
         // 2.5. Status Filter (multi-selectable)
@@ -521,6 +591,24 @@ export default function InquiryViewPage() {
             const allowedSet = new Set(selectedStatuses.map(s => s.toLowerCase().trim()));
             result = result.filter(row => {
                 const cellVal = (row[statusColIdx] || '').toLowerCase().trim();
+                return allowedSet.has(cellVal);
+            });
+        }
+
+        // 2.6. Vehicle Category Filter (multi-selectable)
+        if (selectedVehicleCategories.length > 0 && vehicleCategoryColIdx !== -1) {
+            const allowedSet = new Set(selectedVehicleCategories.map(c => c.toLowerCase().trim()));
+            result = result.filter(row => {
+                const cellVal = (row[vehicleCategoryColIdx] || '').toLowerCase().trim();
+                return allowedSet.has(cellVal);
+            });
+        }
+
+        // 2.7. Vehicle Type Filter (multi-selectable)
+        if (selectedVehicleTypes.length > 0 && vehicleTypeColIdx !== -1) {
+            const allowedSet = new Set(selectedVehicleTypes.map(t => t.toLowerCase().trim()));
+            result = result.filter(row => {
+                const cellVal = (row[vehicleTypeColIdx] || '').toLowerCase().trim();
                 return allowedSet.has(cellVal);
             });
         }
@@ -547,7 +635,7 @@ export default function InquiryViewPage() {
         }
 
         return result;
-    }, [rows, headers, searchQuery, selectedStatuses, statusColIdx, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
+    }, [rows, headers, searchQuery, selectedStatuses, statusColIdx, selectedVehicleCategories, vehicleCategoryColIdx, selectedVehicleTypes, vehicleTypeColIdx, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
 
     // Paginated rows
     const paginatedRows = useMemo(() => {
@@ -934,11 +1022,11 @@ export default function InquiryViewPage() {
                             gap: 2,
                         }}
                     >
-                        {/* Search Input & Status Filter */}
+                        {/* Search Input & Filter Group */}
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', flex: 1 }}>
                             <TextField
                                 size="small"
-                                placeholder="Search across all CSV columns and rows..."
+                                placeholder="Search by Name, Phone Number, Vehicle Number, etc..."
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);
@@ -960,7 +1048,7 @@ export default function InquiryViewPage() {
                                     ) : null,
                                 }}
                                 sx={{
-                                    minWidth: { xs: '100%', sm: 260, md: 300 },
+                                    minWidth: { xs: '100%', sm: 260, md: 280 },
                                     flex: { xs: '1 1 100%', sm: '1 1 260px' },
                                     '& .MuiOutlinedInput-root': {
                                         borderRadius: '10px',
@@ -973,8 +1061,8 @@ export default function InquiryViewPage() {
                                 <FormControl
                                     size="small"
                                     sx={{
-                                        minWidth: { xs: '100%', sm: 180, md: 200 },
-                                        flex: { xs: '1 1 100%', sm: '0 1 200px' },
+                                        minWidth: { xs: '100%', sm: 140, md: 160 },
+                                        flex: { xs: '1 1 100%', sm: '0 1 160px' },
                                     }}
                                 >
                                     <InputLabel id="inq-status-multi-label" sx={{ fontSize: '0.825rem' }}>
@@ -1026,6 +1114,124 @@ export default function InquiryViewPage() {
                                             <MenuItem key={status} value={status} sx={{ fontSize: '0.825rem', py: 0.5 }}>
                                                 <Checkbox size="small" checked={selectedStatuses.indexOf(status) > -1} sx={{ p: 0.5, mr: 0.5 }} />
                                                 <ListItemText primary={status} primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            )}
+
+                            {/* Multi-Select Vehicle Category Filter */}
+                            {vehicleCategoryColIdx !== -1 && availableVehicleCategories.length > 0 && (
+                                <FormControl
+                                    size="small"
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 160, md: 180 },
+                                        flex: { xs: '1 1 100%', sm: '0 1 180px' },
+                                    }}
+                                >
+                                    <InputLabel id="inq-veh-category-label" sx={{ fontSize: '0.825rem' }}>
+                                        Vehicle Category
+                                    </InputLabel>
+                                    <Select
+                                        labelId="inq-veh-category-label"
+                                        id="inq-veh-category-select"
+                                        multiple
+                                        value={selectedVehicleCategories}
+                                        onChange={(e) => {
+                                            const val = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                                            setSelectedVehicleCategories(val as string[]);
+                                            setPage(0);
+                                        }}
+                                        input={<OutlinedInput label="Vehicle Category" sx={{ borderRadius: '10px' }} />}
+                                        renderValue={(selected) => {
+                                            if (selected.length === 0) return 'All Categories';
+                                            if (selected.length <= 1) {
+                                                return (
+                                                    <Chip
+                                                        label={selected[0]}
+                                                        size="small"
+                                                        sx={{
+                                                            height: 20,
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: 600,
+                                                            bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(37, 99, 235, 0.25)',
+                                                            color: 'primary.main',
+                                                        }}
+                                                    />
+                                                );
+                                            }
+                                            return `${selected.length} categories`;
+                                        }}
+                                        disabled={headers.length === 0 || loadingFromDb}
+                                        sx={{
+                                            borderRadius: '10px',
+                                            fontSize: '0.825rem',
+                                            '& .MuiSelect-select': { py: '8.5px' },
+                                        }}
+                                    >
+                                        {availableVehicleCategories.map((cat) => (
+                                            <MenuItem key={cat} value={cat} sx={{ fontSize: '0.825rem', py: 0.5 }}>
+                                                <Checkbox size="small" checked={selectedVehicleCategories.indexOf(cat) > -1} sx={{ p: 0.5, mr: 0.5 }} />
+                                                <ListItemText primary={cat} primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            )}
+
+                            {/* Multi-Select Vehicle Type Filter */}
+                            {vehicleTypeColIdx !== -1 && availableVehicleTypes.length > 0 && (
+                                <FormControl
+                                    size="small"
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 160, md: 180 },
+                                        flex: { xs: '1 1 100%', sm: '0 1 180px' },
+                                    }}
+                                >
+                                    <InputLabel id="inq-veh-type-label" sx={{ fontSize: '0.825rem' }}>
+                                        Vehicle Type
+                                    </InputLabel>
+                                    <Select
+                                        labelId="inq-veh-type-label"
+                                        id="inq-veh-type-select"
+                                        multiple
+                                        value={selectedVehicleTypes}
+                                        onChange={(e) => {
+                                            const val = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                                            setSelectedVehicleTypes(val as string[]);
+                                            setPage(0);
+                                        }}
+                                        input={<OutlinedInput label="Vehicle Type" sx={{ borderRadius: '10px' }} />}
+                                        renderValue={(selected) => {
+                                            if (selected.length === 0) return 'All Types';
+                                            if (selected.length <= 1) {
+                                                return (
+                                                    <Chip
+                                                        label={selected[0]}
+                                                        size="small"
+                                                        sx={{
+                                                            height: 20,
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: 600,
+                                                            bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(37, 99, 235, 0.25)',
+                                                            color: 'primary.main',
+                                                        }}
+                                                    />
+                                                );
+                                            }
+                                            return `${selected.length} types`;
+                                        }}
+                                        disabled={headers.length === 0 || loadingFromDb}
+                                        sx={{
+                                            borderRadius: '10px',
+                                            fontSize: '0.825rem',
+                                            '& .MuiSelect-select': { py: '8.5px' },
+                                        }}
+                                    >
+                                        {availableVehicleTypes.map((type) => (
+                                            <MenuItem key={type} value={type} sx={{ fontSize: '0.825rem', py: 0.5 }}>
+                                                <Checkbox size="small" checked={selectedVehicleTypes.indexOf(type) > -1} sx={{ p: 0.5, mr: 0.5 }} />
+                                                <ListItemText primary={type} primaryTypographyProps={{ fontSize: '0.825rem' }} />
                                             </MenuItem>
                                         ))}
                                     </Select>
@@ -1199,6 +1405,34 @@ export default function InquiryViewPage() {
                                     />
                                 )}
 
+                                {selectedVehicleCategories.length > 0 && (
+                                    <Chip
+                                        label={`Category (${selectedVehicleCategories.length}): ${selectedVehicleCategories.join(', ')}`}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        onDelete={() => {
+                                            setSelectedVehicleCategories([]);
+                                            setPage(0);
+                                        }}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+
+                                {selectedVehicleTypes.length > 0 && (
+                                    <Chip
+                                        label={`Type (${selectedVehicleTypes.length}): ${selectedVehicleTypes.join(', ')}`}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        onDelete={() => {
+                                            setSelectedVehicleTypes([]);
+                                            setPage(0);
+                                        }}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+
                                 {sortColumnIndex !== null && (
                                     <Chip
                                         label={`Sorted: ${headers[sortColumnIndex]} (${sortDirection.toUpperCase()})`}
@@ -1209,7 +1443,7 @@ export default function InquiryViewPage() {
                                 )}
                             </Box>
 
-                            {(startDate || endDate || searchQuery || selectedStatuses.length > 0 || sortColumnIndex !== null) && (
+                            {(startDate || endDate || searchQuery || selectedStatuses.length > 0 || selectedVehicleCategories.length > 0 || selectedVehicleTypes.length > 0 || sortColumnIndex !== null) && (
                                 <Button
                                     size="small"
                                     onClick={() => {
@@ -1217,6 +1451,8 @@ export default function InquiryViewPage() {
                                         setEndDate('');
                                         setSearchQuery('');
                                         setSelectedStatuses([]);
+                                        setSelectedVehicleCategories([]);
+                                        setSelectedVehicleTypes([]);
                                         setSortColumnIndex(null);
                                         setPage(0);
                                     }}
@@ -1292,6 +1528,8 @@ export default function InquiryViewPage() {
                             onClick={() => {
                                 setSearchQuery('');
                                 setSelectedStatuses([]);
+                                setSelectedVehicleCategories([]);
+                                setSelectedVehicleTypes([]);
                                 setStartDate('');
                                 setEndDate('');
                                 setPage(0);
