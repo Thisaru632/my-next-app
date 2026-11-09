@@ -106,13 +106,13 @@ const parseHoursToMinutes = (str: string | number | undefined | null): number =>
     const cleanStr = raw.replace(/^[+-]/, '');
 
     let totalMins = 0;
-    const hMatch = cleanStr.match(/(\d+)\s*h/i);
-    const mMatch = cleanStr.match(/(\d+)\s*m/i);
-    const hrsMatch = cleanStr.match(/(\d+)\s*hrs/i);
+    const hoursMatch = cleanStr.match(/(\d+)\s*h/i);
+    const minutesMatch = cleanStr.match(/(\d+)\s*m/i);
+    const hrsOnlyMatch = cleanStr.match(/(\d+)\s*hrs/i);
 
-    if (hMatch) totalMins += parseInt(hMatch[1], 10) * 60;
-    if (mMatch) totalMins += parseInt(mMatch[1], 10);
-    if (!hMatch && !mMatch && hrsMatch) totalMins += parseInt(hrsMatch[1], 10) * 60;
+    if (hoursMatch) totalMins += parseInt(hoursMatch[1], 10) * 60;
+    if (minutesMatch) totalMins += parseInt(minutesMatch[1], 10);
+    if (!hoursMatch && !minutesMatch && hrsOnlyMatch) totalMins += parseInt(hrsOnlyMatch[1], 10) * 60;
 
     return isNegative ? -totalMins : totalMins;
 };
