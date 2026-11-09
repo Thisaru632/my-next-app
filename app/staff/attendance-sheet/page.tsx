@@ -127,9 +127,9 @@ export const formatMinutesToHHMM = (totalMinutes: number, showSign: boolean = fa
     const mStr = String(m).padStart(2, '0');
     const timeStr = `${hStr}:${mStr}`;
     if (showSign) {
-        return isNeg ? `-${timeStr}` : `+${timeStr}`;
+        return isNeg ? ` -${timeStr}` : `+${timeStr}`;
     }
-    return isNeg ? `-${timeStr}` : timeStr;
+    return isNeg ? ` -${timeStr}` : timeStr;
 };
 
 export const formatMinutesToDecimalHours = (totalMinutes: number): string => {
@@ -2127,7 +2127,7 @@ export default function AttendanceSheetPage() {
             'Worked Hours (HH:MM)',
             'Extra Hours (HH:MM)',
             'Less Hours (HH:MM)',
-            'Actual OT or Loss Hours (Decimal)'
+            'Actual OT or Loss Hours (HH:MM)'
         ];
 
         let totalDaysPresentSum = 0;
@@ -2167,7 +2167,7 @@ export default function AttendanceSheetPage() {
                 `"${formatMinutesToHHMM(workedMins)}"`,
                 `"${formatMinutesToHHMM(extraMins)}"`,
                 `"${formatMinutesToHHMM(lessMins)}"`,
-                `"${formatMinutesToDecimalHours(netMins)}"`
+                `"${formatMinutesToHHMM(netMins)}"`
             ].join(',');
         });
 
@@ -2182,7 +2182,7 @@ export default function AttendanceSheetPage() {
             `"${formatMinutesToHHMM(totalWorkedMinutesSum)}"`,
             `"${formatMinutesToHHMM(totalExtraMinutesSum)}"`,
             `"${formatMinutesToHHMM(totalLessMinutesSum)}"`,
-            `"${formatMinutesToDecimalHours(totalNetMinutesSum)}"`
+            `"${formatMinutesToHHMM(totalNetMinutesSum)}"`
         ].join(',');
 
         const csvContent = [headers.join(','), ...rows, summaryRow].join('\n');
@@ -2214,27 +2214,96 @@ export default function AttendanceSheetPage() {
             'Notes'
         ];
 
+        // 1. Group records by unique date to ensure exactly 1 row per date
+        const dateMap = new Map<string, AttendanceRecord[]>();
+        userLogs.forEach(log => {
+            const dateKey = (log.clockInDate && log.clockInDate !== '-' ? log.clockInDate : log.date || '').trim();
+            if (!dateKey) return;
+            const list = dateMap.get(dateKey) || [];
+            list.push(log);
+            dateMap.set(dateKey, list);
+        });
+
+        // 2. Sort dates in descending order (latest date first, matching table view)
+        const dateKeys = Array.from(dateMap.keys()).sort((a, b) => b.localeCompare(a));
+
         let totalWorkedMins = 0;
         let totalExtraMins = 0;
         let totalLessMins = 0;
 
-        const rows = userLogs.map(log => {
-            const rowHours = getDailyRowHours(log, userLogsStatsMap);
-            const inDate = log.clockInDate || log.date || '-';
-            const inTime = log.clockInTime || '-';
-            const outDate = log.clockOutDate || (log.status === 'Clocked Out' ? (log.date || '-') : '-');
-            const outTime = log.clockOutTime || '-';
-            const loc = (log.clockInLocation || log.clockOutLocation || '-').replace(/"/g, '""');
+        const rows = dateKeys.map(dateKey => {
+            const sessions = dateMap.get(dateKey) || [];
 
-            const rawWorkedMins = typeof rowHours.totalDayMins === 'number' ? rowHours.totalDayMins : parseHoursToMinutes(rowHours.dayTotalHrs);
-            const rawExtraMins = parseHoursToMinutes(rowHours.otHours);
-            const rawLessMins = parseHoursToMinutes(rowHours.lessHours);
+            // Sort sessions chronologically (earliest clock-in first)
+            sessions.sort((a, b) => {
+                const timeA = time12To24(a.clockInTime);
+                const timeB = time12To24(b.clockInTime);
+                return timeA.localeCompare(timeB);
+            });
 
-            totalWorkedMins += rawWorkedMins;
-            totalExtraMins += rawExtraMins;
-            totalLessMins += rawLessMins;
+            const firstSession = sessions[0];
+            const lastSession = sessions[sessions.length - 1];
 
-            const notes = rowHours.isMultiSession ? `Session: ${rowHours.sessionHrs}` : '';
+            const inDate = firstSession.clockInDate || firstSession.date || dateKey;
+            const inTime = firstSession.clockInTime || '-';
+            const outDate = lastSession.clockOutDate || (lastSession.status === 'Clocked Out' ? (lastSession.date || dateKey) : '-');
+            const outTime = lastSession.clockOutTime || '-';
+
+            // Collect unique locations across sessions
+            const uniqueLocations = Array.from(new Set(
+                sessions
+                    .map(s => s.clockInLocation || s.clockOutLocation || '')
+                    .filter(loc => loc && loc !== '-')
+            ));
+            const loc = (uniqueLocations.length > 0 ? uniqueLocations.join(' | ') : (firstSession.clockInLocation || firstSession.clockOutLocation || '-')).replace(/"/g, '""');
+
+            // Overall status for the day: active if any session is clocked in / active
+            const hasActiveSession = sessions.some(s => s.status === 'Clocked In' || s.clockOutTime === 'Active Session' || (!s.clockOutTime && s.clockInTime && s.clockInTime !== '-'));
+            const status = hasActiveSession ? 'Clocked In' : (sessions.some(s => s.status === 'Leave') ? 'Leave' : (sessions.some(s => s.status === 'Clocked Out') ? 'Clocked Out' : (firstSession.status || '')));
+
+            // Calculate day total minutes and OT/Less hours
+            const userKey = (firstSession.eNo && firstSession.eNo !== 'N/A' && !firstSession.eNo.includes('@') ? firstSession.eNo : firstSession.email || firstSession.name || '').toLowerCase().trim();
+            const mapKey = `${userKey}_${dateKey}`;
+            const userStat = userLogsStatsMap.get(mapKey);
+
+            let dayMins = 0;
+            if (userStat && typeof userStat.totalMinutes === 'number' && userStat.totalMinutes > 0) {
+                dayMins = userStat.totalMinutes;
+            } else {
+                sessions.forEach(s => {
+                    dayMins += getSessionMinutes(s.clockInTime, s.clockOutTime, s.clockInDate || s.date, s.clockOutDate);
+                });
+            }
+
+            let extraMins = 0;
+            let lessMins = 0;
+
+            if (dayMins >= 540) {
+                extraMins = dayMins - 540;
+                lessMins = 0;
+            } else if (hasActiveSession) {
+                extraMins = 0;
+                lessMins = 0;
+            } else if (dayMins > 0) {
+                extraMins = 0;
+                lessMins = 540 - dayMins;
+            } else {
+                extraMins = 0;
+                lessMins = 540; // 9 hours
+            }
+
+            totalWorkedMins += dayMins;
+            totalExtraMins += extraMins;
+            totalLessMins += lessMins;
+
+            let notes = '';
+            if (sessions.length > 1) {
+                const sessionBreakdowns = sessions.map((s, idx) => {
+                    const dur = calculateHourCount(s.clockInTime, s.clockOutTime, s.clockInDate || s.date, s.clockOutDate);
+                    return `S${idx + 1}: ${s.clockInTime || '-'} to ${s.clockOutTime || '-'} (${dur})`;
+                }).join(' | ');
+                notes = `${sessions.length} Sessions (${sessionBreakdowns})`;
+            }
 
             return [
                 `"${inDate}"`,
@@ -2242,16 +2311,16 @@ export default function AttendanceSheetPage() {
                 `"${outDate}"`,
                 `"${outTime}"`,
                 `"${loc}"`,
-                `"${formatMinutesToHHMM(rawWorkedMins)}"`,
-                `"${formatMinutesToHHMM(rawExtraMins)}"`,
-                `"${formatMinutesToHHMM(rawLessMins)}"`,
-                `"${log.status || ''}"`,
+                `"${formatMinutesToHHMM(dayMins)}"`,
+                `"${formatMinutesToHHMM(extraMins)}"`,
+                `"${formatMinutesToHHMM(lessMins)}"`,
+                `"${status}"`,
                 `"${notes.replace(/"/g, '""')}"`
             ].join(',');
         });
 
         const totalRow = [
-            `"Total (${modalSummary.daysPresent} days present / ${userLogs.length} records)"`,
+            `"Total (${dateKeys.length} days present / ${userLogs.length} records)"`,
             '""',
             '""',
             '""',
