@@ -27,6 +27,9 @@ import {
     MenuItem,
     FormControl,
     InputLabel,
+    Checkbox,
+    ListItemText,
+    OutlinedInput,
 } from '@mui/material';
 import {
     ContactSupport as ContactSupportIcon,
@@ -229,6 +232,9 @@ export default function InquiryViewPage() {
 
     // Filter and Pagination state
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+    const [selectedVehicleCategories, setSelectedVehicleCategories] = useState<string[]>([]);
+    const [selectedVehicleTypes, setSelectedVehicleTypes] = useState<string[]>([]);
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [selectedDateColIdx, setSelectedDateColIdx] = useState<number | 'auto'>('auto');
@@ -298,6 +304,9 @@ export default function InquiryViewPage() {
             setFileName(fileTitle);
             setPage(0);
             setSortColumnIndex(null);
+            setSelectedStatuses([]);
+            setSelectedVehicleCategories([]);
+            setSelectedVehicleTypes([]);
             setStartDate('');
             setEndDate('');
             setSelectedDateColIdx('auto');
@@ -388,6 +397,9 @@ export default function InquiryViewPage() {
         setFileName('');
         setParseError(null);
         setSearchQuery('');
+        setSelectedStatuses([]);
+        setSelectedVehicleCategories([]);
+        setSelectedVehicleTypes([]);
         setStartDate('');
         setEndDate('');
         setSelectedDateColIdx('auto');
@@ -451,7 +463,75 @@ export default function InquiryViewPage() {
         return null;
     }, [selectedDateColIdx, dateColumnOptions, headers]);
 
-    // Filter and sort rows (Search + Date Range + Sort)
+    // Find status column index (e.g., 'Approved', 'Status', 'Inquiry Status', 'Driver Status', 'State', etc.)
+    const statusColIdx = useMemo(() => {
+        const exactIdx = headers.findIndex(h => {
+            const lower = (h || '').toLowerCase().trim();
+            return lower === 'status' || lower === 'approved' || lower === 'approval status' || lower === 'state' || lower === 'inquiry status' || lower === 'driver status';
+        });
+        if (exactIdx !== -1) return exactIdx;
+        return headers.findIndex(h => {
+            const lower = (h || '').toLowerCase().trim();
+            return lower.includes('status') || lower.includes('approved') || lower.includes('approval');
+        });
+    }, [headers]);
+
+    // Unique status options from records
+    const availableStatuses = useMemo(() => {
+        if (statusColIdx === -1 || rows.length === 0) return [];
+        const statusMap = new Map<string, string>();
+        rows.forEach(r => {
+            const val = (r[statusColIdx] || '').trim();
+            if (val && !statusMap.has(val.toLowerCase())) {
+                statusMap.set(val.toLowerCase(), val);
+            }
+        });
+        return Array.from(statusMap.values()).sort((a, b) => a.localeCompare(b));
+    }, [rows, statusColIdx]);
+
+    // Find vehicle category column index (e.g. 'Vehicle Category', 'Category', etc.)
+    const vehicleCategoryColIdx = useMemo(() => {
+        return headers.findIndex(h => {
+            const lower = (h || '').toLowerCase().trim();
+            return lower === 'vehicle category' || lower === 'vehiclecategory' || lower === 'category' || lower.includes('category');
+        });
+    }, [headers]);
+
+    // Unique vehicle category options from records
+    const availableVehicleCategories = useMemo(() => {
+        if (vehicleCategoryColIdx === -1 || rows.length === 0) return [];
+        const catMap = new Map<string, string>();
+        rows.forEach(r => {
+            const val = (r[vehicleCategoryColIdx] || '').trim();
+            if (val && val !== '-' && !catMap.has(val.toLowerCase())) {
+                catMap.set(val.toLowerCase(), val);
+            }
+        });
+        return Array.from(catMap.values()).sort((a, b) => a.localeCompare(b));
+    }, [rows, vehicleCategoryColIdx]);
+
+    // Find vehicle type column index (e.g. 'Vehicle Type', 'Type', etc.)
+    const vehicleTypeColIdx = useMemo(() => {
+        return headers.findIndex(h => {
+            const lower = (h || '').toLowerCase().trim();
+            return lower === 'vehicle type' || lower === 'vehicletype' || (lower.includes('vehicle') && lower.includes('type')) || (lower.includes('type') && !lower.includes('timestamp'));
+        });
+    }, [headers]);
+
+    // Unique vehicle type options from records
+    const availableVehicleTypes = useMemo(() => {
+        if (vehicleTypeColIdx === -1 || rows.length === 0) return [];
+        const typeMap = new Map<string, string>();
+        rows.forEach(r => {
+            const val = (r[vehicleTypeColIdx] || '').trim();
+            if (val && val !== '-' && !typeMap.has(val.toLowerCase())) {
+                typeMap.set(val.toLowerCase(), val);
+            }
+        });
+        return Array.from(typeMap.values()).sort((a, b) => a.localeCompare(b));
+    }, [rows, vehicleTypeColIdx]);
+
+    // Filter and sort rows (Search + Date Range + Status + Vehicle Category + Vehicle Type + Sort)
     const filteredRows = useMemo(() => {
         let result = rows;
 
@@ -478,10 +558,59 @@ export default function InquiryViewPage() {
             });
         }
 
-        // 2. Search filtering across all cells
+        // 2. Search filtering across all cells (Name, Phone Number, Vehicle Number, etc.)
         if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase().trim();
-            result = result.filter(row => row.some(cell => cell.toLowerCase().includes(q)));
+            const rawQ = searchQuery.toLowerCase().trim();
+            const cleanQ = rawQ.replace(/[\s\-_]+/g, ''); // stripped of spaces, dashes, underscores
+            const digitsOnlyQ = rawQ.replace(/\D/g, ''); // only numbers (for phone or vehicle digits)
+
+            result = result.filter(row => {
+                return row.some(cell => {
+                    if (!cell) return false;
+                    const cellLower = cell.toLowerCase().trim();
+                    // Direct substring match (Name, etc.)
+                    if (cellLower.includes(rawQ)) return true;
+
+                    // Cleaned (no spaces/dashes) match (great for vehicle numbers like "LK-7944" vs "LK 7944" or "LK7944")
+                    const cleanCell = cellLower.replace(/[\s\-_]+/g, '');
+                    if (cleanQ && cleanCell.includes(cleanQ)) return true;
+
+                    // Digits-only match (great for phone numbers like "+94 77 005 4958" vs "0770054958" or "770054958")
+                    if (digitsOnlyQ && digitsOnlyQ.length >= 3) {
+                        const cellDigits = cell.replace(/\D/g, '');
+                        if (cellDigits.includes(digitsOnlyQ)) return true;
+                    }
+
+                    return false;
+                });
+            });
+        }
+
+        // 2.5. Status Filter (multi-selectable)
+        if (selectedStatuses.length > 0 && statusColIdx !== -1) {
+            const allowedSet = new Set(selectedStatuses.map(s => s.toLowerCase().trim()));
+            result = result.filter(row => {
+                const cellVal = (row[statusColIdx] || '').toLowerCase().trim();
+                return allowedSet.has(cellVal);
+            });
+        }
+
+        // 2.6. Vehicle Category Filter (multi-selectable)
+        if (selectedVehicleCategories.length > 0 && vehicleCategoryColIdx !== -1) {
+            const allowedSet = new Set(selectedVehicleCategories.map(c => c.toLowerCase().trim()));
+            result = result.filter(row => {
+                const cellVal = (row[vehicleCategoryColIdx] || '').toLowerCase().trim();
+                return allowedSet.has(cellVal);
+            });
+        }
+
+        // 2.7. Vehicle Type Filter (multi-selectable)
+        if (selectedVehicleTypes.length > 0 && vehicleTypeColIdx !== -1) {
+            const allowedSet = new Set(selectedVehicleTypes.map(t => t.toLowerCase().trim()));
+            result = result.filter(row => {
+                const cellVal = (row[vehicleTypeColIdx] || '').toLowerCase().trim();
+                return allowedSet.has(cellVal);
+            });
         }
 
         // 3. Column Sorting
@@ -506,7 +635,7 @@ export default function InquiryViewPage() {
         }
 
         return result;
-    }, [rows, headers, searchQuery, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
+    }, [rows, headers, searchQuery, selectedStatuses, statusColIdx, selectedVehicleCategories, vehicleCategoryColIdx, selectedVehicleTypes, vehicleTypeColIdx, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
 
     // Paginated rows
     const paginatedRows = useMemo(() => {
@@ -533,109 +662,129 @@ export default function InquiryViewPage() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', fileName ? `export_${fileName}` : 'inquiry_view_data.csv');
+        link.setAttribute('download', fileName ? `export_${fileName}` : 'driver_database_data.csv');
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
     };
 
+    // Truncate to maximum 4 words
+    const formatFourWords = (val: string) => {
+        if (!val || typeof val !== 'string') return { text: '-', isTruncated: false };
+        const trimmed = val.trim();
+        if (!trimmed) return { text: '-', isTruncated: false };
+
+        const words = trimmed.split(/\s+/);
+        if (words.length <= 4) {
+            return { text: trimmed, isTruncated: false };
+        }
+        return {
+            text: `${words.slice(0, 4).join(' ')}...`,
+            isTruncated: true
+        };
+    };
+
     // Helper to render status badges if column contains status-like text
     const renderCellContent = (value: string, headerName: string) => {
         const lowerHeader = headerName.toLowerCase();
-        const lowerVal = value.toLowerCase().trim();
+        const lowerVal = (value || '').toLowerCase().trim();
 
         if (lowerHeader.includes('status') || lowerHeader === 'state') {
+            let chipColor = null;
             if (lowerVal === 'confirmed' || lowerVal === 'completed' || lowerVal === 'success') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#dcfce7',
-                            color: '#15803d',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #bbf7d0',
-                        }}
-                    />
-                );
+                chipColor = { bgcolor: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' };
+            } else if (lowerVal === 'sent inquiry' || lowerVal === 'quoted' || lowerVal === 'follow up') {
+                chipColor = { bgcolor: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe' };
+            } else if (lowerVal === 'pending' || lowerVal === 'new' || lowerVal === 'open' || lowerVal === 'processing') {
+                chipColor = { bgcolor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' };
+            } else if (lowerVal === 'cancelled' || lowerVal === 'failed' || lowerVal === 'rejected') {
+                chipColor = { bgcolor: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca' };
+            } else if (lowerVal === 'in progress' || lowerVal === 'contacted') {
+                chipColor = { bgcolor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' };
             }
-            if (lowerVal === 'sent inquiry' || lowerVal === 'quoted' || lowerVal === 'follow up') {
+
+            if (chipColor) {
                 return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#f5f3ff',
-                            color: '#6d28d9',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #ddd6fe',
-                        }}
-                    />
-                );
-            }
-            if (lowerVal === 'pending' || lowerVal === 'new' || lowerVal === 'open' || lowerVal === 'processing') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#fef3c7',
-                            color: '#b45309',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #fde68a',
-                        }}
-                    />
-                );
-            }
-            if (lowerVal === 'cancelled' || lowerVal === 'failed' || lowerVal === 'rejected') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#fee2e2',
-                            color: '#b91c1c',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #fecaca',
-                        }}
-                    />
-                );
-            }
-            if (lowerVal === 'in progress' || lowerVal === 'contacted') {
-                return (
-                    <Chip
-                        label={value}
-                        size="small"
-                        sx={{
-                            bgcolor: '#eff6ff',
-                            color: '#1d4ed8',
-                            fontWeight: 700,
-                            fontSize: '0.75rem',
-                            border: '1px solid #bfdbfe',
-                        }}
-                    />
+                    <Tooltip title={value} arrow placement="top" enterDelay={100}>
+                        <Chip
+                            label={value}
+                            size="small"
+                            sx={{
+                                fontWeight: 700,
+                                fontSize: '0.72rem',
+                                height: 22,
+                                '& .MuiChip-label': { px: 0.75, py: 0 },
+                                ...chipColor,
+                            }}
+                        />
+                    </Tooltip>
                 );
             }
         }
 
+        const { text: fourWordText } = formatFourWords(value);
+
+        if (!value || !value.trim()) {
+            return (
+                <Typography variant="body2" sx={{ fontSize: '0.78rem', color: 'text.disabled' }}>
+                    -
+                </Typography>
+            );
+        }
+
         return (
-            <Typography variant="body2" sx={{ fontSize: '0.84rem', color: 'text.primary', wordBreak: 'break-word' }}>
-                {value || '-'}
-            </Typography>
+            <Tooltip
+                title={value}
+                arrow
+                placement="top"
+                enterDelay={100}
+                componentsProps={{
+                    tooltip: {
+                        sx: {
+                            bgcolor: mode === 'light' ? '#0f172a' : '#1e293b',
+                            color: '#ffffff',
+                            boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            py: 0.75,
+                            px: 1.25,
+                            borderRadius: '8px',
+                            maxWidth: 420,
+                            wordBreak: 'break-word',
+                        }
+                    },
+                    arrow: {
+                        sx: {
+                            color: mode === 'light' ? '#0f172a' : '#1e293b',
+                        }
+                    }
+                }}
+            >
+                <Typography
+                    variant="body2"
+                    sx={{
+                        fontSize: '0.78rem',
+                        color: 'text.primary',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        cursor: 'default',
+                        lineHeight: 1.2,
+                    }}
+                >
+                    {fourWordText}
+                </Typography>
+            </Tooltip>
         );
     };
 
     return (
-        <Box sx={{ pb: 6 }}>
+        <Box sx={{ pb: 1 }}>
             {/* Header Title Section */}
             <Box
                 sx={{
-                    mb: 3,
+                    mb: 1.5,
                     display: 'flex',
                     flexDirection: { xs: 'column', md: 'row' },
                     alignItems: { xs: 'flex-start', md: 'center' },
@@ -662,10 +811,10 @@ export default function InquiryViewPage() {
                         </Box>
                         <Box>
                             <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em' }}>
-                                Inquiry View
+                                Driver Database
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
-                                Upload and inspect customer inquiry CSV manifests with database persistence and real-time tabular analysis
+                                Upload and inspect driver database CSV manifests with database persistence and real-time tabular analysis
                             </Typography>
                         </Box>
                     </Box>
@@ -846,6 +995,10 @@ export default function InquiryViewPage() {
                     borderColor: 'divider',
                     bgcolor: 'background.paper',
                     overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: { xs: 'auto', md: 'calc(100vh - 175px)' },
+                    minHeight: 560,
                 }}
             >
                 {/* Search & Filter Toolbar */}
@@ -869,37 +1022,222 @@ export default function InquiryViewPage() {
                             gap: 2,
                         }}
                     >
-                        {/* Search Input */}
-                        <TextField
-                            size="small"
-                            placeholder="Search across all CSV columns and rows..."
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value);
-                                setPage(0);
-                            }}
-                            disabled={headers.length === 0 || loadingFromDb}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                                    </InputAdornment>
-                                ),
-                                endAdornment: searchQuery ? (
-                                    <InputAdornment position="end">
-                                        <IconButton size="small" onClick={() => setSearchQuery('')}>
-                                            <ClearIcon sx={{ fontSize: 18 }} />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ) : null,
-                            }}
-                            sx={{
-                                minWidth: { xs: '100%', sm: 280, md: 320 },
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: '10px',
-                                }
-                            }}
-                        />
+                        {/* Search Input & Filter Group */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', flex: 1 }}>
+                            <TextField
+                                size="small"
+                                placeholder="Search by Name, Phone Number, Vehicle Number, etc..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setPage(0);
+                                }}
+                                disabled={headers.length === 0 || loadingFromDb}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: searchQuery ? (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => setSearchQuery('')}>
+                                                <ClearIcon sx={{ fontSize: 18 }} />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ) : null,
+                                }}
+                                sx={{
+                                    minWidth: { xs: '100%', sm: 260, md: 280 },
+                                    flex: { xs: '1 1 100%', sm: '1 1 260px' },
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: '10px',
+                                    }
+                                }}
+                            />
+
+                            {/* Multi-Select Status Filter */}
+                            {statusColIdx !== -1 && availableStatuses.length > 0 && (
+                                <FormControl
+                                    size="small"
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 140, md: 160 },
+                                        flex: { xs: '1 1 100%', sm: '0 1 160px' },
+                                    }}
+                                >
+                                    <InputLabel id="inq-status-multi-label" sx={{ fontSize: '0.825rem' }}>
+                                        Status
+                                    </InputLabel>
+                                    <Select
+                                        labelId="inq-status-multi-label"
+                                        id="inq-status-multi-select"
+                                        multiple
+                                        value={selectedStatuses}
+                                        onChange={(e) => {
+                                            const val = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                                            setSelectedStatuses(val as string[]);
+                                            setPage(0);
+                                        }}
+                                        input={<OutlinedInput label="Status" sx={{ borderRadius: '10px' }} />}
+                                        renderValue={(selected) => {
+                                            if (selected.length === 0) return 'All Statuses';
+                                            if (selected.length <= 2) {
+                                                return (
+                                                    <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 0.5, overflow: 'hidden' }}>
+                                                        {selected.map((val) => (
+                                                            <Chip
+                                                                key={val}
+                                                                label={val}
+                                                                size="small"
+                                                                sx={{
+                                                                    height: 20,
+                                                                    fontSize: '0.7rem',
+                                                                    fontWeight: 600,
+                                                                    bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(37, 99, 235, 0.25)',
+                                                                    color: 'primary.main',
+                                                                }}
+                                                            />
+                                                        ))}
+                                                    </Box>
+                                                );
+                                            }
+                                            return `${selected.length} statuses selected`;
+                                        }}
+                                        disabled={headers.length === 0 || loadingFromDb}
+                                        sx={{
+                                            borderRadius: '10px',
+                                            fontSize: '0.825rem',
+                                            '& .MuiSelect-select': { py: '8.5px' },
+                                        }}
+                                    >
+                                        {availableStatuses.map((status) => (
+                                            <MenuItem key={status} value={status} sx={{ fontSize: '0.825rem', py: 0.5 }}>
+                                                <Checkbox size="small" checked={selectedStatuses.indexOf(status) > -1} sx={{ p: 0.5, mr: 0.5 }} />
+                                                <ListItemText primary={status} primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            )}
+
+                            {/* Multi-Select Vehicle Category Filter */}
+                            {vehicleCategoryColIdx !== -1 && availableVehicleCategories.length > 0 && (
+                                <FormControl
+                                    size="small"
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 160, md: 180 },
+                                        flex: { xs: '1 1 100%', sm: '0 1 180px' },
+                                    }}
+                                >
+                                    <InputLabel id="inq-veh-category-label" sx={{ fontSize: '0.825rem' }}>
+                                        Vehicle Category
+                                    </InputLabel>
+                                    <Select
+                                        labelId="inq-veh-category-label"
+                                        id="inq-veh-category-select"
+                                        multiple
+                                        value={selectedVehicleCategories}
+                                        onChange={(e) => {
+                                            const val = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                                            setSelectedVehicleCategories(val as string[]);
+                                            setPage(0);
+                                        }}
+                                        input={<OutlinedInput label="Vehicle Category" sx={{ borderRadius: '10px' }} />}
+                                        renderValue={(selected) => {
+                                            if (selected.length === 0) return 'All Categories';
+                                            if (selected.length <= 1) {
+                                                return (
+                                                    <Chip
+                                                        label={selected[0]}
+                                                        size="small"
+                                                        sx={{
+                                                            height: 20,
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: 600,
+                                                            bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(37, 99, 235, 0.25)',
+                                                            color: 'primary.main',
+                                                        }}
+                                                    />
+                                                );
+                                            }
+                                            return `${selected.length} categories`;
+                                        }}
+                                        disabled={headers.length === 0 || loadingFromDb}
+                                        sx={{
+                                            borderRadius: '10px',
+                                            fontSize: '0.825rem',
+                                            '& .MuiSelect-select': { py: '8.5px' },
+                                        }}
+                                    >
+                                        {availableVehicleCategories.map((cat) => (
+                                            <MenuItem key={cat} value={cat} sx={{ fontSize: '0.825rem', py: 0.5 }}>
+                                                <Checkbox size="small" checked={selectedVehicleCategories.indexOf(cat) > -1} sx={{ p: 0.5, mr: 0.5 }} />
+                                                <ListItemText primary={cat} primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            )}
+
+                            {/* Multi-Select Vehicle Type Filter */}
+                            {vehicleTypeColIdx !== -1 && availableVehicleTypes.length > 0 && (
+                                <FormControl
+                                    size="small"
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 160, md: 180 },
+                                        flex: { xs: '1 1 100%', sm: '0 1 180px' },
+                                    }}
+                                >
+                                    <InputLabel id="inq-veh-type-label" sx={{ fontSize: '0.825rem' }}>
+                                        Vehicle Type
+                                    </InputLabel>
+                                    <Select
+                                        labelId="inq-veh-type-label"
+                                        id="inq-veh-type-select"
+                                        multiple
+                                        value={selectedVehicleTypes}
+                                        onChange={(e) => {
+                                            const val = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                                            setSelectedVehicleTypes(val as string[]);
+                                            setPage(0);
+                                        }}
+                                        input={<OutlinedInput label="Vehicle Type" sx={{ borderRadius: '10px' }} />}
+                                        renderValue={(selected) => {
+                                            if (selected.length === 0) return 'All Types';
+                                            if (selected.length <= 1) {
+                                                return (
+                                                    <Chip
+                                                        label={selected[0]}
+                                                        size="small"
+                                                        sx={{
+                                                            height: 20,
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: 600,
+                                                            bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(37, 99, 235, 0.25)',
+                                                            color: 'primary.main',
+                                                        }}
+                                                    />
+                                                );
+                                            }
+                                            return `${selected.length} types`;
+                                        }}
+                                        disabled={headers.length === 0 || loadingFromDb}
+                                        sx={{
+                                            borderRadius: '10px',
+                                            fontSize: '0.825rem',
+                                            '& .MuiSelect-select': { py: '8.5px' },
+                                        }}
+                                    >
+                                        {availableVehicleTypes.map((type) => (
+                                            <MenuItem key={type} value={type} sx={{ fontSize: '0.825rem', py: 0.5 }}>
+                                                <Checkbox size="small" checked={selectedVehicleTypes.indexOf(type) > -1} sx={{ p: 0.5, mr: 0.5 }} />
+                                                <ListItemText primary={type} primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            )}
+                        </Box>
 
                         {/* Date Range Filter Group */}
                         {headers.length > 0 && !loadingFromDb && (
@@ -1053,6 +1391,48 @@ export default function InquiryViewPage() {
                                     />
                                 )}
 
+                                {selectedStatuses.length > 0 && (
+                                    <Chip
+                                        label={`Status (${selectedStatuses.length}): ${selectedStatuses.join(', ')}`}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        onDelete={() => {
+                                            setSelectedStatuses([]);
+                                            setPage(0);
+                                        }}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+
+                                {selectedVehicleCategories.length > 0 && (
+                                    <Chip
+                                        label={`Category (${selectedVehicleCategories.length}): ${selectedVehicleCategories.join(', ')}`}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        onDelete={() => {
+                                            setSelectedVehicleCategories([]);
+                                            setPage(0);
+                                        }}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+
+                                {selectedVehicleTypes.length > 0 && (
+                                    <Chip
+                                        label={`Type (${selectedVehicleTypes.length}): ${selectedVehicleTypes.join(', ')}`}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        onDelete={() => {
+                                            setSelectedVehicleTypes([]);
+                                            setPage(0);
+                                        }}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+
                                 {sortColumnIndex !== null && (
                                     <Chip
                                         label={`Sorted: ${headers[sortColumnIndex]} (${sortDirection.toUpperCase()})`}
@@ -1063,13 +1443,16 @@ export default function InquiryViewPage() {
                                 )}
                             </Box>
 
-                            {(startDate || endDate || searchQuery || sortColumnIndex !== null) && (
+                            {(startDate || endDate || searchQuery || selectedStatuses.length > 0 || selectedVehicleCategories.length > 0 || selectedVehicleTypes.length > 0 || sortColumnIndex !== null) && (
                                 <Button
                                     size="small"
                                     onClick={() => {
                                         setStartDate('');
                                         setEndDate('');
                                         setSearchQuery('');
+                                        setSelectedStatuses([]);
+                                        setSelectedVehicleCategories([]);
+                                        setSelectedVehicleTypes([]);
                                         setSortColumnIndex(null);
                                         setPage(0);
                                     }}
@@ -1144,6 +1527,9 @@ export default function InquiryViewPage() {
                             variant="outlined"
                             onClick={() => {
                                 setSearchQuery('');
+                                setSelectedStatuses([]);
+                                setSelectedVehicleCategories([]);
+                                setSelectedVehicleTypes([]);
                                 setStartDate('');
                                 setEndDate('');
                                 setPage(0);
@@ -1155,21 +1541,25 @@ export default function InquiryViewPage() {
                     </Box>
                 ) : (
                     <>
-                        <TableContainer sx={{ maxHeight: 650, overflowX: 'auto' }}>
+                        <TableContainer sx={{ flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto' }}>
                             <Table stickyHeader size="small" sx={{ minWidth: 650 }}>
                                 <TableHead>
                                     <TableRow>
                                         {/* Row Index Header */}
                                         <TableCell
                                             sx={{
+                                                py: 0.6,
+                                                px: 0.75,
                                                 fontWeight: 700,
-                                                fontSize: '0.78rem',
+                                                fontSize: '0.75rem',
                                                 bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b',
                                                 color: 'text.secondary',
-                                                width: 50,
+                                                width: 44,
                                                 textAlign: 'center',
                                                 borderBottom: '2px solid',
                                                 borderColor: 'divider',
+                                                height: 36,
+                                                whiteSpace: 'nowrap',
                                             }}
                                         >
                                             #
@@ -1181,13 +1571,16 @@ export default function InquiryViewPage() {
                                                 key={colIdx}
                                                 sortDirection={sortColumnIndex === colIdx ? sortDirection : false}
                                                 sx={{
+                                                    py: 0.6,
+                                                    px: 1,
                                                     fontWeight: 700,
-                                                    fontSize: '0.8rem',
+                                                    fontSize: '0.78rem',
                                                     bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b',
                                                     color: 'text.primary',
                                                     whiteSpace: 'nowrap',
                                                     borderBottom: '2px solid',
                                                     borderColor: 'divider',
+                                                    height: 36,
                                                 }}
                                             >
                                                 <TableSortLabel
@@ -1217,6 +1610,8 @@ export default function InquiryViewPage() {
                                                 key={rowIdx}
                                                 hover
                                                 sx={{
+                                                    height: 34,
+                                                    maxHeight: 34,
                                                     '&:nth-of-type(even)': {
                                                         bgcolor: mode === 'light' ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.01)',
                                                     },
@@ -1229,12 +1624,16 @@ export default function InquiryViewPage() {
                                                 {/* Line number */}
                                                 <TableCell
                                                     sx={{
+                                                        py: 0.35,
+                                                        px: 0.75,
                                                         textAlign: 'center',
                                                         color: 'text.secondary',
-                                                        fontSize: '0.75rem',
+                                                        fontSize: '0.72rem',
                                                         fontWeight: 600,
                                                         borderBottom: '1px solid',
                                                         borderColor: 'divider',
+                                                        height: 34,
+                                                        whiteSpace: 'nowrap',
                                                     }}
                                                 >
                                                     {globalIndex}
@@ -1245,9 +1644,15 @@ export default function InquiryViewPage() {
                                                     <TableCell
                                                         key={colIdx}
                                                         sx={{
-                                                            py: 1.25,
+                                                            py: 0.35,
+                                                            px: 1,
                                                             borderBottom: '1px solid',
                                                             borderColor: 'divider',
+                                                            height: 34,
+                                                            whiteSpace: 'nowrap',
+                                                            maxWidth: 200,
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
                                                         }}
                                                     >
                                                         {renderCellContent(row[colIdx] || '', header)}

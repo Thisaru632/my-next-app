@@ -279,7 +279,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ onMenuClick, showMenuIcon }) => {
                                 transition: 'all 0.15s ease-in-out',
                             }}
                         >
-                            Inquiry View
+                            Driver Database
                         </Button>
                     </Box>
                 </Box>

@@ -2849,7 +2849,7 @@ export default function AttendanceSheetPage() {
                             </Box>
                         ) : (
                             <TableContainer sx={{ px: 1, overflowX: 'auto' }}>
-                                <Table sx={{ minWidth: 650 }}>
+                                <Table size="small" sx={{ minWidth: 650 }}>
                                     <TableHead>
                                         <TableRow>
                                             {((isSuperAdmin || isAdmin)
@@ -2860,13 +2860,15 @@ export default function AttendanceSheetPage() {
                                                     key={h}
                                                     align={h === 'Action' ? 'center' : 'left'}
                                                     sx={{
-                                                        color: '#475569',
+                                                        color: 'text.secondary',
                                                         fontWeight: 700,
-                                                        fontSize: '0.875rem',
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.05em',
+                                                        fontSize: '0.8rem',
+                                                        bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b',
+                                                        whiteSpace: 'nowrap',
+                                                        borderBottom: '2px solid',
                                                         borderColor: 'divider',
-                                                        py: 2,
+                                                        py: 1.25,
+                                                        px: 1.5,
                                                     }}
                                                 >
                                                     {h}
@@ -2877,7 +2879,7 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredDailyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={(isSuperAdmin || isAdmin) ? 12 : 11} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={(isSuperAdmin || isAdmin) ? 12 : 11} align="center" sx={{ color: '#94a3b8', py: 6, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                     No attendance records found.
                                                 </TableCell>
                                             </TableRow>
@@ -2885,21 +2887,24 @@ export default function AttendanceSheetPage() {
                                             filteredDailyRecords.map((row, idx) => (
                                                 <TableRow
                                                     key={`daily_row_${row.id}_${row.eNo}_${idx}`}
+                                                    hover
                                                     sx={{
                                                         backgroundColor: row.status === 'Leave'
                                                             ? (mode === 'light' ? 'rgba(254, 243, 199, 0.22)' : 'rgba(245, 158, 11, 0.06)')
                                                             : undefined,
-                                                        '&:hover': {
-                                                            backgroundColor: row.status === 'Leave'
-                                                                ? (mode === 'light' ? 'rgba(254, 243, 199, 0.42)' : 'rgba(245, 158, 11, 0.12)')
-                                                                : 'action.hover'
+                                                        '&:nth-of-type(even)': {
+                                                            bgcolor: row.status === 'Leave'
+                                                                ? (mode === 'light' ? 'rgba(254, 243, 199, 0.3)' : 'rgba(245, 158, 11, 0.08)')
+                                                                : (mode === 'light' ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.01)'),
                                                         },
-                                                        '& td': { borderColor: 'divider' },
-                                                        transition: 'background 0.15s',
+                                                        '&:hover': {
+                                                            bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.04) !important' : 'rgba(37, 99, 235, 0.1) !important',
+                                                        },
+                                                        transition: 'background-color 0.15s ease',
                                                     }}
                                                 >
                                                     {/* E NO */}
-                                                    <TableCell>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                         <Chip
                                                             label={row.eNo}
                                                             size="small"
@@ -2915,12 +2920,12 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Staff Member */}
-                                                    <TableCell sx={{ color: 'text.primary', fontSize: 14, fontWeight: 500 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: 'text.primary', fontSize: '0.825rem', fontWeight: 600 }}>
                                                         {row.name}
                                                     </TableCell>
 
                                                     {/* Clock In Date */}
-                                                    <TableCell sx={{ color: 'text.secondary', fontSize: 13, fontWeight: 500 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: 'text.secondary', fontSize: '0.8rem', fontWeight: 500 }}>
                                                         {row.sessions && row.sessions.length > 1 ? (
                                                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
                                                                 {row.sessions.map((s, sIdx) => (
@@ -2940,7 +2945,7 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Clock In */}
-                                                    <TableCell sx={{ color: '#10b981', fontWeight: 600, fontSize: 13 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: '#10b981', fontWeight: 600, fontSize: '0.8rem' }}>
                                                         {row.sessions && row.sessions.length > 1 ? (
                                                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
                                                                 {row.sessions.map((s, sIdx) => (
@@ -2960,7 +2965,7 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Clock Out Date */}
-                                                    <TableCell sx={{ color: 'text.secondary', fontSize: 13, fontWeight: 500 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: 'text.secondary', fontSize: '0.8rem', fontWeight: 500 }}>
                                                         {row.sessions && row.sessions.length > 1 ? (
                                                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
                                                                 {row.sessions.map((s, sIdx) => (
@@ -2980,7 +2985,7 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Clock Out */}
-                                                    <TableCell sx={{ fontSize: 13 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', fontSize: '0.8rem' }}>
                                                         {row.sessions && row.sessions.length > 1 ? (
                                                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
                                                                 {row.sessions.map((s, sIdx) => {
@@ -3006,7 +3011,7 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Location */}
-                                                    <TableCell sx={{ fontSize: 12, maxWidth: 260 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', fontSize: '0.75rem', maxWidth: 260 }}>
                                                         {row.sessions && row.sessions.length > 1 ? (
                                                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
                                                                 {row.sessions.map((s, sIdx) => (
@@ -3150,7 +3155,7 @@ export default function AttendanceSheetPage() {
                                                     const isZeroOrDash = rowHours.lessHours === '0 hrs' || rowHours.lessHours === '-' || rowHours.lessHours === 'Active Session';
                                                     return (
                                                         <>
-                                                            <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                            <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: 'text.primary', fontWeight: 600, fontSize: '0.8rem' }}>
                                                                 {rowHours.needsApproval ? (
                                                                     <Box>
                                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
@@ -3240,7 +3245,7 @@ export default function AttendanceSheetPage() {
                                                             </TableCell>
 
                                                             {/* OT Hours */}
-                                                            <TableCell sx={{ color: rowHours.needsApproval ? '#d97706' : 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                            <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: rowHours.needsApproval ? '#d97706' : 'text.primary', fontWeight: 600, fontSize: '0.8rem' }}>
                                                                 {rowHours.needsApproval ? (
                                                                     <Typography component="span" sx={{ fontSize: 12, fontWeight: 700, color: '#d97706' }}>
                                                                         Pending Approval
@@ -3251,7 +3256,7 @@ export default function AttendanceSheetPage() {
                                                             </TableCell>
 
                                                             {/* Less Hours */}
-                                                            <TableCell sx={{ color: rowHours.needsApproval ? 'text.secondary' : (!isZeroOrDash ? '#dc2626' : 'text.secondary'), fontWeight: 600, fontSize: 13 }}>
+                                                            <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: rowHours.needsApproval ? 'text.secondary' : (!isZeroOrDash ? '#dc2626' : 'text.secondary'), fontWeight: 600, fontSize: '0.8rem' }}>
                                                                 {rowHours.needsApproval ? '-' : rowHours.lessHours}
                                                             </TableCell>
                                                         </>
@@ -3259,7 +3264,7 @@ export default function AttendanceSheetPage() {
                                                 })()}
 
                                                 {/* Status */}
-                                                <TableCell>
+                                                <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                                                             <Chip
@@ -3346,7 +3351,7 @@ export default function AttendanceSheetPage() {
 
                                                     {/* Action - SuperAdmin and Admin Edit, SuperAdmin Only Delete / Approve */}
                                                     {(isSuperAdmin || isAdmin) && (
-                                                        <TableCell align="center">
+                                                        <TableCell align="center" sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.6 }}>
                                                                 {/* Super Admin Approval for >19h */}
                                                                 {isSuperAdmin && (() => {
@@ -3561,20 +3566,23 @@ export default function AttendanceSheetPage() {
                             </Box>
                         ) : (
                             <TableContainer sx={{ px: 1, overflowX: 'auto' }}>
-                                <Table sx={{ minWidth: 700 }}>
+                                <Table size="small" sx={{ minWidth: 700 }}>
                                     <TableHead>
                                         <TableRow>
                                             {['E NO', 'Staff Member', 'Month', 'Days Present', 'Leave Days', 'Total Hours', 'Worked Hours', 'Extra Hours', 'Less Hours', 'Actual OT or Loss Hours', 'Action'].map((h) => (
                                                 <TableCell
                                                     key={h}
+                                                    align={h === 'Action' ? 'center' : 'left'}
                                                     sx={{
-                                                        color: '#475569',
+                                                        color: 'text.secondary',
                                                         fontWeight: 700,
-                                                        fontSize: '0.875rem',
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.05em',
+                                                        fontSize: '0.8rem',
+                                                        bgcolor: mode === 'light' ? '#f8fafc' : '#1e293b',
+                                                        whiteSpace: 'nowrap',
+                                                        borderBottom: '2px solid',
                                                         borderColor: 'divider',
-                                                        py: 2,
+                                                        py: 1.25,
+                                                        px: 1.5,
                                                     }}
                                                 >
                                                     {h}
@@ -3585,7 +3593,7 @@ export default function AttendanceSheetPage() {
                                     <TableBody>
                                         {filteredMonthlyRecords.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={11} align="center" sx={{ color: '#94a3b8', py: 6 }}>
+                                                <TableCell colSpan={11} align="center" sx={{ color: '#94a3b8', py: 6, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                     No monthly attendance records found.
                                                 </TableCell>
                                             </TableRow>
@@ -3593,14 +3601,19 @@ export default function AttendanceSheetPage() {
                                             filteredMonthlyRecords.map((row, idx) => (
                                                 <TableRow
                                                     key={`monthly_row_${row.id}_${row.eNo}_${idx}`}
+                                                    hover
                                                     sx={{
-                                                        '&:hover': { backgroundColor: 'action.hover' },
-                                                        '& td': { borderColor: 'divider' },
-                                                        transition: 'background 0.15s',
+                                                        '&:nth-of-type(even)': {
+                                                            bgcolor: mode === 'light' ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.01)',
+                                                        },
+                                                        '&:hover': {
+                                                            bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.04) !important' : 'rgba(37, 99, 235, 0.1) !important',
+                                                        },
+                                                        transition: 'background-color 0.15s ease',
                                                     }}
                                                 >
                                                     {/* E NO */}
-                                                    <TableCell>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                         <Chip
                                                             label={row.eNo}
                                                             size="small"
@@ -3616,17 +3629,17 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Staff Member */}
-                                                    <TableCell sx={{ color: 'text.primary', fontSize: 14, fontWeight: 500 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: 'text.primary', fontSize: '0.825rem', fontWeight: 600 }}>
                                                         {row.name}
                                                     </TableCell>
 
                                                     {/* Month */}
-                                                    <TableCell sx={{ color: 'text.secondary', fontSize: 13 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: 'text.secondary', fontSize: '0.8rem' }}>
                                                         {row.month}
                                                     </TableCell>
 
                                                     {/* Days Present */}
-                                                    <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                         <Chip
                                                             label={`${row.daysPresent || 0} ${row.daysPresent === 1 ? 'day' : 'days'}`}
                                                             size="small"
@@ -3642,7 +3655,7 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Leave Days */}
-                                                    <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                         <Chip
                                                             label={`${row.leaves || 0} ${row.leaves === 1 ? 'day' : 'days'}`}
                                                             size="small"
@@ -3658,19 +3671,19 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Total Hours */}
-                                                    <TableCell sx={{ color: 'text.secondary', fontWeight: 600, fontSize: 13 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: 'text.secondary', fontWeight: 600, fontSize: '0.8rem' }}>
                                                         {typeof row.totalDays === 'number' ? `${row.totalDays * 9} hrs` : '198 hrs'}
                                                     </TableCell>
 
                                                     {/* Worked Hours */}
-                                                    <TableCell sx={{ color: 'text.primary', fontWeight: 600, fontSize: 13 }}>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider', color: 'text.primary', fontWeight: 600, fontSize: '0.8rem' }}>
                                                         {typeof row.totalHours === 'string'
                                                             ? (row.totalHours.includes('h') || row.totalHours.includes('m') || row.totalHours.includes('hrs') ? row.totalHours : `${row.totalHours} hrs`)
                                                             : `${row.totalHours} hrs`}
                                                     </TableCell>
 
                                                     {/* OT Hours */}
-                                                    <TableCell>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                         <Chip
                                                             label={typeof row.otHours === 'string'
                                                                 ? (row.otHours.includes('h') || row.otHours.includes('m') || row.otHours.includes('hrs') ? row.otHours : `${row.otHours} hrs`)
@@ -3687,7 +3700,7 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Less Hours */}
-                                                    <TableCell>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                         <Chip
                                                             label={typeof row.lessHours === 'string'
                                                                 ? (row.lessHours.includes('h') || row.lessHours.includes('m') || row.lessHours.includes('hrs') ? row.lessHours : `${row.lessHours} hrs`)
@@ -3704,7 +3717,7 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Actual OT or Loss Hours */}
-                                                    <TableCell>
+                                                    <TableCell sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                         {(() => {
                                                             const val = calculateActualOtOrLoss(row.otHours, row.lessHours);
                                                             const isPositive = val.startsWith('+');
@@ -3728,7 +3741,7 @@ export default function AttendanceSheetPage() {
                                                     </TableCell>
 
                                                     {/* Action */}
-                                                    <TableCell>
+                                                    <TableCell align="center" sx={{ py: 1.25, px: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                                                         <Button
                                                             variant="outlined"
                                                             size="small"
@@ -3741,6 +3754,8 @@ export default function AttendanceSheetPage() {
                                                                 fontWeight: 600,
                                                                 borderColor: '#cbd5e1',
                                                                 color: '#334155',
+                                                                py: 0.4,
+                                                                px: 1.2,
                                                                 '&:hover': {
                                                                     borderColor: '#3b82f6',
                                                                     backgroundColor: '#eff6ff',
