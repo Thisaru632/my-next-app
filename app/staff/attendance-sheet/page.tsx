@@ -1651,11 +1651,8 @@ export default function AttendanceSheetPage() {
             'Location In',
             'Location Out',
             'Hour Count (HH:MM)',
-            'Hour Count (Decimal)',
             'Extra Hours (HH:MM)',
-            'Extra Hours (Decimal)',
             'Less Hours (HH:MM)',
-            'Less Hours (Decimal)',
             'Status',
             'Notes / Session Details'
         ];
@@ -1709,11 +1706,8 @@ export default function AttendanceSheetPage() {
                 `"${inLoc}"`,
                 `"${outLoc}"`,
                 `"${formatMinutesToHHMM(rawWorkedMins)}"`,
-                `"${formatMinutesToDecimalHours(rawWorkedMins)}"`,
                 `"${formatMinutesToHHMM(rawExtraMins)}"`,
-                `"${formatMinutesToDecimalHours(rawExtraMins)}"`,
                 `"${formatMinutesToHHMM(rawLessMins)}"`,
-                `"${formatMinutesToDecimalHours(rawLessMins)}"`,
                 `"${r.status || ''}"`,
                 `"${notes.replace(/"/g, '""')}"`
             ].join(',');
@@ -1729,11 +1723,8 @@ export default function AttendanceSheetPage() {
             '""',
             '""',
             `"${formatMinutesToHHMM(totalWorkedMins)}"`,
-            `"${formatMinutesToDecimalHours(totalWorkedMins)}"`,
             `"${formatMinutesToHHMM(totalExtraMins)}"`,
-            `"${formatMinutesToDecimalHours(totalExtraMins)}"`,
             `"${formatMinutesToHHMM(totalLessMins)}"`,
-            `"${formatMinutesToDecimalHours(totalLessMins)}"`,
             '""',
             '""'
         ].join(',');
@@ -1873,11 +1864,8 @@ export default function AttendanceSheetPage() {
                     'Location In',
                     'Location Out',
                     'Total Hours Worked (HH:MM)',
-                    'Total Hours Worked (Decimal)',
                     'Extra Hours (OT) (HH:MM)',
-                    'Extra Hours (OT) (Decimal)',
                     'Less Hours (HH:MM)',
-                    'Less Hours (Decimal)',
                     'Status',
                     'SuperAdmin Approval',
                     'Session Details'
@@ -2004,11 +1992,8 @@ export default function AttendanceSheetPage() {
                             escapeCsv(clockInLoc),
                             escapeCsv(clockOutLoc),
                             escapeCsv(formatMinutesToHHMM(rawWorkedMins)),
-                            escapeCsv(formatMinutesToDecimalHours(rawWorkedMins)),
                             escapeCsv(formatMinutesToHHMM(rawExtraMins)),
-                            escapeCsv(formatMinutesToDecimalHours(rawExtraMins)),
                             escapeCsv(formatMinutesToHHMM(rawLessMins)),
-                            escapeCsv(formatMinutesToDecimalHours(rawLessMins)),
                             escapeCsv(status),
                             escapeCsv(approvalStatus),
                             escapeCsv(sessionDetails)
@@ -2035,9 +2020,7 @@ export default function AttendanceSheetPage() {
                     'Days Leave',
                     'Days Absent',
                     'Total Hours Worked (HH:MM)',
-                    'Total Hours Worked (Decimal)',
                     'Total OT Hours (HH:MM)',
-                    'Total OT Hours (Decimal)',
                     ...dateHeaders
                 ];
 
@@ -2113,9 +2096,7 @@ export default function AttendanceSheetPage() {
                         escapeCsv(daysLeave),
                         escapeCsv(daysAbsent),
                         escapeCsv(formatMinutesToHHMM(totalWorkedMinutes)),
-                        escapeCsv(formatMinutesToDecimalHours(totalWorkedMinutes)),
                         escapeCsv(formatMinutesToHHMM(totalOtMinutes)),
-                        escapeCsv(formatMinutesToDecimalHours(totalOtMinutes)),
                         ...dailyCells.map(escapeCsv)
                     ].join(','));
                 });
@@ -2144,12 +2125,8 @@ export default function AttendanceSheetPage() {
             'Total Hours (HH:MM)',
             'Total Hours (Decimal)',
             'Worked Hours (HH:MM)',
-            'Worked Hours (Decimal)',
             'Extra Hours (HH:MM)',
-            'Extra Hours (Decimal)',
             'Less Hours (HH:MM)',
-            'Less Hours (Decimal)',
-            'Actual OT or Loss Hours (HH:MM)',
             'Actual OT or Loss Hours (Decimal)'
         ];
 
@@ -2188,12 +2165,8 @@ export default function AttendanceSheetPage() {
                 `"${formatMinutesToHHMM(targetHoursMins)}"`,
                 `"${formatMinutesToDecimalHours(targetHoursMins)}"`,
                 `"${formatMinutesToHHMM(workedMins)}"`,
-                `"${formatMinutesToDecimalHours(workedMins)}"`,
                 `"${formatMinutesToHHMM(extraMins)}"`,
-                `"${formatMinutesToDecimalHours(extraMins)}"`,
                 `"${formatMinutesToHHMM(lessMins)}"`,
-                `"${formatMinutesToDecimalHours(lessMins)}"`,
-                `"${formatMinutesToHHMM(netMins, true)}"`,
                 `"${formatMinutesToDecimalHours(netMins)}"`
             ].join(',');
         });
@@ -2207,12 +2180,8 @@ export default function AttendanceSheetPage() {
             `"${formatMinutesToHHMM(totalTargetMinutesSum)}"`,
             `"${formatMinutesToDecimalHours(totalTargetMinutesSum)}"`,
             `"${formatMinutesToHHMM(totalWorkedMinutesSum)}"`,
-            `"${formatMinutesToDecimalHours(totalWorkedMinutesSum)}"`,
             `"${formatMinutesToHHMM(totalExtraMinutesSum)}"`,
-            `"${formatMinutesToDecimalHours(totalExtraMinutesSum)}"`,
             `"${formatMinutesToHHMM(totalLessMinutesSum)}"`,
-            `"${formatMinutesToDecimalHours(totalLessMinutesSum)}"`,
-            `"${formatMinutesToHHMM(totalNetMinutesSum, true)}"`,
             `"${formatMinutesToDecimalHours(totalNetMinutesSum)}"`
         ].join(',');
 
@@ -2239,11 +2208,8 @@ export default function AttendanceSheetPage() {
             'Clock Out',
             'Location',
             'Hour Count (HH:MM)',
-            'Hour Count (Decimal)',
             'Extra Hours (HH:MM)',
-            'Extra Hours (Decimal)',
             'Less Hours (HH:MM)',
-            'Less Hours (Decimal)',
             'Status',
             'Notes'
         ];
@@ -2277,11 +2243,8 @@ export default function AttendanceSheetPage() {
                 `"${outTime}"`,
                 `"${loc}"`,
                 `"${formatMinutesToHHMM(rawWorkedMins)}"`,
-                `"${formatMinutesToDecimalHours(rawWorkedMins)}"`,
                 `"${formatMinutesToHHMM(rawExtraMins)}"`,
-                `"${formatMinutesToDecimalHours(rawExtraMins)}"`,
                 `"${formatMinutesToHHMM(rawLessMins)}"`,
-                `"${formatMinutesToDecimalHours(rawLessMins)}"`,
                 `"${log.status || ''}"`,
                 `"${notes.replace(/"/g, '""')}"`
             ].join(',');
@@ -2294,11 +2257,8 @@ export default function AttendanceSheetPage() {
             '""',
             '""',
             `"${formatMinutesToHHMM(totalWorkedMins)}"`,
-            `"${formatMinutesToDecimalHours(totalWorkedMins)}"`,
             `"${formatMinutesToHHMM(totalExtraMins)}"`,
-            `"${formatMinutesToDecimalHours(totalExtraMins)}"`,
             `"${formatMinutesToHHMM(totalLessMins)}"`,
-            `"${formatMinutesToDecimalHours(totalLessMins)}"`,
             '""',
             '""'
         ].join(',');
