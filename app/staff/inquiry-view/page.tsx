@@ -27,6 +27,9 @@ import {
     MenuItem,
     FormControl,
     InputLabel,
+    Checkbox,
+    ListItemText,
+    OutlinedInput,
 } from '@mui/material';
 import {
     ContactSupport as ContactSupportIcon,
@@ -229,6 +232,7 @@ export default function InquiryViewPage() {
 
     // Filter and Pagination state
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [selectedDateColIdx, setSelectedDateColIdx] = useState<number | 'auto'>('auto');
@@ -298,6 +302,7 @@ export default function InquiryViewPage() {
             setFileName(fileTitle);
             setPage(0);
             setSortColumnIndex(null);
+            setSelectedStatuses([]);
             setStartDate('');
             setEndDate('');
             setSelectedDateColIdx('auto');
@@ -388,6 +393,7 @@ export default function InquiryViewPage() {
         setFileName('');
         setParseError(null);
         setSearchQuery('');
+        setSelectedStatuses([]);
         setStartDate('');
         setEndDate('');
         setSelectedDateColIdx('auto');
@@ -451,7 +457,33 @@ export default function InquiryViewPage() {
         return null;
     }, [selectedDateColIdx, dateColumnOptions, headers]);
 
-    // Filter and sort rows (Search + Date Range + Sort)
+    // Find status column index (e.g., 'Approved', 'Status', 'Inquiry Status', 'Driver Status', 'State', etc.)
+    const statusColIdx = useMemo(() => {
+        const exactIdx = headers.findIndex(h => {
+            const lower = (h || '').toLowerCase().trim();
+            return lower === 'status' || lower === 'approved' || lower === 'approval status' || lower === 'state' || lower === 'inquiry status' || lower === 'driver status';
+        });
+        if (exactIdx !== -1) return exactIdx;
+        return headers.findIndex(h => {
+            const lower = (h || '').toLowerCase().trim();
+            return lower.includes('status') || lower.includes('approved') || lower.includes('approval');
+        });
+    }, [headers]);
+
+    // Unique status options from records
+    const availableStatuses = useMemo(() => {
+        if (statusColIdx === -1 || rows.length === 0) return [];
+        const statusMap = new Map<string, string>();
+        rows.forEach(r => {
+            const val = (r[statusColIdx] || '').trim();
+            if (val && !statusMap.has(val.toLowerCase())) {
+                statusMap.set(val.toLowerCase(), val);
+            }
+        });
+        return Array.from(statusMap.values()).sort((a, b) => a.localeCompare(b));
+    }, [rows, statusColIdx]);
+
+    // Filter and sort rows (Search + Date Range + Status + Sort)
     const filteredRows = useMemo(() => {
         let result = rows;
 
@@ -484,6 +516,15 @@ export default function InquiryViewPage() {
             result = result.filter(row => row.some(cell => cell.toLowerCase().includes(q)));
         }
 
+        // 2.5. Status Filter (multi-selectable)
+        if (selectedStatuses.length > 0 && statusColIdx !== -1) {
+            const allowedSet = new Set(selectedStatuses.map(s => s.toLowerCase().trim()));
+            result = result.filter(row => {
+                const cellVal = (row[statusColIdx] || '').toLowerCase().trim();
+                return allowedSet.has(cellVal);
+            });
+        }
+
         // 3. Column Sorting
         if (sortColumnIndex !== null && sortColumnIndex < headers.length) {
             result = [...result].sort((a, b) => {
@@ -506,7 +547,7 @@ export default function InquiryViewPage() {
         }
 
         return result;
-    }, [rows, headers, searchQuery, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
+    }, [rows, headers, searchQuery, selectedStatuses, statusColIdx, startDate, endDate, selectedDateColIdx, dateColumnOptions, sortColumnIndex, sortDirection]);
 
     // Paginated rows
     const paginatedRows = useMemo(() => {
@@ -533,7 +574,7 @@ export default function InquiryViewPage() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', fileName ? `export_${fileName}` : 'inquiry_view_data.csv');
+        link.setAttribute('download', fileName ? `export_${fileName}` : 'driver_database_data.csv');
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -651,11 +692,11 @@ export default function InquiryViewPage() {
     };
 
     return (
-        <Box sx={{ pb: 6 }}>
+        <Box sx={{ pb: 1 }}>
             {/* Header Title Section */}
             <Box
                 sx={{
-                    mb: 3,
+                    mb: 1.5,
                     display: 'flex',
                     flexDirection: { xs: 'column', md: 'row' },
                     alignItems: { xs: 'flex-start', md: 'center' },
@@ -682,10 +723,10 @@ export default function InquiryViewPage() {
                         </Box>
                         <Box>
                             <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary', letterSpacing: '-0.02em' }}>
-                                Inquiry View
+                                Driver Database
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
-                                Upload and inspect customer inquiry CSV manifests with database persistence and real-time tabular analysis
+                                Upload and inspect driver database CSV manifests with database persistence and real-time tabular analysis
                             </Typography>
                         </Box>
                     </Box>
@@ -866,6 +907,10 @@ export default function InquiryViewPage() {
                     borderColor: 'divider',
                     bgcolor: 'background.paper',
                     overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: { xs: 'auto', md: 'calc(100vh - 175px)' },
+                    minHeight: 560,
                 }}
             >
                 {/* Search & Filter Toolbar */}
@@ -889,37 +934,104 @@ export default function InquiryViewPage() {
                             gap: 2,
                         }}
                     >
-                        {/* Search Input */}
-                        <TextField
-                            size="small"
-                            placeholder="Search across all CSV columns and rows..."
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value);
-                                setPage(0);
-                            }}
-                            disabled={headers.length === 0 || loadingFromDb}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                                    </InputAdornment>
-                                ),
-                                endAdornment: searchQuery ? (
-                                    <InputAdornment position="end">
-                                        <IconButton size="small" onClick={() => setSearchQuery('')}>
-                                            <ClearIcon sx={{ fontSize: 18 }} />
-                                        </IconButton>
-                                    </InputAdornment>
-                                ) : null,
-                            }}
-                            sx={{
-                                minWidth: { xs: '100%', sm: 280, md: 320 },
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: '10px',
-                                }
-                            }}
-                        />
+                        {/* Search Input & Status Filter */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', flex: 1 }}>
+                            <TextField
+                                size="small"
+                                placeholder="Search across all CSV columns and rows..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setPage(0);
+                                }}
+                                disabled={headers.length === 0 || loadingFromDb}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: searchQuery ? (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => setSearchQuery('')}>
+                                                <ClearIcon sx={{ fontSize: 18 }} />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ) : null,
+                                }}
+                                sx={{
+                                    minWidth: { xs: '100%', sm: 260, md: 300 },
+                                    flex: { xs: '1 1 100%', sm: '1 1 260px' },
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: '10px',
+                                    }
+                                }}
+                            />
+
+                            {/* Multi-Select Status Filter */}
+                            {statusColIdx !== -1 && availableStatuses.length > 0 && (
+                                <FormControl
+                                    size="small"
+                                    sx={{
+                                        minWidth: { xs: '100%', sm: 180, md: 200 },
+                                        flex: { xs: '1 1 100%', sm: '0 1 200px' },
+                                    }}
+                                >
+                                    <InputLabel id="inq-status-multi-label" sx={{ fontSize: '0.825rem' }}>
+                                        Status
+                                    </InputLabel>
+                                    <Select
+                                        labelId="inq-status-multi-label"
+                                        id="inq-status-multi-select"
+                                        multiple
+                                        value={selectedStatuses}
+                                        onChange={(e) => {
+                                            const val = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
+                                            setSelectedStatuses(val as string[]);
+                                            setPage(0);
+                                        }}
+                                        input={<OutlinedInput label="Status" sx={{ borderRadius: '10px' }} />}
+                                        renderValue={(selected) => {
+                                            if (selected.length === 0) return 'All Statuses';
+                                            if (selected.length <= 2) {
+                                                return (
+                                                    <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 0.5, overflow: 'hidden' }}>
+                                                        {selected.map((val) => (
+                                                            <Chip
+                                                                key={val}
+                                                                label={val}
+                                                                size="small"
+                                                                sx={{
+                                                                    height: 20,
+                                                                    fontSize: '0.7rem',
+                                                                    fontWeight: 600,
+                                                                    bgcolor: mode === 'light' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(37, 99, 235, 0.25)',
+                                                                    color: 'primary.main',
+                                                                }}
+                                                            />
+                                                        ))}
+                                                    </Box>
+                                                );
+                                            }
+                                            return `${selected.length} statuses selected`;
+                                        }}
+                                        disabled={headers.length === 0 || loadingFromDb}
+                                        sx={{
+                                            borderRadius: '10px',
+                                            fontSize: '0.825rem',
+                                            '& .MuiSelect-select': { py: '8.5px' },
+                                        }}
+                                    >
+                                        {availableStatuses.map((status) => (
+                                            <MenuItem key={status} value={status} sx={{ fontSize: '0.825rem', py: 0.5 }}>
+                                                <Checkbox size="small" checked={selectedStatuses.indexOf(status) > -1} sx={{ p: 0.5, mr: 0.5 }} />
+                                                <ListItemText primary={status} primaryTypographyProps={{ fontSize: '0.825rem' }} />
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            )}
+                        </Box>
 
                         {/* Date Range Filter Group */}
                         {headers.length > 0 && !loadingFromDb && (
@@ -1073,6 +1185,20 @@ export default function InquiryViewPage() {
                                     />
                                 )}
 
+                                {selectedStatuses.length > 0 && (
+                                    <Chip
+                                        label={`Status (${selectedStatuses.length}): ${selectedStatuses.join(', ')}`}
+                                        size="small"
+                                        color="primary"
+                                        variant="outlined"
+                                        onDelete={() => {
+                                            setSelectedStatuses([]);
+                                            setPage(0);
+                                        }}
+                                        sx={{ borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600 }}
+                                    />
+                                )}
+
                                 {sortColumnIndex !== null && (
                                     <Chip
                                         label={`Sorted: ${headers[sortColumnIndex]} (${sortDirection.toUpperCase()})`}
@@ -1083,13 +1209,14 @@ export default function InquiryViewPage() {
                                 )}
                             </Box>
 
-                            {(startDate || endDate || searchQuery || sortColumnIndex !== null) && (
+                            {(startDate || endDate || searchQuery || selectedStatuses.length > 0 || sortColumnIndex !== null) && (
                                 <Button
                                     size="small"
                                     onClick={() => {
                                         setStartDate('');
                                         setEndDate('');
                                         setSearchQuery('');
+                                        setSelectedStatuses([]);
                                         setSortColumnIndex(null);
                                         setPage(0);
                                     }}
@@ -1164,6 +1291,7 @@ export default function InquiryViewPage() {
                             variant="outlined"
                             onClick={() => {
                                 setSearchQuery('');
+                                setSelectedStatuses([]);
                                 setStartDate('');
                                 setEndDate('');
                                 setPage(0);
@@ -1175,7 +1303,7 @@ export default function InquiryViewPage() {
                     </Box>
                 ) : (
                     <>
-                        <TableContainer sx={{ maxHeight: 650, overflowX: 'auto' }}>
+                        <TableContainer sx={{ flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto' }}>
                             <Table stickyHeader size="small" sx={{ minWidth: 650 }}>
                                 <TableHead>
                                     <TableRow>
