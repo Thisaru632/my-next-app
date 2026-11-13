@@ -10,7 +10,7 @@ import { AccountCircle, Logout, Call } from "@mui/icons-material";
 
 const navLinks = [
   { label: "Home", href: "/" },
-  // { label: "Promotion", href: "/promotion" },
+  { label: "Offers", href: "/offers" },
   { label: "About Us", href: "/about_us" },
   // { label: "Mobile Apps", href: "/mobile-apps" },
   { label: "Contact Us", href: "/contact" },
@@ -85,7 +85,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
           {/* Desktop Links */}
           <ul className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => {
-              const isActive = pathname === link.href || (link.href.startsWith('/privacy-and-policies') && pathname.startsWith('/privacy-and-policies'));
+              const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href)) || (link.href.startsWith('/privacy-and-policies') && pathname.startsWith('/privacy-and-policies'));
 
               return (
                 <li key={link.label}>
@@ -204,7 +204,7 @@ export default function Navbar({ isHeroPage = true }: NavbarProps) {
       {isOpen && (
         <div className={`md:hidden ${isLightHeader ? "bg-white border-t border-gray-100" : "bg-black/80 backdrop-blur-md border-t border-white/10"} px-4 py-2`}>
           {navLinks.map((link) => {
-            const isActive = pathname === link.href || (link.href.startsWith('/privacy-and-policies') && pathname.startsWith('/privacy-and-policies'));
+            const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href)) || (link.href.startsWith('/privacy-and-policies') && pathname.startsWith('/privacy-and-policies'));
 
             return (
               <Link
