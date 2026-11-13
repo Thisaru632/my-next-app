@@ -176,7 +176,7 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
         {/* ======================================================== */}
         <section className="w-full pt-24 sm:pt-28 px-4 sm:px-6 flex justify-center">
           <div className="w-full max-w-4xl">
-            <div className="relative w-full aspect-[1024/814] rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg border border-slate-200">
+            <div className="relative w-full aspect-[1024/746] rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg border border-slate-200">
               <Image
                 src="/offers/wagonr-hero-banner.jpg"
                 alt="Wagon R Promotion"
