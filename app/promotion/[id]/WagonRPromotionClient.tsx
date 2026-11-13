@@ -168,73 +168,23 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
     }
   };
 
-  const whatsappMessage = encodeURIComponent(
-    "Hello Senu Cabs, I would like to inquire about the Wagon R promotion (15% OFF - Rs. 83 per km)."
-  );
-
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col justify-between">
       <div className="w-full">
         {/* ======================================================== */}
-        {/* SECTION 1: TOP HERO BANNER (BLUE GRADIENT + WAGON R CAR) */}
+        {/* SECTION 1: PROMOTIONAL HERO BANNER IMAGE */}
         {/* ======================================================== */}
-        <section className="relative w-full bg-gradient-to-br from-[#0060b8] via-[#0074d9] to-[#0284c7] pt-28 sm:pt-32 pb-10 sm:pb-14 px-4 sm:px-6 lg:px-12 text-white overflow-hidden shadow-lg">
-          <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
-            {/* Left Content */}
-            <div className="flex-1 text-left w-full">
-              <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-                WAGON R ප්‍රවර්ධනය
-              </h1>
-              <p className="text-xl sm:text-3xl font-extrabold text-[#ffd200] mt-1 tracking-wide">
-                - 15% වට්ටමක්
-              </p>
-
-              <div className="mt-4 sm:mt-5 space-y-1 sm:space-y-1.5 text-white/95">
-                <p className="text-base sm:text-xl font-bold text-white">
-                  ආරම්භක මිල: <span className="text-[#ffd200] font-extrabold">කි.මී. 1කට රු. 83 සිට</span>
-                </p>
-                <p className="text-sm sm:text-base font-semibold text-white/90">
-                  අවම ගමන් දුර: කි.මී. 1
-                </p>
-                <p className="text-sm sm:text-base font-semibold text-white/90">
-                  රියදුරු සමග පමණි
-                </p>
-              </div>
-
-              {/* Action Buttons Row */}
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <a
-                  href={`https://wa.me/94702787787?text=${whatsappMessage}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-[#ff6a00] hover:bg-[#e85d00] active:scale-95 text-white font-bold px-5 py-2.5 rounded-lg text-sm sm:text-base shadow-md transition-all duration-150 inline-flex items-center gap-2"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>WhatsApp</span>
-                </a>
-
-                <a
-                  href="tel:0112787787"
-                  className="bg-[#ff6a00] hover:bg-[#e85d00] active:scale-95 text-white font-bold px-5 py-2.5 rounded-lg text-sm sm:text-base shadow-md transition-all duration-150 inline-flex items-center gap-2"
-                >
-                  <Phone className="w-4 h-4" />
-                  <span>0112 787 787 / 0702 787 787</span>
-                </a>
-              </div>
-            </div>
-
-            {/* Right Car Image */}
-            <div className="flex-1 w-full flex justify-center md:justify-end">
-              <div className="relative w-full max-w-[380px] sm:max-w-[460px] aspect-[4/3] flex items-center justify-center">
-                <Image
-                  src="/Vehicle images/Wagon R/front.png"
-                  alt="Suzuki Wagon R - Senu Cabs & Tours"
-                  fill
-                  priority
-                  sizes="(max-width: 768px) 100vw, 460px"
-                  className="object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.35)]"
-                />
-              </div>
+        <section className="w-full pt-24 sm:pt-28 px-4 sm:px-6 flex justify-center">
+          <div className="w-full max-w-4xl">
+            <div className="relative w-full aspect-[1024/814] rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg border border-slate-200">
+              <Image
+                src="/offers/wagonr-hero-banner.jpg"
+                alt="Wagon R Promotion"
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 896px"
+                className="object-cover"
+              />
             </div>
           </div>
         </section>
