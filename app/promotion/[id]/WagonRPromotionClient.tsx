@@ -3,11 +3,11 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import Footer from '@/components/footer';
-import { 
-  Users, 
-  Briefcase, 
-  Wind, 
-  ShieldCheck, 
+import {
+  Users,
+  Briefcase,
+  Wind,
+  ShieldCheck,
   TrendingUp,
   X,
   Phone,
@@ -247,6 +247,31 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
                   24/7 සේවාව
                 </span>
               </div>
+
+              {/* Item 5 */}
+              <div className="flex items-center gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <TrendingUp className="w-8 h-8 stroke-current" />
+                </div>
+                <div>
+                  <span className="font-bold text-gray-900 text-base sm:text-lg block leading-snug">
+                    වසර 8ක විශ්වසනීය පළපුරුද්ද සමඟින් සේවාව.
+                  </span>
+                  <span className="text-xs sm:text-sm font-medium text-slate-500 block mt-0.5">
+                    (Serving you with 8 years of trusted experience.)
+                  </span>
+                </div>
+              </div>
+
+              {/* Item 6 */}
+              <div className="flex items-center gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <MapPin className="w-8 h-8 stroke-current" />
+                </div>
+                <span className="font-bold text-gray-900 text-base sm:text-lg leading-snug">
+                  රියදුරු සිටින ස්ථානය සජීවීව නිරීක්ෂණය කිරීමේ (Live tracking & monitoring) පහසුකම.
+                </span>
+              </div>
             </div>
           </section>
 
@@ -294,7 +319,7 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
                 {/* Step 3 */}
                 <div className="flex flex-col items-center">
                   <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 mb-2 shadow-xs">
-                    <Bike className="w-7 h-7 stroke-[1.8]" />
+                    <Car className="w-7 h-7 stroke-[1.8]" />
                   </div>
                   <span className="text-xs sm:text-sm font-bold text-gray-800 leading-snug">
                     3. ගමන භුක්ති විඳින්න
@@ -305,7 +330,89 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
           </section>
 
           {/* ======================================================== */}
-          {/* SECTION 4: OUR SERVICES (3 CARDS) */}
+          {/* SECTION 3.5: SPECIAL OFFER & BENEFITS */}
+          {/* ======================================================== */}
+          <section className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-100">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-[#003366] text-center mb-8 sm:mb-10 tracking-tight">
+              විශේෂ දීමනා සහ කොන්දේසි
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 max-w-3xl mx-auto">
+              {/* Item 1 */}
+              <div className="flex items-start gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <MapPin className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
+                  ඔබගේ ගමන කිලෝමීටර් 250 කට වඩා වැඩි විය යුතුය.
+                </span>
+              </div>
+
+              {/* Item 2 */}
+              <div className="flex items-start gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <Car className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
+                  ස්වයං ධාවනය සඳහා ලබා නොදේ (Self-drive නැත) – පළපුරුදු රියදුරෙකු සමඟ පමණක් ලබා දෙනු ලැබේ.
+                </span>
+              </div>
+
+              {/* Item 3 */}
+              <div className="flex items-start gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
+                  සුවිශේෂී දීමනාව: නොමිලේ පැය 12ක කාලයක්!
+                </span>
+              </div>
+
+              {/* Item 3 */}
+              <div className="flex items-start gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
+                  විශ්වාසවන්ත සේවාව: කිසිදු සැඟවුණු ගාස්තුවක් නොමැත (No Hidden Charges)
+                </span>
+              </div>
+
+              {/* Item 4 */}
+              <div className="flex items-start gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
+                  ආරක්ෂාව සහ පහසුව: රියදුරුගේ සියලු විස්තර ගමනට දිනකට පෙර ඔබට ලැබෙනු ඇත.
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* ======================================================== */}
+          {/* SECTION 4: CTA BANNER (BLUE BANNER + ORANGE BUTTON) */}
+          {/* ======================================================== */}
+          <section className="relative w-full bg-gradient-to-r from-[#005fb8] via-[#0074d9] to-[#0284c7] rounded-3xl p-6 sm:p-10 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 text-white overflow-hidden">
+            <div className="text-center sm:text-left">
+              <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-sm">
+                දැන්ම වෙන්කරවා ගන්න
+              </h3>
+                <p className="text-white/90 text-xs sm:text-sm mt-1">
+                  දැන්ම වෙන්කරවා ගැනීමට Book Now බොත්තම මත Click කරන්න
+                </p>
+            </div>
+
+            <button
+              onClick={handleOpenBookingDialog}
+              className="bg-[#ff6a00] hover:bg-[#e85d00] active:scale-95 text-white font-extrabold text-base sm:text-lg px-8 py-3.5 rounded-2xl shadow-lg shadow-black/20 hover:shadow-black/30 transition-all duration-200 cursor-pointer flex-shrink-0"
+            >
+              Book Now
+            </button>
+          </section>
+
+          {/* ======================================================== */}
+          {/* SECTION 5: OUR SERVICES (3 CARDS) */}
           {/* ======================================================== */}
           <section className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-100">
             <h2 className="text-xl sm:text-2xl font-extrabold text-[#003366] text-center mb-8 sm:mb-10 tracking-tight">
@@ -363,27 +470,6 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
             </div>
           </section>
 
-          {/* ======================================================== */}
-          {/* SECTION 5: BOTTOM CTA BANNER (BLUE BANNER + ORANGE BUTTON) */}
-          {/* ======================================================== */}
-          <section className="relative w-full bg-gradient-to-r from-[#005fb8] via-[#0074d9] to-[#0284c7] rounded-3xl p-6 sm:p-10 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 text-white overflow-hidden">
-            <div className="text-center sm:text-left">
-              <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-sm">
-                දැන්ම වෙන්කරවා ගන්න
-              </h3>
-              <p className="text-white/80 text-xs sm:text-sm mt-1">
-                Senu Cabs & Tours සමඟ සුරක්ෂිත, විශ්වාසවන්ත සේවාව
-              </p>
-            </div>
-
-            <button
-              onClick={handleOpenBookingDialog}
-              className="bg-[#ff6a00] hover:bg-[#e85d00] active:scale-95 text-white font-extrabold text-base sm:text-lg px-8 py-3.5 rounded-2xl shadow-lg shadow-black/20 hover:shadow-black/30 transition-all duration-200 cursor-pointer flex-shrink-0"
-            >
-              Book Now
-            </button>
-          </section>
-
           {/* Terms & Policies Link */}
           <div className="text-center pt-2 pb-6">
             <button
@@ -434,7 +520,7 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
 
         {!bookingSubmitted ? (
           <DialogContent sx={{ p: 4, pt: 5 }}>
-            <Typography sx={{ 
+            <Typography sx={{
               fontWeight: 800,
               fontSize: '1.65rem',
               color: '#0f172a',
@@ -444,8 +530,8 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
               Wagon R වෙන්කරවා ගැනීම
             </Typography>
 
-            <Typography sx={{ 
-              fontSize: '0.875rem', 
+            <Typography sx={{
+              fontSize: '0.875rem',
               color: '#64748b',
               mb: 3.5,
               lineHeight: 1.6,
