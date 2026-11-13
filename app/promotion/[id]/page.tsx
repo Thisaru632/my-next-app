@@ -1,6 +1,7 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
 import PromotionDetailClient from './PromotionDetailClient';
+import WagonRPromotionClient from './WagonRPromotionClient';
 
 interface PromotionDetail {
   id: string;
@@ -132,6 +133,10 @@ export default async function PromotionDetailPage({ params }: PageProps) {
   // If promotion doesn't exist, redirect back to promotions list page
   if (!promo) {
     redirect('/promotion');
+  }
+
+  if (id === 'wagonr') {
+    return <WagonRPromotionClient promo={promo} />;
   }
 
   return <PromotionDetailClient promo={promo} />;
