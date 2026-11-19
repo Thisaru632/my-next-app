@@ -179,6 +179,67 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
 
         {/* Main Content Container */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-12 sm:space-y-16">
+          {/* ======================================================== */}
+          {/* SPECIAL OFFERS & CONDITIONS SECTION */}
+          {/* ======================================================== */}
+          <section className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-100">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-[#003366] text-center mb-8 sm:mb-10 tracking-tight">
+              විශේෂ දීමනා සහ කොන්දේසි
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 max-w-3xl mx-auto">
+              {/* Item 1 */}
+              <div className="flex items-start gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <MapPin className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
+                  ඔබගේ ගමන කිලෝමීටර් 250 කට වඩා වැඩි විය යුතුය.
+                </span>
+              </div>
+
+              {/* Item 2 */}
+              <div className="flex items-start gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <Car className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
+                  ස්වයං ධාවනය සදහා ලබා නොදේ (Self-drive නැත) - පළපුරුදු රියදුරෙකු සමග පමණක් ලබා දෙනු ලැබේ.
+                </span>
+              </div>
+
+              {/* Item 3 */}
+              <div className="flex items-start gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
+                  සුවිශේෂී දීමනාව: නොමිලේ පැය 12ක කාලයක්!
+                </span>
+              </div>
+
+              {/* Item 4 */}
+              <div className="flex items-start gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
+                  විශ්වාසවන්ත සේවාව: කිසිදු සැඟවුණු ගාස්තුවක් නොමැත (No Hidden Charges)
+                </span>
+              </div>
+
+              {/* Item 5 */}
+              <div className="flex items-start gap-4 p-2">
+                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
+                  ආරක්ෂාව සහ පහසුව: රියදුරුගේ සියලු විස්තර ගමනට දිනකට පෙර ඔබට ලැබෙනු ඇත.
+                </span>
+              </div>
+            </div>
+          </section>
+
           {/* CTA Banner before Senu Cabs තෝරාගත යුත්තේ ඇයි? */}
           <section className="relative w-full bg-gradient-to-r from-[#005fb8] via-[#0074d9] to-[#0284c7] rounded-2xl sm:rounded-3xl py-3 px-4 sm:py-5 sm:px-8 shadow-md flex flex-row items-center justify-between gap-3 text-white overflow-hidden">
             <div className="text-left flex-1 min-w-0 pr-1">
@@ -372,67 +433,6 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
             >
               Book Now
             </button>
-          </section>
-
-          {/* ======================================================== */}
-          {/* SPECIAL OFFERS & CONDITIONS SECTION */}
-          {/* ======================================================== */}
-          <section className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-100">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-[#003366] text-center mb-8 sm:mb-10 tracking-tight">
-              විශේෂ දීමනා සහ කොන්දේසි
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 max-w-3xl mx-auto">
-              {/* Item 1 */}
-              <div className="flex items-start gap-4 p-2">
-                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
-                  <MapPin className="w-6 h-6" />
-                </div>
-                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
-                  ඔබගේ ගමන කිලෝමීටර් 250 කට වඩා වැඩි විය යුතුය.
-                </span>
-              </div>
-
-              {/* Item 2 */}
-              <div className="flex items-start gap-4 p-2">
-                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
-                  <Car className="w-6 h-6" />
-                </div>
-                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
-                  ස්වයං ධාවනය සදහා ලබා නොදේ (Self-drive නැත) - පළපුරුදු රියදුරෙකු සමග පමණක් ලබා දෙනු ලැබේ.
-                </span>
-              </div>
-
-              {/* Item 3 */}
-              <div className="flex items-start gap-4 p-2">
-                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
-                  සුවිශේෂී දීමනාව: නොමිලේ පැය 12ක කාලයක්!
-                </span>
-              </div>
-
-              {/* Item 4 */}
-              <div className="flex items-start gap-4 p-2">
-                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
-                  විශ්වාසවන්ත සේවාව: කිසිදු සැඟවුණු ගාස්තුවක් නොමැත (No Hidden Charges)
-                </span>
-              </div>
-
-              {/* Item 5 */}
-              <div className="flex items-start gap-4 p-2">
-                <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0 text-sky-600">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
-                <span className="font-bold text-gray-900 text-sm sm:text-base leading-relaxed">
-                  ආරක්ෂාව සහ පහසුව: රියදුරුගේ සියලු විස්තර ගමනට දිනකට පෙර ඔබට ලැබෙනු ඇත.
-                </span>
-              </div>
-            </div>
           </section>
 
           {/* ======================================================== */}
