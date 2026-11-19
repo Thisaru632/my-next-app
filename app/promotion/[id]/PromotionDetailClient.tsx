@@ -49,26 +49,11 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [policyOpen, setPolicyOpen] = useState(false);
 
-  const formatPhoneNumber = (value: string) => {
-    const clean = value.replace(/\D/g, '');
-    const limited = clean.slice(0, 10);
-    if (limited.length <= 3) {
-      return limited;
-    } else if (limited.length <= 6) {
-      return `${limited.slice(0, 3)} ${limited.slice(3)}`;
-    } else {
-      return `${limited.slice(0, 3)} ${limited.slice(3, 6)} ${limited.slice(6)}`;
-    }
-  };
-
   const handlePhoneChange = (val: string) => {
-    const formatted = formatPhoneNumber(val);
-    setBookingPhone(formatted);
+    const clean = val.replace(/\D/g, '').slice(0, 10);
+    setBookingPhone(clean);
     
-    const clean = formatted.replace(/\D/g, '');
-    if (clean === '') {
-      setPhoneError(null);
-    } else if (clean.length === 10) {
+    if (clean === '' || clean.length === 10) {
       setPhoneError(null);
     }
   };
@@ -78,7 +63,7 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
     if (!bookingPhone.trim()) {
       setPhoneError('Phone number is required');
     } else if (clean.length !== 10) {
-      setPhoneError('Phone number must be exactly 10 digits (e.g. 077 192 0470)');
+      setPhoneError('Phone number must be exactly 10 digits (e.g. 0771920470)');
     }
   };
 
@@ -404,6 +389,7 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
 
               <TextField
                 fullWidth
+                type="tel"
                 label="Phone Number"
                 variant="outlined"
                 value={bookingPhone}
@@ -411,7 +397,13 @@ export default function PromotionDetailClient({ promo }: PromotionDetailClientPr
                 onBlur={handlePhoneBlur}
                 error={!!phoneError}
                 helperText={phoneError}
-                placeholder="e.g. 077 192 0470"
+                placeholder="e.g. 0771920470"
+                inputProps={{
+                  inputMode: "numeric",
+                  pattern: "[0-9]*",
+                  autoComplete: "tel",
+                  maxLength: 10
+                }}
                 InputLabelProps={{ shrink: true }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
