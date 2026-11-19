@@ -238,6 +238,25 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
             </div>
           </section>
 
+          {/* CTA Banner under Senu Cabs තෝරාගත යුත්තේ ඇයි? */}
+          <section className="relative w-full bg-gradient-to-r from-[#005fb8] via-[#0074d9] to-[#0284c7] rounded-2xl sm:rounded-3xl py-3 px-4 sm:py-5 sm:px-8 shadow-md flex flex-row items-center justify-between gap-3 text-white overflow-hidden">
+            <div className="text-left flex-1 min-w-0 pr-1">
+              <h3 className="text-sm sm:text-xl md:text-2xl font-extrabold tracking-tight text-white leading-tight">
+                දැන්ම වෙන්කරවා ගන්න
+              </h3>
+              <p className="text-white/85 text-[10px] sm:text-xs mt-0.5 truncate sm:whitespace-normal">
+                Senu Cabs & Tours සමඟ සුරක්ෂිත, විශ්වාසවන්ත සේවාව
+              </p>
+            </div>
+
+            <button
+              onClick={handleOpenBookingDialog}
+              className="bg-[#ff6a00] hover:bg-[#e85d00] active:scale-95 text-white font-extrabold text-xs sm:text-base px-3.5 py-2 sm:px-7 sm:py-3 rounded-xl shadow-md transition-all duration-150 cursor-pointer flex-shrink-0 whitespace-nowrap"
+            >
+              Book Now
+            </button>
+          </section>
+
           {/* ======================================================== */}
           {/* SECTION 3: SUZUKI WAGONR DETAILS + 3 PROCESS STEPS */}
           {/* ======================================================== */}
@@ -290,6 +309,25 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
                 </div>
               </div>
             </div>
+          </section>
+
+          {/* CTA Banner under Suzuki WagonR විස්තර */}
+          <section className="relative w-full bg-gradient-to-r from-[#005fb8] via-[#0074d9] to-[#0284c7] rounded-2xl sm:rounded-3xl py-3 px-4 sm:py-5 sm:px-8 shadow-md flex flex-row items-center justify-between gap-3 text-white overflow-hidden">
+            <div className="text-left flex-1 min-w-0 pr-1">
+              <h3 className="text-sm sm:text-xl md:text-2xl font-extrabold tracking-tight text-white leading-tight">
+                දැන්ම වෙන්කරවා ගන්න
+              </h3>
+              <p className="text-white/85 text-[10px] sm:text-xs mt-0.5 truncate sm:whitespace-normal">
+                Senu Cabs & Tours සමඟ සුරක්ෂිත, විශ්වාසවන්ත සේවාව
+              </p>
+            </div>
+
+            <button
+              onClick={handleOpenBookingDialog}
+              className="bg-[#ff6a00] hover:bg-[#e85d00] active:scale-95 text-white font-extrabold text-xs sm:text-base px-3.5 py-2 sm:px-7 sm:py-3 rounded-xl shadow-md transition-all duration-150 cursor-pointer flex-shrink-0 whitespace-nowrap"
+            >
+              Book Now
+            </button>
           </section>
 
           {/* ======================================================== */}
@@ -349,27 +387,6 @@ export default function WagonRPromotionClient({ promo }: WagonRPromotionClientPr
                 </div>
               </div>
             </div>
-          </section>
-
-          {/* ======================================================== */}
-          {/* SECTION 5: BOTTOM CTA BANNER (BLUE BANNER + ORANGE BUTTON) */}
-          {/* ======================================================== */}
-          <section className="relative w-full bg-gradient-to-r from-[#005fb8] via-[#0074d9] to-[#0284c7] rounded-3xl p-6 sm:p-10 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 text-white overflow-hidden">
-            <div className="text-center sm:text-left">
-              <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white drop-shadow-sm">
-                දැන්ම වෙන්කරවා ගන්න
-              </h3>
-              <p className="text-white/80 text-xs sm:text-sm mt-1">
-                Senu Cabs & Tours සමඟ සුරක්ෂිත, විශ්වාසවන්ත සේවාව
-              </p>
-            </div>
-
-            <button
-              onClick={handleOpenBookingDialog}
-              className="bg-[#ff6a00] hover:bg-[#e85d00] active:scale-95 text-white font-extrabold text-base sm:text-lg px-8 py-3.5 rounded-2xl shadow-lg shadow-black/20 hover:shadow-black/30 transition-all duration-200 cursor-pointer flex-shrink-0"
-            >
-              Book Now
-            </button>
           </section>
 
           {/* Terms & Policies Link */}
