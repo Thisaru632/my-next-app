@@ -1068,7 +1068,7 @@ const LeadInfoPage: React.FC = () => {
                   <TableRow>
                     {/* Shared header cell sx */}
                     {(activeTab === 1
-                      ? ['Lead No', 'Lead Date & Time', 'Promotion Type', 'Name', 'Phone Number', 'Status', 'Action']
+                      ? ['Lead No', 'Lead Date & Time', 'Promotion Type', 'Name', 'Phone Number', 'Status', 'Employee', 'Action']
                       : [
                           'Lead ID',
                           'Lead Date & Time',
@@ -1228,6 +1228,18 @@ const LeadInfoPage: React.FC = () => {
                                   },
                                 }}
                               />
+                            </TableCell>
+
+                            {/* Employee */}
+                            <TableCell>
+                              <Typography sx={{
+                                fontSize: '0.9375rem',
+                                color: lead.employeeName ? 'text.primary' : 'text.disabled',
+                                fontWeight: lead.employeeName ? 500 : 400,
+                                fontStyle: lead.employeeName ? 'normal' : 'italic',
+                              }}>
+                                {lead.employeeName || 'Not Assigned'}
+                              </Typography>
                             </TableCell>
 
                             {/* Action */}
