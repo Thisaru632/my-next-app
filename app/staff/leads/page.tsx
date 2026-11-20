@@ -1034,7 +1034,7 @@ const LeadInfoPage: React.FC = () => {
                   <TableRow>
                     {/* Shared header cell sx */}
                     {(activeTab === 1
-                      ? ['Lead No', 'Promotion Type', 'Name', 'Phone Number', 'Status', 'Action']
+                      ? ['Lead No', 'Lead Date & Time', 'Promotion Type', 'Name', 'Phone Number', 'Status', 'Action']
                       : [
                           'Lead ID',
                           'Lead Date & Time',
@@ -1129,6 +1129,13 @@ const LeadInfoPage: React.FC = () => {
                                   {lead.customId || lead.id}
                                 </Typography>
                               </Box>
+                            </TableCell>
+
+                            {/* Lead Date & Time */}
+                            <TableCell>
+                              <Typography sx={{ fontSize: '0.875rem', color: 'text.primary', fontWeight: 500 }}>
+                                {formatDate(lead.leadDate, true)}
+                              </Typography>
                             </TableCell>
 
                             {/* Promotion Type */}
