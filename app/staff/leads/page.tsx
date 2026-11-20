@@ -34,6 +34,7 @@ import {
   InputLabel,
   Tabs,
   Tab,
+  Badge,
   Tooltip,
   Snackbar,
   Popover,
@@ -280,6 +281,18 @@ const LeadInfoPage: React.FC = () => {
 
     return filtered;
   }, [searchQuery, statusFilter, formTypeFilter, employeeFilter, leads, activeTab]);
+
+  // Count unpicked promotion leads
+  const unpickedPromotionsCount = useMemo(() => {
+    const promoPageCodes = ['SENUWAGON', 'SENUALTO', 'SENUKDH', 'SENUBUS'];
+    return leads.filter(
+      (lead) =>
+        lead.source === 'Online Booking' &&
+        lead.promoCode &&
+        promoPageCodes.includes(lead.promoCode.toUpperCase()) &&
+        !lead.employeeName
+    ).length;
+  }, [leads]);
 
   // Identify duplicate leads
   const duplicateLeadsIds = useMemo(() => {
@@ -978,7 +991,28 @@ const LeadInfoPage: React.FC = () => {
           }}
         >
           <Tab icon={<AssignmentIcon />} label="Booking Leads" />
-          <Tab icon={<LocalOfferIcon sx={{ color: activeTab === 1 ? '#f59e0b' : 'inherit' }} />} label="Promotions" />
+          <Tab
+            icon={
+              <Badge
+                badgeContent={unpickedPromotionsCount}
+                color="error"
+                sx={{
+                  '& .MuiBadge-badge': {
+                    backgroundColor: '#ef4444',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.72rem',
+                    height: 18,
+                    minWidth: 18,
+                    px: 0.5,
+                  },
+                }}
+              >
+                <LocalOfferIcon sx={{ color: activeTab === 1 ? '#f59e0b' : 'inherit' }} />
+              </Badge>
+            }
+            label="Promotions"
+          />
           <Tab icon={<CancelIcon sx={{ color: activeTab === 2 ? '#ef4444' : 'inherit' }} />} label="Complaints" />
           <Tab icon={<MessageIcon sx={{ color: activeTab === 3 ? '#8b5cf6' : 'inherit' }} />} label="General Inquiries" />
           <Tab icon={<CheckCircleIcon sx={{ color: activeTab === 4 ? '#10b981' : 'inherit' }} />} label="Feedback" />
@@ -1122,7 +1156,7 @@ const LeadInfoPage: React.FC = () => {
                                 <Typography
                                   sx={{
                                     fontWeight: 700,
-                                    color: '#3b82f6',
+                                    color: !lead.employeeName ? '#ef4444' : '#3b82f6',
                                     fontSize: '0.9375rem',
                                   }}
                                 >
